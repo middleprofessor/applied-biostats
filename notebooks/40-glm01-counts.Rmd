@@ -361,6 +361,11 @@ Diplo\_intensity &\sim Poisson(\mu)\\
 \eta &= \beta_0 + \beta_1 Uninfected + \beta_2 Infected\_LG + \beta_3 Infected\_HG
 \end{align}
 
+1. The first line of the model is the stochastic part stating the response is modeled as a random Poisson variable with mean and variance $\mu$ (the rate parameter $\lambda$ of the Poisson distribution).
+2. The second line states the $\mu$ is the conditional mean or conditional expectation
+3. The third line connects the conditional mean on the link scale ($\eta$) with the conditional mean on the response scale ($\mu$)
+4. The fourth line is the linear predictor, and includes three dummy variables.
+
 For model checking a GLM model fit, an alternative to a Normal Q-Q plot is a Quantile residual Q-Q plot of observed vs. expected **quantile residuals**. The basic algorithm for this is
 
 1. Use the model parameters to simulate $p$ fake values of the response for each row of the data. This will be a $n \times p$ matrix of fake data where each column is a new, random sample of a population with parameters equal to that estimated by the observed data.
@@ -382,6 +387,8 @@ if(plot_it==TRUE){
 
 # do this by hand
 plot_it <- TRUE
+n_row <- nrow(worm)
+
 if(plot_it==TRUE){
   fake_data <- cbind(worm[, Diplo_intensity], simulate(fit.pois, nsim = n_sim, seed = 101))
   
@@ -390,7 +397,9 @@ if(plot_it==TRUE){
   for(j in 1:n_sim){
     fake_data_2[,j] <- rpois(n_row, lambda=fitted(fit.pois))
   }
-  n_row <- nrow(worm)
+  fake_data_2 <- cbind(worm[, Diplo_intensity], fake_data_2)
+  # this works
+
   quantile_residuals <- numeric(n_row)
   for(i in 1:n_row){
     quantile_residuals[i] <- (rank(fake_data[i,])[1] - 1)/n_sim
@@ -442,17 +451,34 @@ Diplo\_intensity &\sim NB(\mu, k)\\
 \eta &= \beta_0 + \beta_1 Uninfected + \beta_2 Infected\_LG + \beta_3 Infected\_HG
 \end{align}
 
-```{r glm1-worm-nb, echo=FALSE}
-fit.nb <- glm.nb(Diplo_intensity ~ Treatment, data=worm)
-simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = 250)
-plot(simulationOutput, asFactor = F)
-testUniformity(simulationOutput = simulationOutput)
-testDispersion(simulationOutput)
+This model specifies a negative binomial link but otherwise is just like that above specifying a Poisson link.
 
-# do this by hand
+#### Model checking
+
+```{r glm1-worm-nb, echo=FALSE}
+n_sim <- 250
+fit.nb <- glm.nb(Diplo_intensity ~ Treatment, data=worm)
+
 plot_it <- FALSE
 if(plot_it==TRUE){
-  fake_data <- cbind(worm[, Diplo_intensity], simulate(fit.pois, nsim = n_sim, seed = 101))
+  simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = n_sim)
+  plot(simulationOutput, asFactor = F)
+  # testUniformity(simulationOutput = simulationOutput)
+  # testDispersion(simulationOutput)
+}
+
+# do this by hand
+plot_it <- TRUE
+if(plot_it==TRUE){
+  # do fake data by hand
+  fake_data <- matrix(NA, nrow=n_row, ncol=n_sim)
+  for(j in 1:n_sim){
+    fake_data[,j] <- rpois(n_row, lambda=fitted(fit.pois))
+    fake_data[,j] <- rnegbin(n_row, mu=fitted.values(fit.nb), theta=fit.nb$theta)
+  }
+  fake_data <- cbind(worm[, Diplo_intensity], fake_data)
+  # this works
+
   n_row <- nrow(worm)
   quantile_residuals <- numeric(n_row)
   for(i in 1:n_row){
@@ -474,5 +500,110 @@ if(plot_it==TRUE){
 
 ```
 
-## Using R
+A quantile residual Q-Q plot of the GLM model fit with negative binomial link is illustrated above. This looks pretty good.
+
+#### Model means and coefficients
+
+In a Generalized Linear Model of counts using either a Poisson or negative binomial link, modeled means, coefficients, and contrasts can be reported either on the link or response scale. Remember, the response scale is a count, while the link scale is a log(count).
+
+The modeled means on the link scale are
+
+```{r glm1-worm-means-link, echo=FALSE}
+# cell means link space
+emmeans(fit.nb, specs="Treatment")
+```
+
+While the means on response scale are
+```{r glm1-worm-means-response, echo=FALSE}
+emmeans(fit.nb, specs="Treatment", type="response")
+```
+
+1. A mean on the response scale is simply the exponent of the mean on the link scale. For example, the mean of the Control treatment level on the response scale is $\mathrm{exp}(1.821408) = 6.180555$.
+
+2. The CIs on the link scale are symmetric around the mean but those on the response scale are not. This is a feature, not a bug. Remember that counts are right skewed which means a CI will have a wider right than left interval. Check this!
+
+3. If a plot includes a 1 SE error bar on the response scale, this is technically correct but it encourages the practice of computing CIs using the 2*SE rule of thumb. This rule breaks down for count data with right skewed distributions.
+
+4. Plotting the response scale CIs is both technically correct and makes the 2*SE rule of thumb unnecessary.
+
+```{r glm1-worm-nb-ci, echo=FALSE, eval=FALSE}
+# link scale
+link <- data.table(summary(emmeans(fit.nb, specs="Treatment")))
+link[Treatment=="Control",asymp.UCL] - link[Treatment=="Control", emmean]
+link[Treatment=="Control",asymp.LCL] - link[Treatment=="Control", emmean]
+response <- data.table(summary(emmeans(fit.nb, specs="Treatment", type="response")))
+response[Treatment=="Control",asymp.UCL] - response[Treatment=="Control", response]
+response[Treatment=="Control",asymp.LCL] - response[Treatment=="Control", response]
+
+```
+
+The model coefficients on the link scale are
+
+```{r glm1-worm-nb-coeffs-link, echo=FALSE, message=FALSE}
+#cbind(coefficients(summary(fit.nb)), confint(fit.nb))
+emm <- emmeans(fit.nb, specs="Treatment")
+summary(contrast(emm, method="trt.vs.ctrl", adjust="none"), infer=c(TRUE, TRUE))
+```
+
+and on the response scale
+
+```{r glm1-worm-nb-coeffs-response, echo=FALSE}
+emm <- emmeans(fit.nb, specs="Treatment")
+summary(contrast(emm, method="trt.vs.ctrl", adjust="none", type="response"), infer=c(TRUE, TRUE))
+```
+
+Notice that the emmeans package reports the name of the term as the ratio of the coefficient term to the intercept term (the reference treatment level). This is because the coefficients on the response scale *are* ratios and effects are not additive but multiplicative! So, for example, the mean of the Infected HG treatment level on the response scale is $b_0*b_3$ (remember that with a linear model the mean would be $b_0 + b_3$). Check and see if this works.
+
+The effects (the coefficients) could be reported as these ratios in a table, or in the text it could be reported something like "Infected HG fish had 71.5% (95%CI: 38.9% - 111.8%) more *Diplostomum* larvae than Control fish." Where do these percents come from? The percent effect is $100(b_j - 1)$ larger than the reference mean if the $b_j > 1$ or $100(1 - b_j)$ smaller than the reference mean if the $b_j < 1$.
+
+
+```{r glm1-worm-percent, echo=FALSE, eval=FALSE}
+
+emm.response <- data.table(summary(emmeans(fit.nb, specs="Treatment", type="response")))
+coef.response <- exp(coef(fit.nb))
+
+# notice that exp(b0) = control mean
+# so Uninfected is 27.2% smaller than the control
+# this number is 100(1-b1)
+100*(1-coef.response[2])
+# does it work? This should equal the Uninfected mean
+emm.response[Treatment=="Control", response]*coef.response[2]
+```
+
+## Working in R
+
+Source publication: Benesh, D. P., & Kalbe, M. (2016). Experimental parasite community ecology: intraspecific variation in a large tapeworm affects community assembly. Journal of Animal Ecology, 85(4), 1004-1013.
+
+Source data URL: https://datadryad.org/resource/doi:10.5061/dryad.bq8j8
+
+Source file: "Lab_exp.csv"
+
+Poisson fit. The quantile residual Q-Q plot is from the package DHARMa
+
+```{r glm1-working-in-r}
+fit.pois <- glm(Diplo_intensity ~ Treatment, family="poisson", data=worm)
+
+# from the DHARMa package
+  n_sim <- 250
+  simulationOutput <- simulateResiduals(fittedModel = fit.pois, n = n_sim)
+  plot(simulationOutput, asFactor = F)
+
+```
+
+Negative binomial fit.
+
+```{r}
+fit.nb <- glm.nb(Diplo_intensity ~ Treatment, data=worm)
+# from the DHARMa package
+  simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = n_sim)
+  plot(simulationOutput, asFactor = F)
+
+# link scale
+emm <- emmeans(fit.nb, specs="Treatment")
+emm
+summary(contrast(emm, method="trt.vs.ctrl", adjust="none"), infer=c(TRUE, TRUE))
+
+emm.response <- emmeans(fit.nb, specs="Treatment", type="response")
+summary(contrast(emm, method="trt.vs.ctrl", adjust="none", type="response"), infer=c(TRUE, TRUE))
+```
 

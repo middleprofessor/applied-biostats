@@ -4,6 +4,7 @@ language:
     chapter_name: "Chapter "
 delete_merged_file: true
 rmd_files: ["index.Rmd",
+"notebooks/01-statistical-modeling.Rmd",
 "notebooks/04-setup.Rmd",
 "notebooks/06-data-reading_writing_and_fake.Rmd",
 "notebooks/10-uncertainty_sd_and_se.Rmd",
