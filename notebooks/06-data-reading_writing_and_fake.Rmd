@@ -1,0 +1,261 @@
+# Data -- Reading, Writing, and Fake
+
+## Create new notebook for this chapter
+
+Be sure to save the notebook in the "notebooks" folder of your BIO_413 project. Annotate your notebook with notes! Update it as you learn more! We will use data.table for importing text files in tab-delimited or comma-separated formats and the readxl package for importing excel files.
+
+```{r setup02, message=FALSE}
+library(ggplot2)
+library(ggpubr)
+library(data.table)
+library(readxl)
+library(emmeans)
+library(mvtnorm)
+
+knitr::opts_chunk$set(fig.width=6, fig.height=4) 
+```
+
+## Importing Data
+
+Throughout this book, we will download data from the [Dryad Digital Repository](https://datadryad.org){target="_blank"}, which is a major resource for increasing reproducibility in science. My own view is that *all data* should be archived on some public server (exceptions include data that are proprietary or contain sensitive information -- such as human health measures).
+
+The downloaded data will be inserted into the "data" folder. To access these data in an R script, the script needs to know "where to look" or the "address." This address is the **directory path**. The default path for an R notebook is the directory containing the notebook .Rmd file. This file should be in the "notebooks" folder within "BIO_413". The "BIO_413" Folder is the parent of the "notebooks" folder. It is also the parent of the "data" folder. To see any content within the "data" folder, the R script needs to tell R to move back (or up) the directory structure out of the "notebooks" folder into the parent "BIO_413" folder and then forward (or down) into the "data" folder. This is done with 
+
+```{r datapath}
+data_path <- "../data"
+```
+
+```{r bookdowndatapath, echo=FALSE}
+# need this for bookdown
+data_path <- "data"
+```
+
+The `..` moves the address (of where to read input or write output) back one step and `/data` moves the address forward into the "data" folder. This folder will eventually contains lots of data from Dryad Digital Repository.
+
+### Excel File
+The Excel dataset is from an experiment on the growth response of zebra finch chicks to an incubation call that presumably signals "hot environment" to the embryos ([Mariette, M.M. and Buchanan, K.L., 2016. Prenatal acoustic communication programs offspring for high posthatching temperatures in a songbird. Science, 353(6301), pp.812-814](http://science.sciencemag.org/content/353/6301/812){target="_blank"}). The source file is from the Dryad Repository here: 
+
+**file name**: "allDatasetsMarietteBuchanan2016.xls"
+
+**source**: https://datadryad.org//handle/10255/dryad.122315
+
+Steps
+
+1. Copy the title of the Dryad page, which is "Data from: Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+2. Create a new folder within "data" and paste in the copied title as the folder name
+3. Remove the colon from the name, so the folder name is "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+4. Download the .xls file into this folder
+
+A .xls file is an old (pre 2007) Microsoft Excel file type. It is a binary file and can only be opened into a readable format with specialized software. The more modern Excel file type is .xlsx, which contains within it multiple xml components. An xml file is a text file, and so contains readable content, but the content is xml code to display something. In general, I am a big advocate of archiving stuff as text files (manuscripts, data, scripts, blog posts) because these will *always* be readable by future software. Microsoft Excel is not likely to die anytime soon and software that can read .xls and especially .xlsx files (again, .xlsx files are text files) is even less likely to disappear but we can feel even more confident if data are archived as text files. That said, a single microsoft excel file with multiple sheets is an efficient method for distributing data and the readxl package provides excellent tools for reading different sheets of a single .xls or .xlsx file.
+
+The code below uses the function `read_excel()` from the package readxl. More about the amazing power of this package is the [tidyverse page](https://readxl.tidyverse.org){target="_blank"} and [chapter 11](http://r4ds.had.co.nz/data-import.html){target="_blank"} in the *R for Data Science* book.
+
+```{r import-chick-xls}
+data_folder <- "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+filename <- "allDatasetsMarietteBuchanan2016.xls"
+file_path <- paste(data_path, data_folder, filename, sep="/")
+chick <- data.table(read_excel(file_path, sheet="nestlingMass"))
+head(chick) # check -- are there headers? are there the correct number of columns?
+```
+
+***
+**NOTE**
+
+If you are getting errors when trying to read a file, it is probably a bug in the construction of the variable `file_path`, which is a string variable and the value has to be exactly match the directly path to the file you are trying to read. `file_path` is constructed by pasting together the variables `data_path`, `data_folder`, and `filename`. Type `file_path` into the console and look at the value. Then check
+
+1. Spelling. Humans are very good at understanding misspelled words but the R language (or any computer language) is very literal. "../data" does not equal "./data" or "../ data" or "../data "
+2. Capitalization. R is **case sensitive** (some programming languages are not). "../data" does not equal "../Data" or "../DATA".
+3. is the file you are trying to read actually in the folder you are trying to read from?
+4. is the notebook that you are writing in the folder "notebooks"? (the construction of `file_path` assumes that notebook is one folder deep within the project folder.
+
+If the spelling or capitalization of any of these components is wrong, then `file_path` will be wrong. If there is any difference in any character in the string, then R will return an error. So spelling AND capitalization have to be perfect, not simply close. Humans are very good at understanding misspelled and OdDLy capitalized words but the R language (or any computer language) is very literal.
+
+***
+
+In this book, we will consistently uses the protocol for storing and retrieving downloaded files. The first three lines in the script above creates the directory path to the file. This path includes
+
+1. data_path -- the relative path into the folder "data" (relative to the location of the notebook file)
+2. data_folder -- the name of the folder within "data" containing the file
+3. filename -- the name of the file to read
+
+These are all put together into a single path using the function `paste()`. Read about paste. It will be used repeatedly. The `read_excel(file_path, sheet="nestlingMass")` reads the nestlingMass sheet only. This function is embedded within the `data.table()` function and so is converted into a data.table. The data.table is assigned to the object "chick"
+
+The `head(chick)` script simply displays the first few lines of the data.table. This is one way to check that the data were imported correctly. In this case, it is easy to see that the column names have spaces in them. It can sometimes be hard to work with column names with spaces and so this next line of code changes all spaces to an underscore
+
+```{r clean-chick}
+setnames(chick, old=colnames(chick), new=gsub(" ", "_", colnames(chick)))
+```
+
+Resist the temptation to change the column names in the data file, which reduces reproducibility. Always increase reproducibility!
+
+Just for fun, let's plot the data and reproduce Fig. 2A and B. We are using the `qplot` function, which is from the ggplot2 package. Two plots are made and only a subset of the rows are plotted in each (in A, the subset in which playback_treatment=="treat" and, in B, the subset in which playback_treatment=="cont"). This book uses the ggplot2 package extensively.
+
+```{r plotchickdata}
+qplot(x=nest_temperature_above_ambient, y=day13_mass, data=chick[playback_treatment=="treat"]) +
+  geom_smooth(method="lm")
+
+qplot(x=nest_temperature_above_ambient, y=day13_mass, data=chick[playback_treatment=="cont"]) +
+  geom_smooth(method="lm")
+
+```
+
+### Text File
+The example dataset comes from an experiment on the effect of [neonicotinoid pesticides on bumble bee colony growth](http://science.sciencemag.org/content/early/2012/03/28/science.1215025){target="_blank"}.
+
+**file name**: "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
+
+**source**: https://datadryad.org//resource/doi:10.5061/dryad.1805c973
+
+Steps
+
+1. Copy the title of the Dryad page, which is "Data from: Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+2. Create a new folder within "data" and paste in the copied title as the folder name
+3. Remove the colon from the name, so the folder name is "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+4. Download the .csv file into this folder
+
+A .csv file is a text file that is comma-delimted, which means that the entries of a row are separated by commas. A text file is readable by any text editor software and most other kinds of software. Datasets that are stored as text files are typically saved as either .csv (where the entries of a row are separated by commas) or .txt (where the entries are separated by tabs). The base R way to read a .csv file is using `read.csv`. The `read.table` function is more versatile, as the delimiter can be specified. The function `fread()` from the data.table package is fast, smart, and flexible. It is smart in the sense that it guesses what the delimter is. Unfortunately, because of spaces in the column labels for this file, fread guesses incorrectly (another reason why spaces in column labels should be avoided). To overcome this, the statement below specifies that the file contains a "header" (a line containing column labels)
+
+```{r import-bee-csv}
+data_folder <- "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+filename <- "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
+file_path <- paste(data_path, data_folder, filename, sep="/")
+bee <- fread(file_path, header=TRUE)
+bee[, Treatment:=factor(Treatment, c("Control", "Low", "High"))]
+head(bee)
+```
+
+Here, as with the import of the Excel file, the first three lines create the directory path to the file. The treatment column is a factor variable containing three levels (Control, Low, and High). R automatically orders these alphabetically. For plotting and analysis, we might want a different order. For example, we want Control to be first in the order, since this is a natural "reference" level (what everything is compared to). And if we think of "Control" as no treatment, then it makes sense to have "Low" second in order and "Hight" last in order. The line `bee[, Treatment:=factor(Treatment, c("Control", "Low", "High"))]` re-orders these levels to this more meaningful order.
+
+Again, there are spaces in the column names. **Here I'll leave it to you to change this**
+
+```{r clean-bee, echo=FALSE}
+setnames(bee, old=colnames(bee), new=gsub(" ", "_", colnames(bee)))
+```
+
+Here is a reproduction of Fig 2.
+
+```{r plot-bee-fig-2}
+ggbarplot(data=bee, x="Treatment", y="New_queens", add = c("mean_se"))
+```
+
+The plot suggests immediately some problems with the plot itself and the associated analysis. First, the y-axis is counts, which means that negative values are impossible. But the standard error bars look like they use standard errors computed from a model that allows infinetly large negative values, and the illustrated standard error bars imply that negative values exist. So these error bars are misleading. Second, it is good practice, especially if sample sizes are modest or small, to "show the data", which means, show the individual data points and not just a summary of the distribution.
+
+Here are three alternative plots for exploratory purposes. The first simply "shows the data" but still uses the misleading standard error bars. The second uses a box plot. The last plots the means and 95% confidence intervals modeled with a GLM (generalized linear model) to account for the count data (the model used could be improved). Notice that the bar length above the mean is longer than the bar length below the mean (that is the interval is asymmetric about the mean). In order to stay focussed on importing data, I leave explanation of these plots and analysis to later chapters.
+```{r alternative-plots}
+ggbarplot(data=bee, x="Treatment", y="New_queens", add = c("mean_se", "point"))
+
+ggboxplot(data=bee, x="Treatment", y="New_queens")
+
+fit.glm <- glm(New_queens ~ Treatment, data=bee, family=poisson())
+means.glm <- emmeans(fit.glm, specs="Treatment", type = "response")
+gg <- ggplot(data=data.frame(means.glm), aes(x=Treatment, y=rate)) +
+  geom_col(fill="gray") + 
+  geom_errorbar(aes(x=Treatment, ymin=asymp.LCL, ymax=asymp.UCL), width=0.3) +
+  ylab("New queens") +
+  NULL
+gg
+```
+
+## Creating Fake Data
+### Continuous X (fake observational data)
+
+A very simple simulation of a regression model
+```{r continuous-X}
+n <- 25
+beta_0 <- 25
+beta_1 <- 3.4
+sigma <- 2
+x <- rnorm(n)
+y <- beta_0 + beta_1*x + rnorm(n, sd=sigma)
+qplot(x, y)
+knitr::kable(coefficients(summary(lm(y ~ x))), digits=2)
+```
+
+The coefficient of $x$ is the "Estimate". How close is the estimate? Run the simulation several times to look at the variation in the estimate -- this will give you a sense of the uncertainty. Increase $n$ and explore this uncertainty. Increase all the way up to $n=10^5$. Commenting out the qplot line will make this exploration easier.
+
+### Categorical X (fake experimental data)
+
+```{r categorical-X}
+n <- 5
+
+fake_data <- data.table(Treatment=rep(c("control", "treated"), each=n))
+beta_0 <- 10.5 # mean of untreated
+beta_1 <- 2.1 # difference in means (treated - untreated)
+sigma <- 3 # the error standard deviation
+# the Y variable ("Response") is a function of treatment. We use some matrix
+# algebra to get this done.
+# Turn the Treatment assignment into a model matrix. Take a peak at X!
+X <- model.matrix(~ Treatment, fake_data)
+# to make the math easier the coefficients are collected into a vector
+beta <- c(beta_0, beta_1)
+# you will see the formula Y=Xb many times. Here it is coded in R
+fake_data[, Response:=X%*%beta + rnorm(n, sd=sigma)]
+# plot it with a strip chart (often called a "dot plot")
+ggstripchart(data=fake_data, x="Treatment", y="Response", add = c("mean_se"))
+# fit using base R linear model function
+fit <- lm(Response ~ Treatment, data=fake_data)
+# display a pretty table of the coefficients
+knitr::kable(coefficients(summary(fit)), digits=3)
+```
+
+Check that the intercept is close to beta_0 and the coefficient for Treatment is close to beta_1. This coefficient is the different in means between the treatment levels. It is the simulated effect. Again, change $n$. Good values are $n=20$ and $n=100$. Again, comment out the plot line to make exploration more efficient.
+
+## Saving Data
+
+Let's save the fake data to the "Fake_Data" folder. In the "output" folder create a new folder named "week 01". Then set the path to the output folder:
+
+```{r output-path}
+output_path <- "../output" # out to parent directory than down into Fake_data
+```
+
+```{r output-path-bookdown, echo=FALSE}
+output_path <- "output" # out to parent directory than down into Fake_data
+```
+
+This could be done at the beginning of the notebook, especially if many output files are saved. Regardless, now complete the file_path with the specifics of this save.
+
+```{r saving}
+data_folder <- "week 01"
+filename <- "my_first_fake_data.txt"
+file_path <- paste(output_path, data_folder, filename, sep="/")
+write.table(fake_data, file_path, sep="\t", quote=FALSE)
+```
+
+We used `write.table()` to create a tab-delimited text file using `sep="\t"` to specify tabs to separate the row elements. "\t" is the standard character string for a tab. Check in your Fake_Data folder and open the file in a text editor.
+
+## Problems
+
+1. Download the dataset "data-Lodjak.et.al-2016-FuncEcol.xlsx" from the Dryad repository at https://datadryad.org/resource/doi:10.5061/dryad.rd01s. The .xlsx file presents the data cleanly but the trade-off is that the 1) multiple header rows, and 2) spaces in the header labels, 3) parentheses in the header labels make it more complex to import in a usable way. Import the data and plot Body Mass against Age (that is make Body Mass the "Y" variable and Age the "X" variable) using the qplot function. You should recode the column labels to remove spaces and parentheses using the setnames function.
+
+```{r problem1, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
+data_folder <- "Data from Causal link between insulin-like growth factor 1 and growth in nestlings of a wild passerine bird"
+filename <- "data-Lodjak.et.al-2016-FuncEcol.xlsx"
+file_path <- paste(data_path, data_folder, filename, sep="/")
+igf <- data.table(read_excel(file_path, sheet="Body mass data", range="B3:F1433"))
+#new_names <- c("Nest_ID", "Manipulation_group", "Nestling_ID", "Age", "Body_mass")
+#setnames(igf, old=colnames(igf), new=new_names)
+setnames(igf, old=colnames(igf), new=gsub("[(.*)]","", colnames(igf)))
+qplot(x=Age, y=Body_mass, data=igf)
+```
+
+2. Download the dataset "Results2015.txt" from the Dryad repository at https://datadryad.org//resource/doi:10.5061/dryad.65vk4. Try to reproduce Fig. 1. It's not easy. I've inserted the figure below.
+
+```{r problem2, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
+data_folder <- "Data from Dung beetles reduce livestock gastrointestinal parasite availability on pasture"
+filename <- "Results2015.txt"
+file_path <- paste(data_path, data_folder, filename, sep="/")
+dung <- fread(file_path)
+setnames(dung, old=colnames(dung), new=gsub(" ", "_", colnames(dung)))
+head(dung)
+gg <- ggplot(data=dung, aes(x=Watered, y=L3_Average)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0, 198))
+  NULL
+gg
+```
+
+3. (grad students only) Download and plot data from a Dryad Repository dataset of your choice.
+
+4. (grad students only) Create fake experimental data with three treatment levels (control, lo_temp, high_temp). This will require three parameters: an intercept (beta_0), an effect of lo_temp (beta_1), and an effect of high_temp (beta_2). You should be able to plug and play from the script above even if you don't underdstand at this point what any of it is! Plot it as a strip chart, as above.
+
+![Fig. 1 from "Dung beetles reduce livestock..." ](images/Dung_beetles_reduce_livestock-fig_1.png){ width=50% }

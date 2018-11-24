@@ -1,0 +1,285 @@
+---
+title: "28-factorial"
+output: html_notebook
+---
+
+# Two (or more) Categorical $X$ -- Factorial designs
+
+```{r factorial-setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(data.table)
+library(ggplot2)
+library(emmeans) # pooled CIs
+library(phia) # interaction plot
+library(doBy)
+library(harrellplot)
+library(car)
+library(broom)
+library(cowplot)
+
+data_path <- "../data" # notebook
+data_path <- "data" # bookdown
+
+#source("../R/gg_interaction.R")
+source("R/gg_interaction.R")
+```
+
+```{r factorial-urchin-import, echo=FALSE}
+folder <- "Data from Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins"
+filename <- "urchin.txt"
+file_path <- paste(data_path, folder, filename, sep="/")
+urchin <- fread(file_path)
+```
+
+## Factorial experiments 
+A factorial experiment is one in which there are two or more categorical $X$ that are **crossed**, so the groups contain different combinations of levels of each factor. Factorial experiments are used to estimate the **interaction** between factors. Let's explore this using data from xxx
+
+The urchin data are from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100) and the factors are crossed, so this is a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
+
+![The urchin experimental design as a 2 x 2 table ](images/2x2_table.png){ width=50% }
+
+The upper left cell contains the 13C level with the Temperature factor and the 400 µAtm level within the CO2 factor. The replicates in this cell were grown with no added treatments, so this cell is the "control" for Temp and the control for CO2, which we will use as the "reference" group for the linear model. The replicates in the lower left cell were grown with an added temperature treatment (in this case, a 5 C higher temperature). The replicates in the upper right cell were grown an added CO2 treatment (a 700 µATM higher CO2). And finally, the replicates in the bottom right cell were grown with both the added temperature (+5 C) and added CO2 (+700 µATM). Here, I use a "+" or "-" to designate the addition (or not) of the treatment, so our $2 \times 2$ treatment levels are Temp-/CO2-, Temp+/CO2-, Temp-/CO2+ and Temp+/CO2+.
+
+### Model coefficients: an interaction effect is what is leftover after adding the treatment effects to the control
+
+A factorial design allows a researcher to estimate the interaction between two factors. To clarify this, let's fit the factorial model and look at the coefficient table. The fit model is
+
+\begin{equation}
+Resp_i = b_0 + b_1 Temp^+ + b_2 CO2^+ + b_3 Temp^+ CO2^+ + e_i
+\end{equation}
+%
+Again, $Temp^+$ and $CO2^+$ are dummy variables. The model also includes $Temp^+ CO2^+$, which is a dummy variable for the interaction between Temp and CO2. The value of this interaction dummy variable is literally the product of the two main factor dummy variables ($Temp^+$ and $CO2^+$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
+
+```{r urchin-dummy, echo=FALSE}
+urchin1 <- copy(urchin)
+# change factor levels for analysis aesthetics
+urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
+urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
+dt <- urchin1[, .SD, .SDcols=c("Resp", "Temp", "CO2")]
+dt <- rbind(dt[Temp=="-" & CO2=="-"][1:2,],
+            dt[Temp=="+" & CO2=="-"][1:2,],
+            dt[Temp=="-" & CO2=="+"][1:2,],
+            dt[Temp=="+" & CO2=="+"][1:2,]
+            )
+fit_dummy <- lm(Resp ~ Temp*CO2, data=dt)
+model_matrix <- model.matrix(fit_dummy)
+knitr::kable(model_matrix)
+```
+
+The coefficient table is
+
+```{r urchin-full-model, echo=FALSE}
+urchin1 <- copy(urchin)
+# change factor levels for analysis aesthetics
+urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
+urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
+
+fit <- lm(Resp ~ Temp*CO2, data=urchin1)
+ci <- confint(fit)
+knitr::kable(coef(summary(fit)), digits=c(2,2,1,3))
+```
+
+The Intercept ($b_0$) is the mean (8.23) of the reference (Temp-/CO2-) group, and so the mean of the upper left cell in Table 1). The Temp+ coefficient ($b_1$) is the estimate of the added temperature effect relative to the reference, and so is the mean of the lower left cell minus the mean of the upper left cell ($b_1=\bar{Y}_{Temp^+}-\bar{Y}_{-/-}$). The CO2+ coefficient ($b_2$) is the estimate of the added CO2 effect relative to the reference, and so is the mean of the upper right cell minus the mean of the upper left cell ($b_2=\bar{Y}_{CO2^+}-\bar{Y}_{-/-}$). The Temp+:CO2+ coefficient ($b_3$) is the estimate of the **interaction effect**, which is the effect in addition to the Temp$^+$ and CO2$^+$ effects. If you added $b_1$ and $b_2$ to $b_0$, you would get the mean of the Temp$^+$/CO2$^+$ group *if the effects were purely additive*. So the interaction effect is the difference between the mean of the bottom right cell and the sum of the coefficients of the other three cells ($b_3 = \bar{Y}_{Temp^+CO2^+} - (b0 + b1 + b2)$). An interaction is a **non-additive effect**. Think about this. Adding 5 C increases respiration by 4.51 units. Adding 700 $\mu$ATM CO2 decreases respiration by .32 units. If these effects were purely additive, then adding both 5 C and 700 $\mu$ATM should result in a mean of 8.23 + 4.51 - .32 = 12.42 units for the Temp$^+$/CO2$^+$ group. What is the mean of this group?
+
+9.74! So the difference between the ``additive expectation'' and the actual mean is $9.74 - 12.42 = -2.68$, which is the interaction effect (coefficient).
+
+### What is the biological meaning of an interaction effect?
+I can dead lift 150 pounds and my friend Jake can deadlift 175 pounds. Working together, we should be able to lift 325 pounds. What if together, we could actually lift 400 pounds? If this were the case, this would be an interaction with an effect equal to 75 pounds. Is this biologically plausible? If so, what is the mechanism? Here is a possible mechanism (although I am highly skeptical of it having a magnitude of 75 pounds): when lifting an object as part of a group, the central nervous system allows increased motor unit recruitment, and so each person can lift more weight than they could if lifting alone. A positive interaction like this is called *synergistic*. Always think about the biological meaning of an interaction effect.
+
+### What about models with more than two factors?
+A factorial model can have more than two factors, for example, a model with three factors (A, B, and C), each with two levels (which I'll designate with a "+"), is
+
+\begin{equation}
+Y = \beta_0 + \beta_1 A^+ + \beta_1 B^+ + \beta_3 C^+ + \beta_4 A^+ B^+ + \beta_5 A^+ C^+ + \beta_6 B^+ C^+ + \beta_7 A^+ B^+ C^+ + \varepsilon
+\end{equation}
+
+It is easy enough to get an ANOVA table with $p$-values for this model but I don't recommend it because
+
+1. If space and/or time and/or materials are limited then it typically makes more sense to prioritize the power to estimate standard errors by choosing one of the two-factor models and increasing sample size
+2. Interaction effects in 2-factor models are hard enough to interpret. A 3-way interaction is very, very tough to interpret. If all we did was table up $F$-ratios and $p$-values, this wouldn't matter. But it does matter.
+
+### The additive model
+
+Sometimes researchers fit reduced models. For example, the $p$-value for the interaction effect in the full model is 0.079, which is not statististically significant. This would lead some researchers to explicitly conclude (mistakenly), that there is no interaction between CO2 and Temp and that the effects of CO2 and Temp on metabolism are **additive** (see below). This would lead others (controversially) to refit the model excluding the interaction term:
+
+\begin{equation}
+Resp_i = b_0 + b_1Temp^+ + b_2CO2^+ + e_i
+\end{equation}
+%
+This particular reduced model is often referred to as the **additive model**, since it excludes the the interaction term, which is a *product* of other terms. Indeed, the title of the urchin paper is "Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins, *Strongylocentrotus purpuratus*." It is important to recognize that unless the interaction effect is precisely zero, the coefficients of Temp+ and CO2+ will change. Here are the coefficients of the additive model
+
+```{r urchin-reduced-model, echo=FALSE}
+fit <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
+knitr::kable(coef(summary(fit)), digits=c(2,2,1,3))
+```
+
+For several reasons, one should not drop a term because $p>0.05$.
+
+1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
+2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or event that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
+
+### Contrasts -- simple vs. main effects
+
+In a $m \times p$ design, there are $mp$ cell means and, therefore, $mp(mp-1)/2$ pairwise contrasts. For the urchin data, these are
+
+1. Temp+/CO2- - Temp-/CO2-  (bottom left - top left)
+2. Temp+/CO2+ - Temp-/CO2+  (bottom right - top right)
+3. Temp-/CO2+ - Temp-/CO2-  (top right - top left)
+4. Temp+/CO2+ - Temp+/CO2-  (bottom right - bottom left)
+5. Temp-/CO2+ - Temp+/CO2-  (top right - bottom left)
+6. Temp+/CO2+ - Temp-/CO2-  (bottom right - top left)
+
+(1) and (2) are the **simple effects** of Temp at each level of CO2. (3) and (4) are the simple effects of CO2 at each level of Temp. (5) is the response of the CO2 treatment at the reference level of Temp minus the response of the Temp treatment at the reference level of CO2. This probably is not a very interesting contrast. (6) is the combined response of Temp and CO2, including the interaction, minus the control. This also is unlikely to be of much interest.
+
+```{r urchin-simple-effects, echo=FALSE}
+# recode factor levels for aesthetics
+urchin2 <- copy(urchin1)
+urchin2[, CO2:=factor(ifelse(CO2=="-","CO2-", "CO2+"))]
+urchin2[, Temp:=factor(ifelse(Temp=="-", "Temp-", "Temp+"))]
+
+fit <- lm(Resp ~ Temp*CO2, data=urchin2)
+knitr::kable(summary(pairs(emmeans(fit, specs=c("Temp", "CO2")), adjust="none", reverse=TRUE), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
+```
+
+**Main effects** are contrasts between 
+```{r urchin-main, echo=FALSE, eval=FALSE}
+
+fit <- lm(Resp ~ Temp*CO2, data=urchin2)
+knitr::kable(summary(pairs(emmeans(fit, specs=c("Temp")), adjust="none"), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
+
+fit <- lm(Resp ~ Temp+CO2, data=urchin2)
+knitr::kable(summary(pairs(emmeans(fit, specs=c("Temp")), adjust="none"), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
+
+fit <- lm(Resp ~ Temp, data=urchin2)
+knitr::kable(summary(pairs(emmeans(fit, specs=c("Temp")), adjust="none"), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
+
+```
+
+## Reporting results
+
+### Text results
+
+The effect of the increased temperature at the control CO2 level was 4.5 (95% CI: 2.4, 6.7; $p < 0.001$) pmol O2/hr/larva. The effect of increased CO2 at the control temperature was -0.3 (95% CI: -2.4, 1.8; $p=.76$) pmol O2/hr/larva. The interaction effect was -2.7 (95% CI: -5.7, 0.3; $p = 0.079$) pmol O2/hr/larva. Because of the relatively large interaction, the effect of temperature at the high level of CO2 was less than half the effect at the low level of CO2 (estimate: 1.82; 95% CI: -0.3, 4.0; $p = 0.091$) and the effect of CO2 at the high level of Temp was 10 times greater than that at the low level of Temp (estimate: -3.0; 95% CI: -5.1, -.9; $p = 0.0084$).
+
+The CI on the interaction includes both large negative values and trivially small values, including zero, and, consequently, our data is compatible with both scientific models (that is, we can neither support nor reject the predictions of the scientific model using these results).
+
+### Harrellplot
+
+If the focus is on the interaction, then a Harrell Plot of coefficients is a good choice for communicating this.
+
+```{r urchin-harrellplot1, echo=FALSE}
+harrellplot(x="Temp", y="Resp", g="CO2", contrasts.method = "coefficients", data=urchin2)$gg
+```
+
+The plot shows that a relatively big and positive Temp effect, a relatively small CO2 effect (and one with too much noise to have any confidence of the sign) and a intermediate interaction effect. In the original paper, the researchers were testing a scientific (not statistical!) model that predicted no interaction, and the researchers argued that these data support this model because of the small p-value for this effect (see the table above). Well, the data do support that model (one end of the 95% CI for the interaction includes zero, and other very small values) but they also support a model of a large interaction (the other end of the 95% CI includes large negative effects). The data are too course (or the signal:noise ratio is to small) to have much confidence in the size of the interaction effect. Some comments:
+
+1. It is not valid to claim that an effect "doesn't" exist because p > 0.05 (see chapter xxx)
+2. Researchers need to draw conclusions based on *both* ends of the CI, as well as the mean!
+3. A sample size of 6 will generally be very low power to get a precise estimate of the interaction unless the sampling variability is very small.
+
+If we are more interested in differences between the different treatment combinations, then a Harrell plot with the contrasts is a good way to communicate this.
+
+```{r urchin-harrellplot2, echo=FALSE}
+harrellplot(x="Temp", y="Resp", g="CO2", data=urchin2)$gg
+```
+The four contrasts are differences between the means of pairs of cells in the $2 \times 2$ table:
+
+1. "Temp+: CO2+ - CO2-" -- lower right - lower left
+2. "Temp-: CO2+ - CO2-" -- upper right - upper left
+3. "CO2+: Temp+ - Temp-" -- lower right - upper right
+4. "CO2-: Temp+ - Temp-" -- lower left - upper left
+
+### Interaction plots
+A common way to plot the results of the model is with an **interaction plot**. 
+
+```{r urchin-interaction-plot, echo=FALSE}
+ # use this for interaction plot aesthetics
+urchin3 <- copy(urchin)
+urchin3[, CO2:=factor(CO2)]
+urchin3[, Temp:=factor(Temp)]
+gg_interaction_plot(x=c("Temp", "CO2"), y="Resp", data=urchin3)
+```
+
+In this interaction plot, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
+
+1. The slope of a line is the effect of $Temp$ on $Resp$
+2. The relative *elevation* of the lines is the effect of $CO2$ on $Resp$
+3. The difference in slope *or* the relative elevation at each level of $Temp$ is the interaction effect
+
+Let's deconstruct this. The top (CO2-) line is the effect of $Temp$ at the control (400 $\mu$ATM) value of $CO2$. The slope of the bottom (CO2+) line is the effect of $Temp$ at the high (1100 $\mu$ATM) value of $CO2$. *These lines have different slopes*, or the slope *is conditional on* the level of CO2. This means that the effect of $Temp$ on respiration is *conditional on the value of $CO2$*. Think about this. This is what an interaction implies--conditional effects.
+
+At the reference temperature (13 C), the CO2+ line is barely below the CO2- line. But at the high temperature (18 C), the CO2+ line is far below the CO2- line. That is, the relative elevation (the $CO2$ effect) is conditional on the level of $Temp$. It will always be the case that if the effect of Factor A is conditional on the levels of Factor B, then the effect of Factor B will be conditional on the levels of Factor A.
+
+An interaction plot is an okay plot. It doesn't show the data, only a descriptive summary (means and standard errors). If we are interested in the interaction effect, it doesn't give us a very good sense of the error in this effect. And *that* is a problem because with real data, two lines are never precisely parallel. Our interpretation of the similarity of the slopes would probably mostly reflect our pre-conceived scientific model.
+
+## Recommendations
+
+1. Should an interaction term be dropped from a model? In biological data, there will almost certainly be an interaction effect with everything. The goal, then, should be to model the effect and use the estimate and the uncertainty in the effect, *in combination with the goals of the analysis*, to make any decision about dropping a term.
+
+## Working in R
+
+A **full-factorial** model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. R expands this formula to `y ~ A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
+
+```{r urchin-full-factorial}
+# re-label levels and convert to factors.
+urchin1 <- copy(urchin)
+urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
+urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
+fit <- lm(Resp ~ Temp*CO2, data=urchin1) # use urchin1 data with relabeled levels
+coef(summary(fit))
+```
+
+The first thing this script does is to re-label the levels of Temp and CO2. The relabeling is more aesthically pleasing in the tabled output. If we didn't relable, it would be necessary to convert CO2 and Temp to factors or else R would treat these as numeric and not factors.
+
+The additive model is specified by the formula `y ~ A + B`
+
+```{r urchin-additive}
+fit <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
+coef(summary(fit))
+```
+
+
+## Problems
+
+1. Draw four $2 \times 2$ tables and label the row and column headers using the levels of the urchin treatment. In the first table, insert the cell means. In the 2nd table, insert the equation for the coefficient. In the third table, solve the equations. And in the fourth column, insert the estimates from the table above. Are tables 3 and 4 the same? If not, you've goofed somewhere.
+
+2. Frew et al. (2017) showed that increasing atomospheric CO2 increases grub activity in the soil which in turn increases root damage to sugarcane. They used a 2 x 2 experiment to then show that silicon added to the soild decreased the damage to the roots by the grubs (silicon minerals are very hard and plants uptake silicon from the soil to mineralize tissues to protect against insect damage). There are lots of analyses in the paper, but I want you to reproduce Fig. 4b, but using gg_interaction_plot and fit the model using lm.
+
+(The treatment assignments are in a different file than the experimental results. Use the `merge` function to glue the two tables together, keying on the common column "plant")
+
+1. **file name**: "canegrub_feedingtrial.csv"
+2. **file name**: "treatments.csv"
+3. **source**: https://datadryad.org/resource/doi:10.5061/dryad.r3s16
+
+```{r urchin-insect, echo=FALSE, eval=FALSE}
+folder <- "Data from Increased root herbivory under elevated atmospheric carbon dioxide concentrations is reversed by silicon-based plant defences"
+filename <- "canegrub_feedingtrial.csv"
+file_path <- paste(data_path, folder, filename, sep="/")
+feeding <- fread(file_path)
+# open design file
+filename <- "treatments.csv"
+file_path <- paste(data_path, folder, filename, sep="/")
+treatments <- fread(file_path)
+treatments[, CO2treat:=factor(CO2treat)]
+treatments[, Silicon:=factor(Silicon, c("silicon0", "silicon+"))]
+dt <- merge(feeding[, .SD, .SDcols=c("plant", "RC")], treatments, by="plant")
+gg_interaction_plot(x=c("Silicon", "CO2treat"), y="RC", data=dt)
+
+dt.res1 <- harrellplot(x="Silicon", g="CO2treat", y="RC", data=dt)
+dt.res1$tables$anova.1
+dt.res1$tables$anova.3
+```
+
+![Frew et al. Figure 4b](images/frew_fig_4b.png){ width=50% }
+
+3. Kardol et al investigated the effect of moss growth in response to rainfall and community structure. Analyze the effect of these two factors on biomass gain and generate a Harrell plot alternative to their bar plot in Fig. 3 (see below). What is striking about your plot compared to theirs?
+
+**Filename** "Data file for Dryad.xlsx"
+**sheet** "Data"
+**Source*:** https://datadryad.org/resource/doi:10.5061/dryad.66d5f
+
+![Kardol et al. Figure 3](images/kardol_fig_3.png){ width=50% }
+```{r moss, echo=FALSE, eval=FALSE}
+
+```
+
+4. (Grad students only) Generate a fake experiment! The experiment should have two factors each with two levels. Experiment with power by varying sample size and effect size.

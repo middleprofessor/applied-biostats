@@ -1,0 +1,67 @@
+# Appendix 1: Getting Started with R {-}
+## Get your computer ready
+### Install R
+R is the core software
+
+[Download R for your OS](https://cran.r-project.org)
+
+### Install R Studio
+R Studio is a slick (very slick) GUI interface for developing R projects
+
+[Download R Studio Desktop](https://www.rstudio.com/products/rstudio/download/)
+
+### Resources for installing R and R Studio
+[On Windows](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-windows-5f503f708027)
+
+[On a Mac](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-mac-e911606ce4f4)
+
+### Install LaTeX
+LaTeX ("la-tek") is necessary to use the pdf output of R Markdown.
+
+[On Windows](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-windows-10-952b0c48bfa9)
+
+[On a Mac](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-macos-high-sierra-e7b5705c9fd)
+
+## Start learning
+### Start with Data Camp Introduction to R
+[Data Camp: Introduction to R (free online course)](https://www.datacamp.com/courses/free-introduction-to-r)
+
+### Then Move to Introduction to R Studio
+[R Studio Essentials, Programming Part 1 (Writing code in RStudio)](https://www.rstudio.com/resources/webinars/rstudio-essentials-webinar-series-part-1/)
+
+### Develop your project with an R Studio Notebook
+[Getting Started with R Markdown](https://www.rstudio.com/resources/webinars/getting-started-with-r-markdown/)
+
+[Introducing Notebooks with R Markdown](https://www.rstudio.com/resources/webinars/introducing-notebooks-with-r-markdown/)
+
+## Getting Data into R
+[Getting your data into R](https://www.rstudio.com/resources/webinars/getting-your-data-into-r/)
+
+## Additional R learning resources
+[Getting used to R, RStudio, and R Markdown](https://bookdown.org/chesterismay/rbasics/)
+
+[Link to list of R Studio webinars](https://www.rstudio.com/resources/webinars/)
+
+[Link to set of R package cheat sheets (amazing!)](https://www.rstudio.com/resources/cheatsheets/)
+
+[Bookdown online books](https://bookdown.org)
+
+## Packages used extensively in this text
+
+1. ggplot2
+2. data.table
+3. mvtnorm
+4. lme4
+5. nlme
+6. emmeans
+7. readxl
+8. reshape2
+
+[Data Visualisation chapter from *R for Data Science*](http://r4ds.had.co.nz/data-visualisation.html)
+
+[Graphics for communication chapter from *R for Data Science*](http://r4ds.had.co.nz/graphics-for-communication.html)
+
+Youtube: [An Introduction to The data.table Package](https://www.youtube.com/watch?v=pc1ARG6kbAM)
+
+Coursera: [The data.table Package](https://www.coursera.org/learn/data-cleaning/lecture/trMZ7/the-data-table-package)
+

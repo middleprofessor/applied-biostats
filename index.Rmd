@@ -1,0 +1,220 @@
+--- 
+title: "Elementary Statistical Modeling for Applied Biostatistics"
+author: "Jeffrey A. Walker"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+output: bookdown::gitbook
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+github-repo: 
+description: "A first course in statistical modeling for biology students"
+---
+
+```{r bookdown, include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+```
+
+```{r libraries, echo=FALSE, message=FALSE}
+base_path <- "data"
+library(knitr)
+library(ggplot2)
+library(cowplot)
+library(readxl)
+library(emmeans)
+library(data.table)
+library(harrellplot)
+# for harrellplot
+library(broom)
+library(car)
+library(Hmisc)
+library(lme4) # only if fitting lmm
+library(lmerTest) # only if fitting lmm
+
+library(arm) # use display function for coefficient and SE
+```
+
+# Statistical Modeling
+
+*More cynically, one could also well ask "Why has medicine not adopted frequentist inference, even though everyone presents P-values and hypothesis tests?" My answer is: Because frequentist inference, like Bayesian inference, is not taught. Instead everyone gets taught a misleading pseudo-frequentism: a set of rituals and misinterpretations caricaturing frequentist inference, leading to all kinds of misunderstandings.* -- Sander Greenland
+
+We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student is trained to use something like a dichotomous key to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a $p$-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude (incorrectly) they have "discovered" something if $p < 0.05$ but found "no effect" if $p > 0.05$.
+
+Researchers learn almost nothing useful from a hypothesis test. True, a $p$-value is evidence against the null, and thus, a tool to dampen the frequency that we are fooled by randomness. But if we are investigating the effects of an increasingly acidified ocean on coral growth, $p=0.002$ may be evidence of an effect of the experimental intervention, but, from everything we know about pH and cell biology, it would be absurd to conclude from any data that pH does not affect growth. Instead, we want to know the magnitude of the effect and our uncertainty in estimating this magnitude. We can use this magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consquences of the effects of acidification on coral growth on fish production or carbon cycling.
+
+The "discovery by p-value" strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with little emphasis on estimation and uncertainty.
+
+## Statistical modeling
+This book is an introduction to the analysis of biological data using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Here, I refer to all of these as "linear models" because all are a function of a linear predictor. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values. A modeling view of statistics is also more coherent than a dichotomous key strategy.
+
+```{r line, echo=FALSE, fig.cap="A line vs. a linear model. (A) the line $y=-3.48X + 105.7 is drawn. (B) A linear model fit to the data. The model coefficients are numerically equal to the slope and intercept of the line in A."}
+set.seed(1)
+b0 <- 105.8
+b1 <- -3.5
+sigma <- 1.0
+x <- rep(10:15, each=3)
+n <- length(x)
+y <- b0 + b1*x + rnorm(n)*sigma
+b_vec <- coefficients(lm(y~x))
+b <- b_vec[1]
+m <- b_vec[2]
+
+dt <- data.table(X=x, Y=y)
+gg1 <- ggplot(data=dt, aes(x=X, y=Y)) +
+  geom_smooth(method='lm', se=FALSE) +
+  theme_minimal()
+
+gg2 <- gg1 +
+  geom_point()
+
+gg <- plot_grid(gg1, gg2, labels = c("A", "B"))
+gg
+
+```
+
+### Two specifications of a linear model I: the "linear model" way
+
+All students are familiar with the idea of a linear model from learning the equation of a line, which is
+
+\begin{equation}
+Y = mX + b
+(\#eq:line)
+\end{equation}
+
+where $m$ is the slope of the line and $b$ is the $Y$-intercept. It is useful to think of equation \@ref(eq:line) as a function that maps values of $X$ to values of $Y$. Using this function, if we input some value of $X$, we always get the same value of Y as the output.
+
+```{r lineCode, echo=FALSE}
+line2 <- function(x){
+  return(m*x+b)
+}
+```
+
+A linear model is a function, like that in equation \@ref(eq:line), that is fit to a set of data, often to model a process that generated the data or something like the data. The line in Figure \@ref(fig:line)A is just that, a line, but the line in Figure \@ref(fig:line)B is a model of the data in Figure \@ref(fig:line)B. The basic structure of a linear model is
+
+\begin{equation}
+Y = \beta_0 + \beta_1 X + \varepsilon
+(\#eq:lm)
+\end{equation}
+
+A linear model has two parts: the "linear predictor" ($Y = \beta_0 + \beta_1 X$) and the "error"  ($\varepsilon$). The linear predictor part looks like the equation for a line except that I've used $\beta_0$ for the intercept and $\beta_1$ for the slope and I've put the intercept term first. This re-labeling and re-arrangement make the notation for a linear model more flexible for more complicated linear models. For example $Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \varepsilon$ is a model where $Y$ is a function of two $X$ variables.
+
+As with the equation for a line, the linear predictor part of a linear model is a function that maps a value of $X$ to a specific value of $Y$. This mapped value is the **expected value** given a specific input value of $X$. This is often written as $\mathrm{E}[Y|X]$. The error part of a linear model is a random variable that adds some random value to this expected value. Nothing about the model part of a linear model can predict its value. 
+
+The inputs to a linear model (the $X$ variables) have many names including "independent variables," "predictor variables,", "explanatory variables," "treatment variables," and "covariates". The output of a linear model (the $Y$ variable or variables if the model is multivariate) is the "dependent variable," "response," or "outcome." The $\beta$ in the linear model are model **parameters** There can be additional parameters in more sophisticated models. The coefficients of the $X$ in a linear model ($\beta_1$ in model \@ref(eq:lm)) are often called "the effects" (so $\beta_1$ is the effect of $X_1$).
+
+Although a linear model is a model of a data-generating process, linear models are not typically used to actually generate any data. Instead, when we use a linear model to understand something about a real dataset, we think of our data as one realization of a process that generates data like ours. A linear model is a model of that process. That said, it is incredibly useful to use linear models to create fake datasets for at least two reasons: to probe our understanding of statistical modeling generally and, more specifically, to check that a model actually creates data like that in the real dataset that we are analyzing.
+
+### Two specifications of a linear model II: the "statistical model" way
+
+Another way of specifying a linear model is
+
+\begin{align}
+Y &\sim N(\mu, \sigma)\\
+\mu &= \beta_0 + \beta_1 X
+(\#eq:lm-spec2)
+\end{align}
+
+The first line states that an outcome is a function of a deterministic component (the conditional mean $\mu$) and a random component (the square root of the unmodeled variance $\sigma$). Together this is the **stochastic** part of the statistical model. The second line is the **deterministic** part, which is the linear predictor. This alternative way to define the linear model is easily generalized to more complex models, including hierarchical models, generalized linear models, and Bayesian models, which is why I call it the "statistical model" way of specification.
+
+### Statistical models are used for prediction, explanation, and description
+
+Researchers typically use statistical models to understand relationships between one or more $Y$ variables and one or more $X$ variables. These relationships include
+
+1. Descriptive modeling. Sometimes a researcher merely wants to describe the relationship between $Y$ and a set of $X$ variables, perhaps to discover patterns. For example, the arrival of a spring migrant bird ($Y$) as a function of sex ($X_1$) and age ($X_2$) might show that males and younger individuals arrive earlier. Importantly, if another $X$ variable is added to the model (or one dropped), the coefficients, and therefore, the precise description, will change. That is, the interpretation of a coefficient as a descriptor is *conditional* on the other covariates ($X$ variables) in the model. In a descriptive model, there is no implication of causal effects and the goal is not prediction. Nevertheless, it is very hard for humans to discuss a descriptive model without using causal language, which probably means that it is hard for us to think of these models as *mere description*. Like natural history, descriptive models are useful as patterns in want of an explanation, using more explicit causal models including experiments.
+
+2. Predictive modeling. Predictive modeling is very common in applied research. For example, fisheries researchers might model the relationship between population density and habitat variables to predict which subset of ponds in a region are most suitable for brook trout (*Salvelinus fontinalis*) reintroduction. The goal is to build a model with minimal prediction error, which is the error between predicted and actual values for a future sample. In predictive modeling, the $X$ ("predictor") variables are largely instrumental -- how these are related to $Y$ is not a goal of the modeling, although sometimes an investigator may be interested in the relative importance among the $X$ for predicting $Y$ (for example, collecting the data may be time consuming, or expensive, or enviromentally destructive, so know which subset of $X$ are most important for predicting $Y$ is a useful strategy).
+
+3. Explanatory (causal) modeling. Very often, researchers are explicitly interested in *how* the $X$ variables are causally related to $Y$. The fisheries researchers that want to reintroduce trout may want to develop and manage a set of ponds to maintain healthy trout populations. This active management requires intervention to change habitat traits in a direction, and with a magnitude, to cause the desired response. This model is predictive -- a specific change in $X$ predicts a specific response in $Y$ -- because the coefficients of the model provide knowledge on how the system functions -- how changes in the inputs *cause* change in the output. Causal interpretation of model coefficients requires a set of strong assumptions about the $X$ variables in the model. These assumptions are typically met in **experimental designs** but not **observational designs**.
+
+With observational designs, biologists are often not very explicit about which of these is the goal of the modeling and use a combination of descriptive, predictive, and causal language to describe and discuss results. Many papers read as if the researchers intend explanatory inference but because of norms within the biology community, mask this intention with "predictive" language. Here, I advocate embracing explicit, explanatory modeling by being very transparent about the model's goal and assumptions.
+
+## Model fitting
+
+In order to use a statistical model to describe, predict, or explain, we need to fit a model to data in order to estimate the parameters. If we fit model \@ref(eq:conditional-expectation) to some data, the estimated parameters are the coefficients ($b_0$ and $b_1$) of the fit model
+
+\begin{equation}
+\mathrm{E}[Y|X] = b_0 + b_1 X
+(\#eq:conditional-expectation)
+\end{equation}
+
+The left-hand side of equation \@ref(eq:conditional-expectation) is the **conditional expectation** and is read as "the expectation of Y given X" or "the expected value of Y given X". Throughout this book, I use the greek $\beta$ to refer to a theoretical, data-generating parameter and the roman "b" to refer its estimate.
+
+The goal of descriptive and explanatory modeling is the estimate of the coefficients of the $X$ variables and their uncertainty. The goal of predictive modeling is the estimate of predicted values, and their uncertainty, given specific values of $X$. These predicted values are the conditional expectations.
+
+```{r coldVoles, echo=FALSE, fig.cap="HarrellPlot of vole data."}
+file_path <- "data/Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal/RSBL-2013-0432 vole data.xlsx"
+vole_wide <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole_wide, old=colnames(vole_wide), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- rbind(data.table(lifespan=vole_wide[control==1, lifespan], Treatment="control"),
+              data.table(lifespan=vole_wide[vitamin_E==1, lifespan], Treatment="vitamin_E"),
+              data.table(lifespan=vole_wide[vitamin_C==1, lifespan], Treatment="vitamin_C")
+              )
+gg <- harrellplot(x="Treatment", y="lifespan", data=vole, contrasts.method="coefficients", display.treatment="ci")$gg
+gg
+```
+
+For the model fit to the data in Figure \@ref(fig:line)B, the coefficient of $X$ is the slope of the line. Perhaps surprisingly, we can fit a model like equation \@ref(eq:lm) to data in which the $X$ variable is categorical. A simple example is the experiment of antioxidants (vitamins C and E) on lifespan in Voles (Fig. \@ref(fig:coldVoles)). In this experiment, the $X$ variable is categorical, with three **levels**: "Control", "Vitamin_E" and "Vitamin_C". Categorical $X$ variables are often called **factors**. The trick to using a statistical model with categorical $X$ is to recode the factor levels into numbers -- how this is done is explained in Chapter xxx. When the $X$ variable is categorical, the coefficients of the $X$ are *differences in group means*. The linear model fit to the vole data has two coefficients, one for Vitamin E and one for vitamin C. The estimate and uncertainty of the these two coefficients are shown in the top part of Figure \@ref(fig:coldVoles). The bottom part shows the raw data, as well as the group (factor level) means and the uncertainty in the estimate of these means.
+
+The simplest possible model that can be fit to the data is
+
+\begin{equation}
+\mathrm{E}[Y] = b_0
+(\#eq:unconditional)
+\end{equation}
+
+which is simply the mean of $Y$, or, more specifically, the **unconditional mean** of $Y$, since its value is not conditional on any value of $X$.
+
+## Assumptions for inference with a linear model
+
+Here is the linear model above (equation \@ref(eq:lm)) but I've amended the model by explicitly specifying the distribution of the error term.
+
+\begin{align}
+Y &= \beta_0 + \beta_1 X + \varepsilon\\
+\varepsilon &\sim N(0, \sigma)
+(\#eq:lm-again)
+\end{align}
+
+where $N(0, \sigma)$ is read as "normal distribution with mean zero and standard deviation sigma". Any inference about the parameter $\beta_1$ (such as confidence intervals or hypothesis tests) assumes that the error ($\varepsilon$) is IID Normal where IID is **independent and identically distributed** and Normal refers to the Normal (or Gaussian) distribution.
+
+1. Independent means that the error for one case cannot be predicted from the error of any other case. There are lots or reasons that errors might be correlated. For example, measures that are taken from sites that are closer together or measures taken closer in time or measures from more closely related biological species will tend to have more similar error than measures taken from sites that are further apart or from times that are further apart or from species that are less closely related. Space and time and phylogeny create **spatial and temporal and phylogenetic autocorrelation**. Correlated error due to space or time or phylogeny can be modeled with **Generalized Least Squares** (GLS) models. A GLS model is a variation of model \@ref(eq:lm-again).
+
+If there are measures both within and among field sites (or humans or rats) then we'd expect the measures within the same site (or human or rat) to err from the model in the same direction. Multiple measures within experimental units (a site or individual) creates "clusters" of error. Lack of independence or clustered error can be modeled using models with **random effects**. These models go by many names including linear mixed models (common in Ecology), hierarchical models, multilevel models, and random effects models. A linear mixed model is a variation of model \@ref(eq:lm-again).
+
+2. Identical means that the errors are "drawn" from the same distribution. Since the model is a linear model, this distribution is a Normal distribution. A consequence of "indentical" is that the error variance is **homoskedastic**, or constant, or independent of $X$. If the error variance differs among the $X$ then the errors are **heteroskedastic**. Many biological processes generate data in which the error is a function of the mean. For example, measures of biological variables that grow, such as lengths of body parts or population size, have variances that are "grow" with the mean. Or, measures of counts, such as the number of cells damaged by toxin, the number of eggs in a nest, or the number of mRNA transcripts per cell have variances that are a function of the mean. Both growth and count measures can be reasonably modeled using a linear model they are more often modeled using a **generalized linear model** (GLM), which is an extension of the linear model in equation \@ref(eq:lm-again). Heteroskedasitc error arising for other reasons, both biological and experimental, can be modeled with Generalized Least Squares (GLS) or with linear mixed models. GLS models are variations of model \@ref(eq:lm-again).
+
+3. Normal (Gaussian) error means that 1) the response is continuous and 2) the probability of sampling an individual measuring 0.5 units below the population mean is the same as the probability of sampling an individual measuring 0.5 units above the population mean. Counts (number of cells, number of eggs, number of mRNA transcripts) and binary responses (sucessful escape or sucessful infestation of host) are not continous and often often have asymmetric probablity distributions that are skewed to the right and while sometimes both can be reasonably modeled using a linear model they are more often modeled using a **generalized linear model** (GLM), which, again, is an extension of the linear model in equation \@ref(eq:lm-again).
+
+A common misconception is that inference from a linear model assumes that the *response* ($Y$) is normally distributed. Models \@ref(eq:lm-again) and \@ref(eq:lm-spec2) show precisely why this conception is wrong. Model \@ref(eq:lm-again) states explicitly that it is the error that has the normal distribution -- the distribution of $Y$ is a mix of the distribution of $X$ and the error. Model \@ref(eq:lm-spec2) states that the conditional outcome has a normal distribution, that is, the distribution after adjusting for variation in $X$.
+
+### "Statistical model" or "regression model"?
+
+Statistical modeling terminology can be confusing. The $X$ variables in a statistical model may be quantitative (continuous or integers) or categorical (names or qualitative amounts) or some mix of the two. Linear models with all quantitative independent variables are often called "regression models." Linear models with all categorical independent variables are often called "ANOVA models." Linear models with a mix of quantitative and categorical variables are often called "ANCOVA models" if the focus is on one of the categorical $X$ or "regression models" if there tend to be many independent variables. Other patterns occur. For example "ANCOVA models" often include interaction effects but "regression models" rarely do. To avoid thinking of statistical analysis as "regression vs. ANOVA", I will most often use the term "statistical model" for general usage, and use a more specific term only to emphasize something about the model in that particluar context.
+
+## Linear models versus non-linear models
+
+All statistical models in this text are linear in the parameters, which means that the different components of the model are added together. This additive part of the model containing the parameters is the linear predictor in specifications \@ref(eq:lm) and \@ref(eq:lm-spec2) above. Or, using the language of matrix algebra, the linear predictor is a simple dot product of the model matrix and the coefficients. For example, a cubic polynomial model
+
+\begin{equation}
+Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \varepsilon
+\end{equation}
+
+is a linear model, even though the function is non-linear, because the different components are added (or, using matrix algebra, the predictor is $\mathbf{X}\boldsymbol{\beta}$).
+
+A generalized linear model (GLM) has the form $g(\mu_i) = \eta_i$ where $\eta$ (the greek letter eta) is the linear predictor
+
+\begin{equation}
+\eta = \mathbf{X}\boldsymbol{\beta} 
+\end{equation}
+
+Non-linear models, in conrast to a GLM or classical linear model, are not linear in the parameters (the predictor is not a simple dot product of the model matrix and a vector of parameters). For example, the Michaelis-Menten model is a nonlinear model
+
+\begin{equation}
+Y = \frac{\beta_1 X}{\beta_2 + X} + \varepsilon
+\end{equation}
+
+
+

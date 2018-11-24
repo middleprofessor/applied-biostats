@@ -1,0 +1,206 @@
+\documentclass{article}
+
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{courier}
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+\setlength{\parskip}{10pt plus 1pt minus 1pt} % use blank space betwee paragraphs
+
+%----------------------------------------------------------------------------------------
+%  TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{  
+\normalfont \normalsize 
+\textsc{BIO 413/513: Applied Biostatistics, Fall 2017} \\ [25pt] % Class name
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge Worksheet 02: Intro to the LM: Models with continuous X (``regression'' models)\\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+
+%\author{Jeff Walker} % Your name
+
+\date{\normalsize\today} % Today's date or a custom date
+
+\begin{document}
+
+\maketitle % Print the title
+
+
+<<initialize,warning=FALSE, message=FALSE>>=
+# first make sure libraries are loaded
+library(data.table)
+library(ggplot2)
+library(arm) # Gelman and Hill's Applied Regression package
+@
+
+\section{Linear Models with continuous $X$ and continuous $Y$}
+The dataset is cwd from Quinn and Keough chapter 5.3.1. Look at the comments of the data file in a text editor to understand the column variables. From the text ``We will use their data to model the relationship between CWD [course woody debris] basal area and two predictor variables separately, riparian tree density and cabin density''.
+
+Open the data file
+<< open file, eval=TRUE >>=
+cwd <- data.table(read.table('cwd.txt',header=TRUE,sep='\t'))
+@
+
+\subsection{Exploratory plot}
+Let's plot the data
+
+<< plots >>=
+qplot(x=RIP.DENS,y=CWD.BASA,geom='point',data=cwd) + geom_smooth(method='lm')
+
+
+@
+What is this plot type called? Is there a trend? If so, do the trends look linear or non-linear?
+
+Both our dependent ($RIP.DENS$) and independent ($CWD.BASA$) variables our continuous. A linear model with continuous dependent and independent variables is a regression, which is of the form
+
+\begin{equation}
+Y = \beta_0 + \beta_1X + \varepsilon
+\end{equation}
+
+We will call the $Y$ variable the \textbf{response} variable and the $X$ variable the \textbf{predictor} variable. $\varepsilon$ is the \textbf{model error} -- that is, the variation in the data that is not predicted (or, ``explained'') by the model. This error is really what statistics is all about. It is the reason for our \textbf{uncertainty}.
+
+\subsection{The \texttt{lm} function}
+We will fit a linear model to the data using the \texttt{lm()} function. The \texttt{lm()} function is very general and will be our workhorse throughout the class. The minimal input to the function is a model formula and the name of the data.frame (remember, a data.table is a data.frame). A formula is of the form \texttt{response} $\sim$ \texttt{independent variables}. All of the output we assign to the variable \texttt{fit}.
+
+Let's fit the linear model to the data using riparian density as the predictor
+<<>>=
+fit <- lm(CWD.BASA ~ RIP.DENS, data=cwd)
+@
+
+\subsection{Getting to know the linear model: the \texttt{summary} function}
+
+\texttt{lm} returns an lm object, which we've assigned to the name \texttt{fit}. \texttt{fit} contains lots of information about our fit of the linear model to the data. Most of the information that we want for most purposes can be retrieved with the \texttt{summary()} function, which is a general-purpose R command the works with many R objects.
+
+<<>>=
+summary(fit)
+@
+
+What is here:
+
+\textbf{Coefficients table}. This contains the linear model coefficients and their standard error and associated $t$ and $p$ values. The column of values under \texttt{Estimate} are the coefficients of the fitted model
+%
+\begin{equation}
+Y_i = b_0 + b_1X_i + e_i
+\end{equation}
+%
+Here -77.09908 is the intercept ($b_0$) and 0.11552 is the effect of $RIP.DENS$ ($b_1$). The \texttt{Estimate} (coefficient) is the ``signal'' while the \texttt{Std. Error} is the noise and their ratio is the \texttt{t value}, which is, effectively a signal to noise ratio. Get used to thinking about this ratio. Any $t$ less than 2 is indicative of too much noise to say much about the signal. A $t$ between 2 and 3 means the noise is large enough to suggest an effect. A $t$ greater than 3 is pretty good evidence of an effect. The $p$-value of course is the exact probability associated with a particular $t$. What is the $p$-value a test of? The $p$-value tests the hypothesis ``how probable are the data if the coefficient is zero?''. Formally $P = \mathrm{freq(t' \ge t|H_o)}$, where $t'$ is the hypothetical t-value, t is the observed t-value, and $H_o$ is the null hypothesis. 
+
+The coefficients table by itself can be retrieved with \texttt{summary(fit)\$coefficients}.
+
+Ignore the \texttt{Signif. codes} beneath the coefficients table. These are useless because the concept of ``levels of significance'' is muddled, as mentioned earlier.
+
+Beneath the Signif. codes are some model statistics which are useful
+\begin{enumerate}
+\item \textbf{Residual standard error: 36.32} This is $\sqrt{\sum{e_i^2}/(n-2)}$, where $e_i$ are the residuals in the fitted model above. Confirm this yourself, the residuals are retrieved using either \texttt{residuals(fit)} or \texttt{fit\$residuals}.
+\item \textbf{``on 14 degrees of freedom''}. This is the degrees of freedom associated with the residuals (left over after fitting the parameters), so is the total sample size ($n$) minus the number of parameters fit (2), or $n-2$. Note that this is the denominator in the residual standard error equation above!
+\item \textbf{Multiple R-squared: 0.6345} This is an important but imperfect summary measure of the whole model that effectively measures how much of the total variance in the response variable ``is explained by'' the model. Its value lies between zero and 1. \textbf{It's a good measure to report in a manuscript}.
+\item \textbf{F-statistic and p-value}. These are statistics for the whole model (not the individual coefficients) and I just don't find these very useful.
+\end{enumerate}
+
+Note that the $p$-value for the coeffcient for RIP.DENS is 0.0002. This is a very small P-value, and so the data are not consistant with a model of no slope. But did we need a formal hypothesis test for this? We haven't learned much if we have only learned that the slope is "not likely zero". These data are observational and not experimental. P-values may be more valuable with experimental data where we can interpret the controlled $X$ variable as a cause. Regardless, with observational data like the cwd data, what we want to know is not\emph{if} there is a relationship between cwd and riparian density, which is imperfectly answered with a P-value, but \emph{how big} is the relationship or \emph{how predictable} is one (course woody debris) from the other (riparian density)? For this, we don't need the P-value. (Almost) Everything we need to know to answer these two questions is in display(fit). Please read this paragraph again. We will come back to it over and over.
+
+\subsection{The \texttt{display} function}
+The function \texttt{display} can be applied to an lm object and results in a more compact summary than \texttt{summary(fit)}
+<<>>=
+display(fit)
+@
+\texttt{display(fit)} does not give a t-value or a P-value because the authors of the arm package do not think P-values are very valuable. We don't need a $t$ because one can mentally compute the approximate ratio of the coefficient to its SE and get a sense of the signal to noise, and that's all the authors of the display function think we need.
+
+\subsection{Estimating effects - this is what we want!}
+The major goal of the statistical analysis in this class is to estimate the relationship between two variables, say the causal relationship between a treatment and the response. These effects are the coefficients of the linear model. For regression, we think of this effect as a slope. For an ANOVA-like linear model, we think of the effect as a difference in the means of the treatment levels.
+
+Here are three ways of looking at effects of ripariand density on course woody debris.
+
+<<>>=
+coefficients(fit) # only the coefficients
+confint(fit) # only the conf interval
+summary(fit)$coefficients # base R's summary of the coefficients
+display(fit) # from the arm package.
+@
+
+The estimate of the effect (the coefficient $b$ in the regression model formula above) is 0.12, which means that course woody debris increases .12 units for every unit increase in riparian density (I don't know what the units are). The standard error of this estimate is 0.01, which we can use to create the $95\%$ confidence interval of the estimate, which will roughly be $2*coef.se.$ The exact 95\% CIs are conveniently given in confint(fit)!
+
+$95\%$ confidence intervals are frequently interpreted as "there is a 95$\%$ probability that the true value lies in this range." This isn't right. The correct interpretation is, there is a 95\% probability that this interval includes the true value. We can use simulation to pump out intuition on this.
+
+Confidence intervals are often interpreted like P-values. That is, the biologist looks to see if the CI overlaps with zero and if it does, concludes there is "no effect". First, this conclusion is not correct. \textbf{The inability to find sufficient evidence for an effect does not mean there is no effect, it simply means there is insufficient evidence to conclude there is an effect}! Read that sentence over and over and over.
+
+Second, what we want to use the CI for is to guide us about how big or small the effect might reasonably be, given the data. The CI is a measure of parameter values that are ``consistent'' with the data. If our biological interpretations at the small end and at the big end of the range radically differ, then we don't have enough \textbf{precision} in our analysis to conclude much. Remember this.
+
+\section{How good is our model?}
+How well does variation in riparian density ``explain'' variation in course woody debris? The answer to this is in the $R^2$ value, which is given in display(fit) and in summary(fit) and by using \$: \texttt{summary(fit)\$r.squared}.
+
+<<, eval=TRUE>>=
+display(fit)
+# or
+summary(fit)$r.squared
+@
+
+$R^2 = .63$. $R^2$ is the percent of the total variance (or sums of squares) explained by the model. It will vary from zero (the model explains nothing) to one (the model explains everything). If $R^2=0$ the response is completely unpredictable by the predictors. We can think of the values of the response as white noise or all error. This doesn't mean that the values are "not caused" or "random" or not predicted by some other variable. It only means the values are random with respect to our predictor variable. If $R^2=1$ we can \emph{exactly} predict the response from predictors The model explains all of the variation in the values of volume. \textbf{Super importantly, ``explains'' does not mean ``cause''}. Height is not causing volume. ``Explains'' is short for \textit{statistically explains}. So the bigger the $R^2$ the better the model in the sense that the response is more predicatable. We will explore this concept much more in future worksheets.
+
+\subsection{Model checking}
+
+\texttt{plot} is a very useful base R function for ``model checking'' or ``model diagnostics'' to see if our model fit is acceptable.
+
+<<diagnostic>>=
+plot(fit)
+@
+Compare the four diagnostic plots using the guidelines from here
+http://data.library.virginia.edu/diagnostic-plots/
+Look at the plots you just made. What is a residual? What is a fitted value? Are there any red flags?
+
+\subsection{exploring \texttt{fit}}
+
+\texttt{fit} contains much information but simply typing \texttt{fit} into the console gives us only the model and the coefficients. \texttt{names()} is a super important R function. It gives us the names of all the parts of some R object. \texttt{fit} is an lm object. \texttt{names(fit)} gives us all the parts contained in an lm object.
+
+<<,eval=FALSE>>=
+names(fit)
+@
+
+You can see any of these parts using the dollar sign
+
+<<,eval=FALSE>>=
+fit$residuals
+fit$fitted.values
+# hey, let's use this to make a plot like the first one in plot(fit)!
+qplot(fit$fitted.values, fit$residuals,geom=c('point', 'smooth'))
+@
+
+Explore some of the other fit results from \texttt{names(fit)}.
+<<,eval=FALSE>>=
+fit$coefficients
+# or
+fit$residuals
+# or
+fit$fitted.values
+@
+
+Our fitted model (not the theoretical model) is: $Y_i = b_0 + b_1X_i + e_i$. Using this equation, what is
+\begin{enumerate}
+\item the residual
+\item the fitted value
+\end{enumerate}
+
+There are also functions that we can apply to a lm object, some of which are redundant with to the above. For example:
+
+<<,eval=FALSE>>=
+coef(fit)
+residuals(fit)
+fitted(fit)
+confint(fit)
+AIC(fit)
+anova(fit)
+@
+
+We can use \texttt{names} for many R objects, for example, to see the components of \texttt{summary(fit)}
+
+<<>>=
+names(summary(fit))
+@
+
+What are these? As you become more of an R power user, accessing the components of \texttt{fit} or \texttt{summary(fit)} will be very useful.
+
+\end{document}

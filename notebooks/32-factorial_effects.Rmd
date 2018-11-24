@@ -1,0 +1,284 @@
+---
+title: "32-factorial_effects"
+output: html_notebook
+---
+
+```{r type3-setup, echo=FALSE, message=FALSE}
+library(car)
+library(ggplot2)
+library(data.table)
+library(emmeans)
+#source("../R/gg_interaction.R")
+source("R/gg_interaction.R") # bookdown
+
+```
+# Estimating effects in factorial designs
+
+## Create fake urchin data that simulate Fig. 2b
+
+First, we estimate the means and standard errors from the published figure From these, compute model coefficients (using R's default dummy coding) and the error ($\sigma$).
+```{r type3-fd-setup}
+# modeling means and sd in Fig 2b
+n <- 6
+means <- c(8.2, 12.5, 7.8, 9.5) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+ses <- c(0.5, 1, 0.5, 0.75) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+sds <- ses*sqrt(n) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+sigma <- mean(sds)
+b <- c(means[1], (means[2]-means[1]), (means[3]-means[1]))
+b <- c(b, means[4] - (b[1] + b[2] + b[3]))
+```
+
+Second, create fake factor columns that are common to all fake data
+```{r type3-fd-factors}
+temp_levels <- rep(c("Temp-", "Temp+"), each=n) # 13C, 18C
+co2_levels <- c("CO2-", "CO2+") # 400 µATM, 1100 µATM
+x <- data.table(expand.grid(Temp=temp_levels, CO2=co2_levels)) # columns of factor data
+
+fd <- data.table(Resp=NA, x)
+X <- model.matrix(~Temp*CO2, x)
+```
+
+This is very very close to original data.
+```{r fd0}
+set.seed(132)
+e <- rnorm(n*4, mean=0, sd=sigma)
+fd[, Resp:=X%*%b + e]
+coefficients(summary(lm(Resp ~ Temp*CO2, data=fd))) # type I coefficients
+
+```
+
+### Main effects
+#### Dummy coding -- no missing with and without interaction in model
+Estimate is the same but the SE is bigger in the additive model (including interaction variance?) -- is this a necessary consequence? or, a general but not necessary consequence? ANOVA results same as contrasts.
+```{r dummy-coding-no-missing}
+fit <- lm(Resp ~ Temp*CO2, data=fd)
+cell_means <- data.table(summary(emmeans(fit, specs=c("Temp", "CO2"))))
+emmeans(fit, specs=("Temp"))
+mean(cell_means[Temp=="Temp-", emmean])
+mean(cell_means[Temp=="Temp+", emmean])
+contrast(emmeans(fit, specs=("Temp")), method="revpairwise", adjust="none")
+contrast(emmeans(fit, specs=("CO2")), method="revpairwise", adjust="none")
+anova(fit)
+Anova(fit, type=2)
+X.dummy <- model.matrix(fit)
+
+fit2 <- lm(Resp ~ Temp+CO2, data=fd)
+cell_means2 <- data.table(summary(emmeans(fit2, specs=c("Temp", "CO2"))))
+emmeans(fit2, specs=("Temp"))
+mean(cell_means2[Temp=="Temp-", emmean])
+mean(cell_means2[Temp=="Temp+", emmean])
+contrast(emmeans(fit2, specs=("Temp")), method="revpairwise", adjust="none")
+contrast(emmeans(fit2, specs=("CO2")), method="revpairwise", adjust="none")
+anova(fit2)
+Anova(fit2, type=2)
+
+```
+
+#### Dummy coding -- missing with and without interaction in model
+Estimates for type factorial and additive models differ in addition to SEs differing.
+```{r dummy_coding-missing}
+exc <- which(fd[,Temp]=="Temp+" & fd[, CO2]=="CO2+")
+inc <- setdiff((1:nrow(fd)), exc[1])
+fit <- lm(Resp ~ Temp*CO2, data=fd[inc])
+cell_means <- data.table(summary(emmeans(fit, specs=c("Temp", "CO2"))))
+emmeans(fit, specs=("Temp"))
+mean(cell_means[Temp=="Temp-", emmean])
+mean(cell_means[Temp=="Temp+", emmean])
+contrast(emmeans(fit, specs=("Temp")), method="revpairwise", adjust="none")
+contrast(emmeans(fit, specs=("CO2")), method="revpairwise", adjust="none")
+anova(fit)
+Anova(fit, type="2")
+con3 <- list(Temp=contr.sum, CO2=contr.sum)
+Anova(lm(Resp~Temp*CO2, data=fd[inc]), type="3")
+
+
+fit2 <- lm(Resp ~ Temp+CO2, data=fd[inc])
+cell_means2 <- data.table(summary(emmeans(fit2, specs=c("Temp", "CO2"))))
+emmeans(fit2, specs=("Temp"))
+mean(cell_means2[Temp=="Temp-", emmean])
+mean(cell_means2[Temp=="Temp+", emmean])
+contrast(emmeans(fit2, specs=("Temp")), method="revpairwise", adjust="none")
+contrast(emmeans(fit2, specs=("CO2")), method="revpairwise", adjust="none")
+anova(fit2)
+Anova(fit2, type="2")
+
+```
+
+#### Effects coding -- missing with and without interaction in model
+This is the same as with dummy coding with missing
+
+```{r effects-coding-missing}
+con3 <- list(Temp=contr.sum, CO2=contr.sum)
+fit <- lm(Resp ~ Temp*CO2, data=fd[inc], contrasts=con3)
+cell_means <- data.table(summary(emmeans(fit, specs=c("Temp", "CO2"))))
+emmeans(fit, specs=("Temp"))
+mean(cell_means[Temp=="Temp-", emmean])
+mean(cell_means[Temp=="Temp+", emmean])
+contrast(emmeans(fit, specs=("Temp")), method="revpairwise", adjust="none")
+X.effects <- model.matrix(fit)
+
+fit2 <- lm(Resp ~ Temp+CO2, data=fd[inc], contrasts=con3)
+cell_means2 <- data.table(summary(emmeans(fit2, specs=c("Temp", "CO2"))))
+emmeans(fit2, specs=("Temp"))
+mean(cell_means2[Temp=="Temp-", emmean])
+mean(cell_means2[Temp=="Temp+", emmean])
+contrast(emmeans(fit2, specs=("Temp")), method="revpairwise", adjust="none")
+
+```
+
+#### simulation
+b[4] = -2.6 or nearly 2sigma
+with no missing, full model has smaller se 83% of the runs, average SE 0.678 (full) vs. 0.736 (add)
+with missing, full model has closer estimate 53% of runs, RMSE 0.708 (full) vs. 0.712 (add)
+
+b[4] = .32 or 2sigma
+with missing, full model has smaller se 35% of the runs, average SE 0.694 (full) vs. 0.695 (add)
+with missing, full model has closer estimate 52% of runs, RMSE 0.692 (full) vs. 0.691 (add)
+
+```{r simulate-non-missing}
+# same parameters as above but I'm just hard coding it in here
+n <- 6
+means <- c(8.2, 12.5, 7.8, 9.5) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+ses <- c(0.5, 1, 0.5, 0.75) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+sds <- ses*sqrt(n) # temp-/co2-, temp+/co2-, temp-/co2+, temp+/co2+
+sigma <- mean(sds)
+b <- c(means[1], (means[2]-means[1]), (means[3]-means[1]))
+b <- c(b, means[4] - (b[1] + b[2] + b[3])) # b4 will change in simulation
+
+b[4] <- .32 # =.2sigma
+temp_levels <- rep(c("Temp-", "Temp+"), each=n) # 13C, 18C
+co2_levels <- c("CO2-", "CO2+") # 400 µATM, 1100 µATM
+x <- data.table(expand.grid(Temp=temp_levels, CO2=co2_levels)) # columns of factor data
+
+fd <- data.table(Resp=NA, x)
+X <- model.matrix(~Temp*CO2, x)
+
+niter <- 1000
+theta1 <- (b[1] + (b[1] + b[3]))/2 # expected marginal mean of temp-
+theta2 <- ((b[1] + b[2]) + (b[1] + b[2] + b[3] + b[4]))/2 # expected marginal mean of temp+
+theta <- theta2 - theta1 # expected effect
+d.full <- numeric(niter)
+d.add <- numeric(niter)
+se.full <- numeric(niter)
+se.add <- numeric(niter)
+
+do_missing <- TRUE
+exc <- which(fd[,Temp]=="Temp+" & fd[, CO2]=="CO2+")
+full_inc <- 1:24
+missing_inc <- setdiff(full_inc, exc[1])
+inc <- ifelse(do_missing==TRUE, missing_inc, full_inc) # why doesn't this work?
+if(do_missing==TRUE){inc <- missing_inc}else{inc <- full_inc}
+
+for(iter in 1:niter){
+  e <- rnorm(n*4, mean=0, sd=sigma)
+  fd[, Resp:=X%*%b + e]
+  fit1 <- lm(Resp ~ Temp*CO2, data=fd[inc])
+  emm1 <- emmeans(fit1, specs=("Temp"))
+  d.full[iter] <- summary(contrast(emm1, method="revpairwise", adjust="none"))[1, "estimate"]
+  se.full[iter] <- summary(contrast(emm1, method="revpairwise", adjust="none"))[1, "SE"]
+  fit2 <- lm(Resp ~ Temp+CO2, data=fd[inc])
+  emm2 <- emmeans(fit2, specs=("Temp"))
+  d.add[iter] <- summary(contrast(emm2, method="revpairwise", adjust="none"))[1, "estimate"]
+  se.add[iter] <- summary(contrast(emm2, method="revpairwise", adjust="none"))[1, "SE"]
+}
+sqrt(mean((d.full-theta)^2))
+sqrt(mean((d.add-theta)^2))
+sum((abs(d.full-theta) - abs(d.add-theta)) < 0)/niter
+sd(d.full-theta)
+sd(d.add-theta)
+mean(se.full)
+mean(se.add)
+mean(se.full-se.add)
+sd(se.full-se.add)
+sum(se.full < se.add)/niter
+```
+
+### What are the coefficients estimating in the full model?
+
+1. Interaction is significant ($p=0.026$)
+2. CO2 main effect is significant ($p=0.004$)
+3. CO2 at Temp- is not significant ($p=0.57$)
+
+The results and plot are like the original (Fig. 2b) except that the interaction is significant here.
+
+```{r fd1}
+set.seed(1)
+e <- rnorm(n*4, mean=0, sd=sigma)
+fd[, Resp:=X%*%b + e]
+coefficients(summary(lm(Resp ~ Temp*CO2, data=fd))) # type I coefficients
+
+# type 3 anova
+con3 <- list(Temp=contr.sum, CO2=contr.sum)
+fit3 <- lm(Resp ~ Temp*CO2, data=fd, contrasts=con3)
+coef.full <- coefficients(summary(fit3))
+coef.full
+Anova(fit3, type="3")
+
+# what are the type 3 coefficients
+# b1 is the difference between the grand mean and the pooled mean of X1+ across both levels of X2
+b.full <- coef.full[, "Estimate"]
+mt <- means.table(x=c("Temp","CO2"), y="Resp", data=fd)
+b0 <- mt[3,3] # compare to b_check
+temp.pos.mm <- mt["Temp+", "Temp-mm"]
+CO2.pos.mm <- mt["CO2-mm", "CO2+"]
+b1 <- b0 - temp.pos.mm # compare to b_check
+b2 <- b0 - CO2.pos.mm # compare to b_check
+
+# interaction plot with meaning of type III coefficients
+# using means table
+gg <- gg_interaction_plot(x=c("Temp","CO2"), y="Resp", data=fd) +
+  geom_hline(yintercept=b0, linetype="dashed") +
+  geom_hline(yintercept=CO2.pos.mm, color="red", linetype="dashed") + # co2 effect
+  geom_hline(yintercept=temp.pos.mm, color="blue", linetype="dashed") + #temp effect
+  NULL
+gg
+
+```
+
+### What are the coefficients estimating in the additive model?
+
+```{r fd1-additive}
+fit3 <- lm(Resp ~ Temp + CO2, data=fd, contrasts=con3)
+coef.add <- coefficients(summary(fit3))
+coef.add
+Anova(fit3, type="3")
+
+# what are the type 3 coefficients
+# b1 is the difference between the grand mean and the pooled mean of X1+ across both levels of X2
+b.add <- coef.add[, "Estimate"]
+mt <- means.table(x=c("Temp","CO2"), y="Resp", data=fd)
+b0 <- mt[3,3] # compare to b_check
+temp.pos.mm <- mt["Temp+", "Temp-mm"]
+CO2.pos.mm <- mt["CO2-mm", "CO2+"]
+b1 <- b0 - temp.pos.mm # compare to b_check
+b2 <- b0 - CO2.pos.mm # compare to b_check
+
+```
+
+## fake data with intermediate CO2 effect at Temp- but big CO2 effect at Temp+
+
+The idea is to create a negative CO2 effect at both levels of Temp and then ask "what does a CO2 main effect mean?"
+
+```{r}
+# need to make b3 a bit bigger
+b1 <- copy(b)
+delta <- -1.8
+b1[3] <- b1[3] + delta
+fd[, Resp:=X%*%b1 + e]
+coefficients(summary(lm(Resp ~ Temp*CO2, data=fd)))
+con3 <- list(Temp=contr.sum, CO2=contr.sum)
+fit3 <- lm(Resp ~ Temp*CO2, data=fd, contrasts=con3)
+coef_table <- coefficients(summary(fit3))
+coef_table
+Anova(fit3, type="3")
+
+grand_mean <- coef_table["(Intercept)", "Estimate"]
+co2pos_mean <- grand_mean - coef_table["CO21", "Estimate"]
+gg <- gg_interaction_plot(x=c("Temp","CO2"), y="Resp", data=fd) +
+  geom_hline(yintercept=grand_mean, linetype="dashed") +
+  geom_hline(yintercept=co2pos_mean, color="red", linetype="dashed") +
+  NULL
+gg
+
+```
+

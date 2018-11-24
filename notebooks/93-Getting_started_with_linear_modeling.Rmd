@@ -1,0 +1,7 @@
+# Appendix 2: Online Resources for Getting Started with Linear Modeling in R {-}
+
+[Regression Models for Data Science in R by Brian Caffo](https://leanpub.com/regmods)
+
+[Broadening Your Statistical Horizons: Generalized Linear Models and Multilevel Models by J. Legler and P. Roback](https://bookdown.org/roback/bookdown-bysh/)
+
+[The Art of Data Science by Roger D. Peng and Elizabeth Matsui](https://bookdown.org/rdpeng/artofdatascience/)

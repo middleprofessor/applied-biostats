@@ -1,0 +1,5 @@
+# Glossary {-}
+
+## Confidence Interval
+
+A confidence interval of a parameter is a measure of the uncertainty in the estimate. A 95% confidence interval has a 95\% probability (in the sense of long-run frequency) of containing the true value of the paramter. This probability is a property of the population of intervals that could be computed using the same sampling and measuring procedure. It is not correct, without further assumptions, to state that there is a 95% probability that the true value lies within the interval. However, if we have only weak prior beliefs about the possible values of the parameter, then it is valid, though possibly misleading, to state that there is an approximately 95\% probability that the true value lies in the interval [@Greenland_Living_2013; @Gelman_Values_2013]. Perhaps a more useful interpretation is that the interval contains the range of effects that are consistent with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval (this interpretation does not imply anything about the true value).

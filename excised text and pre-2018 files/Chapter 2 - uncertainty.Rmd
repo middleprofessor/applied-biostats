@@ -1,0 +1,74 @@
+---
+title: "Chapter 2 excised text"
+author: "Jeffrey A. Walker"
+date: "8/26/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Scale is critical
+The fake data in the plots below are diameters of two different types of cell ("A" and "B"). Variability is the property of how "spread out" a set of measures is. Which cell type is more variable in diameter?
+```{r unlabeled, echo=FALSE, message=FALSE, fig.cap="Histogram of cell diameter for cell types A and B"}
+n <- 50
+set.seed(7) # set seed so that same fake data occurs each time.
+fake_data <- data.table(Type=rep(c('A', 'B'), each=n),
+                        Diameter=c(
+                          rnorm(n, mean=20, sd=2),
+                          rnorm(n, mean=20, sd=4)
+                        ))
+gg <- ggplot(data=fake_data, aes(x=Diameter)) +
+  geom_histogram() +
+  theme(axis.text.x = element_blank()) +
+  facet_wrap(vars(Type), nrow=2) +
+  NULL
+gg
+```
+
+Okay, what about A and B in this plot?
+
+```{r unlabeled_free, echo=FALSE, message=FALSE, fig.cap="Histogram of cell diameter for cell types A and B"}
+gg <- ggplot(data=fake_data, aes(x=Diameter)) +
+  geom_histogram() +
+  theme(axis.text.x = element_blank()) +
+  facet_wrap(vars(Type), nrow=2, scales="free_x") +
+  NULL
+gg
+
+```
+
+Clearly, we cannot know which cell type is more variable because we are not given the **scale** of the *x*-axis. Adding the scale, the two figures above are
+
+```{r lablelled, echo=FALSE, message=FALSE, fig.cap="Labelled axes scaled with the same *x*-axis. This plot clearly shows that cell type B is more variable than cell type A."}
+gg <- ggplot(data=fake_data, aes(x=Diameter)) +
+  geom_histogram() +
+  facet_wrap(vars(Type), nrow=2) +
+  NULL
+gg
+
+```
+
+and
+
+```{r labelledFree, echo=FALSE, message=FALSE, fig.cap="Labelled axes scaled with different *x*-axes. The *x*-axis in each is scaled so that the histogram fills the whole width. The greater variability in cell B diameter is not obvious."}
+gg <- ggplot(data=fake_data, aes(x=Diameter)) +
+  geom_histogram() +
+  facet_wrap(vars(Type), nrow=2, scales="free_x") +
+  NULL
+gg
+
+```
+
+Cell B is more variable but this is much more easily seen with Figure \@ref(fig:labelled) than Figure \@ref(fig:labelledFree). A good lesson here is that the scale of axes in plots is important.
+
+### Measures of variability
+
+The variability in cell types A and B could be measured with the range, which is the **vector** of minimum and maximum values of a set of numbers
+
+```{r range}
+range(fake_data[Type=="A", Diameter])
+range(fake_data[Type=="B", Diameter])
+```
+
