@@ -1,0 +1,196 @@
+---
+title: "45-lmm01-blocking"
+author: "Jeffrey A. Walker"
+date: "12/2/2018"
+output: html_document
+---
+
+```{r lmm-setup, echo=FALSE, message=FALSE}
+library(ggplot2)
+library(ggpubr)
+library(ggsci)
+library(cowplot)
+library(readxl)
+library(emmeans)
+library(data.table)
+library(lmerTest)
+library(harrellplot)
+library(nlme)
+bookdown_compile <- FALSE
+
+if(bookdown_compile==TRUE){
+  data_path <- "data" # bookdown
+  source("R/clean_label.R") # bookdown
+}else{
+  data_path <- "../data" # notebook
+  source("../R/clean_label.R")
+}
+
+```
+
+# Linear mixed models
+
+Researchers often collect data in batches, for example
+
+1. Researchers interested in the effects of insectivorous birds on tree seedling performance in a forest stake out ten 1 m$^2$ plots and use a wire-mesh cage to cover half of each plot ^[Giffard, B., Corcket, E., Barbaro, L., & Jactel, H. (2012). Bird predation enhances tree seedling resistance to insect herbivores in contrasting forest habitats. Oecologia, 168(2), 415-424]. The cage allows insect herbivores into the seedlings inside but excludes insectivorous birds that eat the insects from the seedlings. In every plot, five seedlings are planted within the exclosure and five outside of the exclosure. At the end of the experiment, the total leaf mass is measured on all seedlings. Small, uncontrolled, environmental factors (including soil factors and density of insectivorous birds) will differ between plots but will be common to all seedlings within a plot and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the ten measures of leaf mass within a plot are not independent.
+2. A nutrition researcher wants to compare the effect of glucose vs. fructose on glucose metabolism in humans. Ten individuals are recruited. Each individual has blood insulin measured 60 minutes after a noon meal over six successive days. The meal alternates between high glucose and high fructose on each day. Each individual has three measures under high glucose treatment and three measures under high fructose treatment. Small, uncontrolled, environmental factors (including metabolic variation, other meals, activity levels) will differ between the individuals but be common within an individual and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the six measures of insulin within an individual are not independent.
+3. A researcher is using a mouse model to compare growth of a wildtype and engineered mutant strain of *Staphylococcus*. A small spot on both right and left forelimbs of ten mice is shaved and abraded. The two strains are randomly assigned to a side (so each mouse is infected with each strain). Small, uncontrolled, environmental factors (including immune responses) will differ between the mice but be common between the two limbs within a mouse and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the two measures of growth within a mouse are not independent.
+4. An ecologist wants to measure the effect of an invasive plant on the reproduction of a native plant. They stake-out ten 2 m$^2$ plots in a forest and divide each plot into four quadrants, with each quadrant assigned a different treatment: control, activated carbon (a procedural control), extract from the invasive plant's leaves, and both activated carbon and extract from the invasive plant's leaves. The response is seedling count. Small, uncontrolled, environmental factors (including soil, drainage, and light) will differ between plots but will will be common to all four quadrants within a plot and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the four sets of counts within a plot are not independent.
+5. An ecologist wants to measure the effect of habitat on chick growth in a bird. Five individuals nest in artifical nest boxes built on the boundary between the forest and a large, agricultural field. Five other individuals nest in boxes built deep in the interior of the forest. Chicks in each nest are weighed 13 days after hatching. Small, uncontrolled, environmental factors (including parenting, food availablity, temperature, etc.) will differ between the nests but be common within the nests and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the measures of weight within a nest are not independent.
+6. A physiologists has skeletal muscle cells growing in 5 control cultures, and 5 treated cultures. The $Y$ variable is cell diameter, which is measured in 10 cells per culture. Small, uncontrolled, environmental factors (including chemical) will differ between cultures but will be common to all cells within a culture and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the ten measures of diameter within a culture are not independent.
+7. A behavioral biologist wants to measure the effect of a predator fish on the preferred feeding location (open water or vegetation) of a prey fish. Ten tanks are set up with equal amounts of vegetated and unvegetated area. One-third of each tank is screened off to house a predator fish, which are added to five of the tanks. Ten prey fish are added to each tank. The response is minutes spent foraging in the open water as a fraction of total time foraging, which is measured in each fish in each tank. Small, uncontrolled, environmental factors (including temperature, water chemistry, light, and fish behavior) will differ between the tanks but be common within tanks and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the ten measures of foraging of each fish within a tank are not independent.
+
+The plots in experiment 1, individuals in experiment 2, mice in experiment 3, plots in experiment 4, nests in experiment 5, cultures in experiment 6, and tanks in experiment 7 are the experimental units, meaning that it is at this level that the experimenter is controlling the conditions. There is variation among treatments due to treatment effects, variation within treatments due to sampling, and variation within units due to a shared or common environments. This within batch variation is due to **block** effects. The plots/individuals/mice/nests/cultures/tanks are often referred to as **blocks**. The multiple measures within a block are often called **repeated measures**. Sometimes in cell biology, the subsamples within a treatment within a block are called "replicates", as they are replicates of this treatment by block combination, but this can be confusing because the treatments are replicated at the level of the block and not at the level of the subsamples within a treatment by block combination. The blocks are the independent experimental units. Instead the multiple measures of the response within a treatment by block combination are **subsamples**.
+
+Experiments 1 and 2 are examples of a **complete randomized block with subsampling** design. "Complete" means that each block has all treatment levels or combinations of levels if there is more than one factor. Experiments 3 and 4 are examples of a **complete randomized block** design. The blocks are complete but there is only one measure of the response per treatment. Experiments 5, 6, and 7 are examples of an **incomplete randomized blocks** design. The blocks are incomplete because they do not contain less than all treatment levels and combinations. In these examples, each block contains only one treatment level.
+
+## Block (repeated measures) effects in statistical models
+
+In all of the above examples, the researcher is interested in the treatment effect but not the variation due to differences among the blocks. The blocks are nuissance factors that add additional variance to the response, with the consequence that estimates of treatment effects are less precise, unless the varriance due to the blocks is explicitly modeled. Including block structure in the design and in the statistical model is known as **blocking**. A natural way to think about the block factor is as a **random effect**, meaning that plots in experiment 1 or the mice in experiment 3 are simply random samples from a population of plots or mice. Modeling this using the residual-error specification looks like 
+
+\begin{equation}
+y_{ij} = (\beta_{0} + \varepsilon_{0j}) + (\beta_{1} + \varepsilon_{1j}) x_i + \varepsilon_i 
+(\#eq:lmm-spec1)
+\end{equation}
+
+where $i$ indexes the observation and $j$ indexes the block (culture, plot, mouse, etc). The intercept parameter $\beta_{0j}$ is a **random intercept** and the slope parameter \beta_{1j} is a **random slope**. The random intercept has a **fixed** component ($\beta_0$) that is common to all observations and a random component ($\varepsilon_{0j}$) that is common within a block but differs among blocks. In the above equation, I've used parentheses to show how these combine into the random intercept that is unique for each block. Similarly, the random slope has a fixed part ($\beta_1$) that is common to all observations and a random component ($\varepsilon_{1j}$) that is common within a block but differs among blocks. Again, these are collected within a pair of parentheses in the equation above.
+
+Linear mixed models are called "mixed models" because they are a mix of fixed and random components. Another useful way to specify this model is to think about it hierarchically, using
+
+\begin{align}
+y_{ij} &= \beta_{0j} + \beta_{1j}x_i + \varepsilon_i \\
+\varepsilon_i &\sim N(0, \sigma) \\
+\beta_{0j} &= \beta_{0} + \varepsilon_{0j} \\
+\varepsilon_{0j} &\sim N(0, \sigma_{0}) \\
+\beta_{1j} &= \beta_{1} + \varepsilon_{1j} \\
+\varepsilon_{1j} &\sim N(0, \sigma_{1})
+\end{align}
+%
+The first line states that the response is a function of a block-specific intercept and a block specific slope plus some error that is unique to each observation. The third and fifth lines state that these block-specific effects are themselves a function of a common effect and a random error that is unique to each block. That is, we have a hierarchical or multi-level structure to the model. Line 1 is the top level and the effects that are specified in line 1 are a function of effects at a second, lower level, which are specified in lines 3 and 5. Because of this structure, linear mixed models are sometimes called hierarchical or multi-level models.
+
+Finally, it's useful to think how to specify a linear mixed model using the random-draw specification, as this leads naturally to generalized linear mixed models, or GLMMs.
+
+\begin{align}
+y_{ij} &\sim N(\mu{ij}, \sigma) \\
+\mu{ij} =\beta_{0j} + \beta_{1j}x_i \\
+\beta_{0j} &\sim N(\beta_0, \sigma_0) \\
+\beta_{1j} &\sim N(\beta_1, \sigma_1) \\
+\end{align}
+
+## linear mixed models increase precision of point estimates
+
+```{r fake-data, echo=FALSE}
+all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_block=6, n_subsamp=10){
+  if(sigma_b0==0){sigma_b0 <- 1e-10}
+  if(sigma_b1==0){sigma_b1 <- 1e-10}
+  fake_data <- data.table(NULL)
+  # this is a slow, inefficient way to build the data but should be easy to follow
+  for(i in 1:n_block){
+    #  random intercept for each plot
+    beta_0i <- rnorm(1, mean=0, sd=sigma_b0)
+    beta_1i <- rnorm(1, mean=0, sd=sigma_b1)
+    # the response in the control and treated groups
+    y1 <- beta_0 + beta_0i + (beta_1 + beta_1i)*0 + rnorm(n_subsamp, mean=0, sd=sigma)
+    y2 <- beta_0 + beta_0i + (beta_1 + beta_1i)*1 + rnorm(n_subsamp, mean=0, sd=sigma)
+    # combine into a data.table and rbind to end of fake_data
+    fake_data <- rbind(fake_data,
+                       data.table(Treatment=rep(c("Cn","T+"), each=n_subsamp),
+                                  subsample=rep(1:n_subsamp, 2),
+                                  block=letters[i],
+                                  Y=c(y1, y2))
+    )
+  }
+  
+  fake_data[, block:=factor(block)]
+  return(fake_data)
+}
+
+```
+
+Let's create fake data that look something like experiments 1 or 2, with a single factor with two treatment levels, $k=10$ blocks, and $n=3$ measures for each treatment level within each block. This is a randomized complete block design with subsampling and has a total of $N=2 \times k \times n$ measures of $Y$ (and rows of the data.table).
+
+```{r lmm1 all-treatments-per-batch-simulation}
+n <- 3 # number of measures per treatment within each block
+k <- 10 # number of blocks
+set.seed(5)
+fd <- all_treatments_per_batch(sigma=1, sigma_b0=1, sigma_b1=0.1, beta_0=10, beta_1=1, n_block=k, n_subsamp=n)
+jco <- pal_jco()(2)
+
+ggerrorplot(x="Treatment", 
+            y="Y", 
+            color="Treatment",
+            data=fd, 
+            desc_stat = "mean_sd", 
+            palette = "jco",
+            position = position_dodge(0.3), 
+            add=c("jitter")
+             ) +
+  geom_hline(yintercept = mean(fd[Treatment=="Cn", Y]), color=jco[1]) +
+  geom_hline(yintercept = mean(fd[Treatment=="T+", Y]), color=jco[2])
+ggerrorplot(x="block", 
+            y="Y", 
+            color="Treatment",
+            data=fd, 
+            desc_stat = "mean_sd", 
+            palette = "jco",
+            position = position_dodge(0.3), 
+            add=c("jitter")
+             ) +
+  geom_hline(yintercept = mean(fd[Treatment=="Cn", Y]), color=jco[1]) +
+  geom_hline(yintercept = mean(fd[Treatment=="T+", Y]), color=jco[2])
+
+complete_pooling <- lm(Y~Treatment, data=fd)
+partial_pooling <- lmer(Y~Treatment + (Treatment|block), data=fd)
+coef(summary(complete_pooling))
+coef(summary(partial_pooling))
+anova(complete_pooling)
+anova(partial_pooling)
+```
+
+## Linear mixed models are used to avoid pseudoreplication
+
+## Linear mixed models shrink coefficients by partial pooling
+
+## Working in R
+
+The major function for working with linear mixed models is `lmer()` from the lme4 package. An older, and still sometimes used function is `lme()` from the nlme package. The authors of the lme4 package argue that the df in a linear mixed model are too approximate for a useful $p$-value and, consequently, the `lme` function does not return a $p$-value. Many biological researchers want a $p$-value and typically use the `lmerTest` package to get this.
+
+```{r coral}
+folder <- "Data from When environmental factors become stressors- interactive effects of vermetid gastropods and sedimentation on corals"
+fn <- "VermetidSedimentData_ZillGilOsenberg_DRYAD.xlsx"
+sheet_i <- "Coral Growth Rate Data"
+file_path <- paste(data_path, folder, fn, sep="/")
+coral <- data.table(read_excel(file_path, sheet=sheet_i))
+setnames(coral, old=colnames(coral), new=clean_label(colnames(coral)))
+coral[, Vermetids:=factor(Vermetids)]
+coral[, Sediment:=factor(Sediment)]
+```
+
+`lmer` adds the random component to the formula. `lme` adds the random component as a separate argument
+
+```{r coral-fit}
+# to reproduce the results
+# observation 2 should be excluded from the analysis
+inc <- c(1, 3:nrow(coral))
+
+# specification using lmer
+# random intercept only
+fit.lmer1 <- lmer(GrowthRate ~ Vermetids*Sediment + (1|Block), data=coral[inc])
+# random intercept and slope
+fit.lmer2 <- lmer(GrowthRate ~ Vermetids*Sediment + (Vermetids|Block) + (Sediment|Block), data=coral[inc])
+# random intercept and slope
+fit.lmer3 <- lmer(GrowthRate ~ Vermetids*Sediment + (Vermetids|Block) + (Sediment|Block), data=coral[inc])
+# to include the interaction as a random effect we'd need subsampling within each factorial treatment combination
+
+# specification using lme
+fit.lme <- lme(GrowthRate ~ Vermetids*Sediment, random= ~1|Block, data=coral[inc])
+
+# results using lmer fit
+coefficients(fit.lmer)
+coefficients(summary(fit.lmer))
+fit.emm <- emmeans(fit.lmer, specs=c("Vermetids", "Sediment"))
+summary(contrast(fit.emm, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE))
+
+```
+
+The formula for `lmer` 

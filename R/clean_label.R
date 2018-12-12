@@ -20,5 +20,8 @@ clean_label <- function(x){
   # get rid of any double "__"
   x <- gsub("__", "_", x)
 
+  # replace hyphens
+  x <- gsub("-", "_", x)
+
   return(x)
 }

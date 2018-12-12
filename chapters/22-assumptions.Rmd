@@ -1,0 +1,95 @@
+---
+title: "22-Model Assumptions"
+output: html_notebook
+---
+
+# Linear Model Assumptions
+
+Here is the linear model above (equation \@ref(eq:lm)) but I've amended the model by explicitly specifying the distribution of the error term.
+
+\begin{align}
+Y &= \beta_0 + \beta_1 X + \varepsilon\\
+\varepsilon &\sim N(0, \sigma)
+(\#eq:lm-again)
+\end{align}
+
+where $N(0, \sigma)$ is read as "normal distribution with mean zero and standard deviation sigma". Any inference about the parameter $\beta_1$ (such as confidence intervals or hypothesis tests) assumes that the error ($\varepsilon$) is IID Normal where IID is **independent and identically distributed** and Normal refers to the Normal (or Gaussian) distribution.
+
+1. Independent means that the error for one case cannot be predicted from the error of any other case. There are lots or reasons that errors might be correlated. For example, measures that are taken from sites that are closer together or measures taken closer in time or measures from more closely related biological species will tend to have more similar error than measures taken from sites that are further apart or from times that are further apart or from species that are less closely related. Space and time and phylogeny create **spatial and temporal and phylogenetic autocorrelation**. Correlated error due to space or time or phylogeny can be modeled with **Generalized Least Squares** (GLS) models. A GLS model is a variation of model \@ref(eq:lm-again).
+
+If there are measures both within and among field sites (or humans or rats) then we'd expect the measures within the same site (or human or rat) to err from the model in the same direction. Multiple measures within experimental units (a site or individual) creates "clusters" of error. Lack of independence or clustered error can be modeled using models with **random effects**. These models go by many names including linear mixed models (common in Ecology), hierarchical models, multilevel models, and random effects models. A linear mixed model is a variation of model \@ref(eq:lm-again).
+
+2. Identical means that the errors are "drawn" from the same distribution. Since the model is a linear model, this distribution is a Normal distribution. A consequence of "indentical" is that the error variance is **homoskedastic**, or constant, or independent of $X$. If the error variance differs among the $X$ then the errors are **heteroskedastic**. Many biological processes generate data in which the error is a function of the mean. For example, measures of biological variables that grow, such as lengths of body parts or population size, have variances that are "grow" with the mean. Or, measures of counts, such as the number of cells damaged by toxin, the number of eggs in a nest, or the number of mRNA transcripts per cell have variances that are a function of the mean. Both growth and count measures can be reasonably modeled using a linear model they are more often modeled using a **generalized linear model** (GLM), which is an extension of the linear model in equation \@ref(eq:lm-again). Heteroskedasitc error arising for other reasons, both biological and experimental, can be modeled with Generalized Least Squares (GLS) or with linear mixed models. GLS models are variations of model \@ref(eq:lm-again).
+
+3. Normal (Gaussian) error means that 1) the response is continuous and 2) the probability of sampling an individual measuring 0.5 units below the population mean is the same as the probability of sampling an individual measuring 0.5 units above the population mean. Counts (number of cells, number of eggs, number of mRNA transcripts) and binary responses (sucessful escape or sucessful infestation of host) are not continous and often often have asymmetric probablity distributions that are skewed to the right and while sometimes both can be reasonably modeled using a linear model they are more often modeled using a **generalized linear model** (GLM), which, again, is an extension of the linear model in equation \@ref(eq:lm-again).
+
+A common misconception is that inference from a linear model assumes that the *response* ($Y$) is normally distributed. Models \@ref(eq:lm-again) and \@ref(eq:lm-spec2) show precisely why this conception is wrong. Model \@ref(eq:lm-again) states explicitly that it is the error that has the normal distribution -- the distribution of $Y$ is a mix of the distribution of $X$ and the error. Model \@ref(eq:lm-spec2) states that the conditional outcome has a normal distribution, that is, the distribution after adjusting for variation in $X$.
+
+
+
+
+
+
+The linear model
+
+\begin{equation}
+Y_i = \beta_0 + \beta_1 X_i + \varepsilon_i
+\end{equation}
+
+has several important assumptions for the computation of correct standard errors and any statistic derived from standard errors including a confidence interval and a $p$-value.
+
+\begin{align}
+Y &\sim N(\mu, \sigma)\\
+\mathrm{E}(Y|X) = \mu
+\mu &= \beta_0 + \beta_1 X
+(\#eq:lm-spec2)
+\end{align}
+
+
+1. Normality: the errors $\varepsilon$ have mean zero and a normal distribution. Often this is mistakenly interpreted as the response $Y$ has to be normally distributed and sometimes that even $X$ has to be normally distributed. But the assumption applies only to the residuals of the fit model.
+
+2. Independence: the errors are independent of each other
+
+3. Homoskedasticity: the variance of the errors is homogenous
+
+3. the errors are identically distributed
+
+4. the error is independent of any $X$
+
+5. the error is independent of the response
+
+Here I model fake data in which $X$ is niformly distributed. $Y$ is a linear function of $X$ + normally distributed error, so the $Y$ is also uniformly distributed but the error is normal. The histogram of $Y$ shows this uniform distribution clearly. The histogram of the residuals from the fit model show the normal distribution of the error clearly.
+d
+```{r}
+n <- 1000
+x <- runif(n)*100
+sigma <- 1.0
+y <- 5 + 1.2*x + rnorm(n, sd=sigma)
+qplot(y)
+
+fit <- lm(y ~ x)
+summary(fit)
+qplot(residuals(fit))
+```
+
+There are tests for normality but I do not recommend these because the test doesn't add any value from what one can gain by simply inspecting the residuals. 
+
+```{r}
+n <- 30
+h <- runif(n)*90 + 10
+w <- h^3
+sigma <- rnorm(n)*.2
+logh <- log(h)
+logw <- log(w) + sigma
+qplot(logh, logw)
+
+x <- h
+y <- exp(logw)
+qplot(x=x, y=y)
+fit <- lm(y ~ x)
+qplot(residuals(fit))
+
+plot(fit)
+
+```
+

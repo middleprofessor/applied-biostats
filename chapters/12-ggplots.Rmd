@@ -148,7 +148,7 @@ Figure xxx, with lines connecting cell means, is often called an "interaction pl
 
 The SE error bars above are computed for each group independently. If we are going to bother fitting a model to the data and reporting modeled statistics in the text, it makes sense to also report these modeled statistcs in the figures since...figures should be the center of the paper's universe.
 
-The plots below, use modeled SEs from the the fit model. Think about it like this, the linear model has some error $\varepsilon$ which has some standard deviation $\sigma$. The standard error computed for a group is $\frac{s_k}{\sqrt{n}}$ where $s_k$ is the sampled estimate of $\sigma$ for that group. The modeled SE for a group uses the modeled estimate of $\sigma$ for every group instead of that group's sampled $s_k$. So, if $n$ is the same in each group then the modeled SE is the same for each group. So what is the modeled SE? If is the standard deviation of the residuals of the model, of course.
+The plots below, use modeled SEs from the the fit model. Think about it like this, the linear model has some error $\varepsilon$ which has some standard deviation $\sigma$. The standard error computed for a group is $\frac{s_k}{\sqrt{n}}$ where $s_k$ is the sampled estimate of $\sigma$ for that group. The modeled SE for a group uses the modeled estimate of $\sigma$ for every group instead of that group's sampled $s_k$. So, if $n$ is the same in each group then the modeled SE is the same for each group. So what is the modeled SE? If is the standard deviation of the residuals of the model $\sqrt{\frac{ss_{residual}}{df_{residual}}}$.
 
 Pretending the four treatment levels are not from a factorial design:
 

@@ -1,0 +1,129 @@
+---
+title: "40-glm01-test-scripts"
+output: html_notebook
+---
+
+Are residuals of lm fit poisson distributed? of course not!
+
+```{r lm-residuals}
+n <- 100
+exp_b0 <- 1.7
+exp_b1 <- .5
+exp_b <- c(exp_b0, exp_b1)
+y <- rpois(n*2, lambda=rep(exp_b, each=n))
+fake_data <- data.table(treatment=rep(c("a","b"), each=n), count=y)
+fit <- lm(count ~ treatment, data=fake_data)
+funny_residuals <- round(residuals(fit) - min(residuals(fit)),0)
+qplot(funny_residuals, binwidth=1)
+
+fit.pois <- glm(funny_residuals ~ 1, family="poisson")
+
+  # do fake data by hand
+n_sim <- 250
+n_row <- n*2
+fake_data_2 <- matrix(NA, nrow=n_row, ncol=n_sim)
+for(j in 1:n_sim){
+  fake_data_2[,j] <- rpois(n_row, lambda=fitted(fit.pois))
+}
+fake_data_2 <- cbind(funny_residuals, fake_data_2)
+# this works
+
+quantile_residuals <- numeric(n_row)
+for(i in 1:n_row){
+  quantile_residuals[i] <- (rank(fake_data_2[i,])[1] - 1)/n_sim
+}
+Observed <- sort(quantile_residuals)
+q <- n_row+1
+x <- seq(1/q, 1-1/q,by=1/q)
+Theoretical <- qunif(x)
+ggscatter(data=data.frame(Theoretical=Theoretical, Observed=Observed),
+          x="Theoretical", 
+          y="Observed",
+          title = "Quantile Residual Q-Q Plot"
+) +
+  geom_abline(slope=1, intercept=0) +
+  NULL
+
+```
+
+```{r trematode}
+folder <- "Data from Experimental parasite community ecology- intraspecific variation in a large tapeworm affects community assembly"
+file <- "Lab_exp.csv"
+file_path <- paste(data_path, folder, file, sep="/")
+worm <- fread(file_path)
+worm[, Treatment:=factor(Treatment, c("Control", "Uninfected", "Infected LG", "Infected HG"))]
+
+
+fit.lm <- lm(Diplo_intensity ~ Treatment, data=worm, na="na.exclude")
+
+
+```
+
+
+```{r sugar}
+folder <- "Data from Sugar provisioning maximizes the biocontrol service of parasitoids"
+file <- "4_Parastism_Fig_6.csv"
+file_path <- paste(data_path, folder, file, sep="/")
+sugar <- fread(file_path)
+sugar[, Treatment:=factor(Treatment, c("Control", "Releases", "Releases_sugar"))]
+ggerrorplot(x="Treatment", y="Parasitized", desc_stat="mean_ci", data=sugar)
+
+fit.nb <- glm.nb(Parasitized ~ Treatment, data=sugar)
+emm <- summary(emmeans(fit.nb, specs="Treatment", type="response"))
+gg <- ggplot(data=emm, aes(x=Treatment, y=response)) +
+  geom_point(size=2) +
+  geom_errorbar(aes(ymin=asymp.LCL, ymax=asymp.UCL), width=.2)
+gg
+
+# QQ plot of scaled resdiduals
+  simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = n_sim)
+  plot(simulationOutput, asFactor = F)
+  
+# Normal QQ plot of deviance residuals
+
+dev_residuals <- residuals(fit.nb, type="deviance")
+n <- length(dev_residuals)
+Observed <- sort(dev_residuals + rnorm(n, 0.01))
+q <- n+1
+x <- seq(1/q, 1-1/q,by=1/q)
+Theoretical <- qnorm(x)
+qq_data <- data.table(X=rep(x,2),
+                      Data=rep(c("Observed", "Theoretical"), each=n), 
+                      Quantile=c(Observed, Theoretical))
+gg <- ggplot(data=qq_data, aes(x=X, y=Quantile, color=Data)) +
+  geom_point() +
+  NULL
+gg
+
+qplot(x=Theoretical, y=Observed) + geom_abline(intercept=0, slope=1)
+
+# compare normal and nb fits
+  
+fit.lm <- lm(Parasitized ~ Treatment, data=sugar)
+emmeans(fit.lm, specs="Treatment")
+emm
+
+# fake data
+simulate_it <- FALSE
+if(simulate_it==TRUE){
+  niter <- 5000
+  mu <- predict(fit.nb, type="response")
+  n <- length(mu)
+  lm.conf <- matrix(nrow=niter, ncol=2)
+  glm.conf <- matrix(nrow=niter, ncol=2)
+  
+  mu1 <- coef(fit.lm)[1]
+  for(iter in 1:niter){
+    fake_count <- rnegbin(n, mu, theta=fit.nb$theta)
+    fake.lm <-  lm(fake_count ~ Treatment, data=sugar)
+    lm.conf[iter,] <- confint(fake.lm)[1,]
+    
+    fake.nb <- glm.nb(fake_count ~ Treatment, data=sugar)
+    glm.conf[iter,] <- exp(confint(fake.nb)[1,])
+  }
+  sum(mu1 > lm.conf[,1] & mu1 < lm.conf[,2])/niter*100  # coverage is 99.1%
+  sum(mu1 > glm.conf[,1] & mu1 < glm.conf[,2])/niter*100 # coverage is 94.5%
+  
+}
+```
+

@@ -1,0 +1,20 @@
+---
+title: "45-lmm-class"
+output: html_notebook
+---
+
+```{r setup}
+library(ggplot2)
+library(reshape2)
+library(ggpubr)
+library(data.table)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+library(nlme)
+```
+
+```{r lmm-sim}
+
+```
+

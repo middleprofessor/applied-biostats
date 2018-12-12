@@ -1,0 +1,512 @@
+anova(fit1)
+anova(fit1, ddf="Kenward-Roger")
+fit2 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+anova(fit2, ddf="Kenward-Roger")
+fit1 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+fit3 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot2), data=AG_biomass)
+anova(fit3)
+unique(BG_biomass$plot2)
+fit4 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot/point), data=AG_biomass)
+anova(fit4)
+head(BG_biomass)
+# Heating df is 1, but there are three levels so they have either dropped "Cable" or combined it with control
+#plot as coded, dropping cable
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+# Heating df is 1, but there are three levels so they have either dropped "Cable" or combined it with control
+#plot as coded, dropping cable
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+fit3 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot/point), data=AG_biomass)
+anova(fit3)
+# Heating df is 1, but there are three levels so they have either dropped "Cable" or combined it with control
+#plot as coded, combining cable + control
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+fit3 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot/point), data=AG_biomass)
+anova(fit3)
+#plot as coded, combining dropping cable
+fit4 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit4)
+fit5 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block),
+data=AG_biomass[Heating!="PC"])
+anova(fit5)
+fit6 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot/point)
+data=AG_biomass[Heating!="PC"])
+# Heating df is 1, but there are three levels so they have either dropped "Cable" or combined it with control
+#plot as coded, combining cable + control
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+fit3 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot/point), data=AG_biomass)
+anova(fit3)
+#plot as coded, combining dropping cable
+fit4 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit4)
+fit5 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block),
+data=AG_biomass[Heating!="PC"])
+anova(fit5)
+fit6 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot/point),
+data=AG_biomass[Heating!="PC"])
+anova(fit6)
+fit4 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit4)
+fit5 <- lmer(log_weight ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit5)
+fit6 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit6)
+head(AG_biomass)
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block),
+data=AG_biomass[pft=="gr"])
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization + (1|block),
+data=AG_biomass[pft=="gr"])
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization + (1|block),
+data=AG_biomass[pft=="gr" & Heating!="PC"])
+anova(fit2)
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization + (1|block),
+data=AG_biomass[pft=="gr"])
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating*Fertilization + (1|block),
+data=AG_biomass[pft=="gr" & Heating!="PC"])
+anova(fit2)
+# Heating df is 1, but there are three levels so they have either dropped "Cable" or combined it with control
+#plot as coded, combining cable + control
+fit1 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot), data=AG_biomass)
+anova(fit1)
+fit2 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block), data=AG_biomass)
+anova(fit2)
+fit3 <- lmer(log_weight_p1 ~ Heating2*Fertilization*pft + (1|block/plot/point), data=AG_biomass)
+anova(fit3)
+#plot as coded, dropping cable
+fit4 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit4)
+fit5 <- lmer(log_weight ~ Heating*Fertilization*pft + (1|block/plot),
+data=AG_biomass[Heating!="PC"])
+anova(fit5)
+fit6 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot),
+data=AG_biomass)
+anova(fit6)
+library(harrellplot)
+?harrellplot
+hp_grass <- harrellplot(x="Heating", y="weight", g="Fertilization", contrasts.method="revpairwise", data=AG_biomass[pft=="gr"])
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization", data=AG_biomass[pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 0.66
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization", data=AG_biomass[pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 0.75
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization", data=AG_biomass[pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 0.8
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization", data=AG_biomass[pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization", data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization",
+rintcols="Block"
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization",
+rintcols="Block",
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization",
+rintcols="block",
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+AG_biomass[pft=="gr"]
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization",
+rintcols="block",
+fit.model = "lmm"
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+hp_grass <- harrellplot(x="Heating",
+y="weight",
+g="Fertilization",
+rintcols="block",
+fit.model = "lmm",
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass$gg
+hp_grass <- harrellplot(x="Heating",
+y="log_weight",
+g="Fertilization",
+rintcols="block",
+fit.model = "lmm",
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass$gg
+folder <- "Data from Data from Above and below ground responses of four tundra plant functional types to deep soil heating and surface soil fertilization"
+fn <- "2015.05.18_weighing results aboveground.xlsx"
+file_path <- paste(data_path, folder, fn, sep="/")
+AG_biomass <- data.table(read_excel(file_path, range="A1:F352"))
+AG_biomass[, log_weight:=log(weight)]
+AG_biomass[, log_weight_p1:=log(weight+1)]
+# make block and pft factors
+AG_biomass[, block:=factor(block)]
+AG_biomass[, pft:=factor(pft)]
+# change plot to unique labels so that labels differ among blocks
+AG_biomass[, plot2 :=factor(paste(block,plot,sep='-'))]
+# heating levels
+# C - "control", PC - "cable", or procedural control, H=warming
+heating_levels <- c("H-", "PC", "H+")
+# fertlization levels
+# C - "control"
+# F - "fertilized"
+fertlization_levels <- c("F-", "F+")
+AG_biomass[, Heating:=ifelse(plot==3 | plot==4, heating_levels[1],
+ifelse(plot==2 | plot==6, heating_levels[2],
+ifelse(plot==1 | plot==5, heating_levels[3], NA))
+)]
+AG_biomass[, Heating:=factor(Heating, heating_levels)]
+AG_biomass[, Fertilization:=ifelse(plot %in% c(2, 4, 5), fertlization_levels[1], fertlization_levels[2])]
+AG_biomass[, Fertilization:=factor(Fertilization, fertlization_levels)]
+# combine C + PC
+AG_biomass[, Heating2:=ifelse(as.character(Heating)=="PC", "C", as.character(Heating))]
+AG_biomass[, Heating2:=factor(Heating2)]
+# plot
+# 1: warming & fertilization
+# 2: cable
+# 3: fertilization
+# 4: control
+# 5: warming
+# 6: cable & fertilization
+#
+# PFT
+# DS: deciduous shrub (Betula nana, Salix glauca, S. pulchra)
+# ES: evergreen shrub (Ledum decumbens, Vaccinium vitis-idaea)
+# Gr: grass (Arctagrostis latifolia, A. calamagrostis)
+# Se: sedge (Eriophorum vaginatum, Carex bigelowi)
+hp_grass <- harrellplot(x="Heating",
+y="log_weight",
+g="Fertilization",
+rintcols="block",
+fit.model = "lmm",
+data=AG_biomass[Heating!="PC" & pft=="gr"],
+contrasts.method="revpairwise",
+rel_height = 1
+)
+hp_grass$gg
+df_no_pooling <- lmList(Y ~ Treatment | batch, fd) %>%
+coef()
+library(ggplot2)
+library(reshape2)
+library(ggpubr)
+library(data.table)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+fd <- all_treatments_per_batch(sigma=1, sigma_b0=1, beta_1=0.5, n_batch=6, n_reps=10)
+library(ggplot2)
+library(reshape2)
+library(ggpubr)
+library(data.table)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+all_treatments_per_batch <- function(sigma=1, sigma_b0=1, beta_0=10, beta_1=1, n_batch=6, n_reps=10){
+fake_data <- data.table(NULL)
+# this is a slow, inefficient way to build the data but should be easy to follow
+for(i in 1:n_batch){
+#  random intercept for each plot
+beta_0j <- rnorm(1, mean=0, sd=sigma_b0)
+# the response in the control and treated groups
+y1 <- beta_0 + beta_0j + beta_1*0 + rnorm(n_reps, mean=0, sd=sigma)
+y2 <- beta_0 + beta_0j + beta_1*1 + rnorm(n_reps, mean=0, sd=sigma)
+# combine into a data.table and rbind to end of fake_data
+fake_data <- rbind(fake_data,
+data.table(Treatment=rep(c("Cn","T+"), each=10),
+replicate=rep(1:n_reps, 2),
+batch=paste("p",i,sep="_"),
+Y=c(y1, y2))
+)
+}
+fake_data[, batch:=factor(batch)]
+return(fake_data)
+}
+one_treatment_per_batch <- function(sigma=1, sigma_b0=1, beta_0=10, beta_1=1, n_batch=6, n_reps=10, missing=1){
+# missing controls number of missing observations
+n_levels <- 2 # number of treatment_levels
+fake_data <- data.table(NULL)
+# this is a slow, inefficient way to build the data but should be easy to follow
+batch_ij <- 0
+for(j in 1:n_levels){
+for(i in 1:n_batch){
+batch_ij <- batch_ij+1
+#  random intercept for each plot
+if(sigma_b0 > 0){
+beta_0ij <- rnorm(1, mean=0, sd=sigma_b0)
+}else{
+beta_0ij <- 0
+}
+# the response in the control and treated groups
+if(j == 1){
+y <- beta_0 + beta_0ij + beta_1*0 + rnorm(n_reps, mean=0, sd=sigma)
+}else{
+y <- beta_0 + beta_0ij + beta_1*1 + rnorm(n_reps, mean=0, sd=sigma)
+}
+# combine into a data.table and rbind to end of fake_data
+fake_data <- rbind(fake_data,
+data.table(Treatment=rep(j, 10),
+replicate=1:n_reps,
+batch=paste("p", batch_ij, sep="_"),
+Y=y)
+)
+}
+}
+fake_data[, Treatment:=factor(ifelse(Treatment==1, "Cn", "Tr"))]
+fake_data[, batch:=factor(batch)]
+return(fake_data)
+}
+fd <- one_treatment_per_batch(sigma=1, sigma_b0=1, beta_1=1, n_batch=6, n_reps=10)
+coef(summary(lm(Y~Treatment, data=fd)))
+coef(summary(lmer(Y~Treatment + (1|batch), data=fd)))
+df_no_pooling <- lmList(Y ~ Treatment | batch, fd) %>%
+coef()
+head(fd)
+df_no_pooling <- lmList(Y ~ Treatment + (Treatment | batch), fd) %>%
+coef()
+?lmList
+fd <- all_treatments_per_batch(sigma=1, sigma_b0=1, beta_1=0.5, n_batch=6, n_reps=10)
+coef(summary(lm(Y~Treatment, data=fd)))
+coef(summary(lmer(Y~Treatment + (1|batch), data=fd)))
+df_no_pooling <- lmList(Y ~ Treatment + (Treatment | batch), fd) %>%
+coef()
+df_no_pooling <- lmList(Y ~ Treatment + (1 | batch), fd) %>%
+coef()
+df_no_pooling <- lmList(Y ~ Treatment | batch, fd) %>%
+coef()
+df_no_pooling
+?rownames_to_column
+df_no_pooling <- lmList(Y ~ Treatment | batch, fd)
+df_no_pooling
+no_pooling <- lmList(Y ~ Treatment | batch, fd)
+no_pooling <- data.table(batch=row.names(no_pooling), no_pooling)
+no_pooling <- lmList(Y ~ Treatment | batch, fd)
+row.names(no_pooling)
+row.names(no_pooling)
+summary(no_pooling)
+coef(no_pooling)
+no_pooling <- coef(lmList(Y ~ Treatment | batch, fd))
+no_pooling <- data.table(batch=row.names(no_pooling), no_pooling)
+no_pooling
+coef(lm(Y ~ Treatment, fd))
+coef(lmer(Y~Treatment + (1|batch), data=fd))
+coef(summary(lmer(Y~1+(Treatment|batch), data=fd)))
+coef(summary(lmer(Y~Treatment+(Treatment|batch), data=fd)))
+coef(summary(lmer(Y~Treatment+(Treatment|batch), data=fd)))
+coef(summary(lm(Y~Treatment, data=fd)))
+coef(summary(lmer(Y~Treatment + (1|batch), data=fd)))
+coef(summary(lmer(Y~Treatment+(Treatment|batch), data=fd)))
+no_pooling
+complete_pooling
+complete_pooling <- coef(lm(Y ~ Treatment, fd))
+complete_pooling
+40*30*4
+data_path <- "data"
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+library(ggplot2)
+library(ggpubr)
+library(cowplot)
+library(readxl)
+library(emmeans)
+library(data.table)
+library(lmerTest)
+library(harrellplot)
+library(nlme)
+bookdown_compile <- FALSE
+if(bookdown_compile==TRUE){
+data_path <- "data" # bookdown
+source("R/clean_label.R") # bookdown
+}else{
+data_path <- "../data" # notebook
+source("../R/clean_label.R")
+}
+data_path <- "data"
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+file_path
+data_path
+bookdown_compile
+library(ggplot2)
+library(ggpubr)
+library(cowplot)
+library(readxl)
+library(emmeans)
+library(data.table)
+library(lmerTest)
+library(harrellplot)
+library(nlme)
+bookdown_compile <- FALSE
+if(bookdown_compile==TRUE){
+data_path <- "data" # bookdown
+source("R/clean_label.R") # bookdown
+}else{
+data_path <- "../data" # notebook
+source("../R/clean_label.R")
+}
+data_path
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+head(vole)
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1"]
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1", lifespan]
+vole
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1", lifespan]
+n <- length(vole)
+p <- 50
+X <- matrix(rnorm(n*p), nrow=n)
+fit1 <- lm(vole~X[,1])
+coef(fit1)
+coefficients(summary(fit1))
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1", lifespan]
+n <- length(vole)
+p <- 50
+set.seed(1)
+X <- matrix(rnorm(n*p), nrow=n)
+fit1 <- lm(vole~X[,1])
+fit10 <- lm(vole~X[,1:10])
+coef(summary(fit10))
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1", lifespan]
+n <- length(vole)
+p <- 50
+set.seed(1)
+X <- matrix(rnorm(n*p), nrow=n)
+colnames(X) <- paste("X", 1:p, sep="_")
+fit1 <- lm(vole~X[,1])
+fit10 <- lm(vole~X[,1:10])
+coef(summary(fit10))
+head(X)
+summary(fit1)
+summar(fit10)
+summary(fit10)
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- paste(data_path, folder, filename, sep="/")
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- vole[control=="1", lifespan]
+n <- length(vole)
+p <- 50
+set.seed(1)
+X <- matrix(rnorm(n*p), nrow=n)
+colnames(X) <- paste("X", 1:p, sep="_")
+fit1 <- lm(vole~X[,1])
+fit10 <- lm(vole~X[,1:10])
+fit50 <- lm(vole~X)
+summary(fit50)
+head(coral)
+library(ggplot2)
+library(ggpubr)
+library(cowplot)
+library(readxl)
+library(emmeans)
+library(data.table)
+library(lmerTest)
+library(harrellplot)
+library(nlme)
+bookdown_compile <- FALSE
+if(bookdown_compile==TRUE){
+data_path <- "data" # bookdown
+source("R/clean_label.R") # bookdown
+}else{
+data_path <- "../data" # notebook
+source("../R/clean_label.R")
+}
+folder <- "Data from When environmental factors become stressors- interactive effects of vermetid gastropods and sedimentation on corals"
+fn <- "VermetidSedimentData_ZillGilOsenberg_DRYAD.xlsx"
+sheet_i <- "Coral Growth Rate Data"
+file_path <- paste(data_path, folder, fn, sep="/")
+coral <- data.table(read_excel(file_path, sheet=sheet_i))
+setnames(coral, old=colnames(coral), new=clean_label(colnames(coral)))
+coral[, Vermetids:=factor(Vermetids)]
+coral[, Sediment:=factor(Sediment)]
+head(coral)
