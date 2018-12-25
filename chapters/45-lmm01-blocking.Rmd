@@ -5,7 +5,8 @@ date: "12/2/2018"
 output: html_document
 ---
 
-```{r lmm-setup, echo=FALSE, message=FALSE}
+```{r lmm-setup, echo=FALSE, message=FALSE, warning=FALSE}
+library(doBy)
 library(ggplot2)
 library(ggpubr)
 library(ggsci)
@@ -16,7 +17,7 @@ library(data.table)
 library(lmerTest)
 library(harrellplot)
 library(nlme)
-bookdown_compile <- FALSE
+bookdown_compile <- TRUE
 
 if(bookdown_compile==TRUE){
   data_path <- "data" # bookdown
@@ -28,7 +29,38 @@ if(bookdown_compile==TRUE){
 
 ```
 
+```{r fake-data, echo=FALSE}
+all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_block=6, n_subsamp=10, Y_label="Y", trt_levels=c("Cn","T+"), block_label="block"){
+  if(sigma_b0==0){sigma_b0 <- 1e-10}
+  if(sigma_b1==0){sigma_b1 <- 1e-10}
+  fake_data <- data.table(NULL)
+  # this is a slow, inefficient way to build the data but should be easy to follow
+  for(j in 1:n_block){
+    #  random intercept for each plot
+    beta_0_j <- rnorm(1, mean=0, sd=sigma_b0)
+    beta_1_j <- rnorm(1, mean=0, sd=sigma_b1)
+    # the response in the control and treated groups
+    y1 <- beta_0 + beta_0_j + (beta_1 + beta_1_j)*0 + rnorm(n_subsamp, mean=0, sd=sigma)
+    y2 <- beta_0 + beta_0_j + (beta_1 + beta_1_j)*1 + rnorm(n_subsamp, mean=0, sd=sigma)
+    # combine into a data.table and rbind to end of fake_data
+    fake_data <- rbind(fake_data,
+                       data.table(Treatment=rep(trt_levels, each=n_subsamp),
+                                  subsample=rep(1:n_subsamp, 2),
+                                  block=letters[j],
+                                  Y=c(y1, y2),
+                                  beta_0j=beta_0_j+beta_0,
+                                  beta_1j=beta_1_j+beta_1)
+    )
+  }
+  fake_data[, block:=factor(block)]
+  fake_data[, Treatment:=factor(Treatment, trt_levels)]
+  setnames(fake_data, old=c("Y", "block"), new=c(Y_label, block_label))
+  return(fake_data)
+}
+```
+
 # Linear mixed models
+## Random effects
 
 Researchers often collect data in batches, for example
 
@@ -40,94 +72,105 @@ Researchers often collect data in batches, for example
 6. A physiologists has skeletal muscle cells growing in 5 control cultures, and 5 treated cultures. The $Y$ variable is cell diameter, which is measured in 10 cells per culture. Small, uncontrolled, environmental factors (including chemical) will differ between cultures but will be common to all cells within a culture and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the ten measures of diameter within a culture are not independent.
 7. A behavioral biologist wants to measure the effect of a predator fish on the preferred feeding location (open water or vegetation) of a prey fish. Ten tanks are set up with equal amounts of vegetated and unvegetated area. One-third of each tank is screened off to house a predator fish, which are added to five of the tanks. Ten prey fish are added to each tank. The response is minutes spent foraging in the open water as a fraction of total time foraging, which is measured in each fish in each tank. Small, uncontrolled, environmental factors (including temperature, water chemistry, light, and fish behavior) will differ between the tanks but be common within tanks and we would expect a common response to this uncontrolled variation on top of the differential response to each treatment. As a consequence, the ten measures of foraging of each fish within a tank are not independent.
 
-The plots in experiment 1, individuals in experiment 2, mice in experiment 3, plots in experiment 4, nests in experiment 5, cultures in experiment 6, and tanks in experiment 7 are the experimental units, meaning that it is at this level that the experimenter is controlling the conditions. There is variation among treatments due to treatment effects, variation within treatments due to sampling, and variation within units due to a shared or common environments. This within batch variation is due to **block** effects. The plots/individuals/mice/nests/cultures/tanks are often referred to as **blocks**. The multiple measures within a block are often called **repeated measures**. Sometimes in cell biology, the subsamples within a treatment within a block are called "replicates", as they are replicates of this treatment by block combination, but this can be confusing because the treatments are replicated at the level of the block and not at the level of the subsamples within a treatment by block combination. The blocks are the independent experimental units. Instead the multiple measures of the response within a treatment by block combination are **subsamples**.
+The batches -- plots in experiment 1, individuals in experiment 2, mice in experiment 3, plots in experiment 4, nests in experiment 5, cultures in experiment 6, and tanks in experiment 7 -- are often referred to as **blocks** or **clusters**. I'll generally use the term "block" in this book. The blocks are the experimental units, meaning that it is at this level that the experimenter is controlling the conditions. There is systematic variation at two levels: among treatments due to treatment effects and among blocks due to **block effects**. This among-block variation is the **random effect**. An assumption of modeling random effects is that the blocks (plots/individuals/mice/nests/cultures/tanks) are a random sample of the blocks that could have been sampled. This is often not strictly true as blocks are often **convenience samples**.
+
+The multiple measures within a block are often called **repeated measures**, especially if the block is an experimental animal such as a mouse or human. If multiple measures within a treatment level within a block (that is, within a $block \times treatment$ combination) are taken over time, the data are **longitudinal**. Sometimes in cell biology, the subsamples within a treatment within a block are called "replicates", as they are replicates of this $block \times treatment$ combination, but this can be confusing because the treatments are replicated at the level of the block and not at the level of the subsamples within a treatment by block combination. The blocks are the independent experimental units. Instead the multiple measures of the response within a $block \times treatment$ combination are **subsamples**.
 
 Experiments 1 and 2 are examples of a **complete randomized block with subsampling** design. "Complete" means that each block has all treatment levels or combinations of levels if there is more than one factor. Experiments 3 and 4 are examples of a **complete randomized block** design. The blocks are complete but there is only one measure of the response per treatment. Experiments 5, 6, and 7 are examples of an **incomplete randomized blocks** design. The blocks are incomplete because they do not contain less than all treatment levels and combinations. In these examples, each block contains only one treatment level.
 
-## Block (repeated measures) effects in statistical models
+## Random effects in statistical models
 
 In all of the above examples, the researcher is interested in the treatment effect but not the variation due to differences among the blocks. The blocks are nuissance factors that add additional variance to the response, with the consequence that estimates of treatment effects are less precise, unless the varriance due to the blocks is explicitly modeled. Including block structure in the design and in the statistical model is known as **blocking**. A natural way to think about the block factor is as a **random effect**, meaning that plots in experiment 1 or the mice in experiment 3 are simply random samples from a population of plots or mice. Modeling this using the residual-error specification looks like 
 
 \begin{equation}
-y_{ij} = (\beta_{0} + \varepsilon_{0j}) + (\beta_{1} + \varepsilon_{1j}) x_i + \varepsilon_i 
+y_{ij} = (\beta_{0} + \beta_{0j}) + (\beta_{1} + \beta_{1j}) x_i + \varepsilon_i 
 (\#eq:lmm-spec1)
 \end{equation}
 
-where $i$ indexes the observation and $j$ indexes the block (culture, plot, mouse, etc). The intercept parameter $\beta_{0j}$ is a **random intercept** and the slope parameter \beta_{1j} is a **random slope**. The random intercept has a **fixed** component ($\beta_0$) that is common to all observations and a random component ($\varepsilon_{0j}$) that is common within a block but differs among blocks. In the above equation, I've used parentheses to show how these combine into the random intercept that is unique for each block. Similarly, the random slope has a fixed part ($\beta_1$) that is common to all observations and a random component ($\varepsilon_{1j}$) that is common within a block but differs among blocks. Again, these are collected within a pair of parentheses in the equation above.
+where $i$ indexes the observation and $j$ indexes the block (culture, plot, mouse, etc). The intercept parameter $\beta_{0j}$ is a **random intercept** and the slope parameter $\beta_{1j}$ is a **random slope**. The random intercept has a **fixed** component ($\beta_0$) that is common to all observations and a random component ($\beta_{0j}$) that is common within a block but differs among blocks (see table below). In the above equation, I've used parentheses to show how these combine into the random intercept that is unique for each block. Similarly, the random slope (treatment effect) has a fixed part ($\beta_1$) that is common to all observations and a random component ($\beta_{1j}$) that is common within a block but differs among blocks (see table below). Again, these are collected within a pair of parentheses in the equation above.
+
+```{r lmm-table, echo=FALSE}
+n <- 5 # number of measures per treatment within each block
+k <- 6 # number of blocks
+set.seed(3)
+fd <- all_treatments_per_batch(sigma=1, sigma_b0=1, sigma_b1=0.1, beta_0=10, beta_1=1, n_block=k, n_subsamp=n)
+fit <- lmer(Y~Treatment + (Treatment|block), data=fd)
+coef_table <- coef(fit)$block
+b <- apply(coef_table,2, mean)
+fixed <- matrix(rep(b,each=k), nrow=k, ncol=2)
+random <- coef_table-fixed
+b_table <- data.table(block=unique(fd$block),
+                      "$b_0$"=fixed[,1],
+                      "$b_{0j}$"=random[,1],
+                      "$b_1$"=fixed[,2],
+                      "$b_{1j}$"=random[,2]
+                      )
+
+b_table <- data.table(block=1:k, 
+                         "$b_0$"="$b_0$", 
+                         "$b_{0j}$"=paste("$b_{0,j=",1:6,"}$", sep=""),
+                         "$b_1$"="$b_1$", 
+                         "$b_{1j}$"=paste("$b_{1,j=",1:6,"}$", sep="")
+                        )
+knitr::kable(b_table, caption = "The linear mixed model specified above estimates a fixed intercept and fixed slope (treatment effect) that are common to all observations and a random intercept and random slope for each block, each of which is common among observations within a block but differ among observations in different blocks.")
+```
 
 Linear mixed models are called "mixed models" because they are a mix of fixed and random components. Another useful way to specify this model is to think about it hierarchically, using
 
 \begin{align}
 y_{ij} &= \beta_{0j} + \beta_{1j}x_i + \varepsilon_i \\
 \varepsilon_i &\sim N(0, \sigma) \\
-\beta_{0j} &= \beta_{0} + \varepsilon_{0j} \\
-\varepsilon_{0j} &\sim N(0, \sigma_{0}) \\
-\beta_{1j} &= \beta_{1} + \varepsilon_{1j} \\
-\varepsilon_{1j} &\sim N(0, \sigma_{1})
+\beta_{0j} &= \beta_{0} + N(0, \sigma_{0}) \\
+\beta_{1j} &= \beta_{1} + N(0, \sigma_{1})
+(\#eq:lmm-spec2)
 \end{align}
-%
-The first line states that the response is a function of a block-specific intercept and a block specific slope plus some error that is unique to each observation. The third and fifth lines state that these block-specific effects are themselves a function of a common effect and a random error that is unique to each block. That is, we have a hierarchical or multi-level structure to the model. Line 1 is the top level and the effects that are specified in line 1 are a function of effects at a second, lower level, which are specified in lines 3 and 5. Because of this structure, linear mixed models are sometimes called hierarchical or multi-level models.
+
+The first line states that the response is a function of a block-specific intercept and a block specific slope plus some error that is unique to each observation. The third and fourth lines state that these block-specific effects are themselves a function of a common effect and a random term that is unique to each block. That is, we have a hierarchical or multi-level structure to the model. Line 1 is the top level and the effects that are specified in line 1 are a function of effects at a second, lower level, which are specified in lines 3 and 4. Because of this structure, linear mixed models are sometimes called hierarchical or multi-level models.
 
 Finally, it's useful to think how to specify a linear mixed model using the random-draw specification, as this leads naturally to generalized linear mixed models, or GLMMs.
 
 \begin{align}
 y_{ij} &\sim N(\mu{ij}, \sigma) \\
-\mu{ij} =\beta_{0j} + \beta_{1j}x_i \\
+\mu{ij} &=\beta_{0j} + \beta_{1j}x_i \\
 \beta_{0j} &\sim N(\beta_0, \sigma_0) \\
-\beta_{1j} &\sim N(\beta_1, \sigma_1) \\
+\beta_{1j} &\sim N(\beta_1, \sigma_1)
+(\#eq:lmm-spec3)
 \end{align}
 
-## linear mixed models increase precision of point estimates
 
-```{r fake-data, echo=FALSE}
-all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_block=6, n_subsamp=10){
-  if(sigma_b0==0){sigma_b0 <- 1e-10}
-  if(sigma_b1==0){sigma_b1 <- 1e-10}
-  fake_data <- data.table(NULL)
-  # this is a slow, inefficient way to build the data but should be easy to follow
-  for(i in 1:n_block){
-    #  random intercept for each plot
-    beta_0i <- rnorm(1, mean=0, sd=sigma_b0)
-    beta_1i <- rnorm(1, mean=0, sd=sigma_b1)
-    # the response in the control and treated groups
-    y1 <- beta_0 + beta_0i + (beta_1 + beta_1i)*0 + rnorm(n_subsamp, mean=0, sd=sigma)
-    y2 <- beta_0 + beta_0i + (beta_1 + beta_1i)*1 + rnorm(n_subsamp, mean=0, sd=sigma)
-    # combine into a data.table and rbind to end of fake_data
-    fake_data <- rbind(fake_data,
-                       data.table(Treatment=rep(c("Cn","T+"), each=n_subsamp),
-                                  subsample=rep(1:n_subsamp, 2),
-                                  block=letters[i],
-                                  Y=c(y1, y2))
-    )
-  }
-  
-  fake_data[, block:=factor(block)]
-  return(fake_data)
-}
+## Linear mixed models are flexible
 
-```
+The linear mixed model in Equation \@ref(eq:lmm-spec1) specifies both a random intercept and a random slope but a researcher might limit the random effect to the intercept only, or less commonly, the slope only. Excluding the random slope from Equation \@ref(eq:lmm-spec1) results in the model
 
-Let's create fake data that look something like experiments 1 or 2, with a single factor with two treatment levels, $k=10$ blocks, and $n=3$ measures for each treatment level within each block. This is a randomized complete block design with subsampling and has a total of $N=2 \times k \times n$ measures of $Y$ (and rows of the data.table).
+\begin{equation}
+y_{ij} = (\beta_{0} + \beta_{0j}) + \beta_{1}x_i + \varepsilon_i 
+(\#eq:lmm-spec1b)
+\end{equation}
 
-```{r lmm1 all-treatments-per-batch-simulation}
+We might use a random-intercept-only model if we think that features of the block would effect the mean response among blocks but not effect the difference in treatment level (or treatment effect) among blocks. For example, differences in the immune systems among the individual mice in experiment 3 might effect growth in both the wild-type and engineered strains of staph but won't effect the difference in growth between wild-type and engineered strains from one mouse to another.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**Not more than you should know** -- For more complex mixed models, matrix algebra makes the specification of the model much more manageable than the scalar algebra in \@ref(lmm-spec1b). 
+
+\begin{equation}
+\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \mathbf{Zu} + \boldsymbol{\varepsilon}
+\end{equation}
+
+where $\mathbf{y}$ is the vector of the response, $\mathbf{X}\boldsymbol{\beta}$ is the linear predictor of fixed effects and $\mathbf{Zu}$ is the linear predictor of random effects. $\mathbf{X}$ is the model matrix for the fixed effects and $\boldsymbol{\beta}$ is the vector of fixed-effect terms (the fixed part of the intercept ($\beta_0$), including the fixed-effect coefficients for each of the 
+</div> 
+
+## Visualizing block effects
+
+To visualize random effects due to block, Let's create fake data that look something like experiments 1 or 2, with a single factor with two treatment levels, $k=10$ blocks, and $n=3$ measures for each treatment level within each block. This is a randomized complete block design with subsampling and has a total of $N=2 \times k \times n$ measures of $Y$ (and rows of the data.table).
+
+```{r lmm1-sim1, echo=FALSE, fig.cap="Visualizing random effects. A) The response in the two treatment levels. B) The same data but separated by block. The blue line is at the control mean and the yellow line is at the treated mean. The black dots are the mean response within a block."}
 n <- 3 # number of measures per treatment within each block
 k <- 10 # number of blocks
-set.seed(5)
+set.seed(3)
 fd <- all_treatments_per_batch(sigma=1, sigma_b0=1, sigma_b1=0.1, beta_0=10, beta_1=1, n_block=k, n_subsamp=n)
 jco <- pal_jco()(2)
 
-ggerrorplot(x="Treatment", 
-            y="Y", 
-            color="Treatment",
-            data=fd, 
-            desc_stat = "mean_sd", 
-            palette = "jco",
-            position = position_dodge(0.3), 
-            add=c("jitter")
-             ) +
-  geom_hline(yintercept = mean(fd[Treatment=="Cn", Y]), color=jco[1]) +
-  geom_hline(yintercept = mean(fd[Treatment=="T+", Y]), color=jco[2])
-ggerrorplot(x="block", 
+gg1 <- ggerrorplot(x="Treatment", 
             y="Y", 
             color="Treatment",
             data=fd, 
@@ -139,21 +182,258 @@ ggerrorplot(x="block",
   geom_hline(yintercept = mean(fd[Treatment=="Cn", Y]), color=jco[1]) +
   geom_hline(yintercept = mean(fd[Treatment=="T+", Y]), color=jco[2])
 
+gg2 <- ggerrorplot(x="block", 
+            y="Y", 
+            color="Treatment",
+            data=fd, 
+            desc_stat = "mean_sd", 
+            palette = "jco",
+            position = position_dodge(0.3), 
+            add=c("jitter")
+             ) +
+  geom_hline(yintercept = mean(fd[Treatment=="Cn", Y]), color=jco[1]) +
+  geom_hline(yintercept = mean(fd[Treatment=="T+", Y]), color=jco[2])
+
+plot_grid(gg1, gg2, rel_widths=c(1,1.5), labels="AUTO")
+
 complete_pooling <- lm(Y~Treatment, data=fd)
 partial_pooling <- lmer(Y~Treatment + (Treatment|block), data=fd)
-coef(summary(complete_pooling))
-coef(summary(partial_pooling))
-anova(complete_pooling)
-anova(partial_pooling)
+
+fd[, resid.lm:=residuals(complete_pooling)]
+fd[, resid.lmm:=residuals(partial_pooling)]
+
+gg3 <- ggerrorplot(x="Treatment", 
+            y="resid.lm", 
+            color="Treatment",
+            data=fd, 
+            desc_stat = "mean_sd", 
+            palette = "jco",
+            position = position_dodge(0.3), 
+            add=c("jitter")
+             ) +
+  scale_y_continuous(limits=c(-2.5, 2.5))
+
+gg4 <- ggerrorplot(x="Treatment", 
+            y="resid.lmm", 
+            color="Treatment",
+            data=fd, 
+            desc_stat = "mean_sd", 
+            palette = "jco",
+            position = position_dodge(0.3), 
+            add=c("jitter")
+             ) +
+  scale_y_continuous(limits=c(-2.5, 2.5))
+
+#plot_grid(gg3, gg4, labels="AUTO")
+
+
 ```
+
+Figure \@ref(fig:lmm1-sim1)A shows the response as a function of treatment. The responses are nicely symmetric around the treatment means (the blue and yellow lines). A linear model (and generalized linear models, more generally) assumes that a response, conditional on the $X$, are independent. Figure \@ref(fig:lmm1-sim1)B shows how this assumption is violated for the simulated data. That pattern of residuals within a block around the treatment means does not look at all random. Instead, there is a distinct pattern within a block for the points to cluster either below the treatment means or above the treatment means. In blocks a, b, c, g, and h, all or most of the responses are below their treatment mean (for example in block a, all the blue points are below the blue line and 2 of 3 yellow points are below the yellow line). In blocks, e, f, i, and j, all or most of the responses are above their treatment mean (for example, in block i, all three yellow points are above the yellow line and 2 of 3 blue points are above the blue line). In other words, the responses within a block covary together. For a linear model, this is known as **correlated error**.
+
+## Linear mixed models can increase precision of point estimates
+
+Block effects are differences in expected mean response among blocks due to unmeasured factors that are shared within blocks but not among blocks. A classical linear model fails to model this component of the total variance in the response, and as a consquence, this block-specific variance becomes part of the error variance. One way to visualize this is by moving the random intercept and random slope components of equation \@ref(eq:lmm-spec1) to the right and combining it with the observation-specific error
+
+\begin{equation}
+y_{ij} = \beta_{0} + \beta_{1} x_i + (\beta_{0j} + \beta_{1j} + \varepsilon_i)
+(\#eq:lmm-spec1b)
+\end{equation}
+%
+which shows that the random effects $\beta_{0j}$ and $\beta_{1j}$ are modeled as error in a linear model. As a consequence, the residual variance is larger and, therefore, the standard errors of point estimates, including means, coefficients of the model, and contrasts from the model, are larger. Here is the table of model coefficients of the data in Figure \@ref(fig:lmm1-sim1) fitted using a classical linear model
+
+```{r lmm-lm-coefs, echo=FALSE}
+coef(summary(complete_pooling))
+
+```
+
+and a linear mixed model
+
+```{r lmm-lmm-coefs, echo=FALSE}
+coef(summary(partial_pooling))
+```
+
+The linear mixed model has increased precision (a smaller SE of the estimates) because it  estimates the value of $\beta_{0j}$ and $\beta_{1j}$ for each block. The linear model does not estimate these parameters and the variance in these parameters is swept into the residual variance. 
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**NHST blues** -- A **paired t-test** is equivalent to the special case of a linear mixed model with a single factor with two treatment levels, $k$ blocks, and a single measure of each treatment level within each block. A good example is the wild type vs. engineered staph count in mice in experiment 3 above. A linear mixed model is much more flexible than a paired *t*-test because it allows a researcher to add treatment levels, additional factors, and covariates to the model. In addition, a linear mixed model can handle missing data.
+
+Here is fake data similar in design to experiment 3 with a single factor with two treatment levels and both levels applied to the same experimental unit.
+
+```{r lmm-paired-t}
+n <- 10 # number of mice (blocks)
+x <- rep(c("WT","T+"), each=n) # treatments
+id <- rep(letters[1:n], 2) # block id
+y <- c(rnorm(n, mean=10), rnorm(n, mean=11))
+fake_data <- data.table(Y=y, X=x, ID=id)
+```
+
+The *t*-test *p*-value is
+
+```{r}
+t.test(Y~X, data=fake_data, paired=TRUE)$p.value
+```
+
+and the coefficient table of the fixed effect in the linear mixed model is 
+
+```{r}
+coef(summary(lme(Y~X, random = ~1|ID, correlation=corCompSymm(form=~1|ID), data=fake_data)))
+```
+
+```{r lmm-ttest-missing, echo=FALSE, eval=FALSE}
+# now delete two random observations from the treated level
+NA_rows <- sample(1:n, size=2)
+fake_data[, Y2:=Y] # copy Y column
+fake_data[(NA_rows+10), Y2:=NA] # replace the two obs in Y2 with NA
+coef(summary(lme(Y2~X, random = ~1|ID, correlation=corCompSymm(form=~1|ID), 
+                 data=fake_data,
+                 na.action=na.exclude)))
+# cannot run t-test with NA so re-run by deleting matching ID
+fake_data[, Y3:=Y2] # copy Y2 column
+fake_data[NA_rows, Y3:=NA] # replace the two obs in Y3 with NA
+t.test(Y3~X, data=fake_data, paired=TRUE, na.action=na.omit)$p.value
+```
+</div> 
 
 ## Linear mixed models are used to avoid pseudoreplication
 
 ## Linear mixed models shrink coefficients by partial pooling
 
+In experiment 1 above, there are 10 sites (maybe different woodlots). In each plot, five seedlings are planted inside a cage and five outside the cage. The cage excludes insectivorous birds but not herbivorous insects. The researchers are investigating how birds affect plant growth indirectly -- by eating insects that feed on the plants. The response is total leaf area in each seedling.
+
+```{r lmm-make-partial-pooling-data, echo=FALSE}
+fake_data <- all_treatments_per_batch(
+  beta_0=10, # mean leaf area inside cage
+  beta_1=1, # effect of birds, i.e. increases leaf area 
+  sigma=1, # Cohen's d is 1 -- a large effect
+  sigma_b0=1, # variation in mean among blocks
+  sigma_b1=0.1, # variation in treatment effect among blocks
+  n_block=10, # number of plots
+  n_subsamp=5, # number of seedlings ber block x treatment level
+  Y_label = "leaf_area",
+  trt_levels = c("no bird","bird"),
+  block_label = "site"
+  )
+```
+
+Let's say we want to know the treatment effect in each of these sites. There are several ways of estimating this.
+
+1. Fit $k$ separate models, one for each site. The intercept (control mean) and slope (treatment effect) parameters for each site are estimated independently from all other sites. Conequently, the model parameters are computed using **no pooling**. For the estimation of the $\beta$ terms, this is equivalent to a single, factorial linear model with $Site$ modeled as a **fixed effect** (this is not true for the estimate of the standard errors of these terms since these are computed from the residual sum of squares of the model. For balanced data, all of the "intercept" or "slope" terms will have the same SE in the factorial analysis but differ among the $k$ independent analyses).
+
+2. Fit a linear model to all the data combined as if these were from a single site, and assign the intercept and treatment effect paramters to all sites. The model parameters are computed using **complete pooling**.
+
+3. Fit a linear mixed model to all the data, using site as a random factor to estimate both random intercepts and slopes. Similar to the no-pooling analysis, there will be different intercept (control mean) and slope (treatment effect) estimates for each site, but unlike the no-pooling analysis, these estimates are computed by combining information from the other sites. The information used to estimate parameters in a linear mixed model is somewhere in between no pooling and complete pooling and is sometimes called **partial pooling**.
+
+The consequence of partial pooling in a linear mixed model is that site intercepts (control means) are pulled toward the single intercept in the complete-pooling analysis and the site slopes (treatment effects) are pulled toward the single slope in the complete-pooling analysis. This has the consequence that the **differences** in parameter estimates among sites are shrunk toward zero. A consequence of this shrinkage is that the variance of the intercept estimates or of the slope estimates is smaller than that in the no-pooling analysis. Figure \@ref(fig:lmm-partialpoolin) shows this shrinkage effect using fake data simulating the seedling experiment.
+
+```{r lmm-partialpooling, echo=FALSE, fig.cap="Shrinkage estimates of the treatment effect in a linear mixed model. The grey line is the estimate using complete pooling (so there is only one estimate which is assigned to each site). In general, the partial-pooling (linear mixed model) estimates (yellow) are generally closer to the complete pooling estimate than the no-pooling (separate linear models) estimates (blue). More specifically, if the no-pooling estimate is far from the complete pooling estimate, the partial pooling estimate is *much* closer to the complete pooling estimate. The consequence of partial pooling is that the differences among the estimates are shrunk toward zero."}
+no_pooling <- lmList(leaf_area ~ Treatment | site, data=fake_data)
+complete_pooling <- lm(leaf_area ~ Treatment, data=fake_data)
+partial_pooling <- lmer(leaf_area ~ Treatment + (Treatment|site), data=fake_data)
+
+intercept<- data.table(
+  site=unique(fake_data$site),
+  no=coef(no_pooling)[,"(Intercept)"],
+  complete=coef(complete_pooling)["(Intercept)"],
+  partial=coef(partial_pooling)$site[,"(Intercept)"]
+)
+
+slope<- data.table(
+  site=unique(fake_data$site),
+  beta_1=unique(fake_data$beta_1),
+  no=coef(no_pooling)[,"Treatmentbird"],
+  complete=coef(complete_pooling)["Treatmentbird"],
+  partial=coef(partial_pooling)$site[,"Treatmentbird"]
+)
+
+gg1 <- ggscatter(x="site", 
+            y=c("no", "partial"), 
+            merge=TRUE,
+            data=intercept, 
+            palette = "jco",
+            position = position_dodge(0.3)) +
+  geom_hline(yintercept = intercept[1, complete], color="gray")
+gg2 <- ggscatter(x="site", 
+            y=c("no", "partial"), 
+            merge=TRUE,
+            data=slope, 
+            palette = "jco",
+            position = position_dodge(0.1)) +
+  geom_hline(yintercept = slope[1, complete], color="gray")
+
+gg2
+
+mse_no <- mean((slope$no-slope$beta_1)^2)
+mse_partial <- mean((slope$partial-slope$beta_1)^2)
+
+```
+
+The linear mixed model estimates of the treatment effects for each site are a type of **shrinkage estimate** and a linear mixed model is one kind of **shrinkage estimator**. Shrinkage estimates have fascinating properties:
+
+1. the variance of shrinkage estimates is less than that of ordinary least squares estimates (no-pooling, or using the block as a fixed factor)
+2. shrinkage estimates are **biased** but the OLS estimates are not. This means that the expected value of a coefficient from the linear mixed model *does not equal* the true (parameter) value! Or, more formally, $\mathrm{E}(b_j) \ne \beta_j$.
+3. the **mean square error** of shrinkage estimates will be smaller than that for OLS estimates.
+
+The first property was discussed above and shown in Figure \@ref(fig:lmm-partialpooling). The second property raises the question, if we want to estimate the treatment effects within each site, why would we ever want to use $Site$ as a random instead of fixed effect? The answer is the third property, which can be summarized as, "if we were to replicate the experiment many times, the shrinkage estimates will be, on average, less wrong (or closer to the true value) than the OLS estimates, where "wrong" is the absolute deviation from the true value."
+
+When shrinkage estimators were first discovered, the third property surprised stasticians. The third property has profound consequences. Consider a scenario where researchers want to compare the performance of a new expression vector to that of an existing expression vector on protein production using *E. coli*. The researchers have ten different *E. coli* strains and are interested in strain-specific effects because they will choose the three strains with the largest effects for further testing. The researchers measure the response of each strain five times.
+
+```{r lmm-fish-passage, echo=FALSE}
+set.seed(10)
+fake_data <- all_treatments_per_batch(
+  beta_0=10^6, # mean nest count 
+  beta_1=10^5, # effect of culvert
+  sigma=10^5, # Cohen's d is 1 -- a large effect
+  sigma_b0=10^5, # variation in mean among blocks
+  sigma_b1=5*10^4, # variation in treatment effect among blocks
+  n_block=10, # number of streams
+  n_subsamp=3, # number of days sampled
+  Y_label = "Antibody",
+  trt_levels = c("CN","S+"),
+  block_label = "Strain"
+  )
+
+no_pooling <- lmList(Antibody ~ Treatment | Strain, data=fake_data)
+partial_pooling <- lmer(Antibody ~ Treatment+ (Treatment|Strain), data=fake_data)
+antibody_table <- data.table(
+  Strain=unique(fake_data[, Strain]),
+  beta_1j=unique(fake_data[, beta_1j])/10^5,
+  b_1j_fixed=coef(no_pooling)[,"TreatmentS+"]/10^5,
+  b_1j_random=coef(partial_pooling)$Strain[,"TreatmentS+"]/10^5
+)
+# antibody_table <- orderBy(~ -b_1j_fixed, data=antibody_table)
+
+setnames(antibody_table, old=colnames(antibody_table), 
+         new=c("Strain", "$\\beta_{1j}$", "fixed $b_{1j}$", "random $b_{1j}$"
+))
+knitr::kable(antibody_table, digits=c(NA, 2, 2, 2, 2, 2), caption="Effect of new expression vector on protein production in ten strains of *E. coli* using a fixed effect factorial model and linear mixed model.")
+
+
+```
+
+The table above shows the true strain-specific effect and both the fixed (OLS) and random (LMM) effect estimates. The largest OLS estimate is 70% larger than the true effect and the strain with the largest true effect is not among the top three biggest OLS estimates (its ranking is 9/10). By contrast, the LMM estimates are closer to the true effects and the top strain is among the three largest LMM estimates.
+
+These results are specific to these fake data but more generally,
+1) the largest OLS estimates are inflated (larger error from the true effect), relative to the largest LMM estimates
+2) overall, the LMM estimates will be closer than the OLS estimates to the true effects
+
+To understand this, rank order the treatment effects for each strain. An individual strain's position in this rank is the sum of the true effect for that strain and some random error. Because OLS, relative to shrinkage estimates, have greater variance in the estimate (that is, the random error component is bigger), the biggest effects estimated by OLS are more likely to be big because of the error component, compared to shrinkage estimates.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**Not more than you want to know** -- Shrinkage estimators are not only useful when we are interested in block-specific effects but are also useful for estimating effects when there are **multiple responses**. For example, consider a researcher interested in measuring the effects of some exercise treatment on gene expression in adipose cells. The researcher measures expression levels in 10,000 genes. Given the typical content in undergraduate biostatics courses, a researcher would probably model these responses using 10,000 *t*-tests, or equivalently, 10,000 separate linear models. If the tests were ranked by $p$-value or absolute effect size, many of the genes with largest absolute effect would be there because of a large error component and many of the largest effects would be massively overinflated. Re-imagining the design as a single, linear mixed model with each gene modeled as a block would lead to a rank order in which the biggest measured effects more closely approximate the true effects.
+</div> 
+
 ## Working in R
 
-The major function for working with linear mixed models is `lmer()` from the lme4 package. An older, and still sometimes used function is `lme()` from the nlme package. The authors of the lme4 package argue that the df in a linear mixed model are too approximate for a useful $p$-value and, consequently, the `lme` function does not return a $p$-value. Many biological researchers want a $p$-value and typically use the `lmerTest` package to get this.
+The major function for working with linear mixed models is `lmer()` from the lme4 package. An older, and still sometimes used and useful function is `lme()` from the nlme package. The authors of the lme4 package argue that the df in a linear mixed model are too approximate for a useful $p$-value and, consequently, the `lme` function does not return a $p$-value. Many biological researchers want a $p$-value and typically use the `lmerTest` package to get this.
+
+### coral data
+
+**Source** Zill, J. A., Gil, M. A., & Osenberg, C. W. (2017). When environmental factors become stressors: interactive effects of vermetid gastropods and sedimentation on corals. Biology letters, 13(3), 20160957.
+
+**Dryad source** https://datadryad.org/resource/doi:10.5061/dryad.p59n8
+
+**file name** "VermetidSedimentData_ZillGilOsenberg_DRYAD.xlsx"
 
 ```{r coral}
 folder <- "Data from When environmental factors become stressors- interactive effects of vermetid gastropods and sedimentation on corals"
@@ -186,10 +466,17 @@ fit.lmer3 <- lmer(GrowthRate ~ Vermetids*Sediment + (Vermetids|Block) + (Sedimen
 fit.lme <- lme(GrowthRate ~ Vermetids*Sediment, random= ~1|Block, data=coral[inc])
 
 # results using lmer fit
-coefficients(fit.lmer)
-coefficients(summary(fit.lmer))
-fit.emm <- emmeans(fit.lmer, specs=c("Vermetids", "Sediment"))
+coefficients(fit.lmer1)
+coefficients(summary(fit.lmer1))
+fit.emm <- emmeans(fit.lmer1, specs=c("Vermetids", "Sediment"))
 summary(contrast(fit.emm, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE))
+
+fit.lmer1.ml <- lmer(GrowthRate ~ Vermetids*Sediment + (1|Block), data=coral[inc], REML=FALSE)
+# random intercept and slope
+fit.lmer3.ml <- lmer(GrowthRate ~ Vermetids*Sediment + (Vermetids|Block) + (Sediment|Block), data=coral[inc], REML=FALSE)
+
+AIC(fit.lmer1.ml)
+AIC(fit.lmer3.ml)
 
 ```
 

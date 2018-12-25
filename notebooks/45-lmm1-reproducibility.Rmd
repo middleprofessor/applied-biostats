@@ -26,6 +26,53 @@ if(bookdown_compile==TRUE){
 }
 
 ```
+# parasite
+```{r parasite-import}
+folder <- "Data from Synergistic interaction between UVB radiation and temperature increases susceptibility to parasitic infection in a fish"
+fn <- "Cramp et al raw data.xlsx"
+sheet_i <- "Infection Intensity"
+file_path <- paste(data_path, folder, fn, sep="/")
+parasite <- data.table(read_excel(file_path, sheet=sheet_i))
+colnames(parasite) <- clean_label(colnames(parasite))
+setnames(parasite, old="Whitespots/fish", new="Whitespots")
+parasite[, Tank:=factor(Tank)]
+n_fish_per_tank <- parasite[, .(N=.N), by=.(UV_Level, Temperature, Tank)]
+n_tanks_per_combo <- n_fish_per_tank[, .(N=.N), by=.(UV_Level, Temperature)]
+```
+
+```{r parasite-analysis}
+# what authors did
+fit <- lmer(Whitespots ~ UV_Level*Temperature + (1|Tank), data=parasite)
+parasite[, Whitespots_res1:=residuals(fit)]
+parasite[, Whitespots_fitted:=fitted(fit)]
+ggqqplot(data=parasite, x = "Whitespots_res1", title="Normal Q-Q")
+qplot(data=parasite, x=Whitespots_fitted, y=sqrt(abs(Whitespots_res1))) + 
+  geom_smooth(method="lm")
+
+anova(fit)
+coef(summary(fit))
+
+# poisson
+
+# negbinom
+  fit.full <- glmer.nb(Whitespots ~ UV_Level*Temperature + (1|Tank), data=parasite)
+  simulationOutput <- simulateResiduals(fittedModel=fit.full, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+  
+fit.red <- glmer.nb(Whitespots ~ UV_Level+Temperature + (1|Tank), data=parasite)
+anova(fit.full, fit.red)
+coef(summary(fit))
+
+```
+
+```{r parasite-pooling}
+complete_pooling <- lm(Whitespots ~ UV_Level*Temperature, data=parasite)
+no_pooling <- lmList(Whitespots ~ UV_Level*Temperature | Tank, data=parasite)
+partial_pooling <- lmer(Whitespots ~ UV_Level*Temperature + (1|Tank), data=parasite)
+aggregate_pooling <- lm(Whitespots ~ UV_Level*Temperature, data=parasite[, .(Whitespots=mean(Whitespots)), by=.(UV_Level, Temperature, Tank)])
+
+```
 
 # coral ("When environmental factors become stressors...")
 
@@ -213,6 +260,10 @@ anova(fit5)
 fit6 <- lmer(log_weight ~ Heating2*Fertilization*pft + (1|block/plot),
              data=AG_biomass)
 anova(fit6)
+fit7 <- lmer(log_weight_p1 ~ Heating*Fertilization*pft + (Heating|block/plot) + 
+               (Fertilization|block/plot), data=AG_biomass[Heating!="PC"])
+anova(fit7)
+
 
 
 

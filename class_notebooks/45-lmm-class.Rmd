@@ -15,6 +15,103 @@ library(nlme)
 ```
 
 ```{r lmm-sim}
+fake_lmm_data <- function(
+  sigma=1, 
+  beta_0i, 
+  beta_1i, 
+  beta_0=10, 
+  beta_1=1, 
+  n_block=6, 
+  n_subsamp=10, 
+  Y_label="Y", 
+  trt_levels=c("Cn","T+"), 
+  block_label="block"
+  ){
+  fake_data <- data.table(NULL)
+  for(i in 1:n_block){
+    #  random intercept for each plot
+    # the response in the control and treated groups
+    y1 <- beta_0 + beta_0i[i] + (beta_1 + beta_1i[i])*0 + rnorm(n_subsamp, mean=0, sd=sigma)
+    y2 <- beta_0 + beta_0i[i] + (beta_1 + beta_1i[i])*1 + rnorm(n_subsamp, mean=0, sd=sigma)
+    # combine into a data.table and rbind to end of fake_data
+    fake_data <- rbind(fake_data,
+                       data.table(Treatment=rep(trt_levels, each=n_subsamp),
+                                  subsample=rep(1:n_subsamp, 2),
+                                  block=letters[i],
+                                  Y=c(y1, y2),
+                                  beta_0=beta_0i[i] + beta_0,
+                                  beta_1=beta_1i[i] + beta_1)
+    )
+  }
+  fake_data[, block:=factor(block)]
+  fake_data[, Treatment:=factor(Treatment, trt_levels)]
+  setnames(fake_data, old=c("Y", "block"), new=c(Y_label, block_label))
+  return(fake_data)
+}
 
+```
+
+```{r}
+set.seed(1)
+niter <- 1000
+sigma_b0 <- 1
+sigma_b1 <- 0.1
+k <- 10 # number of blocks
+beta_0i_vec <- rnorm(k, mean=0, sd=sigma_b0)
+beta_1i_vec <- rnorm(k, mean=0, sd=sigma_b1)
+res.lm <- matrix(NA, nrow=niter, ncol=k)
+res.lmm <- matrix(NA, nrow=niter, ncol=k)
+slopeterms <- c("TreatmentT",paste("TreatmentT:Block", letters[2:k], sep=""))
+for(iter in 1:niter){
+  done <- FALSE
+  while(done==FALSE){
+    fake_data <- fake_lmm_data(
+    beta_0=10, # mean leaf area inside cage
+    beta_1=1, # effect of birds, i.e. increases leaf area 
+    sigma=1, # Cohen's d is 1 -- a large effect
+    beta_0i=beta_0i_vec, # vector of intercept deviations
+    beta_1i=beta_1i_vec, # vector of slope deviations
+    n_block=k, # number of plots
+    n_subsamp=5, # number of seedlings ber block x treatment level
+    Y_label = "Y",
+    trt_levels = c("C","T"),
+    block_label = "Block"
+    )
+    fit.lmm <- lmer(Y~Treatment + (Treatment|Block), data=fake_data)
+    if(length(summary(fit.lmm)$fitMsgs)==0){done<-TRUE}
+    }
+  fit.lm <- lm(Y~Treatment*Block, data=fake_data)
+  refslope <- coef(fit.lm)["TreatmentT"]
+  res.lm[iter,] <- coef(fit.lm)[slopeterms] + c(0, rep(refslope, k-1))
+  res.lmm[iter,] <- coef(fit.lmm)$Block[,"TreatmentT"]
+}
+
+# error
+error.lm <- res.lm - t(matrix((beta_1+beta_1i), nrow=k, ncol=niter))
+error.lmm <- res.lmm - t(matrix((beta_1+beta_1i), nrow=k, ncol=niter))
+
+# Bias
+# mean error per block
+apply(error.lm, 2, mean)
+apply(error.lmm, 2, mean)
+# average absolute mean error over k blocks
+mean(abs(apply(error.lm, 2, mean)))
+mean(abs(apply(error.lmm, 2, mean)))
+
+# Absolute error
+# mean absolute error per block
+apply(abs(error.lm), 2, mean)
+apply(abs(error.lmm), 2, mean)
+# average mean absolute error per block over k blocks
+mean(apply(abs(error.lm), 2, mean))
+mean(apply(abs(error.lmm), 2, mean))
+
+# variance
+# MSE per block
+apply(error.lm^2, 2, mean)
+apply(error.lmm^2, 2, mean)
+# avg MSE over k blocks
+mean(apply(error.lm^2, 2, mean))
+mean(apply(error.lmm^2, 2, mean))
 ```
 

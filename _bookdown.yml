@@ -17,5 +17,6 @@ rmd_files: ["index.Rmd",
 "chapters/30-anova.Rmd",
 "chapters/35-covariates.Rmd",
 "chapters/40-glm01-counts.Rmd",
+"chapters/45-lmm01-blocking.Rmd",
 "chapters/92-R_resources.Rmd",
 "chapters/93-Getting_started_with_linear_modeling.Rmd"]

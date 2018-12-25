@@ -169,7 +169,7 @@ or, the coefficient of vitamin E is the difference in means between the vitamin 
 
 What should be reported for the analyis of effects of anti-oxidant supplements on vole lifespan? Best practice includes reporting the raw data with a summary distribution and treatment effects with CIs. "Raw data" means the individual lifespans as a function of treatment level.
 
-#### Harrel Plot of the data
+#### Harrell Plot of the data
 
 ```{r harrellplot, echo=FALSE, fig.cap="HarrellPlot of the raw data, distribution, and effects of the vole lifespan data."}
 harrellplot(x="treatment", y="lifespan", contrasts.method = "coefficients", data=vole)$gg

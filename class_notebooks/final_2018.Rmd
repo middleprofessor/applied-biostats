@@ -1,0 +1,277 @@
+---
+title: "BIO 413/513 Final"
+date: "12/15/2018"
+output: html_document
+---
+**Source Paper**: Mori, B. A., Whitener, A. B., Leinweber, Y., Revadi, S., Beers, E. H., Witzgall, P., & Becher, P. G. (2017). Enhanced yeast feeding following mating facilitates control of the invasive fruit pest Drosophila suzukii. Journal of applied ecology, 54(1), 170-177.
+
+**Dryad source** https://datadryad.org/resource/doi:10.5061/dryad.8qj84
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval=FALSE)
+
+library(ggplot2)
+library(ggpubr)
+library(lme4)
+library(nlme)
+library(lmerTest)
+library(emmeans)
+library(car)
+library(data.table)
+library(MASS)
+library(DHARMa) # diagnostic plots
+
+data_path <- "../data"
+source("../R/logistic.R") # bookdown
+
+```
+
+```{r import}
+folder <- "Data from Enhanced yeast feeding following mating facilitates control of the invasive fruit pest Drosophila suzukii"
+fn1 <- "Experiment 1 - Wind tunnel bioassay data.csv"
+file_path <- paste(data_path, folder, fn1, sep="/")
+tunnel <- fread(file_path)
+fn2 <- "Experiment 2 - Feeding (CAFE) bioassay data.csv"
+file_path <- paste(data_path, folder, fn2, sep="/")
+feeding <- fread(file_path)
+fn3 <- "Experiment 3 - Oviposition bioassay data.csv"
+file_path <- paste(data_path, folder, fn3, sep="/")
+oviposition <- fread(file_path)
+fn4 <- "Experiment 4 - Oviposition & Feeding (OviCAFE) bioassay data.csv"
+file_path <- paste(data_path, folder, fn4, sep="/")
+ovicafe <- fread(file_path)
+fn5 <- "Experiment 5 - Insecticide bioassay data.csv"
+file_path <- paste(data_path, folder, fn5, sep="/")
+insecticide <- fread(file_path)
+```
+
+# Experiment 1
+
+Reproduce the test results. Make a better plot than Fig. 1a by 1) adding raw points, 2) adding 95% CI of the mean.
+
+**hint** -- it's not immediately obvious from the paper what the "test" is.
+
+**note** - the classical name for this analysis is "logistic regression" but a logistic regression is a special case of a GLM. We did not cover logistic GLM but...a goal of this class is to give you confidence to self-learn so...here is your chance!
+
+```{r 1-tunnel}
+fit1 <- glm(Landing ~ OdourSource + MatingStatus, family=binomial(link = "logit"), data=tunnel)
+Anova(fit1)
+fit1.emm <- emmeans(fit1, specs=c("OdourSource", "MatingStatus"), data=tunnel, type="response")
+fit1.emm
+```
+
+# Experiment 2
+
+Reproduce the Wilcoxan test result and generate a better plot of the mean and error, including raw data points, than Fig. 1b.
+
+**impress me** -- use bootstrap CIs instead of normal CIs. ggplot2 has a function for this
+
+**impress me more** -- compute bootstrap 95% confidence interval of the difference using either your own code or the boot package.
+
+**grad students** -- the plot shows 1) difference in mean and 2) difference in variance between the treatment levels. This creates problems for a wilcoxan, which will result in a low p-value if either of these conditions occur (so it cannot tell the difference between them). There are a couple of ways of computing parametric CIs and p-value for these data: 1) GLS with heterogoenous variance, and 2) GLM using gamma distribution with log link. Use a GLM with gamma distribution with log link to compute better CIs and a p-value and re-do the plot with these CIs. A gamma distribution only has positive values and one Amount_ul has a value of zero. Re-code this as 1/2 the value of the smallest non-zero Amount_ul.
+
+```{r 2-feeding}
+wilcox.test(Amount_ul ~ Mating_status, data=feeding, conf.int=TRUE)
+
+ggerrorplot(x="Mating_status",
+            y="Amount_ul",
+            data=feeding, 
+            add=c("mean", "jitter"), 
+            desc_stat = "mean_ci", 
+            error.plot = "errorbar",
+            color="Mating_status",
+            palette = "jco"
+            )
+
+ggerrorplot(x="Mating_status",
+            y="Amount_ul",
+            data=feeding, 
+            add=c("mean", "jitter"), 
+            color="Mating_status",
+            palette = "jco"
+            ) +
+  stat_summary(fun.y = mean, geom = "point", size=3) +
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.2)
+
+feeding.lm <- lm(Amount_ul ~ Mating_status, data=feeding)
+feeding[, Amount_ul_res:=residuals(feeding.lm)]
+ggqqplot(data=feeding, x = "Amount_ul_res", title="Normal Q-Q")
+# scale location plot in plot(lm) supports increased variance with fitted. Need a glm
+
+# model with gls
+feeding.gls <- gls(
+  Amount_ul ~ Mating_status,
+  data = feeding,
+  weights = varIdent(form = ~1|Mating_status)
+)
+feeding[, gls_res:=residuals(feeding.gls)]
+ggqqplot(data=feeding, x = "gls_res", title="Normal Q-Q")
+
+
+# convert response to ml and round as a cheap glm
+feeding[, Amount_ml:=round(Amount_ul*1000,0)]
+feeding.nb <- glm.nb(Amount_ml ~ Mating_status, data=feeding)
+n_sim <- 250
+  simulationOutput <- simulateResiduals(fittedModel=feeding.nb, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+
+feeding.nb.means <- data.table(summary(emmeans(feeding.nb, specs="Mating_status", type="response")))
+feeding.nb.means[, Amount_ul:=response/1000]
+ggerrorplot(x="Mating_status",
+            y="Amount_ul",
+            data=feeding, 
+            add=c("mean", "jitter"), 
+            color="Mating_status",
+            palette = "jco"
+            ) +
+  geom_errorbar(data=feeding.nb.means, aes(ymin=asymp.LCL/1000, ymax=asymp.UCL/1000), width=0.2)
+
+# model as lognormal
+# one zero value, model this as undetectable, not zero. Do this by making it 1/2 the non-zero minimum
+min_nz <- min(feeding[Amount_ul > 0, Amount_ul])
+feeding[, Amount_ul_nz:=ifelse(Amount_ul < min_nz, min_nz/2, Amount_ul)]
+
+feeding.gamma <- glm(Amount_ul_nz~Mating_status, family = Gamma(link="log"), feeding)
+  simulationOutput <- simulateResiduals(fittedModel=feeding.gamma, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+
+
+feeding.gamma.means <- data.table(summary(emmeans(feeding.gamma, specs="Mating_status", type="response")))
+feeding.gamma.means[, Amount_ul:=response]
+ggerrorplot(x="Mating_status",
+            y="Amount_ul",
+            data=feeding, 
+            add=c("mean", "jitter"), 
+            color="Mating_status",
+            palette = "jco"
+            ) +
+  geom_errorbar(data=feeding.gamma.means, aes(ymin=asymp.LCL, ymax=asymp.UCL), width=0.2)
+
+# model the one zero value as missing (modeling the positive only as in a hurdle model)
+feeding[, Amount_ul_NA:=ifelse(Amount_ul < min_nz, NA, Amount_ul)]
+feeding.gamma.NA <- glm(Amount_ul_NA~Mating_status, family = Gamma(link="log"), feeding)
+  simulationOutput <- simulateResiduals(fittedModel=feeding.gamma.NA, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+
+wilcox.test(Amount_ul ~ Mating_status, data=feeding, conf.int=TRUE)
+coef(summary(feeding.lm))
+coef(summary(feeding.gls))
+coef(summary(feeding.nb))
+coef(summary(feeding.gamma))
+coef(summary(feeding.gamma.NA))
+exp(coef(feeding.gamma))
+feeding.gamma.means
+```
+
+# Experiment 3
+
+Reproduce the Wilcoxan test result and generate a better plot of the model results than Fig. 2a.
+
+**hint** -- the experiment 3 data seemed to be missing something. It's not.
+
+**impress me** -- The response is "eggs laid" which is a count. Analyze the data using a the best glm you can fit. TINRABSABTO^[There is no right answer but some are better than others]
+
+**grad students** -- The replicates could be considered blocks, which could quickly make this model even more complicated. Explore this with a pretty good model (TINRABSABTO).
+
+```{r 3-oviposition}
+oviposition_long <- melt(oviposition, id.vars="Replicate", variable.name="treatment", value.name="count")
+oviposition_long[, treatment:=factor(treatment)]
+oviposition_long[, Replicate:=factor(Replicate)]
+
+wilcox.test(count ~ treatment, data=oviposition_long, conf.int=TRUE)
+
+oviposition.lm <- lm(count ~ treatment, data=oviposition_long)
+oviposition_long[, count_res:=residuals(oviposition.lm)]
+ggqqplot(data=oviposition_long, x = "count_res", title="Normal Q-Q")
+
+oviposition.pois <- glm(count ~ treatment, family="poisson", data=oviposition_long)
+n_sim <- 250
+  simulationOutput <- simulateResiduals(fittedModel=oviposition.pois, n=n_sim, refit=TRUE)
+  testDispersion(simulationOutput)
+oviposition.nb <- glm.nb(count ~ treatment, data=oviposition_long)
+  simulationOutput <- simulateResiduals(fittedModel=oviposition.nb, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+coef(summary(oviposition.nb))
+
+oviposition.lmm <- lmer(count ~ treatment + (1|Replicate), data=oviposition_long)
+```
+
+# Experiment 4
+
+**grad students only**
+
+Reproduce the two Wilcoxan test results and generate better plots of the model results than Fig. 2b.
+
+**impress me**  -- The response for the right-side plot in Fig 2b is "eggs laid" which is a count. Analyze the data using a the best glm you can fit. TINRABSABTO^[There is no right answer but some are better than others]
+
+**impress me more** -- Again, a Wilcoxan has issues if both the mean and variance differ. Use a glm with gamma family and log link to get a proper CI and p-value.
+
+```{r 4-ovicafe}
+# plot
+ggerrorplot(x="Treatment",
+            y="Amount_ul",
+            data=ovicafe, 
+            add=c("mean", "jitter"), 
+            desc_stat = "mean_se", 
+            error.plot = "errorbar",
+            color="Treatment",
+            palette = "jco"
+            )
+
+ggerrorplot(x="Treatment",
+            y="Eggs",
+            data=ovicafe, 
+            add=c("mean", "jitter"), 
+            desc_stat = "mean_se", 
+            error.plot = "errorbar",
+            color="Treatment",
+            palette = "jco"
+            )
+
+wilcox.test(Amount_ul ~ Treatment, data=ovicafe, conf.int=TRUE)
+wilcox.test(Eggs ~ Treatment, data=ovicafe, conf.int=TRUE)
+
+eggs.lm <- lm(Eggs ~ Treatment, data=ovicafe)
+oviposition_long[, Eggs_res:=residuals(eggs.lm)]
+ggqqplot(data=oviposition_long, x = "Eggs_res", title="Normal Q-Q")
+
+n_sim <- 250
+egg.pois <- glm(Eggs ~ Treatment, family="poisson", data=ovicafe)
+  simulationOutput <- simulateResiduals(fittedModel=egg.pois, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+egg.nb <- glm.nb(Eggs ~ Treatment, data=ovicafe)
+  simulationOutput <- simulateResiduals(fittedModel=egg.nb, n=n_sim, refit=TRUE)
+  plot(simulationOutput, asFactor = F)
+  testDispersion(simulationOutput)
+coef(summary(egg.nb))
+
+
+```
+
+# Experiment 5
+
+**grad students only**
+Reproduce the stated test results for egg counts and generate better plots of the model results than Fig. 3.
+
+**impress me more**
+Reproduce the stated test results for mortality and generate better plots of the model results than Fig. 3.
+
+```{r 5-insecticide}
+insecticide[,Treatment:=factor(Treatment,
+                  c("Water_Control",
+                   "Hu_Alone",
+                   "Entrust",
+                   "Hu_Entrust"))]
+insecticide.glmer <- glmer(eggs_total ~ Treatment + (1|Replicate), family="poisson", data=insecticide)
+insecticide.glmer.emm <- emmeans(insecticide.glmer, specs="Treatment", data=insecticide)
+contrast(insecticide.glmer.emm, method="revpairwise", type="response") # 26% is recovered by how to get the Wald chi-sq?
+
+
+
+```
+

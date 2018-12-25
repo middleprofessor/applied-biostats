@@ -17,28 +17,28 @@ library(lmerTest)
 simulation. 10 replicates of two treatment levels in 6 plots. The plots are "batches" or "clusters".
 
 ```{r fake_data}
-all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_batch=6, n_reps=10){
+all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_block=6, n_subsamp=10){
   if(sigma_b0==0){sigma_b0 <- 1e-10}
   if(sigma_b1==0){sigma_b1 <- 1e-10}
   fake_data <- data.table(NULL)
   # this is a slow, inefficient way to build the data but should be easy to follow
-  for(i in 1:n_batch){
+  for(i in 1:n_block){
     #  random intercept for each plot
     beta_0i <- rnorm(1, mean=0, sd=sigma_b0)
     beta_1i <- rnorm(1, mean=0, sd=sigma_b1)
     # the response in the control and treated groups
-    y1 <- beta_0 + beta_0i + (beta_1 + beta_1i)*0 + rnorm(n_reps, mean=0, sd=sigma)
-    y2 <- beta_0 + beta_0i + (beta_1 + beta_1i)*1 + rnorm(n_reps, mean=0, sd=sigma)
+    y1 <- beta_0 + beta_0i + (beta_1 + beta_1i)*0 + rnorm(n_subsamp, mean=0, sd=sigma)
+    y2 <- beta_0 + beta_0i + (beta_1 + beta_1i)*1 + rnorm(n_subsamp, mean=0, sd=sigma)
     # combine into a data.table and rbind to end of fake_data
     fake_data <- rbind(fake_data,
-                       data.table(Treatment=rep(c("Cn","T+"), each=10),
-                                  replicate=rep(1:n_reps, 2),
-                                  batch=paste("p",i,sep="_"),
+                       data.table(Treatment=rep(c("Cn","T+"), each=n_subsamp),
+                                  subsample=rep(1:n_subsamp, 2),
+                                  block=letters[i],
                                   Y=c(y1, y2))
     )
   }
   
-  fake_data[, batch:=factor(batch)]
+  fake_data[, block:=factor(block)]
   return(fake_data)
 }
     
@@ -264,6 +264,29 @@ coef(summary(fit.lm2))
 
 ```
 
+
+```{r sim2}
+# lmm coefficients vs. lmm anova with interaction ss as denominator
+
+set.seed(1)
+n_block_set <- 6 # number of batches or clusters
+n_subsamples_set <- 10 # number of replicates within each cluster
+
+niter <- 1000
+p <- matrix(NA, nrow=niter, ncol=3)
+colnames(p) <- c("lm.factorial", "lm.add", "lmm")
+for(iter in 1:niter){
+  fd <- all_treatments_per_batch(n_block=n_block_set, n_subsamp=n_subsamples_set, beta_1=0)
+  fit.lm <- lm(Y~Treatment*block, data=fd)
+  fit.lm2 <- lm(Y~Treatment+block, data=fd)
+  fit.lmm <- lmer(Y~Treatment + (Treatment|block), data=fd)
+  p[iter,] <- c(coef(summary(fit.lm))["TreatmentT+", "Pr(>|t|)"],
+                coef(summary(fit.lm2))["TreatmentT+", "Pr(>|t|)"],
+                coef(summary(fit.lmm))["TreatmentT+", "Pr(>|t|)"])
+}
+
+apply(p, 2, function(x) length(which(x<0.05)))/niter
+```
 
 ```{r lmm1-BG_biomass, echo=FALSE}
 folder <- "Data from Data from Above and below ground responses of four tundra plant functional types to deep soil heating and surface soil fertilization"
