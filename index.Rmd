@@ -28,5 +28,35 @@ Researchers learn almost nothing useful from a hypothesis test. True, a $p$-valu
 
 The "discovery by p-value" strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with little emphasis on estimation and uncertainty.
 
-This book is an introduction to the analysis of biological data using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values. A modeling view of statistics is also more coherent than a dichotomous key strategy.
+This book is an introduction to the analysis of biological data using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values.
+
+## This book is a path to many doors
+
+The basic strategy of statistical modeling is
+
+1. **choose a model**. Statistical modeling includes a diverse array of models, yet almost all methods used by researchers in biology are generalizations of what is known as the linear model^[or, general linear model, but this gets confusing since the acronym (GLM) is mostly used for a class of statistical models called generalized linear models, which are extensions of the linear model]. All of these models look something like this
+
+\begin{align}
+y_i &\sim N(\mu_i, \theta)\\
+\mathrm{E}(Y|X) &= \mu\\
+\mu_i &= \beta_0 + \beta_1 X_i
+(\#eq:sm)
+\end{align}
+
+which is the **model specification**. The meaning of each of the lines will be disussed in chapter 1.
+2. **fit the model**, in order to estimate the model parameters and the uncertainty in these estimates.
+3. **check the model**, which means to use a series of diagnostic plots and computations of model output to check that the data reasonably approximate the chosen model.
+4. **inference from the model**, which means to use the fit parameters to learn, with uncertainty, about the system, or to predict future observations, with uncertainty.
+5. **plot the model**, which means to plot the estimated parameters (or other results dervived from the estimates) with their uncertainty.
+
+Because all linear models and their extensions are generalizations of the specification in step one above, a modeling strategy of statistical analysis is more coherent than a "dichotomous key" or "table of hypothesis tests" strategy common to many textbooks.
+
+Generalizations of the basic linear model in step one above include linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is a path *of elements* leading you to the doors to each of these methods.
+
+## Math
+
+## Notation
+
+## R and programming
+
 
