@@ -65,7 +65,7 @@ gg
 
 ```
 
-## Two specifications of a linear model I: the "linear model" way
+## Two specifications of a linear model I: the "random error" specification
 
 The basic **structure** of a linear model is
 
@@ -74,23 +74,23 @@ Y &= \beta_0 + \beta_1 X + \varepsilon\\
 (\#eq:lm)
 \end{align}
 
-A linear model has two parts: the "linear predictor" ($Y = \beta_0 + \beta_1 X$) and the "error"  ($\varepsilon$). The linear predictor part looks like the equation for a line except that I've used $\beta_0$ for the intercept and $\beta_1$ for the slope and I've put the intercept term first. This re-labeling and re-arrangement make the notation for a linear model more flexible for more complicated linear models. For example $Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \varepsilon$ is a model where $Y$ is a function of two $X$ variables.
+This specification of a linear model has two parts: the "linear predictor" ($Y = \beta_0 + \beta_1 X$) and the "error"  ($\varepsilon$). The linear predictor part looks like the equation for a line except that I've used $\beta_0$ for the intercept and $\beta_1$ for the slope and I've put the intercept term first. This re-labeling and re-arrangement make the notation for a linear model more flexible for more complicated linear models. For example $Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \varepsilon$ is a model where $Y$ is a function of two $X$ variables.
 
 As with the equation for a line, the linear predictor part of a linear model is a function that maps a specific value of $X$ to a value of $Y$. This mapped value is the **expected value** given a specific input value of $X$. This is often written as $\mathrm{E}[Y|X]$, which is read as "the expected value of $Y$ given $X$". Importantly, $\mathrm{E}[Y|X]$ is the **conditional mean**, which is the *modeled* value of $Y$ for all observations in which $X$ takes some specific value $x$.
 
 Introductory textbooks almost always introduce linear models using equation \@ref(eq:lm) above. The key part of the model that is missing from the specification above is a second line 
 
 \begin{equation}
-\varepsilon \sim N(0, \sigma)
+\varepsilon \sim N(0, \sigma^2)
 \end{equation}
 %
-read as "epsilon is distributed as Normal with mean zero and standard deviation sigma"). This line explicitly specifies the distribution of the error part. The error part of a linear model is a random "draw" from a normal distribution with mean zero and variance $\sigma^2$. Think of this as adding some random value to the expected value. 
+read as "epsilon is distributed as Normal with mean zero and variance sigma squared"). This line explicitly specifies the distribution of the error part. The error part of a linear model is a random "draw" from a normal distribution with mean zero and variance $\sigma^2$. Think of this as adding some random value to the expected value. 
 
 The inputs to a linear model (the $X$ variables) have many names including "independent variables," "predictor variables,", "explanatory variables," "treatment variables," and "covariates". The output of a linear model (the $Y$ variable or variables if the model is multivariate) is the "dependent variable," "response," or "outcome." The $\beta$ in the linear model are model **parameters** and if a parameter is multiplied by an $X$ variable then it is a **coefficient** (for example, $\beta_1$ in model \@ref(eq:lm) is a coefficient) (there are additional parameters that are hidden from this specification of the linear model but show up in the specification below). The coefficients of the $X$ in a linear model ($\beta_1$ in model \@ref(eq:lm)) are often called "the effects" (so $\beta_1$ is the effect of $X_1$).
 
 Although a linear model (or statistical model more generally) is a model of a data-generating process, linear models are not typically used to actually generate any data. Instead, when we use a linear model to understand something about a real dataset, we think of our data as one realization of a process that generates data like ours. A linear model is a model of that process. That said, it is incredibly useful to use linear models to create fake datasets for at least two reasons: to probe our understanding of statistical modeling generally and, more specifically, to check that a model actually creates data like that in the real dataset that we are analyzing.
 
-## Two specifications of a linear model II: the "statistical model" way
+## Two specifications of a linear model II: the "random draw" specification
 
 A second way of specifying a linear model is
 
@@ -103,7 +103,7 @@ Y &\sim N(\mu, \sigma)\\
 
 The first line states that the response variable $Y$ is a random variable independently drawn from a normal distribution with mean $\mu$ and variance $\sigma^2$. This first line is the **stochastic** part of the statistical model. The second line simply states that $\mu$ (the greek letter "mu") from the first line is the conditional mean or conditional expectation. The third line states how $Y$ is generated given a value of $X$. This is the linear predictor, which is the **systematic** (or deterministic) part of the statistical model.
 
-These two ways of specifying the model encourage slightly different ways of thinking about how the data (the response varible $Y$) were generated. The linear model way "generates" data by constructing $y_i$ from the $x_i$ and then adding random, normal error. The statistical model way "generates" data by simply drawing a random variable from a normal distribution with a specified mean and variance. The statistical model way explicitly defines all parameters, including the parameters of the linear predictor ($\beta_0$ and $\beta_1$), the conditional mean $\mu$ and the variance $\sigma$. The linear model way only defines the parameters of the linear predictor, and often these are referrred to as "the parameters" in the sense that there are not other parameters. Because of the explicit statement of all parameters, the statistical model way to define the linear model is more useful in that it is easily generalized to more complex models, including hierarchical models, generalized linear models, and Bayesian models. This is why I call it the "statistical model" way of specification.
+These two ways of specifying the model encourage slightly different ways of thinking about how the data (the response varible $Y$) were generated. The random error specification "generates" data by constructing $y_i$ from the $x_i$ and then adding random, normal error. The random draw specification "generates" data by simply drawing a random variable from a normal distribution with a specified mean and variance. The random draw specification explicitly defines all parameters, including the parameters of the linear predictor ($\beta_0$ and $\beta_1$), the conditional mean $\mu$ and the variance $\sigma$. The random error specification only defines the parameters of the linear predictor, and often these are referrred to as "the parameters" in the sense that there are not other parameters. The random error specification is most useful for thinking about model checking fit linear models but thinking about a model as a predictor plus error can lead to misconceptions of generalized linear models. The random draw specificaiton is more generally useful in that it is easily generalized to more complex models, including hierarchical models, generalized linear models, and Bayesian models.
 
 ## Statistical models are used for prediction, explanation, and description
 
@@ -117,17 +117,29 @@ Researchers typically use statistical models to understand relationships between
 
 With observational designs, biologists are often not very explicit about which of these is the goal of the modeling and use a combination of descriptive, predictive, and causal language to describe and discuss results. Many papers read as if the researchers intend explanatory inference but because of norms within the biology community, mask this intention with "predictive" language. Here, I advocate embracing explicit, explanatory modeling by being very transparent about the model's goal and assumptions.
 
+## Modeling strategy
+
+1. **choose a model**. Statistical modeling includes a diverse array of models, yet almost all methods used by researchers in biology, and all models in this book, are generalizations of the linear model specified in \@ref(eq:).
+
+2. **fit the model**, in order to estimate the model parameters and the uncertainty in these estimates.
+
+3. **check the model**, which means to use a series of diagnostic plots and computations of model output to check that the data reasonably approximate the chosen model.
+
+4. **inference from the model**, which means to use the fit parameters to learn, with uncertainty, about the system, or to predict future observations, with uncertainty.
+
+5. **plot the model**, which means to plot the estimated parameters (or other results dervived from the estimates) with their uncertainty.
+
 ## Model fitting
 
 In order to use a statistical model to describe, predict, or explain, we need to fit a model to data in order to estimate the parameters. A linear model fit to some data is
 
 \begin{align}
 \hat{y}_i &= b_0 + b_1 x_i\\
-\mathrm{E}[Y|X=x_i] &= \hat{y}_i
+\mathrm{E}[Y|X=x] &= \hat{y}_i
 (\#eq:yhat)
 \end{align}
 
-$\hat{y}_i$ ("y hat") is the **predicted value** of individual $i$ and $b_0$ and $b_1$ are the coefficients of the model fit (though technically $b_0$ is not a coefficient). Sometimes $\hat{y}_i$ is simply called "the prediction". The second line above simply states the conditional expectation is the prediction (read as "The conditional expectation of $Y$, given that $X$ is assigned the value $x_i$ is y hat").
+$\hat{y}_i$ ("y hat") is the **predicted value** of individual $i$ and $b_0$ and $b_1$ are the coefficients of the model fit (though technically $b_0$ is not a coefficient). Sometimes $\hat{y}_i$ is simply called "the prediction". The second line above simply states the conditional expectation is the prediction (read as "the conditional expectation of $Y$, given that $X$ is assigned the value $x$ is y hat").
 
 If our goal is inference -- to infer something about the "population" from the sample using the fit model, then $\hat{y}_i$ is the **point estimate** of the parameter $\mu_i$ and the coefficients $b_0$ and $b_1$ are point estimates of the parameters $\beta_0$ and $\beta_1$. I put "population" in quotes because it is a very abstract concept. Throughout this book, I use Greek letters to refer to a theoretical parameter and Roman letters to refer point estimates.
 

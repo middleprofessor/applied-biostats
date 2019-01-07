@@ -1,6 +1,12 @@
 # Appendix 2: Online Resources for Getting Started with Linear Modeling in R {-}
 
-[Regression Models for Data Science in R by Brian Caffo](https://leanpub.com/regmods)
+Roughly, in order from most elementary to most advanced
+
+[Learning Statistics with R](https://https://learningstatisticswithr-bookdown.netlify.com) by Danielle Navarro and adapted to Bookdown (for web viewing) by Emily Kothe.
+
+[Statististical Thinking for the 21st Century](http://statsthinking21.org) by Russell A. Poldrack
+
+[Regression Models for Data Science in R](https://leanpub.com/regmods) by Brian Caffo
 
 [Broadening Your Statistical Horizons: Generalized Linear Models and Multilevel Models by J. Legler and P. Roback](https://bookdown.org/roback/bookdown-bysh/)
 

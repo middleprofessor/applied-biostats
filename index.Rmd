@@ -22,40 +22,27 @@ knitr::write_bib(c(
 # Preface {-}
 *More cynically, one could also well ask "Why has medicine not adopted frequentist inference, even though everyone presents P-values and hypothesis tests?" My answer is: Because frequentist inference, like Bayesian inference, is not taught. Instead everyone gets taught a misleading pseudo-frequentism: a set of rituals and misinterpretations caricaturing frequentist inference, leading to all kinds of misunderstandings.* -- Sander Greenland
 
-We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student learns to use something like a dichotomous key to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a $p$-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude (incorrectly) they have "discovered" something if $p < 0.05$ but found "no effect" if $p > 0.05$.
+We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student learns to use something like a look-up table or a dichotomous key to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a $p$-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude (incorrectly) they have "discovered" something if $p < 0.05$ but found "no effect" if $p > 0.05$.
 
-Researchers learn almost nothing useful from a hypothesis test. True, a $p$-value is evidence against the null, and thus, a tool to dampen the frequency that we are fooled by randomness. But if we are investigating the effects of an increasingly acidified ocean on coral growth, $p=0.002$ may be evidence of an effect of the experimental intervention, but, from everything we know about pH and cell biology, it would be absurd to conclude from any data that pH does not affect growth. Instead, we want to know the magnitude of the effect and our uncertainty in estimating this magnitude. We can use this magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consquences of the effects of acidification on coral growth on fish production or carbon cycling.
+Researchers learn nothing useful from a hypothesis test. True, a $p$-value is evidence against the null, and thus, a tool to dampen the frequency that we are fooled by randomness. But if we are investigating the effects of an increasingly acidified ocean on coral growth, $p=0.002$ may be evidence of an effect of the experimental intervention, but, from everything we know about pH and cell biology, it would be absurd to conclude from any data that pH does not affect growth. To build useful models of how biological systems work, we want to know the magnitude of effects and our uncertainty in estimating these magnitudes. We can use a magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consquences of the effects of acidification on coral growth on fish production or carbon cycling.
 
-The "discovery by p-value" strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with little emphasis on estimation and uncertainty.
-
-This book is an introduction to the analysis of biological data using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values.
-
-## This book is a path to many doors
-
-The basic strategy of statistical modeling is
-
-1. **choose a model**. Statistical modeling includes a diverse array of models, yet almost all methods used by researchers in biology are generalizations of what is known as the linear model^[or, general linear model, but this gets confusing since the acronym (GLM) is mostly used for a class of statistical models called generalized linear models, which are extensions of the linear model]. All of these models look something like this
+This book is an introduction to the estimation of effects of biological data, and measures of the uncertainty of theses estimates, using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values. All linear models, and their generalizations, are variations of
 
 \begin{align}
-y_i &\sim N(\mu_i, \theta)\\
+Y &\sim P(\mu, \theta)\\
 \mathrm{E}(Y|X) &= \mu\\
-\mu_i &= \beta_0 + \beta_1 X_i
-(\#eq:sm)
+\mu &= \beta_0 + \beta_1 X
+(\#eq:lm-spec2)
 \end{align}
 
-which is the **model specification**. The meaning of each of the lines will be disussed in chapter 1.
-2. **fit the model**, in order to estimate the model parameters and the uncertainty in these estimates.
-3. **check the model**, which means to use a series of diagnostic plots and computations of model output to check that the data reasonably approximate the chosen model.
-4. **inference from the model**, which means to use the fit parameters to learn, with uncertainty, about the system, or to predict future observations, with uncertainty.
-5. **plot the model**, which means to plot the estimated parameters (or other results dervived from the estimates) with their uncertainty.
+Chapter 1 explains the meaning of this **model specification** but the point to make here is that because all linear models and their generalizations are variations of this specification, a modeling strategy of learning or doing statistics is more coherent than the NHST strategy using look-up tables or dichotomous keys of hypothesis tests. Generalizations of the basic linear model include linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is not a comprehensive source for any of these methods but, instead, *a path of the critical elements leading you to the doorway to the vast universe of each of these methods*.
 
-Because all linear models and their extensions are generalizations of the specification in step one above, a modeling strategy of statistical analysis is more coherent than a "dichotomous key" or "table of hypothesis tests" strategy common to many textbooks.
-
-Generalizations of the basic linear model in step one above include linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is a path *of elements* leading you to the doors to each of these methods.
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**NHST Blues** -- The "discovery by p-value" strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with much less emphasis on estimation and uncertainty. The NHST strategy of learning or doing statistics is easy in that it requires little understanding of the statistical model underneath the tests and its assumptions, limitations, and behavior. The NHST strategy in combination with point-and-click software enables "mindless statistics"^[Gegenrezer] and encourages the belief that statistics is a tool like a word processor is a tool, afterall, a rigorous analysis of one's data requires little more than getting p-values and creating bar plots. Indeed, many PhD programs in the biosciences require no statistics coursework and the only training available to students is from the other graduate students and postdocs in the lab. As a consequence, the biological sciences literature is filled with error bars that imply data with negative values and p-values that have little relationship to the probability of the data under the null. More importantly for science, the reported statistics are often not doing for the study what the researchers and journal editors think they are doing.
+</div> 
 
 ## Math
 
-## Notation
 
 ## R and programming
 

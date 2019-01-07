@@ -70,9 +70,11 @@ y_i &= \beta_0 + \beta_1 x_i + \varepsilon_i\\
 (\#eq:spec1-poisson)
 \end{align}
 
-That is, we should not think of a count as the sum of a systematic part and a random draw from a Poisson distribution. Why? Because it is the counts (or the counts conditional on $X$) that are poisson distributed, not the residuals from the fit model. Some other consequences of thinking about this way are: First, if we set the mean of the Poisson "error" to zero (like with a normal distribution), then the error term for every observation would *have to* be zero (because the only way to get a mean of zero with non-negative integers is if every value is zero). Second, if the study is modeling the effect of a treatment on the counts (that is, the $X$ are dummy variables) then $\beta_0$ is the expected mean count of the control (or reference) group. But if we add non-zero Poisson error to this, then the mean of the control group would be larger than $\beta_0$. This doesn't make sense. And finally, equation \@ref(eq:spec1-poisson) generates a continuous response, instead of an integer, because $\beta_0$ and $\beta_1$ are continuous.
+That is, we should not think of a count as the sum of a systematic part and a random draw from a Poisson distribution. Why? Because it is the counts (or the counts conditional on $X$) that are poisson distributed, not the residuals from the fit model.
 
-A better way to think about the data generation for a linear model, because this naturally leads to the way to think about data generation for a generalized linear model, is
+Thinking about the distribution of count data using model \@ref(eq:spec1-poisson) leads to absurd consequences. For example, if we set the mean of the Poisson "error" to zero (like with a normal distribution), then the error term for every observation would *have to* be zero (because the only way to get a mean of zero with non-negative integers is if every value is zero). Or, if the study is modeling the effect of a treatment on the counts (that is, the $X$ are dummy variables) then $\beta_0$ is the expected mean count of the control (or reference) group. But if we add non-zero Poisson error to this, then the mean of the control group would be larger than $\beta_0$. This doesn't make sense. And finally, equation \@ref(eq:spec1-poisson) generates a continuous response, instead of an integer, because $\beta_0$ and $\beta_1$ are continuous.
+
+A better way to think about the data generation for a linear model, because this naturally leads to the *correct* way to think about data generation for a generalized linear model, is
 
 \begin{align}
 y_i &\sim N(\mu_i, \sigma)\\
