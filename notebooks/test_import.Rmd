@@ -1,0 +1,34 @@
+---
+title: "Test-Import"
+author: "Jeff Walker"
+date: "9/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(here)
+library(readxl)
+
+knitr::opts_chunk$set(echo = TRUE)
+# use this in a chuck called "setup" to force the working directory to be
+# at the level of the project file.
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+data_path <- "data"
+data_path <- "../data"
+
+```
+
+```{r}
+(working <- getwd())
+```
+
+```{r}
+data_folder <- "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+filename <- "allDatasetsMarietteBuchanan2016.xls"
+file_path <- paste(data_path, data_folder, filename, sep="/")
+chick <- read_excel(file_path, sheet="nestlingMass") # read the excel file
+chick <- data.table(chick) # convert to data.table
+```
+

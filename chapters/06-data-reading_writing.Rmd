@@ -1,0 +1,295 @@
+# Data -- Importing and Saving Data
+
+Importing data into R can be a struggle for new R users and, unfortunately, most online sources give easy but superficial methods that don't follow best practices for increasing reproducibility or do not allow flexible organization of files within a project. Some examples:
+
+(tl;dr -- go to next section if you just want to import a file and don't want to understand this important background information!)
+
+1. `df <- read.table(file="clipboard")` imports data copied to the clipboard, from an Excel/Sheets file or from an open text file. For this to be semi-reproducible, a comment specifying the filename, worksheet and range that was copied is necessary. More problematic (catastrophically so for reproducibility), is, how does a researcher know that they highlighted and copied the correct range in the Excel sheet? 
+2. `df <- read.csv(file.choose())` opens the familiar "open file" dialog box, which lets the user navigate to the file of choice. For this to be semi-reproducible, a comment specifying the filename to import is necessary. The catastrophic problem (for reproducibility) is, how does a researcher know which file was actually opened during an R session? The researcher might think they opened "walker_maine_bee_data_clean_androscoggin.csv" but mistakenly opened "walker_maine_bee_data_clean_aroostook.csv".
+3. `df <- read.table(file="my_data.txt")` and `df <- read_excel(file="my_data.xlsx")` are reproducible because the filename is explicitly specified. But, this method requires that "my_data" is physically located in the same folder as the file containing the R script (the notebook .Rmd file in our case) and this violates the best practice of clean project organization with different folders for the different kinds of files (data, R scripts, images, manuscript text, etc.).
+4. R Studio has an elegant import tool in the environment pane that opens a custom dialog box that allows the researcher to navigate to the file, and to specify what part of the file to import, such as the specific sheet and range for an Excel file. This has the same reproducibility issues as #1 and #2 but R Studio includes the equivalent script, which adds all relevant information for reproducility. One then simply copies and pastes this script into a code chunk and voila! The next time the script is run, the data can be imported from the script without using menus and dialog boxes. Except that..the script does not seem to take into account that the **working directory** of an R Markdown file is not the project folder but the folder containing the R Markdown file and so this two-step method fails. More personally, I'd prefer to run a chunk that quickly opens the data file instead of re-navigating through my file system and re-specifying the sheet and range every time I re-start the project in a new R session.
+
+There are at least three solutions to the issues raised above, all requiring some understanding of **file paths** and directory structure in an operating system. A file such as "my_data.xlsx" has an **absolute** file path, which is the full address of the file (the filename is something like your house street number). The absolute file path of "my_data.xlsx" might be "/Users/jwalker/Documents/applied-biostatistics/data/my_data.xlsx". A **relative** file path is the file path from the **working directory**. In an R Studio project, the working directory is the project directory, which is the directory containing the .Rproj file. This will be the working directory of the console. *Importantly*, the working directory of an R Markdown code chunk is the folder containing the saved R Markdown file. An R Studio Notebook is an R Markdown file so the working directory of a notebook code chunk is the folder containing the saved notebook file. If a notebook file is located within the notebooks folder, which is located within the project folder, then the relative file path to "my_file.xlsx" is "../data/my_file.xlsx". The ".." tells the file OS to move "up" into the parent directory (which is the project folder) and the "data" tells the file OS to move "down" into the data folder. These are put together into a single address using "/". The beauty of relative paths is that they remain the same -- and so do not break one's script -- if the project folder, and all of its contents including the data folder and the notebooks folder, is moved to another location on the hard drive (say into a new "Research" folder). By contrast, the absolute file path changes, which breaks any old script.
+
+The three solutions are
+
+1. Create a **relative path** to the file using something like `file_path <- "../data/my_data.xlsx"`. This should *always* work but it fails on some computers. For example, if the project folder is on a Windows OS (but not Mac OS) desktop, the assigned relative address doesn't seem to look in the folder containing the file.
+2. Create a setup chunk that reroutes the working directory to the project folder using the script
+
+```{r, eval=FALSE}
+# use this in a chuck called "setup" to force the working directory to be
+# at the level of the project file.
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+For this to work, the chunk has to be named “setup”, that is, the text inside the curly brackets at the top of the chunk should be “r setup”. Then, with this chunk, the relative file path is `file_path <- "../data/my_data.xlsx"` if "my_data.xlsx" is immediately inside the data folder which is imediately inside the project folder. This should work on any machine, and should work even if a project folder is moved. However, it does not work when writing a book with Bookdown a Bookdown project has multiple .Rmd files and the chunk names cannot be repeated across files. There can only be one chunk called "setup".
+
+3. Use the function here(). The most robust solution seems to be using the function here() from the here package. The function works something like this
+
+```{r, eval=FALSE}
+data_path <- "data" # path to data that are imported
+file_name <- "my_data.xlsx"
+file_path <- here(data_path, file_name) # paste together parts of the address
+read_excel(file=file_path)
+```
+
+here::here() creates an absolute path, but one that is created on the fly, and will change (or should change) correctly if the project folder is moved on the same machine or to another machine. And no chunk named setup is required so this also works in every R markdown file when using Bookdown.
+
+## Create new notebook for this chapter
+
+Create a new notebook and save it to the "notebooks" folder of your BIO_413 project. **Important:** In an R Studio project, the working directory is the project directory (the location of the .Rproj file) -- this will be the working directory of the console. The working directory of an R Markdown code chunk is the folder containing the saved R Markdown file. An R Studio Notebook is an R Markdown file so the working directory of an notebook code chunk is the folder containing the saved notebook file. Importantly, the working directory of the code chunk isn't "moved" to the folder containing the saved file *until the file is saved* so import/export scripts will no work properly until the file is saved!
+
+Annotate your notebook with notes! Update it as you learn more! We will use data.table for importing text files in tab-delimited or comma-separated formats and the readxl package for importing excel files.
+
+Start each notebook with a chunk named "setup" (note that since this book is advocating the use of here() to set the file path, naming the setup chunk "setup" is not imperative).
+
+```{r data-setup, message=FALSE}
+knitr::opts_chunk$set(fig.width=6, fig.height=4) 
+
+# relative paths to project folders
+data_path <- "data" # path to data that are imported
+output_path <- "output" # path to data that are saved
+```
+
+Add a "load-packages" chunk.
+
+```{r data-load-packages, message=FALSE, warning=FALSE}
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(data.table) # make data.frames data.tables
+library(readxl) # import excel
+library(emmeans) # get estimated marginal means and CIs, used for plot
+library(janitor) # clean_names to clean col labels of imported data
+library(here) # here::here() creates the absolute path to the file
+```
+
+## Importing Data
+
+Throughout this book, we will download data from the [Dryad Digital Repository](https://datadryad.org){target="_blank"}, which is a major resource for increasing reproducibility in science. My own view is that *all data* should be archived on some public server (exceptions include data that are proprietary or contain sensitive information -- such as human health measures).
+
+### Excel File
+The Excel dataset is from an experiment on the growth response of zebra finch chicks to an incubation call that presumably signals "hot environment" to the embryos ([Mariette, M.M. and Buchanan, K.L., 2016. Prenatal acoustic communication programs offspring for high posthatching temperatures in a songbird. Science, 353(6301), pp.812-814](http://science.sciencemag.org/content/353/6301/812){target="_blank"}). The source file is from the Dryad Repository here: 
+
+**file name**: "allDatasetsMarietteBuchanan2016.xls"
+
+**source**: https://datadryad.org//handle/10255/dryad.122315
+
+Steps
+
+1. Copy the title of the Dryad page, which is "Data from: Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+2. Create a new folder within "data" and paste in the copied title as the folder name
+3. Remove the colon from the name, so the folder name is "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+4. Download the .xls file into this folder
+
+A .xls file is an old (pre 2007) Microsoft Excel file type. It is a binary file and can only be opened into a readable format with specialized software. The more modern Excel file type is .xlsx, which contains within it multiple xml components. An xml file is a text file, and so contains readable content, but the content is xml code to display something. In general, I am a big advocate of archiving stuff as text files (manuscripts, data, scripts, blog posts) because these will *always* be readable by future software. Microsoft Excel is not likely to die anytime soon and software that can read .xls and especially .xlsx files (again, .xlsx files are text files) is even less likely to disappear but we can feel even more confident if data are archived as text files. That said, a single microsoft excel file with multiple sheets is an efficient method for distributing data and the readxl package provides excellent tools for reading different sheets of a single .xls or .xlsx file.
+
+The code below uses the function `read_excel()` from the package readxl. More about the amazing power of this package is the [tidyverse page](https://readxl.tidyverse.org){target="_blank"} and [chapter 11](http://r4ds.had.co.nz/data-import.html){target="_blank"} in the *R for Data Science* book.
+
+```{r import-tests, echo=FALSE, eval=FALSE}
+#bee <- read.csv(file.choose())
+
+# data_folder <- "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+# filename <- "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
+# file_path <- here(data_path, data_folder, filename)
+# bee <- fread(file_path, header=TRUE)
+
+RSBL_2013_0432_vole_data <- read_excel("data/Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal/RSBL-2013-0432 vole data.xlsx", 
+    sheet = "COLD VOLES LIFESPAN", skip = 1)
+View(RSBL_2013_0432_vole_data)
+```
+
+```{r import-chick-xls}
+data_folder <- "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
+filename <- "allDatasetsMarietteBuchanan2016.xls"
+file_path <- here(data_path, data_folder, filename)
+chick <- read_excel(file_path, sheet="nestlingMass") # read the excel file
+chick <- data.table(chick) # convert to data.table
+```
+
+In this book, we will consistently uses this protocol for storing and retrieving downloaded files. The first three lines in the script above creates the directory path to the file. This path includes
+
+1. data_path -- the relative path into the folder "data" (relative to the location of the project file)
+2. data_folder -- the name of the folder within "data" containing the file
+3. filename -- the name of the file to read
+
+These are all put together into the absolute path using the function `here()` from the here package. Take a look at the value of file_path to confirm. The `read_excel(file_path, sheet="nestlingMass")` reads the nestlingMass sheet only. The next line:`chick <- data.table(chick)` converts the data.frame into a data.table.
+
+#### Troubleshooting File Import
+
+If you get an error that starts with "Error: `path` does not exist:" then R is not "seeing" your specified file given the path you've given it.
+
+1. Make sure you loaded the package `here` in a "load-libraries" chunk and that you have run the chunk
+2. Make sure you have assigned `data_path <- "data"` in the setup chunk and have run the chunk.
+3. Make sure your "data" folder is *one level* inside your project folder. "one level" means it is not buried deeper inside other folders within the project folder.
+4. Make sure your "Data from ..." folder is one level inside your "data" folder
+5. Make sure you have the name of the "Data from ..." folder correct in your script. To do this, I do not type the name but instead go to the finder (on Mac OS) and highlight the "Data from ..." folder and copy the name -- the whole name -- and then paste in between the quote mark in the line `data_folder <- ""`
+6. Make sure your data file is one level inside the correct "Data from" folder.
+7. Make sure the file name is correct in the script. As with the folder name, I go to the finder and copy the file name and paste it in place. In Windows use ctrl-a instead of ctrl-c to copy the full filename including the extension.
+
+More generally, R is *very literal* when it comes to: Spelling. Humans are very good at understanding misspelled words but the R language (or any computer language) is very literal. "Data from Quantifying the effects of" and "Data from Quantifying the efects of" are different values. Capitalization. R is **case sensitive** (some programming languages are not). "Data from Quantifying", "Data from quantifying", and "data from quantifying" are all different values. Spelling AND capitalization have to be perfect, not simply close. Humans are very good at understanding misspelled and OdDLy capitalized words but the R language (or any computer language) is very literal.
+
+#### Peak at the imported data.table to check that the file was imported correctly and to learn about the contents.
+
+Insert the following after your import script and run:
+
+```{r data-peek-chick}
+View(chick) # check -- are there headers? are there the correct number of columns?
+```
+
+The line `View(chick)` script opens a new tab containing a spreadsheet-like display of the data frame `chick`. This is one way to check that the data were imported correctly, to examine the column labels to ensure they conform to best practices, and to simply get to know the contents of the imported file. From the view of chick, it may not be immediately apparent that the column names contain spaces. This can be seen more easily using
+
+```{r}
+colnames(chick)
+```
+
+In general, it is bad practice to include spaces, parentheses, and special characters such as $ or ^, in the column names of a data frame because these increase handling costs later on. The best practice is to replace a blank with an underscore, for example `brood_id`. Some coders separate words with a period (`brood.id`). Others mash words together into a single word like this `broodid` but this should generally be avoided because the result can be hard to read. Finally, some coders use Caps to designate new words like this `BroodId`. This is easier to read than simple concatenation but the underscore is the easiest to read.
+
+The `janitor` package has a nice function to clean the column names of a data frame including replacing spaces with an underscore and stripping parentheses. The default clean includes changing any uppercase letter to lower case. Many coders like to work with all lowercase variable names to avoid having to hit the shift key.
+
+```{r clean-names}
+chick <- clean_names(chick)
+```
+
+Importantly, **resist the temptation to change the column names in the data file**, which reduces reproducibility. Leave original data files original. Always increase reproducibility!
+
+#### Best practices for creating data files
+
+1. https://www.youtube.com/watch?time_continue=309&v=Ry2xjTBtNFE -- An excellent video introduction to best practices for organizing data in a spreadsheet that will subsequently be analyzed by statistics software. 
+
+2. Broman, K. W., & Woo, K. H. (2017). Data organization in spreadsheets (No. e3183v1). https://doi.org/10.7287/peerj.preprints.3183v1 -- An excelllent review of best practices for organizing data in a spreadsheet.
+
+
+#### Explore with plots
+
+Just for fun, let's plot the data and reproduce Fig. 2A and B. We are using the `qplot` function, which is from the ggplot2 package. Two plots are made and only a subset of the rows are plotted in each (in A, the subset in which playback_treatment=="treat" and, in B, the subset in which playback_treatment=="cont"). This book uses the ggplot2 package extensively.
+
+```{r plotchickdata}
+qplot(x=nest_temperature_above_ambient, y=day13_mass, data=chick[playback_treatment=="treat"]) +
+  geom_smooth(method="lm")
+
+qplot(x=nest_temperature_above_ambient, y=day13_mass, data=chick[playback_treatment=="cont"]) +
+  geom_smooth(method="lm")
+
+```
+
+### Text File
+The example dataset comes from an experiment on the effect of [neonicotinoid pesticides on bumble bee colony growth](http://science.sciencemag.org/content/early/2012/03/28/science.1215025){target="_blank"}.
+
+**file name**: "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
+
+**source**: https://datadryad.org//resource/doi:10.5061/dryad.1805c973
+
+Steps
+
+1. Copy the title of the Dryad page, which is "Data from: Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+2. Create a new folder within "data" and paste in the copied title as the folder name
+3. Remove the colon from the name, so the folder name is "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+4. Download the .csv file into this folder
+
+A .csv file is a text file that is comma-delimted, which means that the entries of a row are separated by commas. A text file is readable by any text editor software and most other kinds of software. Datasets that are stored as text files are typically saved as either .csv (where the entries of a row are separated by commas) or .txt (where the entries are separated by tabs). The base R way to read a .csv file is using `read.csv`. The `read.table` function is more versatile, as the delimiter can be specified. The function `fread()` from the data.table package is fast, smart, and flexible. It is smart in the sense that it guesses what the delimter is. Unfortunately, because of spaces in the column labels for this file, fread guesses incorrectly (another reason why spaces in column labels should be avoided). To overcome this, the statement below specifies that the file contains a "header" (a line containing column labels)
+
+```{r import-bee-csv}
+data_folder <- "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
+filename <- "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
+file_path <- here(data_path, data_folder, filename)
+bee <- fread(file_path, header=TRUE)
+```
+
+Here, as with the import of the Excel file, the first three lines create the directory path to the file. Peek at the file in the console. Again, there are spaces in the column names. **Here I'll leave it to you to change this**
+
+```{r clean-bee, echo=FALSE}
+bee <- clean_names(bee)
+```
+
+Here is a reproduction of Fig 2 from the journal article.
+
+```{r plot-bee-fig-2}
+bee[, treatment:=factor(treatment, c("Control", "Low", "High"))] # reorder factor levels
+ggbarplot(data=bee, x="treatment", y="new_queens", add = "mean_se")
+```
+
+The plot suggests immediately some problems with the plot itself and the associated analysis. First, the y-axis is counts, which means that negative values are impossible. But the standard error bars look like they use standard errors computed from a model that allows infinetly large negative values, and the illustrated standard error bars imply that negative values exist. So these error bars are misleading. Second, it is good practice, especially if sample sizes are modest or small, to "show the data", which means, show the individual data points and not just a summary of the distribution.
+
+Here are three alternative plots for exploratory purposes. The first simply "shows the data" but still uses the misleading standard error bars. The second uses a box plot. The last plots the means and 95% confidence intervals modeled with a GLM (generalized linear model) to account for the count data (the model used could be improved). Notice that the bar length above the mean is longer than the bar length below the mean (that is the interval is asymmetric about the mean). In order to stay focussed on importing data, I leave explanation of these plots and analysis to later chapters.
+
+```{r data-alternative-plots}
+ggbarplot(data=bee, x="treatment", y="new_queens", add = c("mean_se", "point"))
+
+ggboxplot(data=bee, x="treatment", y="new_queens")
+
+fit.glm <- glm(new_queens ~ treatment, data=bee, family=poisson())
+means.glm <- emmeans(fit.glm, specs="treatment", type = "response")
+gg <- ggplot(data=data.frame(means.glm), aes(x=treatment, y=rate)) +
+  geom_col(fill="gray") + 
+  geom_errorbar(aes(x=treatment, ymin=asymp.LCL, ymax=asymp.UCL), width=0.3) +
+  ylab("New queens") +
+  NULL
+gg
+```
+
+## Saving Data
+
+For many projects, it is uncommon to save data. I might save simulated data if it takes a long time (hours or days) to generate these and I simply want to work with the simulated data in the future (and not have to regenerate it). Or I might save processed data if it takes a long time to process it and I want to analyze the processed data in the future and not have to re-process it.
+
+Here, we will create a small, simulated data set and save it to the "output" folder. You should have an "output" folder directly (one-level) inside the project folder. Create a folder within the output folder names "chapter_02". Make sure that you have the script assigning the path to the output folder code in the setup chunk.
+
+```{r data-fake-data}
+set.seed(1)
+n <- 10
+beta_0 <- 10.3
+beta_1 <- 1.1
+sigma <- 1.5
+fake_data <- data.table(treatment=rep(c("Cn","Tr"), each=n),
+                        weight=c(rnorm(n, mean=beta_0, sd=sigma), 
+                                 rnorm(n, mean=beta_0 + beta_1, sd=sigma)))
+ggstripchart(data=fake_data, x="treatment", y="weight", add="mean_ci")
+```
+
+```{r data-saving}
+save_data_folder <- "chapter_02"
+save_filename <- "my_first_fake_data.txt"
+save_file_path <- here(output_path, save_data_folder, save_filename)
+write.table(fake_data, save_file_path, sep="\t", quote=FALSE)
+```
+
+Look at your project directory to make sure the file is where it should be! We used `write.table()` to create a tab-delimited text file using `sep="\t"` to specify tabs to separate the row elements. "\t" is the standard character string for a tab. Check in your Fake_Data folder and open the file in a text editor.
+
+## Problems
+
+1. Download the dataset "data-Lodjak.et.al-2016-FuncEcol.xlsx" from the Dryad repository at https://datadryad.org/resource/doi:10.5061/dryad.rd01s. The .xlsx file presents the data cleanly but the trade-off is that the 1) multiple header rows, and 2) spaces in the header labels, 3) parentheses in the header labels make it more complex to import in a usable way. Import the data and plot Body Mass against Age (that is make Body Mass the "Y" variable and Age the "X" variable) using the qplot function. You should recode the column labels to remove spaces and parentheses using the setnames function.
+
+```{r problem1, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
+data_folder <- "Data from Causal link between insulin-like growth factor 1 and growth in nestlings of a wild passerine bird"
+filename <- "data-Lodjak.et.al-2016-FuncEcol.xlsx"
+file_path <- here(data_path, data_folder, filename)
+igf <- data.table(read_excel(file_path, sheet="Body mass data", range="B3:F1433"))
+#new_names <- c("Nest_ID", "Manipulation_group", "Nestling_ID", "Age", "Body_mass")
+#setnames(igf, old=colnames(igf), new=new_names)
+igf <- clean_names(igf)
+#setnames(igf, old=colnames(igf), new=gsub("[(.*)]","", colnames(igf)))
+qplot(x=age_day, y=body_mass_g, data=igf)
+```
+
+2. Download the dataset "Results2015.txt" from the Dryad repository at https://datadryad.org//resource/doi:10.5061/dryad.65vk4. Try to reproduce Fig. 1. It's not easy. I've inserted the figure below but also download the paper and look at Fig. 1.
+
+```{r problem2, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
+data_folder <- "Data from Dung beetles reduce livestock gastrointestinal parasite availability on pasture"
+filename <- "Results2015.txt"
+file_path <- here(data_path, data_folder, filename)
+dung <- fread(file_path)
+dung <- clean_names(dung)
+gg <- ggplot(data=dung, aes(x=watered, y=l3_average)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(0, 198)) +
+  NULL
+gg
+```
+
+3. (grad students only) Download and plot data from a Dryad Repository dataset of your choice.
+
+4. (grad students only) Create fake experimental data with three treatment levels (control, lo_temp, high_temp). This will require three parameters: an intercept (beta_0), an effect of lo_temp (beta_1), and an effect of high_temp (beta_2). You should be able to plug and play from the script above even if you don't underdstand at this point what any of it is! Plot it as a strip chart, as above.
+
+```{r dung-beetle-fig, echo=FALSE, eval=TRUE}
+knitr::include_graphics("images/Dung_beetles_reduce_livestock-fig_1.png")
+```
+

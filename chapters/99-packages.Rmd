@@ -1,0 +1,13 @@
+---
+title: "99-packages"
+output: html_document
+---
+
+# Packages
+DHARMa -- model checking generalized linear models
+lmodel2 -- model II regression
+broom -- augment() adds model diagnostic columns to fit data
+
+## unused packages
+vcd -- visualizing categorical data
+COUNT -- routines for count data

@@ -1,4 +1,4 @@
-# Appendix 2: Online Resources for Getting Started with Linear Modeling in R {-}
+# Appendix 2: Online Resources for Getting Started with Statistical Modeling in R {-}
 
 Roughly, in order from most elementary to most advanced
 
@@ -9,5 +9,7 @@ Roughly, in order from most elementary to most advanced
 [Regression Models for Data Science in R](https://leanpub.com/regmods) by Brian Caffo
 
 [Broadening Your Statistical Horizons: Generalized Linear Models and Multilevel Models by J. Legler and P. Roback](https://bookdown.org/roback/bookdown-bysh/)
+
+[Modern Statistics for Modern Biology](https://www.huber.embl.de/msmb/index.html)
 
 [The Art of Data Science by Roger D. Peng and Elizabeth Matsui](https://bookdown.org/rdpeng/artofdatascience/)

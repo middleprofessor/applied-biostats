@@ -1,0 +1,43 @@
+# Covariance and Correlation
+
+```{r setup-cov, echo=FALSE, warning=FALSE, message=FALSE}
+library(data.table)
+library(ggpubr)
+library(cowplot)
+```
+
+Variance is one of two major concepts in statistical modeling. The second is **covariance**, which arises when two variables measured on the same unit vary together. "Vary together" means that if we measured leg length and arm length on each individual in a sample of humans, we'd expect individuals with long arms to also have long legs while those with short arms to have short legs. "Measured on the same unit" means that we measure both leg length and arm length in each individual of a sample -- we cannot compute a covariance if we measure legs in one sample and arms in a second. Covariance can be positive or negative. It is positive when the tendency is for both values to be large or both values to be small. It is negative when the tendency is for one value to be small when the other is large. Positive and negative covariance are easily visualized with a scatterplot \@ref(fig:covariance-scatterplot).
+
+```{r covariance-scatterplot, echo=FALSE, fig.cap="Scatterplot illustrating two variables with (A) positive covariance and (B) negative covariance"}
+set.seed(1)
+n <- 50
+r <- 0.7
+alpha <- sqrt(r)
+z <- rnorm(n)
+y1 <- alpha*z + sqrt(1-r)*rnorm(n)
+y2 <- alpha*z + sqrt(1-r)*rnorm(n)
+y3 <- -alpha*z + sqrt(1-r)*rnorm(n)
+fd <- data.table(y1=y1, y2=y2, y3=y3)
+gg1 <- ggscatter(data=fd, x="y1", y="y2") +
+  xlab("Variable 1") +
+  ylab("Variable 2") +
+  NULL
+gg2 <- ggscatter(data=fd, x="y1", y="y3") +
+  xlab("Variable 1") +
+  ylab("Variable 3") +
+  NULL
+plot_grid(gg1, gg2, nrow=1, labels="AUTO")
+```
+
+1. Covariance
+
+\begin{equation}
+\mathrm{COV}[X, Y] = \sum_{i=1}^n{\frac{(x_i - \bar{x})(y_i - \bar{y})}{n-1}}
+(\#eq:cov)
+\end{equation}
+
+Compare this to the equation for the variance. In \@ref(eq:cov), the numerator in the sum is the product of two different deviations (one for each variable) instead of the product of a deviation with itself. 
+
+2. Correlation
+
+3. Regression

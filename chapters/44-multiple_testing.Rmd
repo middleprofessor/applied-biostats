@@ -1,0 +1,14 @@
+---
+title: "37-Multple Testing"
+author: "Jeffrey A. Walker"
+date: "2/22/2019"
+output: html_document
+---
+
+# Multiple testing
+
+>If you collaborate with a good statistician, you will appear less productive. The paradox comes from the fact that the statistician will often catch false discoveries before you publish them. The benefits will come in the long run. -- Rafael Irizarry, twitter comment (Feb 19, 2019)
+
+>The error isn't that a statistician catches false discoveries, it's the belief that statistical models can "discover" in the first place. A combination of mechanistic models and rigorous probing of predictions from these models is how discoveries are made. -- reply by me
+
+> Question regarding multiplicity adjustments – in what scenario would you insist that they be done from a frequentist POV? I would say that if doing frequentist analysis and the questions are not marginal, then multiplicity adjustment is called for, e.g. when making statements such as “there exists an endpoint affected by this treatment” or “there exists a subgroup for which this treatment is effective”. - https://discourse.datamethods.org/t/updates-to-nejm-statistical-guidelines-for-authors/1888/9

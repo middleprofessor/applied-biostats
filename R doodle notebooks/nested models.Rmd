@@ -1,0 +1,37 @@
+---
+title: "nested models"
+output: html_notebook
+---
+
+```{r}
+library(lme4)
+data(Pastes)
+```
+
+1. 10 batches with 3 casks per batch and 2 tests per cask.
+
+2. batch with 10 levels
+
+3. cask with 3 levels. These have the same name within each batch ("a", "b", "c") but "a" is not meaningful, hence nested not crossed
+
+4. sample with 30 levels reflecting all combinations of batch x cask. Hence this is an interaction batch:cask. If we gave the casks different names across batches this would be the same as cask.
+
+All of these specifications are the same.
+```{r}
+# classic "nested" specification
+m1 <- lmer(strength ~ 1 + (1|batch/cask), data=Pastes)
+# lmer expands the nested specification to one with the interaction. Then these are simply additive random effects
+m2 <- lmer(strength ~ 1 + (1|batch) + (1|batch:cask), data=Pastes)
+# "hidden" interaction unless one realizes that sample is all combinations of batch*cask
+m3 <- lmer(strength ~ 1 + (1|batch) + (1|sample), data=Pastes)
+# this would be specification in m2 but if we labeled casks differently among batches
+m4 <- lmer(strength ~ 1 + (1|batch) + (1|batch:sample), data=Pastes)
+# and the same as m1 but if we labeled casks differently among batches.
+m5 <- lmer(strength ~ 1 + (1|batch/sample), data=Pastes)
+summary(m1)
+summary(m2)
+summary(m3)
+summary(m4)
+summary(m5)
+```
+

@@ -1,3 +1,5 @@
+# Part I: R fundamentals {-}
+
 # Organization -- R Projects and R Notebooks
 ## Importing Packages
 The R scripts you write will include functions in packages that are not included in Base R. These packages need to be downloaded from an internet server to your computer. You only need to do this once. But, each time you start a new R session, you  will need to load a package using the `library()` function. Now is a good time to import packages that we will use
@@ -9,23 +11,23 @@ Again, once these are installed, you don't need to do this again. You simply nee
 
 ## Create an R Studio Project for this Class
 
-1. Create a folder named "BIO_413"
-2. Within this folder, create new folders named
+1. Create a project folder within the Documents folder (Mac OS) or My Documents folder (Windows OS). All files associated with this book will reside inside this folder. The name of the project folder should be something meaningful, such as "Applied_Biostatics" or the name of your class (for students in my Applied Biostatics class, this folder should be named "BIO_413"). 
+2. Within the project folder, create new folders named
     1. "notebooks" -- this is where your R notebooks are stored 
     2. "R" -- this is where R scripts are stored
     3. "data" -- this is where data that we download from public archives are stored
     4. "output" -- this is where you will store fake data generated in this class
     5. "images" -- this is where image files are stored
 3. Open R Studio and click the menu item File > New Project...
-4. Choose "Existing Directory" and navigate to your BIO_413 folder
+4. Choose "Existing Directory" and navigate to your project folder
 5. Choose "Create Project"
-6. Check that a file named "BIO_413.Rproj" is in your BIO_413 folder
+6. Check that a ".Rproj" file is in your project folder
 
 ## R Notebooks
 
 A typical statistical modeling project will consist of:
 
-1. reading data from Excel or text (.csv or .txt) files
+1. importing data from Excel or text (.csv or .txt) files
 2. cleaning data
 3. analysis
 4. generating plots
@@ -62,13 +64,12 @@ qplot(x)
 
 Now write some text documenting which packages you installed.
 
-### Create a "setup" chunk
+### Create a "load-packages" chunk
 1. Click on the "Insert" menu on the right hand side of the script (R Markdown) pane and choose "R". This will insert an R code chunk into your R markdown document.
 2. The first R chunk of a notebook should be a setup chunk. Name the chunk "setup"
 3. load the libraries ggplot2 and data.table and click the chunk's run button (the green triangle to the right of the chunk)
 
-
-```{r setup, message=FALSE}
+```{r load-packages, message=FALSE}
 library(ggplot2)
 library(data.table)
 ```
