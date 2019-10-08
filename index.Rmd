@@ -47,4 +47,9 @@ Chapter 1 explains the meaning of this **model specification** but the point to 
 
 ## R and programming
 
+```{r, echo=FALSE}
+# uses immersion in R language instead of building up.
+```
+
+
 

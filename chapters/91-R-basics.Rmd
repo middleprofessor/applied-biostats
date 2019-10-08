@@ -1,0 +1,10 @@
+# R and R studio basics
+
+## R Studio
+
+## R
+### Matrix-like objects
+
+### data.table
+
+

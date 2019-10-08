@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  25 SEP 2019 21:42
+This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  27 SEP 2019 21:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1207,15 +1207,14 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/null-dist
 ribution-t-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/null-distr
 ibution-t-1.pdf>
-[54] [55] [56] [57]
+[54] [55] [56] [57] [58]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <12> on input line 3068.
-[58]
+(Font)              <12> on input line 3102.
+[59]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1
 .pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1.
 pdf>
-[59]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig
 -1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig-
@@ -1232,7 +1231,7 @@ s-X-1.pdf Graphic file (type pdf)
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
 [65]
-Overfull \vbox (1.7167pt too high) detected at line 3495
+Overfull \vbox (1.7167pt too high) detected at line 3529
  []
 
 [66]
@@ -1246,7 +1245,7 @@ hunk-16-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
 unk-16-1.pdf>
 [68]
-Overfull \vbox (0.16286pt too high) detected at line 3675
+Overfull \vbox (0.16286pt too high) detected at line 3709
  []
 
 [69] [70]
@@ -1260,7 +1259,7 @@ Underfull \vbox (badness 1521) has occurred while \output is active []
 Chapter 8.
 
 Package natbib Warning: Citation `Dantzer_xxx' on page 75 undefined on input li
-ne 3924.
+ne 3958.
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-
 1.pdf Graphic file (type pdf)
@@ -1268,7 +1267,7 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-
 .pdf>
 [75] [76] [77]
 LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <12> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 4204.
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 4238.
 [78] [79] [80]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
 ostics-1.pdf Graphic file (type pdf)
@@ -1287,12 +1286,12 @@ ostics-4.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
 stics-4.pdf>
 
-Overfull \hbox (337.49501pt too wide) in paragraph at lines 4442--4446
+Overfull \hbox (337.49501pt too wide) in paragraph at lines 4476--4480
 [][] []
  []
 
 
-Overfull \hbox (356.54788pt too wide) in paragraph at lines 4442--4446
+Overfull \hbox (356.54788pt too wide) in paragraph at lines 4476--4480
 [] [] 
  []
 
@@ -1300,7 +1299,7 @@ Overfull \hbox (356.54788pt too wide) in paragraph at lines 4442--4446
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
 [81]
-Underfull \hbox (badness 1527) in paragraph at lines 4447--4449
+Underfull \hbox (badness 1527) in paragraph at lines 4481--4483
 []\TU/lmr/m/n/10 Compare the four diagnostic plots using the guidelines from he
 re []$[][][][] [] [] [] [][][][] [] [][][][][][][] [] [][][][][][][][] [] [][][
 ] []
@@ -1333,7 +1332,7 @@ ot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/harrellplo
 t-1.pdf>
 
-LaTeX Warning: Reference `fig:voles' on page 88 undefined on input line 4762.
+LaTeX Warning: Reference `fig:voles' on page 88 undefined on input line 4796.
 
 [88] [89] [90]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
@@ -1382,11 +1381,11 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
 ma-1.pdf>
 
 LaTeX Warning: Reference `fig:fake-data-ma' on page 101 undefined on input line
- 5462.
+ 5496.
 
 
 LaTeX Warning: Reference `fig:fake-data-ma' on page 101 undefined on input line
- 5465.
+ 5499.
 
 [101
 
@@ -1397,7 +1396,7 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
 ols-1.pdf>
 
 LaTeX Warning: Reference `fig:fake-data-ols' on page 102 undefined on input lin
-e 5476.
+e 5510.
 
 [102]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/egg-data-
@@ -1412,14 +1411,14 @@ ions-1.pdf>
 
 ]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <24.88> on input line 5606.
+(Font)              <24.88> on input line 5640.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <20.74> on input line 5606.
+(Font)              <20.74> on input line 5640.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <17.28> on input line 5606.
+(Font)              <17.28> on input line 5640.
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 5608.
+(hyperref)                removing `math shift' on input line 5642.
 
 [107] [108
 
@@ -1479,7 +1478,7 @@ rrellplot2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-har
 rellplot2-1.pdf>
 
-Underfull \hbox (badness 10000) in paragraph at lines 6343--6346
+Underfull \hbox (badness 10000) in paragraph at lines 6377--6380
 [][] \TU/lmr/m/n/10 The
  []
 
@@ -1556,7 +1555,7 @@ scale-location-1.pdf>
 [148]
 
 LaTeX Warning: Reference `fig:glm1-poisson' on page 149 undefined on input line
- 7978.
+ 8012.
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-pois
 son-1.pdf Graphic file (type pdf)
@@ -1636,7 +1635,7 @@ Underfull \vbox (badness 1466) has occurred while \output is active []
 
 [163]
 
-LaTeX Warning: Reference `lmm-spec1b' on page 164 undefined on input line 8736.
+LaTeX Warning: Reference `lmm-spec1b' on page 164 undefined on input line 8770.
 
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm1-sim1
@@ -1665,12 +1664,12 @@ Package natbib Warning: Empty `thebibliography' environment on input line 3.
 
 Package natbib Warning: There were undefined citations.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 9379.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 9413.
 [175]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 9379.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 9413.
 (./Walker-elementary-statistical-modeling-draft.aux)
-Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 9379.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 9379.
+Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 9413.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 9413.
 
 Package rerunfilecheck Info: File `Walker-elementary-statistical-modeling-draft
 .out' has not changed.
@@ -1685,11 +1684,11 @@ LaTeX Warning: There were multiply-defined labels.
 Here is how much of TeX's memory you used:
  23681 strings out of 492970
  459981 string characters out of 6133938
- 604159 words of memory out of 5000000
+ 604158 words of memory out of 5000000
  27339 multiletter control sequences out of 15000+600000
  603002 words of font info for 116 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 45i,11n,68p,10485b,456s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 45i,11n,68p,10485b,458s stack positions out of 5000i,500n,10000p,200000b,80000s
 
 Output written on Walker-elementary-statistical-modeling-draft.pdf (175 pages).
 
