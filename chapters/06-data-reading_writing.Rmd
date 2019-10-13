@@ -33,7 +33,7 @@ file_path <- here(data_path, file_name) # paste together parts of the address
 read_excel(file=file_path)
 ```
 
-here::here() creates an absolute path, but one that is created on the fly, and will change (or should change) correctly if the project folder is moved on the same machine or to another machine. And no chunk named setup is required so this also works in every R markdown file when using Bookdown.
+`here()` creates an absolute path, but one that is created on the fly, and will change (or should change) correctly if the project folder is moved on the same machine or to another machine. And no chunk named setup is required so this also works in every R markdown file when using Bookdown.
 
 ## Create new notebook for this chapter
 
@@ -41,26 +41,24 @@ Create a new notebook and save it to the "notebooks" folder of your BIO_413 proj
 
 Annotate your notebook with notes! Update it as you learn more! We will use data.table for importing text files in tab-delimited or comma-separated formats and the readxl package for importing excel files.
 
-Start each notebook with a chunk named "setup" (note that since this book is advocating the use of here() to set the file path, naming the setup chunk "setup" is not imperative).
+Start each notebook with a chunk named "setup" that loads packages and sets the address for reading and writing files (note that since this book is advocating the use of here() to set the file path, naming the setup chunk "setup" is not imperative).
 
 ```{r data-setup, message=FALSE}
 knitr::opts_chunk$set(fig.width=6, fig.height=4) 
 
+library(here) # here() creates the absolute path to the file
+library(janitor) # clean_names to clean col labels of imported data
+library(readxl) # import excel
+library(data.table) # make data.frames data.tables
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(emmeans) # get estimated marginal means and CIs, used for plot
+
+here <- here::here # plyr also defines a here function
+
 # relative paths to project folders
 data_path <- "data" # path to data that are imported
 output_path <- "output" # path to data that are saved
-```
-
-Add a "load-packages" chunk.
-
-```{r data-load-packages, message=FALSE, warning=FALSE}
-library(ggplot2) # ggplot environment
-library(ggpubr) # publication ready plots
-library(data.table) # make data.frames data.tables
-library(readxl) # import excel
-library(emmeans) # get estimated marginal means and CIs, used for plot
-library(janitor) # clean_names to clean col labels of imported data
-library(here) # here::here() creates the absolute path to the file
 ```
 
 ## Importing Data
@@ -100,8 +98,9 @@ View(RSBL_2013_0432_vole_data)
 
 ```{r import-chick-xls}
 data_folder <- "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
-filename <- "allDatasetsMarietteBuchanan2016.xls"
-file_path <- here(data_path, data_folder, filename)
+fn <- "allDatasetsMarietteBuchanan2016.xls"
+file_path <- here(data_path, data_folder, fn)
+#file_path <- paste(data_path, data_folder, fn, sep="/")
 chick <- read_excel(file_path, sheet="nestlingMass") # read the excel file
 chick <- data.table(chick) # convert to data.table
 ```
@@ -132,7 +131,7 @@ More generally, R is *very literal* when it comes to: Spelling. Humans are very 
 
 Insert the following after your import script and run:
 
-```{r data-peek-chick}
+```{r data-peek-chick, eval=FALSE}
 View(chick) # check -- are there headers? are there the correct number of columns?
 ```
 

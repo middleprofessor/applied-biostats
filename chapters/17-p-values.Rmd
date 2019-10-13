@@ -134,14 +134,17 @@ A *t*-test is a test of differences between two values. These could be
 2. the difference between a mean of a sample and some pre-specified value (a "one-sample" *t*-test)
 3. the difference between a coefficient from a linear model and a value (often zero)
 
-A *t*-test compares an observed *t*-value to a *t*-distribution. The null distribution introduced above was a distribution of mean differences. This isn't generally useful, since the distribution of expected mean differences is a function of sample variability (standard deviations) in addition to sample size and, therefore, a mean-difference null distribution will be unique to every study. A *t*-distribution is a distribution of *t*-values under the null (statistical jargon for "given the null is true"), where a *t*-value is a difference standardized by its standard error. Standardizing by a standard deviation (remember that a standard error is an estimate of the statistic's standard deviation) removes the effect of sample variability on the distribution. A *t*-distribution, then, is only a function of sample size (or "degrees of freedom"). As $n$ increases a $t$ distribution converges on the standard, normal distribution.
+A *t*-test compares an observed *t*-value to a *t*-distribution. The null distribution introduced above was a distribution of mean differences. This isn't generally useful, since the distribution of expected mean differences under the null will be unique to every study. A *t*-distribution is a distribution of *t*-values under the null (statistical jargon for "given the null is true"), where a *t*-value is a difference standardized by its standard error. For a two-sample *t*-test, this is
 
-The difference between the mean of the vitamin_E treatment and the control treatment is `r round(b["treatmentvitamin_E"], 1)`. A two-sample *t*-test of this difference is
+\begin{equation}
+t = \frac{\bar{X}_1 - \bar{X}_2}{SE_{\bar{X}_1 - \bar{X}_2}}
+\end{equation}
 
-```{r vitamin-E-t-test, echo=FALSE}
-ttest.E <- t.test(x=vole[treatment=='vitamin_E', lifespan], y=vole[treatment=='control', lifespan], var.equal=TRUE)
-ttest.E
-```
+The numerator is **the effect** while the denominator is the precision of the estimate. Like many test statistics, a *t*-value is a signal-to-noise ratio -- the effect is the signal and the SE of the difference is the noise.
+
+A *t* distribution looks like a standard, normal distribution, except the tails are heavy, meaning there are more large-ish values than the normal. Like the standard normal distribution, large *t*-values are unlikely under the null and, therefore, a large *t* has a low probability -- or *p*-value -- under the null. Looking at the equation for the two-sample *t*-test above, it is easy to see that three features of an experiment are associated with large *t* and small *p*-values: 1) big effect size (the numerator of the equation), 2) small sample standard deviations (which results in small standard errors of the difference, the denominator of eq xxx), and 3) large sample size (which results in small standard errors of the difference). As a quick-and-dirty generalization, absolute t-values greater than 2 are unlikely if the null is true.
+
+The difference between the mean of the vitamin_E treatment and the control treatment is `r round(b["treatmentvitamin_E"], 1)`. A two-sample *t*-test of this difference is `r t.test(x=vole[treatment=='vitamin_E', lifespan], y=vole[treatment=='control', lifespan], var.equal=TRUE)$p.value`
 
 The *p*-value comes from comparing the observed $t$ to a null $t$ distribution and "counting" the values that are bigger than the observed $t$. These are counted in both tails, because $p$ is the probability of a $t$ more extreme than the observed value, and $t$ can be more extreme in the negative direction and in the positive direction. We can simulate this with a finite, instead of infinite, null distribution using the t-distribution instead of the distribution of mean differences, as above. I show the script, but don't just cut and paste the code. Spend time thinking about what the each line does. Explore it by copying parts and pasting into console.
 
@@ -170,8 +173,24 @@ t_dis2 <- apply(rbind(sample2, sample1), 2, function(x)
 qplot(t_dis)
 
 # what is the p-value?
-count <- sum(abs(t_dis) >= abs(ttest.E$statistic)) + 1
-p_vitamin_E <- count/(n_iter + 1)
+# the p-value is the number of t-values in t_dis that are as large
+# or larger than the observed t. Large, negative t-values
+# are as unlikely under the null as large, positive t-values.
+# To account for this, we want to use absolute values in our counts
+# this is a "two-tail test"
+
+# first compute the observed t-value
+t_obs <- t.test(x=vole[treatment=='vitamin_E', lifespan],
+       y=vole[treatment=='control', lifespan],
+       var.equal=TRUE)$statistic
+# now count the number of t-values in t_dis as big or bigger than this
+# include the observed value as one of these (so add 1 to the count)
+count <- sum(abs(t_dis) >= abs(t_obs)) + 1
+
+# the p-value is the frequency of t_dis >= t_obs, so divide
+# count by the total number of t-values in the distribution.
+# Again add one since the observed value counts as a sample
+(p_vitamin_E <- count/(n_iter + 1))
 
 ```
 

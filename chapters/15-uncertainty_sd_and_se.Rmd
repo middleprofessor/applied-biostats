@@ -1,11 +1,11 @@
 # Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals)
 
 ```{r setup01, echo=FALSE}
+library(here)
+library(readxl)
 library(ggplot2)
 library(data.table)
-library(readxl)
-library(here)
-
+here <- here::here # plyr also defines a here function
 data_path <- "data"
 ```
 

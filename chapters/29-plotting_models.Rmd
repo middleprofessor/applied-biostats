@@ -3,28 +3,34 @@
 *So, along the lines of Sarah Susanka’s “Not So Big House,” Kolbert asks the group, “What would a Pretty Good House look like?”* -- Michael Maines^["The Pretty Good House - Finding the right balance between construction cost and energy performance". https://www.greenbuildingadvisor.com/article/the-pretty-good-house]
 
 ```{r ggplot-setup, echo=FALSE, message=FALSE}
+library(here) # needs to go after plyr so here() functions
+library(janitor)
+library(readxl)
+library(data.table)
+library(plyr) # mapvalues
 library(stringr)
-library(plyr)
-library(ggplot2)
 library(ggpubr)
 library(cowplot)
 library(emmeans)
-library(data.table)
-library(readxl)
 library(nlme)
 library(lmerTest)
 library(MASS)
 library(gt)
 library(DHARMa)
 
-if(bookdown_it==TRUE){
-  data_path <- "data" # bookdown
-  source("R/clean_label.R") # bookdown
-}else{
-  data_path <- "../data" # notebook, console
-  source("../../../R/clean_labels.R") # notebook, console
-  
-}
+here <- here::here 
+data_path <- "data" # bookdown
+
+# bookdown <- TRUE # compiling from bookdown
+# if(bookdown==TRUE){
+#   data_path <- "data" # bookdown
+# }else{
+#   data_path <- "../data" # bookdown
+# }
+
+odd <- function(x) x%%2 != 0
+
+even <- function(x) x%%2 == 0
 
 ```
 
@@ -47,7 +53,7 @@ A typical pretty good plot contains some combination of
 
 ## Pretty good plots show the model and the data
 
-The data to introduce best practices in plotting come from "The enteric nervous system promotes intestinal health by constraining microbiota composition"^[Rolig, A.S., Mittge, E.K., Ganz, J., Troll, J.V., Melancon, E., Wiles, T.J., Alligood, K., Stephens, W.Z., Eisen, J.S. and Guillemin, K., 2017. The enteric nervous system promotes intestinal health by constraining microbiota composition. PLoS biology, 15(2), p.e2000689]. The researchers found that zebrafish with a *sox10* mutation lacked an enteric nervous system and developed a microbiota-dependent inflammation. The paper includes several experiments to probe the hypothesis that the ENS regulates microbial community composition and, in turn, inflammatory status. The data here are from Fig. 2 of the paper, which reports the results of one of a set of experiments to test the hypothesis that microbiota from *sox10* mutants (that induce inflammation) are necessary and sufficient to induce inflammation in wildtype guts. In this experiment, homogenized intestines and their microbial community from four different donor groups were added to the flasks housing the zebrafish. The response variable is neutrophil count. Neutrophils are a white blood cell that increase in number during inflammation. The four treatment levels are the different donors of intestinal microbes: WT (wild type), GF (germ free, so no microbes are transferred), iapMO (a control "for the possibility that nonbacterial factors such as host pro-inflammatory cytokines rather than microbial derived factors cause transmissible intestinal inflammation"), and sox10.
+The data to introduce best practices in plotting come from "The enteric nervous system promotes intestinal health by constraining microbiota composition"^[Rolig, A.S., Mittge, E.K., Ganz, J., Troll, J.V., Melancon, E., Wiles, T.J., Alligood, K., Stephens, W.Z., Eisen, J.S. and Guillemin, K., 2017. The enteric nervous system promotes intestinal health by constraining microbiota composition. PLoS biology, 15(2), p.e2000689]. The researchers found that zebrafish with a *sox10* mutation lacked an enteric nervous system and developed a microbiota-dependent inflammation. The paper includes several experiments to probe the hypothesis that the ENS regulates microbial community composition and, in turn, inflammatory status. The data here are from Fig. 2 of the paper, which reports the results of one of a set of experiments to test the hypothesis that microbiota from *sox10* mutants (that induce inflammation) are necessary and sufficient to induce inflammation in wildtype guts. In this experiment, homogenized intestines and their microbial community from four different donor groups were added to the flasks housing the zebrafish. The response variable is neutrophil count. Neutrophils are a white blood cell that increase in number during inflammation. The four treatment levels are the different donors of intestinal microbes: wt (wild type), gf (germ free, so no microbes are transferred), iap_mo (a control "for the possibility that nonbacterial factors such as host pro-inflammatory cytokines rather than microbial derived factors cause transmissible intestinal inflammation"), and sox10.
 
 ### Pretty good plot component 1: Modeled effects plot
 
@@ -55,32 +61,38 @@ Biologists infer the biological consequences of a treatment by interpreting the 
 
 ```{r plots-import, echo=FALSE}
 folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
-fn <- "journal.pbio.2000689.s008.xlsx"
+filename <- "journal.pbio.2000689.s008.xlsx"
 
 # figure 2D data
 sheet_i <- "Figure 2"
 range_i <- "F2:I24"
-file_path <- paste(data_path, folder, fn, sep="/")
+file_path <- here(data_path, folder, filename)
+#file_path <- paste(data_path, folder, fn, sep="/")
 dt_wide <- data.table(read_excel(file_path, sheet=sheet_i, range=range_i))
-setnames(dt_wide, old=colnames(dt_wide), new=clean_label(colnames(dt_wide)))
+# clean names
+dt_wide <- clean_names(dt_wide)
 # get rid of "_donor"
 setnames(dt_wide, old=colnames(dt_wide), new=gsub("_donor", "", colnames(dt_wide)))
 # wide to long
 exp2d <- na.omit(melt(dt_wide, measure.vars=colnames(dt_wide), variable.name="donor", value.name="count"))
-exp2d[, donor:=factor(donor, c("WT", "GF", "sox10", "iapMO"))]
+exp2d[, donor:=factor(donor, c("wt", "gf", "sox10", "iap_mo"))]
 
 # figure 6d data
 sheet_i <- "Figure 6"
 range_i <- "I2:L16"
-file_path <- paste(data_path, folder, fn, sep="/")
+file_path <- here(data_path, folder, filename)
+#file_path <- paste(data_path, folder, fn, sep="/")
 dt_wide <- data.table(read_excel(file_path, sheet=sheet_i, range=range_i))
-setnames(dt_wide, old=colnames(dt_wide), new=clean_label(colnames(dt_wide)))
+
+# clean names
+dt_wide <- clean_names(dt_wide)
+
 exp6d <- na.omit(melt(dt_wide, measure.vars=colnames(dt_wide), variable.name="strain_by_treatment", value.name="count"))
 exp6d[, strain:=mapvalues(strain_by_treatment,
-                          from = c("WT", "sox10", "WT_transplant", "sox10_transplant"), 
-                          to = c("WT", "sox10", "WT", "sox10"))]
+                          from = c("wt", "sox10", "wt_transplant", "sox10_transplant"), 
+                          to = c("wt", "sox10", "wt", "sox10"))]
 exp6d[, treatment:=mapvalues(strain_by_treatment,
-                          from = c("WT", "sox10", "WT_transplant", "sox10_transplant"), 
+                          from = c("wt", "sox10", "wt_transplant", "sox10_transplant"), 
                           to = c("control", "control", "transplant", "transplant"))]
 fit.nb <- glm.nb(count ~ strain*treatment, data=exp6d)
 fit.emm <- emmeans(fit.nb, specs=c("strain", "treatment"), type="response")
@@ -93,7 +105,6 @@ if(show_tables==TRUE){
 
 
 ```{r plots-fit, echo=FALSE}
-exp2d[, donor:=factor(donor, c("WT", "GF", "iapMO", "sox10"))]
 fit.nb <- glm.nb(count ~ donor, data=exp2d)
 emm.nb <- emmeans(fit.nb, specs="donor", type="response")
 effects.nb <- summary(contrast(emm.nb, method="revpairwise"), infer=c(TRUE, TRUE))
@@ -139,7 +150,7 @@ pval <- effects.nb$p[as.integer(effects.nb$contrast)]
 
 ```
 
-The y-axis contains each of the *paired comparisons* among the four treatment levels. The x-axis is the response, which is the ratio of the means of the two groups in the comparison. For example, the top comparison shows that guts in fish exposed to sox10 donors have 2.7X more neutrophils per length of gut than guts in fish exposed to wild type donors. The bars are 95% confidence intervals, with is the range of effects that are compatible with the observed data at the 95% level (confidence intervals are disscussed in depth in chapter xxx.). The small end of the interval for the sox10/WT comparison is 1.31, meaning that effects as small as 31% increased neutrophil count are compatible with the data. It is up to the research community to decide if 2.7X or 1.31X are physiologically meaningful effects. *p*-values from the hypothesis tests are included.
+The y-axis contains each of the *paired comparisons* among the four treatment levels. The x-axis is the response, which is the ratio of the means of the two groups in the comparison. For example, the top comparison shows that guts in fish exposed to sox10 donors have 2.7X more neutrophils per length of gut than guts in fish exposed to wild type donors. The bars are 95% confidence intervals, with is the range of effects that are compatible with the observed data at the 95% level (confidence intervals are disscussed in depth in chapter xxx.). The small end of the interval for the sox10/wt comparison is 1.31, meaning that effects as small as 31% increased neutrophil count are compatible with the data. It is up to the research community to decide if 2.7X or 1.31X are physiologically meaningful effects. *p*-values from the hypothesis tests are included.
 
 ### Pretty good plot component 2: Modeled mean and CI plot with jittered raw data
 
@@ -216,9 +227,44 @@ A reasonable goal of any research project should be a script to generate the fin
 
 `ggpubr` is an extension to `ggplot2` (it calls ggplot2 functions under the hood) and provides many canned functions for producing the kinds of ggplots that are published in biological journals. With one line of script, a researcher can generate a publishable plot that is as good or better than many published plot. That said, the means and error intervals used in `ggpubr` plots are the raw and not modeled values, and, consequently, `ggpubr` is not sufficient to generate pretty good plots. It is easy enough to add custom error bars to a ggpubr plot.
 
+### Unpooled SE bars and confidence intervals
+`ggplot2` and `ggpubr` default to unpooled error intervals (standard error bars and confidence intervals). 
+
+```{r plots-unpooled, fig.cap="(A) Mean and 1 SE error bar. (B) Mean and 95% CI."}
+gg1 <- ggbarplot(x="donor", 
+                 y="count", 
+                 data=exp2d,
+                 add=c("mean_se"),
+                 color = "black",
+                 fill = "steelblue"
+)
+gg2 <- ggbarplot(x="donor", 
+                 y="count", 
+                 data=exp2d,
+                 add=c("mean_ci"),
+                 color = "black",
+                 fill = "steelblue"
+)
+plot_grid(gg1, gg2, ncol=2, labels="AUTO")
+```
+
+### Adding bootstrap intervals
+
+```{r}
+gg <- ggbarplot(x="donor", 
+                y="count", 
+                data=exp2d,
+                add=c("mean"),
+                color = "black",
+                fill = "steelblue"
+) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width=0.1)
+gg
+```
+
 ### Adding modeled error intervals
 
-`ggplot2` and `ggpubr` compute and plot unpooled error intervals (standard error bars and confidence intervals). Plotting the modeled error intervals "shows the model". `emmeans` is a comprehensive and flexible package for computing modeled standard errors and confidence intervals for all of the statistical models covered in this text.
+Plotting the modeled error intervals "shows the model". `emmeans` is a comprehensive and flexible package for computing modeled standard errors and confidence intervals for all of the statistical models covered in this text.
 
 ```{r}
 m1 <- glm.nb(count ~ donor, data=exp2d)
@@ -286,7 +332,7 @@ plot_grid(gg_top, gg2, nrow=2, align = "v", rel_heights = c(1, 1))
 p-values are added to the base ggpubr plot using `stat_compare_means`. The pairs to compare are specified with `comparison =`. The model to compute the p-values is "t.test". **It is important to know what exactly is being computed when analyzing data and reporting results** and "t test" is not sufficient to know this. The t-test could be the classic t-test or a Welch test (which adjusts the standard error to account for heterogenity in variance between groups). In this example, there are multiple tests and the standard error could be the pooled estimate estimated from the linear model, or a pairwise estimate. And, given the multiple comparisons, the p-values could be adjusted or not. These kinds of questions can be checked with a function's help page. `?stat_compare_means` doesn't answer these questions but suggests `compare_means`, which also doesn't answer these questions. The script below has checks to see what p-values the function is returning.
 
 ```{r}
-pairs_i <- list(c("sox10", "iapMO"), c("sox10", "GF"), c("sox10", "WT"))
+pairs_i <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
 ggbarplot(x="donor", 
           y="count", 
           data=exp2d,
@@ -308,8 +354,8 @@ if(check_it==TRUE){
   
   pairwise.t.test(exp2d$count, exp2d$donor, p.adjust.method="none", pool.sd=FALSE) # this matches
   # compare
-  t.test(count~donor, data=exp2d[donor=="WT" | donor=="sox10"]) # matches, this is Welch t
-  t.test(count~donor, data=exp2d[donor=="WT" | donor=="sox10"], var.equal=TRUE)
+  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"]) # matches, this is Welch t
+  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"], var.equal=TRUE)
 }
 
 ```
@@ -344,7 +390,7 @@ setnames(m1.emm, old="response", new="count")
 
 ```{r}
 
-#pairs_i <- list(c("sox10", "iapMO"), c("sox10", "GF"), c("sox10", "WT"))
+#pairs_i <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
 pd = position_dodge(0.7)
 ggbarplot(x="treatment", 
           y="count",
