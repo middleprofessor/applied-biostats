@@ -226,6 +226,143 @@ gg <- ggplot(data=data.frame(means.glm), aes(x=treatment, y=rate)) +
 gg
 ```
 
+## Tidying Data
+
+In general, your data should be in long format. What is long format? Consider data from a simple experiment with a response variable and a treatment variable with three levels. A common way to organize these data in Microsoft Excel is in **wide format**.
+
+```{r, echo=FALSE}
+n <- 5
+fd <- data.table(control=rnorm(n, mean=10, sd=1),
+                 extract=rnorm(n, mean=4, sd=1),
+                 charcoal=rnorm(n, mean=9, sd=1))
+knitr::kable(fd, digits=2, caption="Root mass for three treatment levels in wide format")
+```
+
+Wide format is efficient for computations in a spreadsheet, such as computing means and standard deviations of columns and for plotting. For most statistical analyses in R (and most statistics software), all measures of a variable (such as root biomass in the example above) should be in a single column with a second column identifying the treatment level associated with each measure. This is called **long format**. 
+
+```{r, echo=FALSE}
+fd_long <- melt(fd,
+                measure.vars=colnames(fd),
+                value.name="root_mass",
+                variable.name="treatment")
+knitr::kable(fd_long, digits=2, caption="Root mass for three treatment levels in long format")
+```
+
+### Wide to long
+
+There are many functions to tidy data from wide to long. `melt()` from the data.table package is especially useful. It is data.table's version of melt from the reshape2 package.
+
+The major arguments of melt are
+
+`melt(data, id.vars, measure.vars, variable.name, value.name)`
+
+melt takes the data in the columns listed in `measure.vars` and stacks these into a single column named `value.name`. The names of the columns in `measure.vars` are the values of the elements in a new column named `variable.name`. The elements of any column in `id.vars` are repeated *p* times, where *p* is the number of columns that were stacked. 
+
+Article: Rolig, A. S., Mittge, E. K., Ganz, J., Troll, J. V., Melancon, E., Wiles, T. J., … Guillemin, K. (2017). The enteric nervous system promotes intestinal health by constraining microbiota composition. PLOS Biology, 15(2), e2000689. https://doi.org/10.1371/journal.pbio.2000689
+
+**Data source** https://doi.org/10.1371/journal.pbio.2000689.s008
+
+**file name**: "journal.pbio.2000689.s008.xlsx"
+
+Let's import and tidy the data for figure 2d. Look at the excel file and the data in Fig. 2d. There is a single treament with four levels, but the authors have organized the data in each level in separate columns and used the column header as the level name.
+
+```{r}
+folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
+filename <- "journal.pbio.2000689.s008.xlsx"
+
+# figure 2D data
+sheet_i <- "Figure 2"
+range_i <- "F2:I24"
+file_path <- here(data_path, folder, filename)
+#file_path <- paste(data_path, folder, fn, sep="/")
+dt_wide <- data.table(read_excel(file_path, sheet=sheet_i, range=range_i))
+# clean names
+dt_wide <- clean_names(dt_wide)
+# get rid of "_donor"
+new_colnames <- c("gf", "wt", "sox10", "iap_mo")
+setnames(dt_wide, old=colnames(dt_wide), new=new_colnames)
+
+# wide to long
+exp2d <- melt(dt_wide, 
+              measure.vars=colnames(dt_wide), 
+              variable.name="donor", 
+              value.name="count")
+
+```
+
+Look at the before and after using View. For these data, the number of measures within the different treatments differs, and as a consequence, there are multiple cells with `NA` which indicates a missing value. To delete the rows with the missing values, use
+
+```{r}
+# delete rows with no data
+exp2d <- na.omit(exp2d)
+```
+
+For both analysis and plots, we want to compare values to the control level, which is named "wt" for the exp2d data. That is, we want "wt" to be the *reference* level. To achieve this, the levels of the factor *donor* need to be re-ordered.
+
+```{r}
+exp2d[, donor:=factor(donor, c("wt", "gf", "sox10", "iap_mo"))]
+```
+
+The example above is pretty easy, because the all columns in the original data frame are melted (stacked). Here is an example in which only a subset of columns are stacked. In addition, only a subset of the remaining columns are retained in the long format data frame. The data are from Panel A of supplement Fig. 8 (https://journals.plos.org/plosbiology/article/file?type=supplementary&id=info:doi/10.1371/journal.pbio.2003467.s019) from
+
+Kešnerová, L., Mars, R.A., Ellegaard, K.M., Troilo, M., Sauer, U. and Engel, P., 2017. Disentangling metabolic functions of bacteria in the honey bee gut. PLoS biology, 15(12), p.e2003467.
+
+**data source*:** https://doi.org/10.1371/journal.pbio.2003467.s001
+
+```{r}
+folder <- "Data from Disentangling metabolic functions of bacteria in the honey bee gut"
+filename <- "journal.pbio.2003467.s001.xlsx"
+
+# figure 2D data
+sheet_i <- "S8 Fig"
+range_i <- "A2:H12"
+file_path <- here(data_path, folder, filename)
+#file_path <- paste(data_path, folder, fn, sep="/")
+dt_wide <- data.table(read_excel(file_path, sheet=sheet_i, range=range_i))
+# clean names
+dt_wide <- clean_names(dt_wide)
+
+# wide to long
+stack_cols <- paste0("replicate", 1:5)
+exp_s8a <- melt(dt_wide,
+              id.vars=c("media", "time_h"), # strain col not adding any information
+              measure.vars=stack_cols, 
+              variable.name="Replicate", 
+              value.name="OD600") # measure of absorbance at 600nm
+```
+
+#### Stacking multiple sets of columns
+
+This example comes from my lab, where a student measured sprint speed in each fish three times prior to treatment and three times following treatment. The wide format data looked something like this
+
+```{r}
+set.seed(1)
+fd_wide <- data.table(fish_ID=paste0("fish",1:4),
+                      treatment=rep(c("cn", "tr"), each=2),
+                      length=rnorm(4, 12, 2),
+                      pre_1=rnorm(4, 50, 5),
+                      pre_2=rnorm(4, 50, 5),
+                      pre_3=rnorm(4, 50, 5),
+                      post_1=rnorm(4, 50, 5),
+                      post_2=rnorm(4, 50, 5),
+                      post_3=rnorm(4, 50, 5)
+                      )
+knitr::kable(fd_wide, digits=1)
+```
+To analyze the data with the pre measures as covariates, the student wanted to stack the three pre measures into a single column and the three post measures into a single column. This is easy using `melt` from data.table.
+
+```{r}
+pre_cols <- paste("pre", 1:3, sep="_")
+post_cols <- paste("post", 1:3, sep="_")
+fd <- melt(fd_wide,
+           id.vars=c("fish_ID", "treatment", "length"),
+           measure.vars=list(pre_cols, post_cols),
+           variable.name="Order",
+           value.name=c("sprint_pre", "sprint_post"))
+knitr::kable(fd, digits=1)
+```
+
+
 ## Saving Data
 
 For many projects, it is uncommon to save data. I might save simulated data if it takes a long time (hours or days) to generate these and I simply want to work with the simulated data in the future (and not have to regenerate it). Or I might save processed data if it takes a long time to process it and I want to analyze the processed data in the future and not have to re-process it.
