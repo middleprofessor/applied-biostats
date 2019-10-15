@@ -349,6 +349,7 @@ fd_wide <- data.table(fish_ID=paste0("fish",1:4),
                       )
 knitr::kable(fd_wide, digits=1)
 ```
+
 To analyze the data with the pre measures as covariates, the student wanted to stack the three pre measures into a single column and the three post measures into a single column. This is easy using `melt` from data.table.
 
 ```{r}
