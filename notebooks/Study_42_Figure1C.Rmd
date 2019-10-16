@@ -1,0 +1,204 @@
+---
+title: "Study_42_Figure1C.R"
+author: "Jeffrey A. Walker"
+date: "10/16/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Replication Study 42
+#Protocol 2 Figure 1C
+#R Version 3.5.1
+
+#required packages
+library(httr) #version 1.3.1
+library(tidyr) #version 0.8.0
+library(rjson) #version 0.2.20
+library(Rmisc) #version 1.5
+library(ggplot2) #version 3.0.0
+#source("~/Credentials.R")#for private use during initial r script generation
+
+#In the function download.OSF.file, 'RPCB_private_access' is an object that contains the private viewing link or a private access token 
+#which is necessary to view and create scripts while this project is private. Upon publication, when the project is made public, 
+#a private access token or private link will no longer be necessary to render the rmd or view/access any of the scripts used in this Replication project.
+
+#Downloads R script "download.OSF.file.R"
+GET("https://osf.io/hkpjb/?action=download", write_disk("download.OSF.file.R", overwrite = TRUE))
+source("download.OSF.file.R")
+#calls the download.OSF.file
+
+#Downloads data file 'Study_42_Figure_1_WB_quant_Data.csv' from https://osf.io/329ya/
+download.OSF.file(GUID="329ya",Access_Token=RPCB_private_access,
+                  file_name="Study_42_Figure_1_WB_quant_Data.csv")
+#reads csv file
+qdat <- read.csv("Study_42_Figure_1_WB_quant_Data.csv", header = T)
+
+#normalizes to Gapdh by set
+dat <- NULL
+for (s in unique(qdat$Set)){
+  hold <- subset(qdat,Set==s)
+  norm <- ((hold[which(hold$Antibody!="Gapdh"),]$Value)/(hold[which(hold$Antibody=="Gapdh"),]$Value))
+  row <- cbind(hold[1,1:6],norm)
+  dat <- rbind(dat,row)
+}
+rownames(dat) <- NULL
+dat
+
+#for each Blot, Antibody, and Type, shMet and shScr are divided by average shScr
+ndat <- NULL
+for (b in unique(dat$Blot)){
+  for (a in unique(dat$Antibody)){
+    for (t in unique(dat$Type)){
+      hold <- subset(dat, Blot==b & Antibody==a & Type==t)
+      newnorm <- ((hold[which(hold$Condition=="shMet"),]$norm)/(mean(hold[which(hold$Condition=="shScr"),]$norm)))
+      row <- cbind(hold,newnorm)
+      ndat <- rbind(ndat,row)
+    }
+  }
+}
+ndat <- ndat[which(ndat$Condition=="shMet"),]
+rownames(ndat) <- NULL
+ndat
+
+#removes redundant columns
+ndat <- ndat[c(1,4,5,8)]
+
+#adds 
+a <- c("Met", "shScr", "Exosome", 1)
+b <- c("Met", "shScr", "Cells", 1)
+c <- c("pMet", "shScr", "Cells", 1)
+
+ndat <- rbind(ndat,a,b,c)
+ndat$newnorm <- as.numeric(as.character(ndat$newnorm))
+
+# new sorting order for CellType
+desired_order <- c("shScr","shMet")
+# reorder the levels
+ndat$Condition <- factor(ndat$Condition, levels = desired_order)
+# reorder the data.frame
+ndat <- ndat[order(ndat$Condition),]
+
+#Subsets on Antibody
+met <- ndat[which(ndat$Antibody=="Met"),]
+pmet <- ndat[which(ndat$Antibody=="pMet"),]
+
+#sumarizes data for plot 1B
+metsum <- summarySE(met, measurevar = "newnorm",
+                          groupvars = c("Type", "Condition"))
+
+#Plots Figure exosome
+exosome <- ggplot(metsum[which(metsum$Type=="Exosome"),], aes(x=Type, y=newnorm, fill=Condition)) +
+  geom_bar(width=0.75,position=position_dodge(.85), colour="black", stat="identity")+
+  geom_errorbar(position=position_dodge(.8), width=.4, size = .5, 
+                aes(ymin=newnorm-se, ymax=newnorm+se)) +
+  ggtitle(NULL) + 
+  scale_fill_manual(values=c("red","cornflowerblue"), label = c("shScr","shMet")) +
+  ylab("Met / GAPDH \n relative to shScr")+
+  xlab(NULL)+
+  scale_y_continuous(expand = c(0, 0),
+                     breaks = c(0.00,0.25,.50,0.75,1.00),
+                     labels = c(bquote("0.00"),bquote("0.25"),bquote("0.50"),
+                                bquote("0.75"),bquote("1.00")),
+                     limits = c(0,1.00))+
+  scale_x_discrete(labels = c("Exosome"))+
+  theme(panel.background = element_blank(),
+        axis.line.x = element_line(),
+        axis.line.y = element_line(),
+        axis.text.x = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.text.y = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit="in")),  
+        axis.title.x = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.title.y = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.ticks.length = unit(0.25, "cm"),
+        legend.position= c(.95,.95),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 15),
+        legend.spacing = unit(0.5, "cm"),
+        legend.key = element_rect(size=.5, color = "white"),
+        legend.key.size = unit(2, "lines"),
+        plot.margin = margin(t=.5,r=.5,b=.5,l=.5, unit="in"))
+
+#saves file 'Study_42_Figure_1C_exosome.pdf' locally
+#ggsave(file = "Study_42_Figure_1C_exosome.pdf", width = 8, height = 6)
+
+########## Figure 1Ca ##########
+
+#Plots Figure 1Ca
+Ca <- ggplot(metsum[which(metsum$Type=="Cells"),], aes(x=Condition, y=newnorm, fill=Condition)) +
+  geom_bar(width=0.75,position=position_dodge(.85), colour="black", stat="identity")+
+  geom_errorbar(position=position_dodge(.8), width=.4, size = .5, 
+                aes(ymin=newnorm-se, ymax=newnorm+se)) +
+  ggtitle(NULL) + 
+  scale_fill_manual(values=c("red","cornflowerblue"), guide=FALSE) +
+  ylab("Met / GAPDH \n in cells relative to shScr")+
+  xlab(NULL)+
+  scale_y_continuous(expand = c(0.001, 0),
+                     breaks = c(0.00,0.25,.50,0.75,1.00),
+                     labels = c(bquote("0.00"),bquote("0.25"),bquote("0.50"),
+                                bquote("0.75"),bquote("1.00")),
+                     limits = c(0,1.00))+
+  theme(panel.background = element_blank(),
+        axis.line.x = element_line(),
+        axis.line.y = element_line(),
+        axis.text.x = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.text.y = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit="in")),  
+        axis.title.x = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.title.y = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.ticks.length = unit(0.25, "cm"),
+        legend.position= c(.95,.95),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 15),
+        legend.spacing = unit(0.5, "cm"),
+        legend.key = element_rect(size=.5, color = "white"),
+        legend.key.size = unit(2, "lines"),
+        plot.margin = margin(t=.5,r=.5,b=.5,l=.5, unit="in"))
+Ca
+
+#saves file 'Study_42_Figure_1Ca.pdf' locally
+ggsave(file = "Study_42_Figure_1Ca.pdf", width = 8, height = 6)
+
+########## Plots Figure 1Cb ########
+####################################
+
+#sumarizes data for plot 1D
+pmetsum <- summarySE(pmet, measurevar = "newnorm",
+                    groupvars = c("Type", "Condition"))
+
+
+Cb <- ggplot(pmetsum, aes(x=Condition, y=newnorm, fill=Condition)) +
+  geom_bar(width=0.75,position=position_dodge(.85), colour="black", stat="identity")+
+  geom_errorbar(position=position_dodge(.8), width=.4, size = .5, 
+                aes(ymin=newnorm-se, ymax=newnorm+se)) +
+  ggtitle(NULL) + 
+  scale_fill_manual(values=c("red","cornflowerblue"),guide=FALSE) +
+  ylab("pMet / GAPDH \n in cells relative to shScr")+
+  xlab(NULL)+
+  scale_y_continuous(expand = c(0.001, 0),
+                     breaks = c(0.00,0.25,.50,0.75,1.00),
+                     labels = c(bquote("0.00"),bquote("0.25"),bquote("0.50"),
+                                bquote("0.75"),bquote("1.00")),
+                     limits = c(0,1.00))+
+  theme(panel.background = element_blank(),
+        axis.line.x = element_line(),
+        axis.line.y = element_line(),
+        axis.text.x = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.text.y = element_text(color="black",size=25, margin=margin(t=.1,r=.1,b=.1,l=.1,unit="in")),  
+        axis.title.x = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.title.y = element_text(color="black",size=25,margin=margin(t=.1,r=.1,b=.1,l=.1,unit = "in")),
+        axis.ticks.length = unit(0.25, "cm"),
+        legend.position= c(.95,.95),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 15),
+        legend.spacing = unit(0.5, "in"),
+        legend.key = element_rect(size=.5, color = "white"),
+        legend.key.size = unit(2, "lines"),
+        plot.margin = margin(t=.5,r=.5,b=.5,l=.5, unit="in"))
+Cb
+
+#saves file 'Study_42_Figure_1Cb.pdf' locally
+ggsave(file = "Study_42_Figure_1Cb.pdf", width = 8, height = 6)
+```
+

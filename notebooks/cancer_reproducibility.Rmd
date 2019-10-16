@@ -1,0 +1,173 @@
+---
+title: "cancer"
+author: "Jeffrey A. Walker"
+date: "10/16/2019"
+output: html_document
+---
+I'm trying to understand the role of statistics in experimental (cell, micro) biology because I'm working with students and PIs who do this type of research. This led me to thinking about reproducibility which led me to the [cancer reproducibility project](https://elifesciences.org/collections/9b1e83d1/reproducibility-project-cancer-biology). What a terrific site.
+
+I downloaded the article and data for Fig 1C for [Replication Study: Melanoma exosomes educate bone marrow progenitor cells toward a pro-metastatic phenotype through MET](https://elifesciences.org/articles/39944) just to explore. Without looking at the author's code, I wrote my own script to replicate Fig 1C. My numbers weren't quite right so I looked at the script and realized that I needed to re-scale within Blot in addition to Antibody and Type. Once I did this, my code reproduces the author's results. My method for preparing the data is *very* different from the authors (Its more R-ish and very data.table-ish), which is pretty typical of any R analysis -- ask 10 R scripters how to get something done and you'll recieve 20 different answers.
+
+Anyway, I'm curious about the normalization since I have a student that works in a lab that normalizes data, probably in a similar fashion. The normalization here had 2 steps: 1) first, the value for the Antibody levels were normalized by the value of a reference (Gapdh) for each Set. And 2) second, the the Gapdh-normalized values were rescaled by the mean of the Gapdh-normalized values for the shScr Condition within each combination of Antibody+Type+Blot and then *all* values in the shScr were assigned to 1 (since the mean within the Condition level is 1). The statistical test then is a one-sample t-test of shMet with $\mu=1$.
+
+1. Intuition 1: Step one of this normalization would seem to introduce a biased estimate of the effect, conditional on Gapdh, very similar to the biased estimate of the change score (or change from pre to post) conditional on pre-treatment values [in a pre-post design](https://www.middleprofessor.com/files/quasipubs/change_scores.html).
+
+2. Intuition 2: Step two would just seem to introduce type I error since we're removing variance from the 2nd sample.
+
+The proper way to avoid the conditional bias in a pre-post design is to add the pre-treatment value as a covariate. I don't know if the ratio is conditionally biased but I re-analyzed the data using the Gapdh value as a covariate in a linear model instead of something to normalize the response. I also just re-ran a t-test the normalized response (step 1) without the re-scaling in step 2. Both the linear model and t-test results *for these data* were very different from the original results. I plotted the data and it's pretty easy to see why, but it's hard for me to generalize from this one example. So I did a simulation.
+
+Indeed, both my intutions turn out to be true. All analysis is below. I parameterized the distribution of Gapdh and the other values so they looked something like the actual values in the paper. I don't know how much my results would change given different parameterizations of these distributions.
+
+```{r setup, include=FALSE}
+library(here)
+library(janitor)
+library(data.table)
+library(lmerTest)
+library(emmeans)
+library(ggpubr)
+library(cowplot)
+
+here <- here::here
+data_path <- "data"
+```
+
+```{r import}
+folder <- "Data from Generation and characterization of shMet B16-F10 cells and exosomes"
+filename <- "Study_42_Figure_1_WB_quant_Data.csv"
+file_path <- here(data_path, folder, filename)
+exp1 <- fread(file_path)
+View(exp1)
+```
+
+```{r reproducibility}
+# get Gapdh ref for each row to rescale ("normalize") by Gapdh
+gapdh_ref.dt <- exp1[Antibody=="Gapdh", .(gapdh_ref=mean(Value)), by=Set]
+exp1.v1 <- merge(exp1, gapdh_ref.dt, by="Set")
+exp1.v1[, Value.norm:=Value/gapdh_ref]
+
+# get mean shScr for each Antibody:Type:Blot to rescale by mean shScr 
+shScr_ref.dt <- exp1.v1[Condition=="shScr", .(shScr_ref=mean(Value.norm)), by=.(Antibody, Type, Blot)]
+exp1.v1 <- merge(exp1.v1, shScr_ref.dt, by=c("Antibody", "Type", "Blot"))
+exp1.v1[, value.norm.2:=Value.norm/shScr_ref]
+exp1.v1[, value.norm.3:=ifelse(Condition=="shScr", 1, value.norm.2)]
+View(exp1.v1)
+
+gg1 <- ggbarplot(data=exp1.v1[Antibody=="Met" & Type=="Cells"], 
+                 x="Condition", 
+                 y="value.norm.2",
+          add=c("mean_se")) +
+  ylab("Met") +
+  NULL
+gg2 <- ggbarplot(data=exp1.v1[Antibody=="pMet" & Type=="Cells",],
+                 x="Condition", 
+                 y="value.norm.2",
+                 add=c("mean_se")) +
+  ylab("pMet") +
+  NULL
+
+gg3 <- ggbarplot(data=exp1.v1[Antibody=="Met" & Type=="Cells"], 
+                 x="Condition", 
+                 y="value.norm.3",
+          add=c("mean_se")) +
+  ylab("Met") +
+  NULL
+gg4 <- ggbarplot(data=exp1.v1[Antibody=="pMet" & Type=="Cells",],
+                 x="Condition", 
+                 y="value.norm.3",
+                 add=c("mean_se")) +
+  ylab("pMet") +
+  NULL
+
+plot_grid(gg1, gg2, gg3, gg4, nrow=2)
+
+
+```
+
+The two bottom plots reproduce Fig 1C from the paper. The two top plots are scaled by Gapdh but not shScr
+
+What are the effects of normalization? Compare to a ancova with Gapdh as covariate
+```{r covariate v normalization}
+m1 <- lm(value.norm.2 ~ Condition, data=exp1.v1[Antibody=="Met" & Type=="Cells"])
+m2 <- lm(Value ~ Condition, data=exp1.v1[Antibody=="Met" & Type=="Cells"])
+m3 <- lm(Value ~ gapdh_ref + Condition, data=exp1.v1[Antibody=="Met" & Type=="Cells"])
+coef(summary(m1))
+coef(summary(m2))
+coef(summary(m3))
+
+m1 <- lm(value.norm.2 ~ Condition, data=exp1.v1[Antibody=="pMet" & Type=="Cells"])
+m2 <- lm(Value ~ Condition, data=exp1.v1[Antibody=="pMet" & Type=="Cells"])
+m3 <- lm(Value ~ gapdh_ref + Condition, data=exp1.v1[Antibody=="pMet" & Type=="Cells"])
+coef(summary(m1))
+coef(summary(m2))
+coef(summary(m3))
+
+gg6 <- ggplot(data=exp1.v1[Antibody=="Met" & Type=="Cells"], aes(x=gapdh_ref, y=Value, color=Condition)) +
+  geom_point() +
+  ylab("Met") +
+  NULL
+
+gg7 <- ggplot(data=exp1.v1[Antibody=="Met"], aes(x=gapdh_ref, y=Value, color=Condition, shape=Type)) +
+  geom_point() +
+  ylab("Met") +
+  NULL
+
+gg8 <- ggplot(data=exp1.v1[Antibody=="pMet" & Type=="Cells"], aes(x=gapdh_ref, y=Value, color=Condition)) +
+  geom_point() +
+  ylab("pMet") +
+  NULL
+
+gg9 <- ggplot(data=exp1.v1[Antibody=="pMet"], aes(x=gapdh_ref, y=Value, color=Condition, shape=Type)) +
+  geom_point() +
+  ylab("pMet") +
+  NULL
+plot_grid(gg6, gg7, gg8, gg9, nrow=2)
+
+```
+
+It's pretty hard to figure out systemic bias due to normalization with a sample size of 3 or 4 so
+
+```{r simulation}
+set.seed(1)
+shape_gapdh <- 80
+scale_gapdh <- 100
+qplot(rgamma(10^3, shape=shape_gapdh, scale=scale_gapdh))
+shape_met <- 2.5
+scale_met <- 1000
+qplot(rgamma(10^3, shape=shape_met, scale=scale_met))
+n <- 4
+
+niter <- 5000
+prob <- data.frame(matrix(NA, nrow=niter, ncol=3))
+colnames(prob) <- c("cov", "ratio", "rel")
+delta_gapdh <- numeric(niter)
+delta_value <- numeric(niter)
+delta_ratio <- numeric(niter)
+for(iter in 1:niter){
+  fd <- data.table(
+    treatment=rep(c("cn", "tr"), each=n),
+    gapdh=rgamma(n*2, shape=shape_gapdh, scale=scale_gapdh),
+    value=rgamma(n*2, shape=shape_met, scale=scale_met)
+  )
+  fd[, ratio:=value/gapdh]
+  cn_ref <- mean(fd[treatment=="cn", ratio])
+  fd[, rel:=ratio/cn_ref]
+  delta_gapdh[iter] <- mean(fd[treatment=="cn", gapdh]) - mean(fd[treatment=="tr", gapdh])
+  delta_value[iter] <- mean(fd[treatment=="cn", value]) - mean(fd[treatment=="tr", value])
+  delta_ratio[iter] <- mean(fd[treatment=="cn", ratio]) - mean(fd[treatment=="tr", ratio])
+  prob[iter, "cov"] <- coef(summary(lm(value ~ gapdh + treatment, data=fd)))["treatmenttr", "Pr(>|t|)"]
+  prob[iter, "ratio"] <- t.test(fd[treatment=="cn", ratio], fd[treatment=="tr", ratio], var.equal=TRUE)$p.value
+  prob[iter, "rel"] <- t.test(x=fd[treatment=="tr", rel], mu=1)$p.value
+}
+
+```
+
+```{r}
+apply(prob, 2, function(x) sum(x < 0.05)/niter)
+qplot(x=delta_gapdh, y=delta_value) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=delta_ratio) + geom_smooth(method="lm")
+
+```
+
+The one-sample t-test against a reference value of 1 has high type I error
+The two-sample t-test of the normalized value has an nominal type I error but is conditionally biased on gapdh
+The linear model with gapdh as a covariate performs well
