@@ -4,17 +4,25 @@
 ## Importing Packages
 The R scripts you write will include functions in packages that are not included in Base R. These packages need to be downloaded from an internet server to your computer. You only need to do this once. But, each time you start a new R session, you  will need to load a package using the `library()` function. Now is a good time to import packages that we will use
 
-1. Open R Studio and choose the menu item "Tools" > "Install Packages"
-2. In the "packages" input box, insert "ggplot2, data.table, emmeans, lme4, reshape2". Make sure that "install dependencies" is clicked before you click "Install"
+Open R Studio and choose the menu item "Tools" > "Install Packages". In the "packages" input box, insert the names of packages to install the package. The names can be separated by spaces or commas, for example "data.table, emmeans, ggplot2". Make sure that "install dependencies" is clicked before you click "Install". Packages that we will use in this book are
 
-Again, once these are installed, you don't need to do this again. You simply need to use the `library()` function at the start of a script.
+1. data.table -- improves functionality of data frames
+2. readxl -- elegant importing from microsoft Excel spreadsheets
+3. janitor -- we use the function clean_names from this package
+4. ggplot2 -- we use this for plotting
+5. ggpubr -- we use this to make ggplots a bit easier
+6. emmeans -- we use this to compute modeled means and contrasts 
+7. nlme, lme4, lmerTest -- these are packages for multilevel modeling
+8. MASS -- we will use glm.nb from this package
+
+Again, once these are installed, you don't need to do this again. You simply need to use the `library()` function at the start of a markdown script.
 
 ## Create an R Studio Project for this Class
 
 1. Create a project folder within the Documents folder (Mac OS) or My Documents folder (Windows OS). All files associated with this book will reside inside this folder. The name of the project folder should be something meaningful, such as "Applied_Biostatics" or the name of your class (for students in my Applied Biostatics class, this folder should be named "BIO_413"). 
 2. Within the project folder, create new folders named
     1. "notebooks" -- this is where your R notebooks are stored 
-    2. "R" -- this is where R scripts are stored
+    2. "R" -- this is where additional R scripts are stored
     3. "data" -- this is where data that we download from public archives are stored
     4. "output" -- this is where you will store fake data generated in this class
     5. "images" -- this is where image files are stored
@@ -30,11 +38,12 @@ A typical statistical modeling project will consist of:
 1. importing data from Excel or text (.csv or .txt) files
 2. cleaning data
 3. analysis
-4. generating plots
-5. generating tables
-6. writing text to describe the project, the methods, the analysis, and the interpretation of the results (plots and tables)
+4. model checking
+5. generating plots
+6. generating tables
+7. writing text to describe the project, the methods, the analysis, and the interpretation of the results (plots and tables)
 
-The best practice for reproducible research is to have all six of these steps in your R Notebook. Too many research projects are not reproducible because the data were cleaned in Excel, and then different parts of the data were separately imported into a GUI statistics software for analysis, and then output from the statistics software was transcribed to Excel to make a table. And other parts of the analysis are used to create a plot in some plotting software. And then the tables and plots are pasted into Microsoft Word to create a report. Any change at any step in this process will require the researcher to remember all the downstream parts that are dependent on the change and to re-do an analysis, or a table, or a plot, etc. etc.
+The best practice for reproducible research is to have all of these steps in your R Notebook. Too many research projects are not reproducible because the data were cleaned in Excel, and then different parts of the data were separately imported into a GUI statistics software for analysis, and then output from the statistics software was transcribed to Excel to make a table. And other parts of the analysis are used to create a plot in some plotting software. And then the tables and plots are pasted into Microsoft Word to create a report. Any change at any step in this process will require the researcher to remember all the downstream parts that are dependent on the change and to re-do an analysis, or a table, or a plot, etc. etc.
 
 The goal with an R Studio Notebook is to explicitly link all this so that changes in earlier steps automatically flow into the later steps. So, at the end of a project, a researcher can choose "run all" from the menu and the data are read, cleaned, analyzed, ploted, tabled, and put into a report with the text.
 

@@ -18,6 +18,7 @@ The proper way to avoid the conditional bias in a pre-post design is to add the 
 
 Indeed, both my intutions turn out to be true. All analysis is below. I parameterized the distribution of Gapdh and the other values so they looked something like the actual values in the paper. I don't know how much my results would change given different parameterizations of these distributions.
 
+# Reproducibility
 ```{r setup, include=FALSE}
 library(here)
 library(janitor)
@@ -124,7 +125,9 @@ plot_grid(gg6, gg7, gg8, gg9, nrow=2)
 
 ```
 
-It's pretty hard to figure out systemic bias due to normalization with a sample size of 3 or 4 so
+It's pretty hard to figure out systemic bias due to normalization with a sample size of 3 or 4 so...
+
+# Simulation with Cor(Gapdh, Met) = 0
 
 ```{r simulation}
 set.seed(1)
@@ -139,9 +142,10 @@ n <- 4
 niter <- 5000
 prob <- data.frame(matrix(NA, nrow=niter, ncol=3))
 colnames(prob) <- c("cov", "ratio", "rel")
+effect_lm <- numeric(niter)
+effect_ratio <- numeric(niter)
+effect_rel <- numeric(niter)
 delta_gapdh <- numeric(niter)
-delta_value <- numeric(niter)
-delta_ratio <- numeric(niter)
 for(iter in 1:niter){
   fd <- data.table(
     treatment=rep(c("cn", "tr"), each=n),
@@ -151,23 +155,103 @@ for(iter in 1:niter){
   fd[, ratio:=value/gapdh]
   cn_ref <- mean(fd[treatment=="cn", ratio])
   fd[, rel:=ratio/cn_ref]
-  delta_gapdh[iter] <- mean(fd[treatment=="cn", gapdh]) - mean(fd[treatment=="tr", gapdh])
-  delta_value[iter] <- mean(fd[treatment=="cn", value]) - mean(fd[treatment=="tr", value])
-  delta_ratio[iter] <- mean(fd[treatment=="cn", ratio]) - mean(fd[treatment=="tr", ratio])
-  prob[iter, "cov"] <- coef(summary(lm(value ~ gapdh + treatment, data=fd)))["treatmenttr", "Pr(>|t|)"]
+
+  m1 <- lm(value ~ gapdh + treatment, data=fd)
+  prob[iter, "cov"] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
   prob[iter, "ratio"] <- t.test(fd[treatment=="cn", ratio], fd[treatment=="tr", ratio], var.equal=TRUE)$p.value
   prob[iter, "rel"] <- t.test(x=fd[treatment=="tr", rel], mu=1)$p.value
+  
+  delta_gapdh[iter] <- mean(fd[treatment=="tr", gapdh]) - mean(fd[treatment=="cn", gapdh])
+  effect_lm[iter] <- coef(summary(m1))["treatmenttr", "Estimate"]
+  effect_ratio[iter] <- mean(fd[treatment=="tr", ratio]) - mean(fd[treatment=="cn", ratio])
+  effect_rel[iter] <- mean(fd[treatment=="tr", rel]) - 1
+
 }
 
 ```
 
 ```{r}
 apply(prob, 2, function(x) sum(x < 0.05)/niter)
-qplot(x=delta_gapdh, y=delta_value) + geom_smooth(method="lm")
-qplot(x=delta_gapdh, y=delta_ratio) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=effect_lm) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=effect_ratio) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=effect_rel) + geom_smooth(method="lm")
+```
+
+The two-stage normalization (one-sample t-test against a reference value of 1) has high type I error
+The two-sample t-test of the normalized value has an nominal type I error but is conditionally biased on $\Delta$gapdh
+The linear model with gapdh as a covariate performs well
+
+# Cor(Gapdh, Met) > 0
+
+```{r simulation-rho-explore}
+n <- 10^3
+rho=0.5
+alpha_gapdh <- 80
+beta_gapdh <- 100
+alpha_met <- 30
+beta_met <- 100
+y1 <- rgamma(n, shape=alpha_gapdh - rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+y2 <- rgamma(n, shape=alpha_met - rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+y3 <- rgamma(n, shape=rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+gapdh <- beta_gapdh*(y1+y3)
+value <- beta_met*(y2+y3)
+qplot(y1)
+qplot(y2)
+qplot(y3)
+qplot(gapdh)
+qplot(value)
+cor(gapdh, value)
+```
+
+```{r simulation-rho>0}
+set.seed(1)
+rho=0.5
+alpha_gapdh <- 80
+beta_gapdh <- 100
+alpha_met <- 30
+beta_met <- 100
+n <- 4
+
+niter <- 5000
+prob <- data.frame(matrix(NA, nrow=niter, ncol=3))
+colnames(prob) <- c("cov", "ratio", "rel")
+effect_lm <- numeric(niter)
+effect_ratio <- numeric(niter)
+effect_rel <- numeric(niter)
+delta_gapdh <- numeric(niter)
+for(iter in 1:niter){
+  y1 <- rgamma(n*2, shape=alpha_gapdh - rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+  y2 <- rgamma(n*2, shape=alpha_met - rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+  y3 <- rgamma(n*2, shape=rho*sqrt(alpha_gapdh*alpha_met), rate=1)
+  fd <- data.table(
+    treatment=rep(c("cn", "tr"), each=n),
+    gapdh=beta_gapdh*(y1+y3),
+    value=beta_met*(y2+y3)
+  )
+  fd[, ratio:=value/gapdh]
+  cn_ref <- mean(fd[treatment=="cn", ratio])
+  fd[, rel:=ratio/cn_ref]
+
+  m1 <- lm(value ~ gapdh + treatment, data=fd)
+  prob[iter, "cov"] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  prob[iter, "ratio"] <- t.test(fd[treatment=="cn", ratio], fd[treatment=="tr", ratio], var.equal=TRUE)$p.value
+  prob[iter, "rel"] <- t.test(x=fd[treatment=="tr", rel], mu=1)$p.value
+  
+  delta_gapdh[iter] <- mean(fd[treatment=="tr", gapdh]) - mean(fd[treatment=="cn", gapdh])
+  effect_lm[iter] <- coef(summary(m1))["treatmenttr", "Estimate"]
+  effect_ratio[iter] <- mean(fd[treatment=="tr", ratio]) - mean(fd[treatment=="cn", ratio])
+  effect_rel[iter] <- mean(fd[treatment=="tr", rel]) - 1
+  
+}
 
 ```
 
-The one-sample t-test against a reference value of 1 has high type I error
-The two-sample t-test of the normalized value has an nominal type I error but is conditionally biased on gapdh
-The linear model with gapdh as a covariate performs well
+```{r simulation-rho-results}
+apply(prob, 2, function(x) sum(x < 0.05)/niter)
+qplot(x=delta_gapdh, y=effect_lm) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=effect_ratio) + geom_smooth(method="lm")
+qplot(x=delta_gapdh, y=effect_rel) + geom_smooth(method="lm")
+
+```
+
+Same results.

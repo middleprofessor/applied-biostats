@@ -231,6 +231,7 @@ gg
 In general, your data should be in long format. What is long format? Consider data from a simple experiment with a response variable and a treatment variable with three levels. A common way to organize these data in Microsoft Excel is in **wide format**.
 
 ```{r, echo=FALSE}
+set.seed(138)
 n <- 5
 fd <- data.table(control=rnorm(n, mean=10, sd=1),
                  extract=rnorm(n, mean=4, sd=1),
@@ -238,7 +239,7 @@ fd <- data.table(control=rnorm(n, mean=10, sd=1),
 knitr::kable(fd, digits=2, caption="Root mass for three treatment levels in wide format")
 ```
 
-Wide format is efficient for computations in a spreadsheet, such as computing means and standard deviations of columns and for plotting. For most statistical analyses in R (and most statistics software), all measures of a variable (such as root biomass in the example above) should be in a single column with a second column identifying the treatment level associated with each measure. This is called **long format**. 
+Wide format is efficient for computations in a spreadsheet, such as computing means and standard deviations of columns, and for plotting. For most statistical analyses in R (and most statistics software), all measures of a variable (such as root biomass in the example above) should be in a single column with a second column identifying the treatment level associated with each measure. This is called **long format**. 
 
 ```{r, echo=FALSE}
 fd_long <- melt(fd,
@@ -252,7 +253,7 @@ knitr::kable(fd_long, digits=2, caption="Root mass for three treatment levels in
 
 There are many functions to tidy data from wide to long. `melt()` from the data.table package is especially useful. It is data.table's version of melt from the reshape2 package.
 
-The major arguments of melt are
+The major arguments of data.table::melt are
 
 `melt(data, id.vars, measure.vars, variable.name, value.name)`
 
@@ -290,7 +291,7 @@ exp2d <- melt(dt_wide,
 
 ```
 
-Look at the before and after using View. For these data, the number of measures within the different treatments differs, and as a consequence, there are multiple cells with `NA` which indicates a missing value. To delete the rows with the missing values, use
+Look at the wide and long data frames using View. For these data, the number of measures within the different treatments differs, and as a consequence, there are multiple cells with `NA` which indicates a missing value. To delete the rows with the missing values, use
 
 ```{r}
 # delete rows with no data
@@ -350,7 +351,7 @@ fd_wide <- data.table(fish_ID=paste0("fish",1:4),
 knitr::kable(fd_wide, digits=1)
 ```
 
-To analyze the data with the pre measures as covariates, the student wanted to stack the three pre measures into a single column and the three post measures into a single column. This is easy using `melt` from data.table.
+To analyze the response (post-treatment sprint) adjusted for pre-treatment sprint, the three pre-treatment sprint measures need to be stacked into a single column and the three post-treatment measures need to be stacked into a single column. This is easy using `data.table::melt`.
 
 ```{r}
 pre_cols <- paste("pre", 1:3, sep="_")
