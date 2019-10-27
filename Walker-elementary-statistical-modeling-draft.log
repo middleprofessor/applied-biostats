@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  14 OCT 2019 22:28
+This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  26 OCT 2019 20:07
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -613,27 +613,7 @@ LaTeX Info: Redefining \lsstyle on input line 256.
 Package microtype Info: Loading configuration file microtype.cfg.
 (/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/microtype.cfg
 File: microtype.cfg 2018/01/14 v2.7a microtype main configuration file (RS)
-)) (/usr/local/texlive/2018/texmf-dist/tex/latex/geometry/geometry.sty
-Package: geometry 2018/03/24 v5.7 Page Geometry
-(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/ifpdf.sty
-Package: ifpdf 2017/03/15 v3.2 Provides the ifpdf switch
-) (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/ifvtex.sty
-Package: ifvtex 2016/05/16 v1.6 Detect VTeX and its facilities (HO)
-Package ifvtex Info: VTeX not detected.
-)
-\Gm@cnth=\count266
-\Gm@cntv=\count267
-\c@Gm@tempcnt=\count268
-\Gm@bindingoffset=\dimen147
-\Gm@wd@mp=\dimen148
-\Gm@odd@mp=\dimen149
-\Gm@even@mp=\dimen150
-\Gm@layoutwidth=\dimen151
-\Gm@layoutheight=\dimen152
-\Gm@layouthoffset=\dimen153
-\Gm@layoutvoffset=\dimen154
-\Gm@dimlist=\toks23
-) (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hyperref.sty
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hyperref.sty
 Package: hyperref 2018/02/06 v6.86b Hypertext links for LaTeX
 (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/hobsub-hyperref.sty
 Package: hobsub-hyperref 2016/05/16 v1.14 Bundle oberdiek, subset hyperref (HO)
@@ -644,9 +624,10 @@ Package: hobsub 2016/05/16 v1.14 Construct package bundles (HO)
 Package: infwarerr 2016/05/16 v1.4 Providing info/warning/error messages (HO)
 Package: ltxcmds 2016/05/16 v1.23 LaTeX kernel commands for general use (HO)
 Package hobsub Info: Skipping package `ifluatex' (already loaded).
-Package hobsub Info: Skipping package `ifvtex' (already loaded).
+Package: ifvtex 2016/05/16 v1.6 Detect VTeX and its facilities (HO)
+Package ifvtex Info: VTeX not detected.
 Package: intcalc 2016/05/16 v1.2 Expandable calculations with integers (HO)
-Package hobsub Info: Skipping package `ifpdf' (already loaded).
+Package: ifpdf 2017/03/15 v3.2 Provides the ifpdf switch
 Package: etexcmds 2016/05/16 v1.6 Avoid name clashes with e-TeX commands (HO)
 Package etexcmds Info: Could not find \expanded.
 (etexcmds)             That can mean that you are not using pdfTeX 1.50 or
@@ -680,13 +661,13 @@ Package: auxhook 2016/05/16 v1.4 Hooks for auxiliary files (HO)
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/kvoptions.sty
 Package: kvoptions 2016/05/16 v3.12 Key value format for package options (HO)
 )
-\@linkdim=\dimen155
-\Hy@linkcounter=\count269
-\Hy@pagecounter=\count270
+\@linkdim=\dimen147
+\Hy@linkcounter=\count266
+\Hy@pagecounter=\count267
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/pd1enc.def
 File: pd1enc.def 2018/02/06 v6.86b Hyperref: PDFDocEncoding definition (HO)
 )
-\Hy@SavedSpaceFactor=\count271
+\Hy@SavedSpaceFactor=\count268
 (/usr/local/texlive/2018/texmf-dist/tex/latex/latexconfig/hyperref.cfg
 File: hyperref.cfg 2002/06/06 v1.2 hyperref configuration of TeXLive
 )
@@ -697,16 +678,16 @@ Package hyperref Info: Plain pages OFF on input line 4524.
 Package hyperref Info: Backreferencing OFF on input line 4529.
 Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
 Package hyperref Info: Bookmarks ON on input line 4762.
-\c@Hy@tempcnt=\count272
+\c@Hy@tempcnt=\count269
 (/usr/local/texlive/2018/texmf-dist/tex/latex/url/url.sty
 \Urlmuskip=\muskip17
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
 )
 LaTeX Info: Redefining \url on input line 5115.
-\XeTeXLinkMargin=\dimen156
-\Fld@menulength=\count273
-\Field@Width=\dimen157
-\Fld@charsize=\dimen158
+\XeTeXLinkMargin=\dimen148
+\Fld@menulength=\count270
+\Field@Width=\dimen149
+\Fld@charsize=\dimen150
 Package hyperref Info: Hyper figures OFF on input line 6369.
 Package hyperref Info: Link nesting OFF on input line 6374.
 Package hyperref Info: Hyper index ON on input line 6377.
@@ -716,9 +697,9 @@ Package hyperref Info: Link coloring with OCG OFF on input line 6394.
 Package hyperref Info: PDF/A mode OFF on input line 6399.
 LaTeX Info: Redefining \ref on input line 6439.
 LaTeX Info: Redefining \pageref on input line 6443.
-\Hy@abspage=\count274
-\c@Item=\count275
-\c@Hfootnote=\count276
+\Hy@abspage=\count271
+\c@Item=\count272
+\c@Hfootnote=\count273
 )
 Package hyperref Info: Driver (autodetected): hxetex.
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hxetex.def
@@ -730,10 +711,10 @@ Package: stringenc 2016/05/16 v1.11 Convert strings between diff. encodings (HO
 )
 )
 \pdfm@box=\box43
-\c@Hy@AnnotLevel=\count277
-\HyField@AnnotCount=\count278
-\Fld@listcount=\count279
-\c@bookmark@seq@number=\count280
+\c@Hy@AnnotLevel=\count274
+\HyField@AnnotCount=\count275
+\Fld@listcount=\count276
+\c@bookmark@seq@number=\count277
 (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/rerunfilecheck.sty
 Package: rerunfilecheck 2016/05/16 v1.8 Rerun checks for auxiliary files (HO)
 Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
@@ -741,18 +722,18 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip52
 )
-Package hyperref Info: Option `unicode' set `true' on input line 30.
+Package hyperref Info: Option `unicode' set `true' on input line 29.
 (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/se-ascii-print.def
 File: se-ascii-print.def 2016/05/16 v1.11 stringenc: Printable ASCII characters
 
 )
-Package hyperref Info: Option `breaklinks' set `true' on input line 30.
+Package hyperref Info: Option `breaklinks' set `true' on input line 29.
 (/usr/local/texlive/2018/texmf-dist/tex/latex/natbib/natbib.sty
 Package: natbib 2010/09/13 8.31b (PWD, AO)
 \bibhang=\skip53
 \bibsep=\skip54
 LaTeX Info: Redefining \cite on input line 694.
-\c@NAT@ctr=\count281
+\c@NAT@ctr=\count278
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/color.sty
 Package: color 2016/07/10 v1.1e Standard LaTeX Color (DPC)
 (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-cfg/color.cfg
@@ -766,55 +747,55 @@ Package: fancyvrb 2008/02/07
 
 Style option: `fancyvrb' v2.7a, with DG/SPQR fixes, and firstline=lastline fix 
 <2008/02/07> (tvz)
-\FV@CodeLineNo=\count282
+\FV@CodeLineNo=\count279
 \FV@InFile=\read2
 \FV@TabBox=\box44
-\c@FancyVerbLine=\count283
-\FV@StepNumber=\count284
+\c@FancyVerbLine=\count280
+\FV@StepNumber=\count281
 \FV@OutFile=\write3
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/framed/framed.sty
 Package: framed 2011/10/22 v 0.96: framed or shaded text with page breaks
 \OuterFrameSep=\skip55
-\fb@frw=\dimen159
-\fb@frh=\dimen160
-\FrameRule=\dimen161
-\FrameSep=\dimen162
+\fb@frw=\dimen151
+\fb@frh=\dimen152
+\FrameRule=\dimen153
+\FrameSep=\dimen154
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/tools/longtable.sty
 Package: longtable 2014/10/28 v4.11 Multi-page Table package (DPC)
 \LTleft=\skip56
 \LTright=\skip57
 \LTpre=\skip58
 \LTpost=\skip59
-\LTchunksize=\count285
-\LTcapwidth=\dimen163
+\LTchunksize=\count282
+\LTcapwidth=\dimen155
 \LT@head=\box45
 \LT@firsthead=\box46
 \LT@foot=\box47
 \LT@lastfoot=\box48
-\LT@cols=\count286
-\LT@rows=\count287
-\c@LT@tables=\count288
-\c@LT@chunks=\count289
-\LT@p@ftn=\toks24
+\LT@cols=\count283
+\LT@rows=\count284
+\c@LT@tables=\count285
+\c@LT@chunks=\count286
+\LT@p@ftn=\toks23
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
 Package: booktabs 2016/04/27 v1.618033 publication quality tables
-\heavyrulewidth=\dimen164
-\lightrulewidth=\dimen165
-\cmidrulewidth=\dimen166
-\belowrulesep=\dimen167
-\belowbottomsep=\dimen168
-\aboverulesep=\dimen169
-\abovetopsep=\dimen170
-\cmidrulesep=\dimen171
-\cmidrulekern=\dimen172
-\defaultaddspace=\dimen173
-\@cmidla=\count290
-\@cmidlb=\count291
-\@aboverulesep=\dimen174
-\@belowrulesep=\dimen175
-\@thisruleclass=\count292
-\@lastruleclass=\count293
-\@thisrulewidth=\dimen176
+\heavyrulewidth=\dimen156
+\lightrulewidth=\dimen157
+\cmidrulewidth=\dimen158
+\belowrulesep=\dimen159
+\belowbottomsep=\dimen160
+\aboverulesep=\dimen161
+\abovetopsep=\dimen162
+\cmidrulesep=\dimen163
+\cmidrulekern=\dimen164
+\defaultaddspace=\dimen165
+\@cmidla=\count287
+\@cmidlb=\count288
+\@aboverulesep=\dimen166
+\@belowrulesep=\dimen167
+\@thisruleclass=\count289
+\@lastruleclass=\count290
+\@thisrulewidth=\dimen168
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphicx.sty
 Package: graphicx 2017/06/01 v1.1a Enhanced LaTeX Graphics (DPC,SPQR)
 (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphics.sty
@@ -826,8 +807,8 @@ File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
 )
 Package graphics Info: Driver file: xetex.def on input line 99.
 )
-\Gin@req@height=\dimen177
-\Gin@req@width=\dimen178
+\Gin@req@height=\dimen169
+\Gin@req@width=\dimen170
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/grffile.sty
 Package: grffile 2017/06/30 v1.18 Extended file name support for graphics (HO)
 Package grffile Info: Option `multidot' is set to `true'.
@@ -843,15 +824,15 @@ Package: titling 2009/09/04 v2.1d maketitle typesetting
 \droptitle=\skip62
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/amscls/amsthm.sty
 Package: amsthm 2017/10/31 v2.20.4
-\thm@style=\toks25
-\thm@bodyfont=\toks26
-\thm@headfont=\toks27
-\thm@notefont=\toks28
-\thm@headpunct=\toks29
+\thm@style=\toks24
+\thm@bodyfont=\toks25
+\thm@headfont=\toks26
+\thm@notefont=\toks27
+\thm@headpunct=\toks28
 \thm@preskip=\skip63
 \thm@postskip=\skip64
 \thm@headsep=\skip65
-\dth@everypar=\toks30
+\dth@everypar=\toks29
 ) (./Walker-elementary-statistical-modeling-draft.aux
 
 LaTeX Warning: Label `eq:lm-spec2' multiply defined.
@@ -862,32 +843,32 @@ LaTeX Warning: Label `eq:lmm-spec1b' multiply defined.
 )
 \openout1 = `Walker-elementary-statistical-modeling-draft.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 139.
-LaTeX Font Info:    Try loading font information for TS1+cmr on input line 139.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 138.
+LaTeX Font Info:    Try loading font information for TS1+cmr on input line 138.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/base/ts1cmr.fd
 File: ts1cmr.fd 2014/09/29 v2.5h Standard LaTeX font definitions
 )
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 139.
-LaTeX Font Info:    ... okay on input line 139.
-LaTeX Info: Redefining \microtypecontext on input line 139.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Info: Redefining \microtypecontext on input line 138.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using protrusion set `basicmath'.
 Package microtype Info: No adjustment of tracking.
@@ -898,52 +879,18 @@ Package microtype Info: No adjustment of kerning.
 File: mt-LatinModernRoman.cfg 2013/03/13 v1.0 microtype config. file: Latin Mod
 ern Roman (RS)
 )
-*geometry* driver: auto-detecting
-*geometry* detected driver: xetex
-*geometry* verbose mode - [ preamble ] result:
-* driver: xetex
-* paper: <default>
-* layout: <same size as paper>
-* layoutoffset:(h,v)=(0.0pt,0.0pt)
-* modes: twoside 
-* h-part:(L,W,R)=(72.26999pt, 469.75502pt, 72.26999pt)
-* v-part:(T,H,B)=(72.26999pt, 650.43001pt, 72.26999pt)
-* \paperwidth=614.295pt
-* \paperheight=794.96999pt
-* \textwidth=469.75502pt
-* \textheight=650.43001pt
-* \oddsidemargin=0.0pt
-* \evensidemargin=0.0pt
-* \topmargin=-30.06749pt
-* \headheight=12.0pt
-* \headsep=18.06749pt
-* \topskip=10.0pt
-* \footskip=25.29494pt
-* \marginparwidth=125.0pt
-* \marginparsep=7.0pt
-* \columnsep=10.0pt
-* \skip\footins=9.0pt plus 4.0pt minus 2.0pt
-* \hoffset=0.0pt
-* \voffset=0.0pt
-* \mag=1000
-* \@twocolumnfalse
-* \@twosidetrue
-* \@mparswitchtrue
-* \@reversemarginfalse
-* (1in=72.27pt=25.4mm, 1cm=28.453pt)
-
 \AtBeginShipoutBox=\box49
-Package hyperref Info: Link coloring OFF on input line 139.
+Package hyperref Info: Link coloring OFF on input line 138.
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
 (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
 Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
-\c@section@level=\count294
+\c@section@level=\count291
 )
-LaTeX Info: Redefining \ref on input line 139.
-LaTeX Info: Redefining \pageref on input line 139.
-LaTeX Info: Redefining \nameref on input line 139.
+LaTeX Info: Redefining \ref on input line 138.
+LaTeX Info: Redefining \pageref on input line 138.
+LaTeX Info: Redefining \nameref on input line 138.
 (./Walker-elementary-statistical-modeling-draft.out) (./Walker-elementary-stati
 stical-modeling-draft.out)
 \@outlinefile=\write4
@@ -992,113 +939,168 @@ LaTeX Font Info:    Try loading font information for U+msb on input line 2.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/mt-msb.cfg
 File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
-) [3] [4])
+) [3] [4] [5])
 \tf@toc=\write5
 \openout5 = `Walker-elementary-statistical-modeling-draft.toc'.
 
-[5] [6
+[6] [7
 
-] [7]
+]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 223.
+(Font)              <8> on input line 222.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 223.
-[8] [9
+(Font)              <6> on input line 222.
 
-] [10
+Underfull \vbox (badness 3568) has occurred while \output is active []
+
+[8] [9] [10
+
+] [11] [12
 
 ]
 Chapter 1.
 
-Underfull \vbox (badness 1062) has occurred while \output is active []
+Underfull \vbox (badness 1314) has occurred while \output is active []
 
-[11]
+[13] [14]
 LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 365.
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 382.
+[15]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 474--474
+[]\TU/lmtt/m/n/10 ## []stat_bin()[] using []bins = 30[]. Pick better value with
+ []binwidth[].[] 
+ []
 
-Underfull \vbox (badness 1383) has occurred while \output is active []
-
-[12]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/simple-pl
 ot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/simple-plo
 t-1.pdf>
-[13] [14
-
-]
+[16]
 Chapter 2.
 
-Underfull \hbox (badness 2229) in paragraph at lines 488--497
-\TU/lmr/m/n/10 think they opened “walker_maine_bee_data_clean_androscoggin.csv”
- but mistakenly opened
+Underfull \hbox (badness 1122) in paragraph at lines 505--514
+[]\TU/lmtt/m/n/10 df <- read.csv(file.choose()) \TU/lmr/m/n/10 opens the famili
+ar “open file” di-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 497--506
+Underfull \hbox (badness 1874) in paragraph at lines 505--514
+\TU/lmr/m/n/10 import is necessary. The catastrophic problem (for reproducibil-
+
+ []
+
+
+Underfull \hbox (badness 1910) in paragraph at lines 505--514
+\TU/lmr/m/n/10 during an R session? The researcher might think they opened
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 505--514
+\TU/lmr/m/n/10 “walker_maine_bee_data_clean_androscoggin.csv” but mistakenly
+ []
+
+
+Overfull \hbox (83.81pt too wide) in paragraph at lines 514--523
 []\TU/lmtt/m/n/10 df <- read.table(file="my_data.txt") \TU/lmr/m/n/10 and \TU/l
-mtt/m/n/10 df <- read_excel(file="my_data.xlsx") \TU/lmr/m/n/10 are
+mtt/m/n/10 df <- read_excel(file="my_data.xlsx")
  []
 
-[15] [16] [17] [18]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plotchick
-data-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plotchickd
-ata-1.pdf>
-[19]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plotchick
-data-2.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plotchickd
-ata-2.pdf>
+[17
+
+] [18] [19] [20]
+Underfull \hbox (badness 1577) in paragraph at lines 768--775
+\TU/lmr/m/n/10 The \TU/lmtt/m/n/10 read_excel(file_path, sheet="nestlingMass") 
+\TU/lmr/m/n/10 reads the nestling-
+ []
+
+
+Underfull \vbox (badness 4266) has occurred while \output is active []
+
+[21] [22]
+Overfull \hbox (6.75pt too wide) in paragraph at lines 863--863
+[]\TU/lmtt/m/n/10 ##  [7] "nest temperature above ambient" "max daily temp hatc
+h day"[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 863--863
+[]\TU/lmtt/m/n/10 ##  [9] "mean max temp hatch to day2"    "mean max temp hatch
+ to day10"[] 
+ []
+
+
+Overfull \hbox (4.52998pt too wide) in paragraph at lines 898--903
+[][]$[][][][][] [] [] [] [][][] [] [][][][][][][] [] [][][] [] [][][][][] [] []
+[][][] [] [][][][][][][][] [] [][][] [] [] [] [][][][][][][][][][][]$[]
+ []
+
+
+Underfull \vbox (badness 1895) has occurred while \output is active []
+
+[23]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+chickdata-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plotc
+hickdata-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+chickdata-2.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plotc
+hickdata-2.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[20]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plot-bee-
-fig-2-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plot-bee-f
-ig-2-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[21]
+[24] [25]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+-bee-fig-2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot-
+bee-fig-2-1.pdf>
+[26]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
 rnative-plots-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
 native-plots-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[22]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
 rnative-plots-2.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
 native-plots-2.pdf>
-[23]
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[27]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
 rnative-plots-3.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
 native-plots-3.pdf>
-[24] [25] [26] [27]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-fake
--data-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-fake-
-data-1.pdf>
-LaTeX Font Info:    Try loading font information for TS1+lmr on input line 1368
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[28] [29] [30] [31]
+Overfull \hbox (39.89012pt too wide) in paragraph at lines 1280--1293
+[][] 
+ []
+
+[32] [33]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-vole
+-plot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-vole-
+plot-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[34] [35]
+LaTeX Font Info:    Try loading font information for TS1+lmr on input line 1458
 .
 (/usr/local/texlive/2018/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
 )
-Underfull \hbox (badness 1132) in paragraph at lines 1387--1392
-[]\TU/lmr/m/n/10 Download the dataset “Results2015.txt” from the Dryad reposito
-ry at []$[][][][][] [] [] [] [][][][][][][][][] [] [][][] []
- []
-
-[28]
 File: images/Dung_beetles_reduce_livestock-fig_1.png Graphic file (type bmp)
 <images/Dung_beetles_reduce_livestock-fig_1.png>
-[29] [30
 
-] [31] [32
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[36] [37] [38
+
+] [39] [40
 
 ]
 Chapter 3.
@@ -1106,164 +1108,292 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/line-1.pd
 f Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/line-1.pdf
 >
-[33] [34]
+[41] [42] [43]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <14.4> on input line 1554.
-[35] [36]
+(Font)              <14.4> on input line 1637.
+[44] [45]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/coldVoles
 -1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/coldVoles-
 1.pdf>
-[37] [38] [39] [40]
+[46] [47] [48] [49]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[50] [51] [52
+
+]
 Chapter 4.
+
+Underfull \vbox (badness 1484) has occurred while \output is active []
+
+[53]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/histogram
 -1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/histogram-
 1.pdf>
 
-Underfull \vbox (badness 1596) has occurred while \output is active []
-
-[41
-
-]
-Underfull \vbox (badness 6047) has occurred while \output is active []
-
-
-Overfull \hbox (148.77841pt too wide) has occurred while \output is active
-\TU/lmr/m/n/10 42 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 54 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
 DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
  []
 
-[42]
-Overfull \hbox (8.81293pt too wide) has occurred while \output is active
+[54]
+Overfull \hbox (85.21011pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.1.  THE SAMPLE STANDARD DEVIATION VS. THE STANDARD ERROR OF T
+HE MEAN \TU/lmr/m/n/10 55
+ []
+
+[55]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 56 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[56]
+Overfull \hbox (133.56795pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 4.2.  USING GOOGLE SHEETS TO GENERATE FAKE DATA TO EXPLORE THE 
-STANDARD ERROR \TU/lmr/m/n/10 43
+STANDARD ERROR \TU/lmr/m/n/10 57
  []
 
-[43]
-Overfull \hbox (148.77841pt too wide) has occurred while \output is active
-\TU/lmr/m/n/10 44 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+[57]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 58 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
 DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
  []
 
-[44] [45]
+[58]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 2403--2403
+[]\TU/lmtt/m/n/10 ## []stat_bin()[] using []bins = 30[]. Pick better value with
+ []binwidth[].[] 
+ []
+
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
 hunk-18-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
 unk-18-1.pdf>
 
-Overfull \hbox (148.77841pt too wide) has occurred while \output is active
-\TU/lmr/m/n/10 46 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+Underfull \vbox (badness 2591) has occurred while \output is active []
+
+
+Overfull \hbox (54.92903pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.3.  USING R TO GENERATE FAKE DATA TO EXPLORE THE STANDARD ERR
+OR \TU/lmr/m/n/10 59
+ []
+
+[59]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 60 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
 DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
  []
 
-[46] [47]
-Underfull \vbox (badness 4765) has occurred while \output is active []
+[60]
+Overfull \hbox (54.92903pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.3.  USING R TO GENERATE FAKE DATA TO EXPLORE THE STANDARD ERR
+OR \TU/lmr/m/n/10 61
+ []
 
-
-Overfull \hbox (148.77841pt too wide) has occurred while \output is active
-\TU/lmr/m/n/10 48 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+[61]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 62 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
 DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
  []
 
-[48] [49]
-Overfull \hbox (148.77841pt too wide) has occurred while \output is active
-\TU/lmr/m/n/10 50 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+[62]
+Overfull \hbox (96.0pt too wide) in paragraph at lines 2645--2645
+[]\TU/lmtt/m/n/10 ## [1] "/Users/jwalker/Documents/Github projects/Bookdown pro
+jects/applied-biostats"[] 
+ []
+
+[63]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 64 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
 DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
  []
 
-[50
-
-]
+[64]
 Chapter 5.
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/covarianc
 e-scatterplot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/covariance
 -scatterplot-1.pdf>
-[51] [52]
-Chapter 6.
-[53
+[65
 
-] [54]
+] [66]
+Chapter 6.
+
+Overfull \hbox (55.06013pt too wide) in paragraph at lines 2739--2750
+[][] 
+ []
+
+[67
+
+]
+Underfull \vbox (badness 2698) has occurred while \output is active []
+
+[68] [69]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/inference
 -strip-chart-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/inference-
 strip-chart-1.pdf>
-[55]
+[70]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/null-dist
 ribution-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/null-distr
 ibution-1.pdf>
-[56] [57]
+[71] [72] [73]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/null-dist
 ribution-t-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/null-distr
 ibution-t-1.pdf>
-[58]
-Underfull \vbox (badness 3128) has occurred while \output is active []
 
-[59] [60] [61] [62]
+Underfull \vbox (badness 10000) detected at line 3119
+ []
+
+
+Underfull \vbox (badness 2426) has occurred while \output is active []
+
+[74] [75] [76]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 77
+ []
+
+[77] [78]
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 79
+ []
+
+[79] [80]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <12> on input line 3405.
-[63]
+(Font)              <12> on input line 3466.
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 81
+ []
+
+[81]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1
 .pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1.
 pdf>
+[82]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig
 -1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig-
 1.pdf>
-[64] [65] [66] [67] [68]
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 83
+ []
+
+[83] [84]
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 85
+ []
+
+[85] [86] [87] [88
+
+]
 Chapter 7.
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/continuou
 s-X-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/continuous
 -X-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[69
-
-]
-Overfull \vbox (1.7167pt too high) detected at line 3832
- []
-
-[70]
+[89] [90]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/categoric
 al-X-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/categorica
 l-X-1.pdf>
-[71]
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[91]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
 hunk-25-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
 unk-25-1.pdf>
-[72]
-Overfull \vbox (0.16286pt too high) detected at line 4012
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[92] [93] [94] [95] [96]
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ##            [,1]        [,2]        [,3]        [,4]       
+ [,5][] 
  []
 
-[73] [74]
-Underfull \vbox (badness 1521) has occurred while \output is active []
 
-[75] [76] [77
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ## [1,]  0.4762049  0.76679336  0.02189702 -0.37886958 -0.203
+06443[] 
+ []
 
-] [78
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ## [2,] -0.3226816  0.26514622 -0.21147219  0.50680583 -0.723
+87940[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ## [3,]  0.6343127 -0.07414265  0.40381446  0.65434666  0.030
+24185[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ## [4,]  0.2450305 -0.53523178  0.22900376 -0.40906173 -0.658
+56872[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4278--4278
+[]\TU/lmtt/m/n/10 ## [5,] -0.4546568  0.22305882  0.85982044 -0.06406746 -0.011
+66667[] 
+ []
+
+[97] [98] [99
+
+] [100
 
 ]
 Chapter 8.
 
-Package natbib Warning: Citation `Dantzer_xxx' on page 79 undefined on input li
-ne 4261.
+Package natbib Warning: Citation `Dantzer_xxx' on page 101 undefined on input l
+ine 4322.
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-
 1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-1
 .pdf>
-[79] [80] [81]
+[101] [102]
+Overfull \hbox (92.77013pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 8.1.  A LINEAR MODEL WITH A SINGLE, CONTINUOUS \TU/lmr/m/it/10 
+X \TU/lmr/m/sl/10 IS CLASSICAL “REGRESSION” \TU/lmr/m/n/10 103
+ []
+
+[103] [104]
+Overfull \hbox (22.14001pt too wide) in paragraph at lines 4549--4553
+[]\TU/lmr/m/n/10 Here we want to fit a model of \TU/lmtt/m/n/10 FCM.ng.g.dry \T
+U/lmr/m/n/10 as a function of \TU/lmtt/m/n/10 Raw.Squirrel.Density\TU/lmr/m/n/1
+0 .
+ []
+
+[105]
+Overfull \hbox (6.32903pt too wide) in paragraph at lines 4596--4599
+[]\TU/lmr/m/n/10 will return the error “Error in eval(predvars, data, env) : ob
+ject ‘FCM_ng_g_dry’
+ []
+
 LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <12> not available
-(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 4541.
-[82] [83] [84]
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 4602.
+[106] [107] [108] [109]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
 ostics-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
@@ -1281,86 +1411,190 @@ ostics-4.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
 stics-4.pdf>
 
-Overfull \hbox (337.49501pt too wide) in paragraph at lines 4779--4783
-[][] []
- []
-
-
-Overfull \hbox (356.54788pt too wide) in paragraph at lines 4779--4783
-[] [] 
- []
-
-
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[85]
-Underfull \hbox (badness 1527) in paragraph at lines 4784--4786
-[]\TU/lmr/m/n/10 Compare the four diagnostic plots using the guidelines from he
-re []$[][][][] [] [] [] [][][][] [] [][][][][][][] [] [][][][][][][][] [] [][][
-] []
+[110]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[111]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 4878--4878
+[]\TU/lmtt/m/n/10 ##  [5] "fitted.values" "assign"        "qr"            "df.r
+esidual"[] 
  []
 
-[86]
+
+Underfull \hbox (badness 2922) in paragraph at lines 4891--4893
+[]\TU/lmr/m/n/10 What does \TU/lmtt/m/n/10 fit$fitted.values \TU/lmr/m/n/10 ret
+urn? Answer using equation
+ []
+
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-fitte
 d-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-fitted
 -1.pdf>
-[87] [88]
-Chapter 9.
-[89
+
+Underfull \hbox (badness 1910) in paragraph at lines 4916--4922
+[]\TU/lmr/m/n/10 Using the chick data from Chapter 3. Compare the effects of
+ []
+
+
+Underfull \hbox (badness 5519) in paragraph at lines 4916--4922
+\TU/lmr/m/n/10 nest_temperature_above_ambient on day13_mass by fitting two
+ []
+
+[112] [113] [114
 
 ]
+Chapter 9.
+[115]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/vole-mean
 -plot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/vole-mean-
 plot-1.pdf>
-[90]
-Overfull \hbox (388.15756pt too wide) has occurred while \output is active
+[116]
+Overfull \hbox (211.06465pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 9.1.  A LINEAR MODEL WITH A SINGLE, CATEGORICAL \TU/lmr/m/it/10
- X \TU/lmr/m/sl/10 IS THE ENGINE BEHIND A SINGLE FACTOR (ONE-WAY) ANOVA AND A T
--TEST IS A SPECIAL CASE OF THIS MODEL. \TU/lmr/m/n/10 91
+ X \TU/lmr/m/sl/10 ESTIMATES THE EFFECTS OF \TU/lmr/m/it/10 X \TU/lmr/m/sl/10 O
+N THE RESPONSE. \TU/lmr/m/n/10 117
  []
 
-[91]
+[117] [118]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/harrellpl
 ot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/harrellplo
 t-1.pdf>
 
-LaTeX Warning: Reference `fig:voles' on page 92 undefined on input line 5099.
+LaTeX Warning: Reference `fig:voles' on page 119 undefined on input line 5166.
 
-[92] [93] [94]
+
+Overfull \hbox (211.06465pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 9.1.  A LINEAR MODEL WITH A SINGLE, CATEGORICAL \TU/lmr/m/it/10
+ X \TU/lmr/m/sl/10 ESTIMATES THE EFFECTS OF \TU/lmr/m/it/10 X \TU/lmr/m/sl/10 O
+N THE RESPONSE. \TU/lmr/m/n/10 119
+ []
+
+[119] [120]
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5273--5273
+[]\TU/lmtt/m/n/10 ##                      Estimate Std. Error   t value     Pr(
+>|t|)[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5273--5273
+[]\TU/lmtt/m/n/10 ## (Intercept)         503.39286   27.40978 18.365445 1.07829
+6e-32[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5273--5273
+[]\TU/lmtt/m/n/10 ## treatmentvitamin_C -115.07707   54.45772 -2.113145 3.72663
+2e-02[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5273--5273
+[]\TU/lmtt/m/n/10 ## treatmentvitamin_E  -89.91667   52.48574 -1.713164 9.00142
+8e-02[] 
+ []
+
+[121]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 5316--5316
+[]\TU/lmtt/m/n/10 ##                            Estimate Std. Error   t value  
+   Pr(>|t|)[] 
+ []
+
+
+Overfull \hbox (33.0pt too wide) in paragraph at lines 5316--5316
+[]\TU/lmtt/m/n/10 ## (Intercept)                388.3158   47.05685 8.2520573 1
+.005619e-12[] 
+ []
+
+
+Overfull \hbox (33.0pt too wide) in paragraph at lines 5316--5316
+[]\TU/lmtt/m/n/10 ## treatment_reordervitamin_E  25.1604   64.94462 0.3874132 6
+.993356e-01[] 
+ []
+
+
+Overfull \hbox (33.0pt too wide) in paragraph at lines 5316--5316
+[]\TU/lmtt/m/n/10 ## treatment_reordercontrol   115.0771   54.45772 2.1131453 3
+.726632e-02[] 
+ []
+
+[122]
+Overfull \hbox (54.0pt too wide) in paragraph at lines 5375--5375
+[]\TU/lmtt/m/n/10 ##  contrast              estimate   SE df lower.CL upper.CL 
+t.ratio p.value[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5375--5375
+[]\TU/lmtt/m/n/10 ##  vitamin_C - control     -115.1 54.5 93     -223    -6.93 
+-2.113  0.0373[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5375--5375
+[]\TU/lmtt/m/n/10 ##  vitamin_E - control      -89.9 52.5 93     -194    14.31 
+-1.713  0.0900[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5375--5375
+[]\TU/lmtt/m/n/10 ##  vitamin_E - vitamin_C     25.2 64.9 93     -104   154.13 
+ 0.387  0.6993[] 
+ []
+
+
+Underfull \vbox (badness 7851) has occurred while \output is active []
+
+[123]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-33-1.pdf Graphic file (type pdf)
+hunk-36-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-33-1.pdf>
+unk-36-1.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[95] [96]
-Chapter 10.
-[97
+[124] [125] [126
 
-] [98]
+]
+Chapter 10.
+[127] [128] [129] [130]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
 ck-histogram, model-check-residuals1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
 k-histogram, model-check-residuals1-1.pdf>
-[99] [100]
+
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 131
+ []
+
+[131]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
 ck-normal-qq-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
 k-normal-qq-1.pdf>
-[101]
+
+Underfull \vbox (badness 4366) has occurred while \output is active []
+
+[132]
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 133
+ []
+
+[133]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
 ck-lognormal-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
 k-lognormal-1.pdf>
-[102]
+[134]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-34-1.pdf Graphic file (type pdf)
+hunk-37-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-34-1.pdf>
+unk-37-1.pdf>
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
 ck-proportions-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
@@ -1368,32 +1602,51 @@ k-proportions-1.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[103] [104]
+
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 135
+ []
+
+[135] [136]
 Chapter 11.
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
 -ma-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data-
 ma-1.pdf>
 
-LaTeX Warning: Reference `fig:fake-data-ma' on page 105 undefined on input line
- 5799.
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
-
-LaTeX Warning: Reference `fig:fake-data-ma' on page 105 undefined on input line
- 5802.
-
-[105
+[137
 
 ]
+
+LaTeX Warning: Reference `fig:fake-data-ma' on page 138 undefined on input line
+ 5866.
+
+
+LaTeX Warning: Reference `fig:fake-data-ma' on page 138 undefined on input line
+ 5869.
+
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
 -ols-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data-
 ols-1.pdf>
 
-LaTeX Warning: Reference `fig:fake-data-ols' on page 106 undefined on input lin
-e 5813.
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[106]
+[138]
+
+LaTeX Warning: Reference `fig:fake-data-ols' on page 139 undefined on input lin
+e 5880.
+
+
+Overfull \hbox (93.1863pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 11.3.  HOW WELL DOES THE MODEL FIT THE DATA? $\OML/lmm/m/it/10 
+R[]$ \TU/lmr/m/sl/10 AND “VARIANCE EXPLAINED” \TU/lmr/m/n/10 139
+ []
+
+[139]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/egg-data-
 1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/egg-data-1
@@ -1402,24 +1655,30 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ols-devia
 tions-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ols-deviat
 ions-1.pdf>
-[107] [108] [109] [110
+[140]
+Overfull \hbox (93.1863pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 11.3.  HOW WELL DOES THE MODEL FIT THE DATA? $\OML/lmm/m/it/10 
+R[]$ \TU/lmr/m/sl/10 AND “VARIANCE EXPLAINED” \TU/lmr/m/n/10 141
+ []
+
+[141] [142]
+Chapter 12.
+[143
 
 ]
-Chapter 12.
-[111]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-eff
 ect-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-effe
 ct-1.pdf>
-[112]
+[144]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-mea
 ns-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-mean
 s-1.pdf>
-[113]
+[145] [146]
 
-LaTeX Warning: Reference `plots-effect' on page 114 undefined on input line 612
-4.
+LaTeX Warning: Reference `plots-effect' on page 147 undefined on input line 619
+1.
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-har
 rellplot-1.pdf Graphic file (type pdf)
@@ -1429,30 +1688,12 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-har
 relplot2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-harr
 elplot2-1.pdf>
-[114] [115] [116]
+[147] [148] [149] [150]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-unp
 ooled-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-unpo
 oled-1.pdf>
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-35-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-35-1.pdf>
-
-Underfull \vbox (badness 2626) has occurred while \output is active []
-
-[117]
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[118]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-37-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-37-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[119]
+[151]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
 hunk-38-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
@@ -1460,47 +1701,55 @@ unk-38-1.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[120]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-39-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-39-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[121]
+[152]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
 hunk-40-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
 unk-40-1.pdf>
+[153]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-41-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-41-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-42-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-42-1.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[122] [123]
+[154]
+Overfull \vbox (1.22552pt too high) detected at line 6462
+ []
+
+[155]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
 hunk-43-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
 unk-43-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[124] [125] [126
-
-]
+[156] [157]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-46-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-46-1.pdf>
+[158]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <24.88> on input line 6507.
+(Font)              <24.88> on input line 6574.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <20.74> on input line 6507.
+(Font)              <20.74> on input line 6574.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <17.28> on input line 6507.
+(Font)              <17.28> on input line 6574.
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 6509.
+(hyperref)                removing `math shift' on input line 6576.
 
-[127] [128
+[159
+
+] [160
 
 ]
 Chapter 13.
+[161]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-pl
 ot1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-plo
@@ -1509,89 +1758,142 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-pl
 ot2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-plo
 t2-1.pdf>
-[129] [130]
-File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-44-1.pdf Graphic file (type pdf)
-<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-44-1.pdf>
-
-Overfull \hbox (3.164pt too wide) has occurred while \output is active
+[162]
+Overfull \hbox (127.91902pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 13.1.  ADDING COVARIATES CAN INCREASES THE PRECISION OF THE EFF
-ECT OF INTEREST \TU/lmr/m/n/10 131
+ECT OF INTEREST \TU/lmr/m/n/10 163
  []
 
-[131]
+[163]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 6693--6693
+[]\TU/lmtt/m/n/10 ## []stat_bindot()[] using []bins = 30[]. Pick better value w
+ith []binwidth[].[] 
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-47-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-47-1.pdf>
+[164]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-mo
 useplot1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-mou
 seplot1-1.pdf>
-[132] [133]
+[165] [166]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-si
 m1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-sim
 1-1.pdf>
-[134]
+[167] [168]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-si
 m2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-sim
 2-1.pdf>
-[135] [136]
+[169] [170]
 Chapter 14.
 File: images/2x2_table.png Graphic file (type bmp)
 <images/2x2_table.png>
-[137
+[171
 
-] [138] [139]
+]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 172 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[172]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[173]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 174 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[174]
+Overfull \hbox (85.87013pt too wide) in paragraph at lines 7231--7248
+[][] 
+ []
+
+[175]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ha
 rrellplot1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-har
 rellplot1-1.pdf>
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 176 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
 
-[140]
+[176]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ha
 rrellplot2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-har
 rellplot2-1.pdf>
-
-Underfull \hbox (badness 10000) in paragraph at lines 7244--7247
-[][] \TU/lmr/m/n/10 The
- []
-
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-[141]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-in
 teraction-plot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-int
 eraction-plot-1.pdf>
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 1831) has occurred while \output is active []
 
-[142] [143]
+[177]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 178 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[178] [179]
 File: images/frew_fig_4b.png Graphic file (type bmp)
 <images/frew_fig_4b.png>
-[144]
+
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 180 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[180]
+Underfull \hbox (badness 1371) in paragraph at lines 7498--7501
+[]\TU/lmr/bx/n/10 Filename \TU/lmr/m/n/10 “Data file for Dryad.xlsx” \TU/lmr/bx
+/n/10 sheet \TU/lmr/m/n/10 “Data” **Source*:** []$[][][][][] []
+ []
+
 File: images/kardol_fig_3.png Graphic file (type bmp)
 <images/kardol_fig_3.png>
-[145] [146]
-Chapter 15.
-[147
+[181]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 182 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
 
-] [148] [149] [150] [151]
+[182
+
+]
+Chapter 15.
+[183] [184] [185] [186] [187] [188]
+Underfull \vbox (badness 5726) has occurred while \output is active []
+
+[189] [190]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-an
 ova-ggplot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ano
 va-ggplot-1.pdf>
-[152] [153] [154] [155] [156] [157] [158]
+[191]
+Underfull \vbox (badness 7832) has occurred while \output is active []
+
+[192] [193] [194] [195] [196] [197] [198]
 Chapter 16.
-[159
+[199
 
-] [160] [161
+]
+Underfull \hbox (badness 4634) in paragraph at lines 8588--8588
+[]\TU/lmr/bx/n/14.4 Model building vs. Variable selection
+ []
 
-] [162
+[200] [201
+
+] [202
 
 ]
 Chapter 17.
@@ -1599,55 +1901,66 @@ File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot
 1-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot1
 -1.pdf>
-[163] [164]
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
-\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 165
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[203]
+Underfull \vbox (badness 3746) has occurred while \output is active []
+
+[204] [205] [206]
+Overfull \hbox (29.7003pt too wide) detected at line 8813
+[]
  []
 
-[165]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot
 2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot2
 -1.pdf>
-[166]
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 207
+ []
+
+[207] [208]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-qqpl
 ot-sim-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-qqplo
 t-sim-1.pdf>
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
-\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 167
- []
-
-[167]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
 -scale-location-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
 scale-location-1.pdf>
-[168]
 
-LaTeX Warning: Reference `fig:glm1-poisson' on page 169 undefined on input line
- 8879.
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 209
+ []
+
+[209] [210]
+
+LaTeX Warning: Reference `fig:glm1-poisson' on page 211 undefined on input line
+ 8946.
 
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-pois
 son-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-poiss
 on-1.pdf>
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 169
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 211
  []
 
-[169] [170]
+[211]
+Overfull \hbox (72.50146pt too wide) detected at line 8998
+[]
+ []
+
+[212]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
 -poisson-qr-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
@@ -1656,46 +1969,103 @@ poisson-qr-1.pdf>
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 171
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 213
  []
 
-[171]
+[213] [214]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
 -poisson-dispersion-plot-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
 poisson-dispersion-plot-1.pdf>
-[172]
+
+Overfull \hbox (62.51361pt too wide) detected at line 9144
+[]
+ []
+
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
 -nb-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
 nb-1.pdf>
 
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
-
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
 \TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 173
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 215
  []
 
-[173] [174]
-Overfull \hbox (140.61073pt too wide) has occurred while \output is active
-\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
-EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 175
+[215] [216]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 9226--9226
+[]\TU/lmtt/m/n/10 ##  contrast              estimate    SE  df asymp.LCL asymp.
+UCL z.ratio[] 
  []
 
-[175]
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9226--9226
+[]\TU/lmtt/m/n/10 ##  Uninfected - Control    -0.317 0.136 Inf    -0.583   -0.0
+514 -2.339[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9226--9226
+[]\TU/lmtt/m/n/10 ##  Infected LG - Control   -0.197 0.158 Inf    -0.507    0.1
+126 -1.248[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9226--9226
+[]\TU/lmtt/m/n/10 ##  Infected HG - Control    0.540 0.108 Inf     0.329    0.7
+504  5.019[] 
+ []
+
+
+Overfull \hbox (22.5pt too wide) in paragraph at lines 9245--9245
+[]\TU/lmtt/m/n/10 ##  contrast              ratio     SE  df asymp.LCL asymp.UC
+L z.ratio[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9245--9245
+[]\TU/lmtt/m/n/10 ##  Uninfected / Control  0.728 0.0988 Inf     0.558      0.9
+5 -2.339[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9245--9245
+[]\TU/lmtt/m/n/10 ##  Infected LG / Control 0.821 0.1298 Inf     0.602      1.1
+2 -1.248[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9245--9245
+[]\TU/lmtt/m/n/10 ##  Infected HG / Control 1.715 0.1845 Inf     1.389      2.1
+2  5.019[] 
+ []
+
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 217
+ []
+
+[217] [218]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-work
 ing-in-r-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worki
 ng-in-r-1.pdf>
-[176]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
-hunk-46-1.pdf Graphic file (type pdf)
+hunk-49-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
-unk-46-1.pdf>
+unk-49-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[219]
+Overfull \hbox (6.75pt too wide) in paragraph at lines 9344--9344
+[]\TU/lmtt/m/n/10 ##  DHARMa nonparametric dispersion test via mean deviance re
+sidual[] 
+ []
+
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm-worki
 ng-in-r-2-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm-workin
@@ -1703,35 +2073,192 @@ g-in-r-2-1.pdf>
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-[177] [178] [179] [180
+[220]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 9396--9396
+[]\TU/lmtt/m/n/10 ##  contrast              estimate    SE  df asymp.LCL asymp.
+UCL z.ratio[] 
+ []
 
-]
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9396--9396
+[]\TU/lmtt/m/n/10 ##  Uninfected - Control    -0.317 0.136 Inf    -0.583   -0.0
+514 -2.339[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9396--9396
+[]\TU/lmtt/m/n/10 ##  Infected LG - Control   -0.197 0.158 Inf    -0.507    0.1
+126 -1.248[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9396--9396
+[]\TU/lmtt/m/n/10 ##  Infected HG - Control    0.540 0.108 Inf     0.329    0.7
+504  5.019[] 
+ []
+
+
+Underfull \vbox (badness 1142) has occurred while \output is active []
+
+[221]
+Overfull \hbox (22.5pt too wide) in paragraph at lines 9419--9419
+[]\TU/lmtt/m/n/10 ##  contrast              ratio     SE  df asymp.LCL asymp.UC
+L z.ratio[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9419--9419
+[]\TU/lmtt/m/n/10 ##  Uninfected / Control  0.728 0.0988 Inf     0.558      0.9
+5 -2.339[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9419--9419
+[]\TU/lmtt/m/n/10 ##  Infected LG / Control 0.821 0.1298 Inf     0.602      1.1
+2 -1.248[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9419--9419
+[]\TU/lmtt/m/n/10 ##  Infected HG / Control 1.715 0.1845 Inf     1.389      2.1
+2  5.019[] 
+ []
+
+[222]
 Chapter 18.
-[181] [182]
-Underfull \vbox (badness 1466) has occurred while \output is active []
+[223
 
-[183]
+] [224]
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
-LaTeX Warning: Reference `lmm-spec1b' on page 184 undefined on input line 9637.
+[225] [226]
+
+LaTeX Warning: Reference `lmm-spec1b' on page 227 undefined on input line 9704.
 
 
+[227]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm1-sim1
 -1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm1-sim1-
 1.pdf>
-[184] [185] [186]
+[228]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 9791--9791
+[]\TU/lmtt/m/n/10 ##               Estimate Std. Error       df   t value     P
+r(>|t|)[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 9791--9791
+[]\TU/lmtt/m/n/10 ## (Intercept) 10.0235749  0.3954736 8.999737 25.345750 1.114
+804e-09[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 9791--9791
+[]\TU/lmtt/m/n/10 ## TreatmentT+  0.6884787  0.2700797 9.000052  2.549169 3.123
+718e-02[] 
+ []
+
+
+Overfull \hbox (68.28122pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.5.  LINEAR MIXED MODELS CAN INCREASE PRECISION OF POINT ESTI
+MATES \TU/lmr/m/n/10 229
+ []
+
+[229] [230]
 File: Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm-parti
 alpooling-1.pdf Graphic file (type pdf)
 <use Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm-partia
 lpooling-1.pdf>
-[187]
-Underfull \vbox (badness 3428) has occurred while \output is active []
 
-[188] [189] [190] [191
+Overfull \hbox (51.81233pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.7.  LINEAR MIXED MODELS SHRINK COEFFICIENTS BY PARTIAL POOLI
+NG \TU/lmr/m/n/10 231
+ []
 
-] [192] (./Walker-elementary-statistical-modeling-draft.bbl [193
+[231] [232]
+Overfull \hbox (51.81233pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.7.  LINEAR MIXED MODELS SHRINK COEFFICIENTS BY PARTIAL POOLI
+NG \TU/lmr/m/n/10 233
+ []
 
-] [194
+[233] [234]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10144--10144
+[]\TU/lmtt/m/n/10 ##                          Estimate Std. Error       df     
+t value[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10144--10144
+[]\TU/lmtt/m/n/10 ## (Intercept)           1.268411111  0.1541680 30.42768  8.2
+2745788[] 
+ []
+
+[235]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10144--10144
+[]\TU/lmtt/m/n/10 ## Vermetids1            0.004655556  0.2091398 22.94243  0.0
+2226049[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10144--10144
+[]\TU/lmtt/m/n/10 ## Sediment1             0.285202305  0.2160126 23.53130  1.3
+2030428[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10144--10144
+[]\TU/lmtt/m/n/10 ## Vermetids1:Sediment1 -0.773546750  0.3006674 23.24638 -2.5
+7276556[] 
+ []
+
+
+Overfull \hbox (6.75pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  contrast  estimate    SE   df lower.CL upper.CL t.ratio p
+.value[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  1,0 - 0,0  0.00466 0.209 23.0   -0.428   0.4373  0.022  0
+.9824[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  0,1 - 0,0  0.28520 0.217 23.6   -0.163   0.7330  1.316  0
+.2009[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  0,1 - 1,0  0.28055 0.217 23.6   -0.167   0.7283  1.294  0
+.2081[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  1,1 - 0,0 -0.48369 0.209 23.0   -0.916  -0.0511 -2.313  0
+.0300[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  1,1 - 1,0 -0.48834 0.209 23.0   -0.921  -0.0557 -2.335  0
+.0286[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10164--10164
+[]\TU/lmtt/m/n/10 ##  1,1 - 0,1 -0.76889 0.217 23.6   -1.217  -0.3211 -3.547  0
+.0017[] 
+ []
+
+[236] [237
+
+] [238] [239] [240
+
+] (./Walker-elementary-statistical-modeling-draft.bbl [241] [242
 
 ]
 
@@ -1741,16 +2268,16 @@ Package natbib Warning: Empty `thebibliography' environment on input line 3.
 
 Package natbib Warning: There were undefined citations.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 10281.
-[195]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 10281.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 10348.
+[243]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 10348.
 (./Walker-elementary-statistical-modeling-draft.aux)
-Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 10281.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 10281
+Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 10348.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 10348
 .
 Package rerunfilecheck Info: File `Walker-elementary-statistical-modeling-draft
 .out' has not changed.
-(rerunfilecheck)             Checksum: 0DD613FC7F994D789A2B778BD875562A.
+(rerunfilecheck)             Checksum: 40C87566271B011DE6F1144CCFD3071D.
 
 LaTeX Warning: There were undefined references.
 
@@ -1759,13 +2286,13 @@ LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 23754 strings out of 492970
- 464197 string characters out of 6133938
- 607445 words of memory out of 5000000
- 27401 multiletter control sequences out of 15000+600000
+ 23301 strings out of 492970
+ 457481 string characters out of 6133938
+ 591803 words of memory out of 5000000
+ 26957 multiletter control sequences out of 15000+600000
  603002 words of font info for 116 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 45i,11n,68p,10485b,456s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 45i,11n,54p,10485b,456s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on Walker-elementary-statistical-modeling-draft.pdf (195 pages).
+Output written on Walker-elementary-statistical-modeling-draft.pdf (243 pages).
 

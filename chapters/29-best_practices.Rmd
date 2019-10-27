@@ -1,0 +1,19 @@
+# Best Practices
+## t-tests and ANOVA
+Welch, paired
+
+## Power
+### "Types" of Error
+I, II, S, M
+
+## transformation, non-parametric, not "pre-testing"
+
+## max vs. mean
+
+## pre-post, normalization
+
+## multiple testing
+
+## p-hacking
+
+##

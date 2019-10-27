@@ -83,7 +83,7 @@ A .xls file is an old (pre 2007) Microsoft Excel file type. It is a binary file 
 
 The code below uses the function `read_excel()` from the package readxl. More about the amazing power of this package is the [tidyverse page](https://readxl.tidyverse.org){target="_blank"} and [chapter 11](http://r4ds.had.co.nz/data-import.html){target="_blank"} in the *R for Data Science* book.
 
-```{r import-tests, echo=FALSE, eval=FALSE}
+```{r data-tests, echo=FALSE, eval=FALSE}
 #bee <- read.csv(file.choose())
 
 # data_folder <- "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
@@ -96,7 +96,7 @@ RSBL_2013_0432_vole_data <- read_excel("data/Data from Deleterious consequences 
 View(RSBL_2013_0432_vole_data)
 ```
 
-```{r import-chick-xls}
+```{r data-chick-xls}
 data_folder <- "Data from Prenatal acoustic communication programs offspring for high post-hatching temperatures in a songbird"
 fn <- "allDatasetsMarietteBuchanan2016.xls"
 file_path <- here(data_path, data_folder, fn)
@@ -145,7 +145,7 @@ In general, it is bad practice to include spaces, parentheses, and special chara
 
 The `janitor` package has a nice function to clean the column names of a data frame including replacing spaces with an underscore and stripping parentheses. The default clean includes changing any uppercase letter to lower case. Many coders like to work with all lowercase variable names to avoid having to hit the shift key.
 
-```{r clean-names}
+```{r data-clean-names}
 chick <- clean_names(chick)
 ```
 
@@ -162,7 +162,7 @@ Importantly, **resist the temptation to change the column names in the data file
 
 Just for fun, let's plot the data and reproduce Fig. 2A and B. We are using the `qplot` function, which is from the ggplot2 package. Two plots are made and only a subset of the rows are plotted in each (in A, the subset in which playback_treatment=="treat" and, in B, the subset in which playback_treatment=="cont"). This book uses the ggplot2 package extensively.
 
-```{r plotchickdata}
+```{r data-plotchickdata}
 qplot(x=nest_temperature_above_ambient, y=day13_mass, data=chick[playback_treatment=="treat"]) +
   geom_smooth(method="lm")
 
@@ -187,7 +187,7 @@ Steps
 
 A .csv file is a text file that is comma-delimted, which means that the entries of a row are separated by commas. A text file is readable by any text editor software and most other kinds of software. Datasets that are stored as text files are typically saved as either .csv (where the entries of a row are separated by commas) or .txt (where the entries are separated by tabs). The base R way to read a .csv file is using `read.csv`. The `read.table` function is more versatile, as the delimiter can be specified. The function `fread()` from the data.table package is fast, smart, and flexible. It is smart in the sense that it guesses what the delimter is. Unfortunately, because of spaces in the column labels for this file, fread guesses incorrectly (another reason why spaces in column labels should be avoided). To overcome this, the statement below specifies that the file contains a "header" (a line containing column labels)
 
-```{r import-bee-csv}
+```{r data-bee-csv}
 data_folder <- "Data from Neonicotinoid pesticide reduces bumblebee colony growth and queen production"
 filename <- "Whitehorn, O'Connor, Wackers, Goulson (2012) Data from 'Neonicotinoid pesticide reduces bumblebee colony growth and queen production'.csv.csv"
 file_path <- here(data_path, data_folder, filename)
@@ -196,13 +196,13 @@ bee <- fread(file_path, header=TRUE)
 
 Here, as with the import of the Excel file, the first three lines create the directory path to the file. Peek at the file in the console. Again, there are spaces in the column names. **Here I'll leave it to you to change this**
 
-```{r clean-bee, echo=FALSE}
+```{r data-clean-bee, echo=FALSE}
 bee <- clean_names(bee)
 ```
 
 Here is a reproduction of Fig 2 from the journal article.
 
-```{r plot-bee-fig-2}
+```{r data-plot-bee-fig-2}
 bee[, treatment:=factor(treatment, c("Control", "Low", "High"))] # reorder factor levels
 ggbarplot(data=bee, x="treatment", y="new_queens", add = "mean_se")
 ```
@@ -226,7 +226,7 @@ gg <- ggplot(data=data.frame(means.glm), aes(x=treatment, y=rate)) +
 gg
 ```
 
-## Tidying Data
+## Reshaping Data
 
 In general, your data should be in long format. What is long format? Consider data from a simple experiment with a response variable and a treatment variable with three levels. A common way to organize these data in Microsoft Excel is in **wide format**.
 
@@ -332,7 +332,7 @@ exp_s8a <- melt(dt_wide,
               value.name="OD600") # measure of absorbance at 600nm
 ```
 
-#### Stacking multiple sets of columns
+### Stacking multiple sets of columns
 
 This example comes from my lab, where a student measured sprint speed in each fish three times prior to treatment and three times following treatment. The wide format data looked something like this
 
@@ -364,33 +364,76 @@ fd <- melt(fd_wide,
 knitr::kable(fd, digits=1)
 ```
 
+## Miscellaneous data wrangling
+### Vole data
+This books uses data on the lifespans of voles given three different treatments (control, vitamin E supplementation, vitamin C supplmentation), from
+
+Selman, C., McLaren, J.S., Collins, A.R., Duthie, G.G. and Speakman, J.R., 2013. Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal. Biology letters, 9(4), p.20130432.
+
+1. Source: Dryad Digital Repository. https://doi.org/10.5061/dryad.31cc4/1
+2. File: "RSBL-2013-0432 vole data.xlsx"
+3. Sheet: "COLD VOLES LIFESPAN"
+
+The vole data were archived in a format that requires some wrangling before it can be analyzed. The "lifespan (days)" column contains the lifespan for all three treatment levels, that is, the lifespan values are "stacked" or in "long" format. What is unusual is that there is no "treatment" column specifying the three treatment levels (control, vitamin E, vitamin C). Instead there are control, vitamin E, and vitamin C columns that contain a 1, if the lifespan value belongs to that treatment, and a NULL value if not. On import, the NULL value is replaced with NA, to indicate "missing". In order to analyze the data, the three treatment assignment columns need to be combined into a single "treatment" column.
+
+```{r data-vole, message=FALSE, warning=FALSE}
+folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+filename <- "RSBL-2013-0432 vole data.xlsx"
+file_path <- here(data_path, folder, filename)
+vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+# clean column names
+vole <- clean_names(vole)
+
+# create treatment column
+# in rows where control=1, set treatment value to "control"
+vole[control==1, treatment:="control"]
+# in rows where vitamin_e=1, set treatment value to "vitamin_e"
+vole[vitamin_e==1, treatment:="vitamin_E"]
+# in rows where vitamin_c=1, set treatment value to "vitamin_c"
+vole[vitamin_c==1, treatment:="vitamin_C"]
+
+# change column "lifespan_days" to "lifespan"
+setnames(vole, old="lifespan_days", "lifespan")
+
+```
+
+Plot the data with a stripchart (often called a dot plot) to view the lifespan as a function of treatment level
+
+```{r data-vole-plot}
+ggstripchart(x="treatment", y="lifespan", data=vole,
+             add = c("mean_ci"))
+```
 
 ## Saving Data
 
-For many projects, it is uncommon to save data. I might save simulated data if it takes a long time (hours or days) to generate these and I simply want to work with the simulated data in the future (and not have to regenerate it). Or I might save processed data if it takes a long time to process it and I want to analyze the processed data in the future and not have to re-process it.
+For many projects, it is uncommon to save data. I might save simulated data if it takes a long time (tens of minutes to hours or even days) to generate these and I simply want to work with the simulated data in the future and not have to regenerate it. Or I might save processed data if it takes a long time import and process and I want to analyze the processed data in the future and not have to re-import and process it.
 
-Here, we will create a small, simulated data set and save it to the "output" folder. You should have an "output" folder directly (one-level) inside the project folder. Create a folder within the output folder names "chapter_02". Make sure that you have the script assigning the path to the output folder code in the setup chunk.
+If the data will only be used in this or future R projects, the data can be saved as an R object using `saveRDS()`
 
-```{r data-fake-data}
-set.seed(1)
-n <- 10
-beta_0 <- 10.3
-beta_1 <- 1.1
-sigma <- 1.5
-fake_data <- data.table(treatment=rep(c("Cn","Tr"), each=n),
-                        weight=c(rnorm(n, mean=beta_0, sd=sigma), 
-                                 rnorm(n, mean=beta_0 + beta_1, sd=sigma)))
-ggstripchart(data=fake_data, x="treatment", y="weight", add="mean_ci")
+```{r data-rds}
+save_file_path <- here(output_path, "vole.Rds")
+saveRDS(object = vole, file = save_file_path)
+
+# to read this use
+vole <- readRDS(save_file_path)
 ```
 
-```{r data-saving}
-save_data_folder <- "chapter_02"
-save_filename <- "my_first_fake_data.txt"
-save_file_path <- here(output_path, save_data_folder, save_filename)
-write.table(fake_data, save_file_path, sep="\t", quote=FALSE)
+Reading a large .Rds file is very fast compared to reading the same data stored as a text file. However, if the data need to be imported into some other software, such as a spreadsheet, then save the data as a text file.
+
+```{r data-save}
+# save the data to output folder
+
+# tab delimited
+save_file_path <- here(output_path, "vole.txt")
+write.table(vole, save_file_path, sep="\t", quote=FALSE)
+
+# comma delimited
+save_file_path <- here(output_path, "vole.csv")
+write.table(vole, save_file_path, sep=",", quote=FALSE)
+
 ```
 
-Look at your project directory to make sure the file is where it should be! We used `write.table()` to create a tab-delimited text file using `sep="\t"` to specify tabs to separate the row elements. "\t" is the standard character string for a tab. Check in your Fake_Data folder and open the file in a text editor.
+Look at your project directory to make sure the file is where it should be! We used `write.table()` to create a tab-delimited text file using `sep="\t"` to specify tabs to separate the row elements. "\t" is the standard character string for a tab. Check in your output folder and open the file in a text editor.
 
 ## Problems
 
@@ -424,8 +467,6 @@ gg
 ```
 
 3. (grad students only) Download and plot data from a Dryad Repository dataset of your choice.
-
-4. (grad students only) Create fake experimental data with three treatment levels (control, lo_temp, high_temp). This will require three parameters: an intercept (beta_0), an effect of lo_temp (beta_1), and an effect of high_temp (beta_2). You should be able to plug and play from the script above even if you don't underdstand at this point what any of it is! Plot it as a strip chart, as above.
 
 ```{r dung-beetle-fig, echo=FALSE, eval=TRUE}
 knitr::include_graphics("images/Dung_beetles_reduce_livestock-fig_1.png")
