@@ -1,5 +1,24 @@
 # Data -- Importing and Saving Data
 
+```{r data-setup, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(fig.width=6, fig.height=4) 
+
+library(here) # here() creates the absolute path to the file
+library(janitor) # clean_names to clean col labels of imported data
+library(readxl) # import excel
+library(data.table) # make data.frames data.tables
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(emmeans) # get estimated marginal means and CIs, used for plot
+
+here <- here::here # plyr also defines a here function
+
+# relative paths to project folders
+data_path <- "data" # path to data that are imported
+output_path <- "output" # path to data that are saved
+image_path <- "images"
+```
+
 Importing data into R can be a struggle for new R users and, unfortunately, most online sources give easy but superficial methods that don't follow best practices for increasing reproducibility or do not allow flexible organization of files within a project. Some examples:
 
 (tl;dr -- go to next section if you just want to import a file and don't want to understand this important background information!)
@@ -43,9 +62,7 @@ Annotate your notebook with notes! Update it as you learn more! We will use data
 
 Start each notebook with a chunk named "setup" that loads packages and sets the address for reading and writing files (note that since this book is advocating the use of here() to set the file path, naming the setup chunk "setup" is not imperative).
 
-```{r data-setup, message=FALSE}
-knitr::opts_chunk$set(fig.width=6, fig.height=4) 
-
+```{r data-setup-2, eval=FALSE}
 library(here) # here() creates the absolute path to the file
 library(janitor) # clean_names to clean col labels of imported data
 library(readxl) # import excel
@@ -59,6 +76,7 @@ here <- here::here # plyr also defines a here function
 # relative paths to project folders
 data_path <- "data" # path to data that are imported
 output_path <- "output" # path to data that are saved
+image_path <- "images" # path to image folder
 ```
 
 ## Importing Data
@@ -453,7 +471,7 @@ qplot(x=age_day, y=body_mass_g, data=igf)
 
 2. Download the dataset "Results2015.txt" from the Dryad repository at https://datadryad.org//resource/doi:10.5061/dryad.65vk4. Try to reproduce Fig. 1. It's not easy. I've inserted the figure below but also download the paper and look at Fig. 1.
 
-```{r problem2, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
+```{r problem2, echo=FALSE, comment=FALSE, eval=TRUE}
 data_folder <- "Data from Dung beetles reduce livestock gastrointestinal parasite availability on pasture"
 filename <- "Results2015.txt"
 file_path <- here(data_path, data_folder, filename)
@@ -468,7 +486,8 @@ gg
 
 3. (grad students only) Download and plot data from a Dryad Repository dataset of your choice.
 
-```{r dung-beetle-fig, echo=FALSE, eval=TRUE}
-knitr::include_graphics("images/Dung_beetles_reduce_livestock-fig_1.png")
+```{r dung-beetle-fig, echo=FALSE, eval=FALSE}
+dung_path <- here(image_path, "Dung_beetles_reduce_livestock-fig_1.png")
+knitr::include_graphics(dung_path)
 ```
 

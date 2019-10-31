@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Elementary Statistical Modeling for Applied Biostatistics</title>
+  <meta name="description" content="A first course in statistical modeling for biology students" />
+  <meta name="generator" content="bookdown #bookdown:version# and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Elementary Statistical Modeling for Applied Biostatistics" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="A first course in statistical modeling for biology students" />
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Elementary Statistical Modeling for Applied Biostatistics" />
+  
+  <meta name="twitter:description" content="A first course in statistical modeling for biology students" />
+  
+
+<meta name="author" content="Copyright 2018 Jeffrey A. Walker" />
+
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<!--bookdown:link_prev-->
+<!--bookdown:link_next-->
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+<!--bookdown:title:start-->
+<div id="header">
+<h1 class="title">Elementary Statistical Modeling for Applied Biostatistics</h1>
+<p class="author"><em>Copyright 2018 Jeffrey A. Walker</em></p>
+<p class="date"><em>Draft: 2019-10-27</em></p>
+</div>
+<!--bookdown:title:end-->
+
+<!--bookdown:toc:start-->
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+<!--bookdown:toc2:start-->
+<ul>
+<li><a href="#preface">Preface</a><ul>
+<li><a href="#math"><span class="toc-section-number">0.1</span> Math</a></li>
+<li><a href="#r-and-programming"><span class="toc-section-number">0.2</span> R and programming</a></li>
+</ul></li>
+<li><a href="#part-i-r-fundamentals">Part I: R fundamentals</a><ul>
+<li><a href="#importing-packages"><span class="toc-section-number">0.3</span> Importing Packages</a></li>
+<li><a href="#create-an-r-studio-project-for-this-class"><span class="toc-section-number">0.4</span> Create an R Studio Project for this Class</a></li>
+<li><a href="#r-notebooks"><span class="toc-section-number">0.5</span> R Notebooks</a><ul>
+<li><a href="#create-an-r-notebook-for-this-chapter"><span class="toc-section-number">0.5.1</span> Create an R Notebook for this Chapter</a></li>
+<li><a href="#create-a-load-packages-chunk"><span class="toc-section-number">0.5.2</span> Create a “load-packages” chunk</a></li>
+<li><a href="#create-a-simple-plot-chunk"><span class="toc-section-number">0.5.3</span> Create a “simple plot” chunk</a></li>
+<li><a href="#create-more-r-chunks-and-explore-options-and-play-with-r-code"><span class="toc-section-number">0.5.4</span> Create more R chunks and explore options and play with R code</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#data-importing-and-saving-data"><span class="toc-section-number">1</span> Data – Importing and Saving Data</a><ul>
+<li><a href="#create-new-notebook-for-this-chapter"><span class="toc-section-number">1.1</span> Create new notebook for this chapter</a></li>
+<li><a href="#importing-data"><span class="toc-section-number">1.2</span> Importing Data</a><ul>
+<li><a href="#excel-file"><span class="toc-section-number">1.2.1</span> Excel File</a></li>
+<li><a href="#text-file"><span class="toc-section-number">1.2.2</span> Text File</a></li>
+</ul></li>
+<li><a href="#reshaping-data"><span class="toc-section-number">1.3</span> Reshaping Data</a><ul>
+<li><a href="#wide-to-long"><span class="toc-section-number">1.3.1</span> Wide to long</a></li>
+<li><a href="#stacking-multiple-sets-of-columns"><span class="toc-section-number">1.3.2</span> Stacking multiple sets of columns</a></li>
+</ul></li>
+<li><a href="#miscellaneous-data-wrangling"><span class="toc-section-number">1.4</span> Miscellaneous data wrangling</a><ul>
+<li><a href="#vole-data"><span class="toc-section-number">1.4.1</span> Vole data</a></li>
+</ul></li>
+<li><a href="#saving-data"><span class="toc-section-number">1.5</span> Saving Data</a></li>
+<li><a href="#problems"><span class="toc-section-number">1.6</span> Problems</a></li>
+</ul></li>
+<li><a href="#part-ii-some-fundamentals-of-statistical-modeling">Part II: Some Fundamentals of Statistical Modeling</a></li>
+<li><a href="#an-introduction-to-statistical-modeling"><span class="toc-section-number">2</span> An Introduction to Statistical Modeling</a><ul>
+<li><a href="#two-specifications-of-a-linear-model"><span class="toc-section-number">2.1</span> Two specifications of a linear model</a><ul>
+<li><a href="#the-error-draw-specification"><span class="toc-section-number">2.1.1</span> The “error draw” specification</a></li>
+<li><a href="#the-conditional-draw-specification"><span class="toc-section-number">2.1.2</span> The “conditional draw” specification</a></li>
+<li><a href="#comparing-the-two-ways-of-specifying-the-linear-model"><span class="toc-section-number">2.1.3</span> Comparing the two ways of specifying the linear model</a></li>
+</ul></li>
+<li><a href="#what-do-we-call-the-x-and-y-variables"><span class="toc-section-number">2.2</span> What do we call the <span class="math inline">\(X\)</span> and <span class="math inline">\(Y\)</span> variables?</a></li>
+<li><a href="#statistical-models-are-used-for-prediction-explanation-and-description"><span class="toc-section-number">2.3</span> Statistical models are used for prediction, explanation, and description</a></li>
+<li><a href="#modeling-strategy"><span class="toc-section-number">2.4</span> Modeling strategy</a></li>
+<li><a href="#a-mean-is-the-simplest-model"><span class="toc-section-number">2.5</span> A mean is the simplest model</a></li>
+<li><a href="#assumptions-for-inference-with-a-statistical-model"><span class="toc-section-number">2.6</span> Assumptions for inference with a statistical model</a></li>
+<li><a href="#specific-assumptions-for-inference-with-a-linear-model"><span class="toc-section-number">2.7</span> Specific assumptions for inference with a linear model</a></li>
+<li><a href="#statistical-model-or-regression-model"><span class="toc-section-number">2.8</span> “Statistical model” or “regression model”?</a></li>
+<li><a href="#glm-vs.glm-vs.gls"><span class="toc-section-number">2.9</span> GLM vs. GLM vs. GLS</a></li>
+</ul></li>
+<li><a href="#variability-and-uncertainty-standard-deviations-standard-errors-confidence-intervals"><span class="toc-section-number">3</span> Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals)</a><ul>
+<li><a href="#the-sample-standard-deviation-vs.the-standard-error-of-the-mean"><span class="toc-section-number">3.1</span> The sample standard deviation vs. the standard error of the mean</a><ul>
+<li><a href="#sample-standard-deviation"><span class="toc-section-number">3.1.1</span> Sample standard deviation</a></li>
+<li><a href="#standard-error-of-the-mean"><span class="toc-section-number">3.1.2</span> Standard error of the mean</a></li>
+</ul></li>
+<li><a href="#using-google-sheets-to-generate-fake-data-to-explore-the-standard-error"><span class="toc-section-number">3.2</span> Using Google Sheets to generate fake data to explore the standard error</a><ul>
+<li><a href="#steps"><span class="toc-section-number">3.2.1</span> Steps</a></li>
+</ul></li>
+<li><a href="#using-r-to-generate-fake-data-to-explore-the-standard-error"><span class="toc-section-number">3.3</span> Using R to generate fake data to explore the standard error</a><ul>
+<li><a href="#part-i"><span class="toc-section-number">3.3.1</span> part I</a></li>
+<li><a href="#part-ii---means"><span class="toc-section-number">3.3.2</span> part II - means</a></li>
+<li><a href="#part-iii---how-do-sd-and-se-change-as-sample-size-n-increases"><span class="toc-section-number">3.3.3</span> part III - how do SD and SE change as sample size (n) increases?</a></li>
+<li><a href="#part-iv-generating-fake-data-with-for-loops"><span class="toc-section-number">3.3.4</span> Part IV – Generating fake data with for-loops</a></li>
+</ul></li>
+<li><a href="#bootstrapped-standard-errors"><span class="toc-section-number">3.4</span> Bootstrapped standard errors</a></li>
+<li><a href="#confidence-interval"><span class="toc-section-number">3.5</span> Confidence Interval</a></li>
+</ul></li>
+<li><a href="#covariance-and-correlation"><span class="toc-section-number">4</span> Covariance and Correlation</a></li>
+<li><a href="#p-values"><span class="toc-section-number">5</span> P-values</a><ul>
+<li><a href="#p-values-1"><span class="toc-section-number">5.1</span> <span class="math inline">\(p\)</span>-values</a></li>
+<li><a href="#creating-a-null-distribution."><span class="toc-section-number">5.2</span> Creating a null distribution.</a><ul>
+<li><a href="#the-null-distribution"><span class="toc-section-number">5.2.1</span> the Null Distribution</a></li>
+<li><a href="#t-tests"><span class="toc-section-number">5.2.2</span> t-tests</a></li>
+<li><a href="#p-values-from-the-perspective-of-permutation"><span class="toc-section-number">5.2.3</span> P-values from the perspective of permutation</a></li>
+</ul></li>
+<li><a href="#statistical-modeling-instead-of-hypothesis-testing"><span class="toc-section-number">5.3</span> Statistical modeling instead of hypothesis testing</a></li>
+<li><a href="#frequentist-probability-and-the-interpretation-of-p-values"><span class="toc-section-number">5.4</span> frequentist probability and the interpretation of p-values</a><ul>
+<li><a href="#background"><span class="toc-section-number">5.4.1</span> Background</a></li>
+<li><a href="#this-book-covers-frequentist-approaches-to-statistical-modeling-and-when-a-probability-arises-such-as-the-p-value-of-a-test-statistic-this-will-be-a-frequentist-probability."><span class="toc-section-number">5.4.2</span> This book covers frequentist approaches to statistical modeling and when a probability arises, such as the <em>p</em>-value of a test statistic, this will be a frequentist probability.</a></li>
+<li><a href="#two-interpretations-of-the-p-value"><span class="toc-section-number">5.4.3</span> Two interpretations of the <em>p</em>-value</a></li>
+<li><a href="#nhst"><span class="toc-section-number">5.4.4</span> NHST</a></li>
+<li><a href="#some-major-misconceptions-of-the-p-value"><span class="toc-section-number">5.4.5</span> Some major misconceptions of the <span class="math inline">\(p\)</span>-value</a></li>
+<li><a href="#recommendations"><span class="toc-section-number">5.4.6</span> Recommendations</a></li>
+</ul></li>
+<li><a href="#problems-1"><span class="toc-section-number">5.5</span> Problems</a></li>
+</ul></li>
+<li><a href="#creating-fake-data"><span class="toc-section-number">6</span> Creating Fake Data</a><ul>
+<li><a href="#continuous-x-fake-observational-data"><span class="toc-section-number">6.0.1</span> Continuous X (fake observational data)</a></li>
+<li><a href="#categorical-x-fake-experimental-data"><span class="toc-section-number">6.0.2</span> Categorical X (fake experimental data)</a></li>
+<li><a href="#correlated-x-fake-observational-data"><span class="toc-section-number">6.0.3</span> Correlated X (fake observational data)</a></li>
+</ul></li>
+<li><a href="#part-iii-introduction-to-linear-models">Part III: Introduction to Linear Models</a></li>
+<li><a href="#a-linear-model-with-a-single-continuous-x"><span class="toc-section-number">7</span> A linear model with a single, continuous <em>X</em></a><ul>
+<li><a href="#a-linear-model-with-a-single-continuous-x-is-classical-regression"><span class="toc-section-number">7.1</span> A linear model with a single, continuous <em>X</em> is classical “regression”</a><ul>
+<li><a href="#using-a-linear-model-to-estimate-explanatory-effects"><span class="toc-section-number">7.1.1</span> Using a linear model to estimate explanatory effects</a></li>
+<li><a href="#using-a-linear-model-for-prediction"><span class="toc-section-number">7.1.2</span> Using a linear model for prediction</a></li>
+<li><a href="#reporting-results"><span class="toc-section-number">7.1.3</span> Reporting results</a></li>
+</ul></li>
+<li><a href="#working-in-r"><span class="toc-section-number">7.2</span> Working in R</a><ul>
+<li><a href="#exploring-the-bivariate-relationship-between-y-and-x"><span class="toc-section-number">7.2.1</span> Exploring the bivariate relationship between <em>Y</em> and <em>X</em></a></li>
+<li><a href="#fitting-the-linear-model"><span class="toc-section-number">7.2.2</span> Fitting the linear model</a></li>
+<li><a href="#getting-to-know-the-linear-model-the-summary-function"><span class="toc-section-number">7.2.3</span> Getting to know the linear model: the <code>summary</code> function</a></li>
+<li><a href="#display-an-alternative-to-summary"><span class="toc-section-number">7.2.4</span> display: An alternative to summary</a></li>
+<li><a href="#confidence-intervals"><span class="toc-section-number">7.2.5</span> Confidence intervals</a></li>
+<li><a href="#how-good-is-our-model"><span class="toc-section-number">7.2.6</span> How good is our model?</a></li>
+<li><a href="#exploring-a-lm-object"><span class="toc-section-number">7.2.7</span> exploring a lm object</a></li>
+</ul></li>
+<li><a href="#problems-2"><span class="toc-section-number">7.3</span> Problems</a></li>
+</ul></li>
+<li><a href="#a-linear-model-with-a-single-categorical-x"><span class="toc-section-number">8</span> A linear model with a single, categorical <em>X</em></a><ul>
+<li><a href="#a-linear-model-with-a-single-categorical-x-estimates-the-effects-of-x-on-the-response."><span class="toc-section-number">8.1</span> A linear model with a single, categorical <em>X</em> estimates the effects of <em>X</em> on the response.</a><ul>
+<li><a href="#table-of-model-coefficients"><span class="toc-section-number">8.1.1</span> Table of model coefficients</a></li>
+<li><a href="#the-linear-model"><span class="toc-section-number">8.1.2</span> The linear model</a></li>
+<li><a href="#reporting-results-1"><span class="toc-section-number">8.1.3</span> Reporting results</a></li>
+</ul></li>
+<li><a href="#comparing-the-results-of-a-linear-model-to-classical-hypothesis-tests"><span class="toc-section-number">8.2</span> Comparing the results of a linear model to classical hypothesis tests</a><ul>
+<li><a href="#t-tests-are-special-cases-of-a-linear-model"><span class="toc-section-number">8.2.1</span> t-tests are special cases of a linear model</a></li>
+<li><a href="#anova-is-a-special-case-of-a-linear-model"><span class="toc-section-number">8.2.2</span> ANOVA is a special case of a linear model</a></li>
+</ul></li>
+<li><a href="#working-in-r-1"><span class="toc-section-number">8.3</span> Working in R</a><ul>
+<li><a href="#fitting-the-model"><span class="toc-section-number">8.3.1</span> Fitting the model</a></li>
+<li><a href="#changing-the-reference-level"><span class="toc-section-number">8.3.2</span> Changing the reference level</a></li>
+<li><a href="#an-introduction-to-contrasts"><span class="toc-section-number">8.3.3</span> An introduction to contrasts</a></li>
+<li><a href="#harrell-plot"><span class="toc-section-number">8.3.4</span> Harrell plot</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#model-checking"><span class="toc-section-number">9</span> Model Checking</a><ul>
+<li><a href="#do-coefficients-make-numeric-sense"><span class="toc-section-number">9.1</span> Do coefficients make numeric sense?</a></li>
+<li><a href="#all-statistical-analyses-should-be-followed-by-model-checking"><span class="toc-section-number">9.2</span> All statistical analyses should be followed by model checking</a></li>
+<li><a href="#linear-model-assumptions"><span class="toc-section-number">9.3</span> Linear model assumptions</a></li>
+<li><a href="#diagnostic-plots-use-the-residuals-from-the-model-fit"><span class="toc-section-number">9.4</span> Diagnostic plots use the residuals from the model fit</a><ul>
+<li><a href="#residuals"><span class="toc-section-number">9.4.1</span> Residuals</a></li>
+<li><a href="#a-normal-q-q-plot-is-used-to-check-normality"><span class="toc-section-number">9.4.2</span> A Normal Q-Q plot is used to check normality</a></li>
+<li><a href="#outliers---an-outlier-is-a-point-that-is-highly-unexpected-given-the-modeled-distribution."><span class="toc-section-number">9.4.3</span> Outliers - an outlier is a point that is highly unexpected given the modeled distribution.</a></li>
+</ul></li>
+<li><a href="#model-checking-homoskedasticity"><span class="toc-section-number">9.5</span> Model checking homoskedasticity</a></li>
+<li><a href="#model-checking-independence---hapiness-adverse-example."><span class="toc-section-number">9.6</span> Model checking independence - hapiness adverse example.</a></li>
+<li><a href="#using-r"><span class="toc-section-number">9.7</span> Using R</a></li>
+</ul></li>
+<li><a href="#model-fitting-and-model-fit-ols"><span class="toc-section-number">10</span> Model Fitting and Model Fit (OLS)</a><ul>
+<li><a href="#least-squares-estimation-and-the-decomposition-of-variance"><span class="toc-section-number">10.1</span> Least Squares Estimation and the Decomposition of Variance</a></li>
+<li><a href="#ols-regression"><span class="toc-section-number">10.2</span> OLS regression</a></li>
+<li><a href="#how-well-does-the-model-fit-the-data-r2-and-variance-explained"><span class="toc-section-number">10.3</span> How well does the model fit the data? <span class="math inline">\(R^2\)</span> and “variance explained”</a></li>
+</ul></li>
+<li><a href="#plotting-models"><span class="toc-section-number">11</span> Plotting Models</a><ul>
+<li><a href="#pretty-good-plots-show-the-model-and-the-data"><span class="toc-section-number">11.1</span> Pretty good plots show the model and the data</a><ul>
+<li><a href="#pretty-good-plot-component-1-modeled-effects-plot"><span class="toc-section-number">11.1.1</span> Pretty good plot component 1: Modeled effects plot</a></li>
+<li><a href="#pretty-good-plot-component-2-modeled-mean-and-ci-plot-with-jittered-raw-data"><span class="toc-section-number">11.1.2</span> Pretty good plot component 2: Modeled mean and CI plot with jittered raw data</a></li>
+<li><a href="#combining-effects-and-modeled-mean-and-ci-plots-an-effects-and-response-plot."><span class="toc-section-number">11.1.3</span> Combining Effects and Modeled mean and CI plots – an Effects and response plot.</a></li>
+</ul></li>
+<li><a href="#some-comments-on-plot-components"><span class="toc-section-number">11.2</span> Some comments on plot components</a></li>
+<li><a href="#working-in-r-2"><span class="toc-section-number">11.3</span> Working in R</a><ul>
+<li><a href="#unpooled-se-bars-and-confidence-intervals"><span class="toc-section-number">11.3.1</span> Unpooled SE bars and confidence intervals</a></li>
+<li><a href="#adding-bootstrap-intervals"><span class="toc-section-number">11.3.2</span> Adding bootstrap intervals</a></li>
+<li><a href="#adding-modeled-error-intervals"><span class="toc-section-number">11.3.3</span> Adding modeled error intervals</a></li>
+<li><a href="#adding-p-values"><span class="toc-section-number">11.3.4</span> Adding p-values</a></li>
+<li><a href="#adding-custom-p-values"><span class="toc-section-number">11.3.5</span> Adding custom p-values</a></li>
+<li><a href="#plotting-two-factors"><span class="toc-section-number">11.3.6</span> Plotting two factors</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#part-iv-more-than-one-x-multivariable-models">Part IV: More than one <span class="math inline">\(X\)</span> – Multivariable Models</a></li>
+<li><a href="#adding-covariates-to-a-linear-model"><span class="toc-section-number">12</span> Adding covariates to a linear model</a><ul>
+<li><a href="#adding-covariates-can-increases-the-precision-of-the-effect-of-interest"><span class="toc-section-number">12.1</span> Adding covariates can increases the precision of the effect of interest</a><ul>
+<li><a href="#interaction-effects-with-covariates"><span class="toc-section-number">12.1.1</span> Interaction effects with covariates</a></li>
+<li><a href="#add-only-covariates-that-were-measured-before-peaking-at-the-data"><span class="toc-section-number">12.1.2</span> Add only covariates that were measured before peaking at the data</a></li>
+</ul></li>
+<li><a href="#regression-to-the-mean"><span class="toc-section-number">12.2</span> Regression to the mean</a><ul>
+<li><a href="#do-not-use-percent-change-believing-that-percents-account-for-effects-of-initial-weights"><span class="toc-section-number">12.2.1</span> Do not use percent change, believing that percents account for effects of initial weights</a></li>
+<li><a href="#do-not-test-for-balance-of-baseline-measures"><span class="toc-section-number">12.2.2</span> Do not “test for balance” of baseline measures</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#two-or-more-categorical-x-factorial-designs"><span class="toc-section-number">13</span> Two (or more) Categorical <span class="math inline">\(X\)</span> – Factorial designs</a><ul>
+<li><a href="#factorial-experiments"><span class="toc-section-number">13.1</span> Factorial experiments</a><ul>
+<li><a href="#model-coefficients-an-interaction-effect-is-what-is-leftover-after-adding-the-treatment-effects-to-the-control"><span class="toc-section-number">13.1.1</span> Model coefficients: an interaction effect is what is leftover after adding the treatment effects to the control</a></li>
+<li><a href="#what-is-the-biological-meaning-of-an-interaction-effect"><span class="toc-section-number">13.1.2</span> What is the biological meaning of an interaction effect?</a></li>
+<li><a href="#what-about-models-with-more-than-two-factors"><span class="toc-section-number">13.1.3</span> What about models with more than two factors?</a></li>
+<li><a href="#the-additive-model"><span class="toc-section-number">13.1.4</span> The additive model</a></li>
+<li><a href="#contrasts-simple-vs.main-effects"><span class="toc-section-number">13.1.5</span> Contrasts – simple vs. main effects</a></li>
+</ul></li>
+<li><a href="#reporting-results-2"><span class="toc-section-number">13.2</span> Reporting results</a><ul>
+<li><a href="#text-results"><span class="toc-section-number">13.2.1</span> Text results</a></li>
+<li><a href="#harrellplot"><span class="toc-section-number">13.2.2</span> Harrellplot</a></li>
+<li><a href="#interaction-plots"><span class="toc-section-number">13.2.3</span> Interaction plots</a></li>
+</ul></li>
+<li><a href="#recommendations-1"><span class="toc-section-number">13.3</span> Recommendations</a></li>
+<li><a href="#working-in-r-3"><span class="toc-section-number">13.4</span> Working in R</a></li>
+<li><a href="#problems-3"><span class="toc-section-number">13.5</span> Problems</a></li>
+</ul></li>
+<li><a href="#anova-tables"><span class="toc-section-number">14</span> ANOVA Tables</a><ul>
+<li><a href="#summary-of-usage"><span class="toc-section-number">14.1</span> Summary of usage</a></li>
+<li><a href="#example-a-one-way-anova-using-the-vole-data"><span class="toc-section-number">14.2</span> Example: a one-way ANOVA using the vole data</a></li>
+<li><a href="#example-a-two-way-anova-using-the-urchin-data"><span class="toc-section-number">14.3</span> Example: a two-way ANOVA using the urchin data</a><ul>
+<li><a href="#how-to-read-an-anova-table"><span class="toc-section-number">14.3.1</span> How to read an ANOVA table</a></li>
+<li><a href="#how-to-read-anova-results-reported-in-the-text"><span class="toc-section-number">14.3.2</span> How to read ANOVA results reported in the text</a></li>
+<li><a href="#better-practice-estimates-and-their-uncertainty"><span class="toc-section-number">14.3.3</span> Better practice – estimates and their uncertainty</a></li>
+</ul></li>
+<li><a href="#unbalanced-designs"><span class="toc-section-number">14.4</span> Unbalanced designs</a><ul>
+<li><a href="#what-is-going-on-in-unbalanced-anova-type-i-ii-iii-sum-of-squares"><span class="toc-section-number">14.4.1</span> What is going on in unbalanced ANOVA? – Type I, II, III sum of squares</a></li>
+<li><a href="#back-to-interpretation-of-main-effects"><span class="toc-section-number">14.4.2</span> Back to interpretation of main effects</a></li>
+<li><a href="#the-anova-tables-for-type-i-ii-and-iii-sum-of-squares-are-the-same-if-the-design-is-balanced."><span class="toc-section-number">14.4.3</span> The anova tables for Type I, II, and III sum of squares are the same if the design is balanced.</a></li>
+</ul></li>
+<li><a href="#working-in-r-4"><span class="toc-section-number">14.5</span> Working in R</a><ul>
+<li><a href="#type-i-sum-of-squares-in-r"><span class="toc-section-number">14.5.1</span> Type I sum of squares in R</a></li>
+<li><a href="#type-ii-and-iii-sum-of-squares"><span class="toc-section-number">14.5.2</span> Type II and III Sum of Squares</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#predictive-models"><span class="toc-section-number">15</span> Predictive Models</a><ul>
+<li><a href="#overfitting"><span class="toc-section-number">15.1</span> Overfitting</a></li>
+<li><a href="#model-building-vs.variable-selection-vs.model-selection"><span class="toc-section-number">15.2</span> Model building vs. Variable selection vs. Model selection</a><ul>
+<li><a href="#stepwise-regression"><span class="toc-section-number">15.2.1</span> Stepwise regression</a></li>
+<li><a href="#cross-validation"><span class="toc-section-number">15.2.2</span> Cross-validation</a></li>
+<li><a href="#penalization"><span class="toc-section-number">15.2.3</span> Penalization</a></li>
+</ul></li>
+<li><a href="#shrinkage"><span class="toc-section-number">15.3</span> Shrinkage</a></li>
+</ul></li>
+<li><a href="#part-v-expanding-the-linear-model-generalized-linear-models-and-multilevel-linear-mixed-models">Part V: Expanding the Linear Model – Generalized Linear Models and Multilevel (Linear Mixed) Models</a></li>
+<li><a href="#generalized-linear-models-i-count-data"><span class="toc-section-number">16</span> Generalized linear models I: Count data</a><ul>
+<li><a href="#the-generalized-linear-model"><span class="toc-section-number">16.1</span> The generalized linear model</a></li>
+<li><a href="#count-data-example-number-of-trematode-worm-larvae-in-eyes-of-threespine-stickleback-fish"><span class="toc-section-number">16.2</span> Count data example – number of trematode worm larvae in eyes of threespine stickleback fish</a><ul>
+<li><a href="#modeling-strategy-1"><span class="toc-section-number">16.2.1</span> Modeling strategy</a></li>
+<li><a href="#checking-the-model-i-a-normal-q-q-plot"><span class="toc-section-number">16.2.2</span> Checking the model I – a Normal Q-Q plot</a></li>
+<li><a href="#checking-the-model-ii-scale-location-plot-for-checking-homoskedasticity"><span class="toc-section-number">16.2.3</span> Checking the model II – scale-location plot for checking homoskedasticity</a></li>
+<li><a href="#two-distributions-for-count-data-poisson-and-negative-binomial"><span class="toc-section-number">16.2.4</span> Two distributions for count data – Poisson and Negative Binomial</a></li>
+<li><a href="#fitting-a-glm-with-a-poisson-distribution-to-the-worm-data"><span class="toc-section-number">16.2.5</span> Fitting a GLM with a Poisson distribution to the worm data</a></li>
+<li><a href="#model-checking-fits-to-count-data"><span class="toc-section-number">16.2.6</span> Model checking fits to count data</a></li>
+<li><a href="#fitting-a-glm-with-a-negative-binomial-distribution-to-the-worm-data"><span class="toc-section-number">16.2.7</span> Fitting a GLM with a Negative Binomial distribution to the worm data</a></li>
+</ul></li>
+<li><a href="#working-in-r-5"><span class="toc-section-number">16.3</span> Working in R</a></li>
+<li><a href="#problems-4"><span class="toc-section-number">16.4</span> Problems</a></li>
+</ul></li>
+<li><a href="#linear-mixed-models"><span class="toc-section-number">17</span> Linear mixed models</a><ul>
+<li><a href="#random-effects"><span class="toc-section-number">17.1</span> Random effects</a></li>
+<li><a href="#random-effects-in-statistical-models"><span class="toc-section-number">17.2</span> Random effects in statistical models</a></li>
+<li><a href="#linear-mixed-models-are-flexible"><span class="toc-section-number">17.3</span> Linear mixed models are flexible</a></li>
+<li><a href="#visualizing-block-effects"><span class="toc-section-number">17.4</span> Visualizing block effects</a></li>
+<li><a href="#linear-mixed-models-can-increase-precision-of-point-estimates"><span class="toc-section-number">17.5</span> Linear mixed models can increase precision of point estimates</a></li>
+<li><a href="#linear-mixed-models-are-used-to-avoid-pseudoreplication"><span class="toc-section-number">17.6</span> Linear mixed models are used to avoid pseudoreplication</a></li>
+<li><a href="#linear-mixed-models-shrink-coefficients-by-partial-pooling"><span class="toc-section-number">17.7</span> Linear mixed models shrink coefficients by partial pooling</a></li>
+<li><a href="#working-in-r-6"><span class="toc-section-number">17.8</span> Working in R</a><ul>
+<li><a href="#coral-data"><span class="toc-section-number">17.8.1</span> coral data</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#appendix-1-getting-started-with-r">Appendix 1: Getting Started with R</a><ul>
+<li><a href="#get-your-computer-ready"><span class="toc-section-number">17.9</span> Get your computer ready</a><ul>
+<li><a href="#install-r"><span class="toc-section-number">17.9.1</span> Install R</a></li>
+<li><a href="#install-r-studio"><span class="toc-section-number">17.9.2</span> Install R Studio</a></li>
+<li><a href="#resources-for-installing-r-and-r-studio"><span class="toc-section-number">17.9.3</span> Resources for installing R and R Studio</a></li>
+<li><a href="#install-latex"><span class="toc-section-number">17.9.4</span> Install LaTeX</a></li>
+</ul></li>
+<li><a href="#start-learning"><span class="toc-section-number">17.10</span> Start learning</a><ul>
+<li><a href="#start-with-data-camp-introduction-to-r"><span class="toc-section-number">17.10.1</span> Start with Data Camp Introduction to R</a></li>
+<li><a href="#then-move-to-introduction-to-r-studio"><span class="toc-section-number">17.10.2</span> Then Move to Introduction to R Studio</a></li>
+<li><a href="#develop-your-project-with-an-r-studio-notebook"><span class="toc-section-number">17.10.3</span> Develop your project with an R Studio Notebook</a></li>
+</ul></li>
+<li><a href="#getting-data-into-r"><span class="toc-section-number">17.11</span> Getting Data into R</a></li>
+<li><a href="#additional-r-learning-resources"><span class="toc-section-number">17.12</span> Additional R learning resources</a></li>
+<li><a href="#packages-used-extensively-in-this-text"><span class="toc-section-number">17.13</span> Packages used extensively in this text</a></li>
+</ul></li>
+<li><a href="#appendix-2-online-resources-for-getting-started-with-statistical-modeling-in-r">Appendix 2: Online Resources for Getting Started with Statistical Modeling in R</a></li>
+</ul>
+<!--bookdown:toc2:end-->
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Elementary Statistical Modeling for Applied Biostatistics</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<!--bookdown:toc:end-->
+<!--bookdown:body:start-->
+<div id="preface" class="section level1 unnumbered">
+<h1>Preface</h1>
+<p><em>More cynically, one could also well ask “Why has medicine not adopted frequentist inference, even though everyone presents P-values and hypothesis tests?” My answer is: Because frequentist inference, like Bayesian inference, is not taught. Instead everyone gets taught a misleading pseudo-frequentism: a set of rituals and misinterpretations caricaturing frequentist inference, leading to all kinds of misunderstandings.</em> – Sander Greenland</p>
+<p>We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to “discover by p-value” using hypothesis tests (Chapter @ref(p-values)). Over the course of many chapters, the student learns to use something like a look-up table or a dichotomous key to choose the correct “test” for the data at hand, compute a test statistic for their data, compute a <span class="math inline">\(p\)</span>-value based on the test statistic, and compare the <em>p</em>-value to 0.05. Textbooks typically give very little guidance about what can be concluded if <span class="math inline">\(p &lt; 0.05\)</span> or if <span class="math inline">\(p &gt; 0.05\)</span>, but many researchers conclude, incorrectly, they have “discovered” something or “shown” an effect if <span class="math inline">\(p &lt; 0.05\)</span> but found “no effect” if <span class="math inline">\(p &gt; 0.05\)</span>.</p>
+<p>Researchers learn nothing useful from a hypothesis test – that is, comparing <span class="math inline">\(p\)</span> to 0.05 (or some other arbitrary value). A <span class="math inline">\(p\)</span>-value is a measure of compatibility between the data and the null hypothesis and, consequently, a pretty good, but imperfect tool to dampen the frequency that we are fooled by randomness. But if we are investigating the effects of an increasingly acidified ocean on coral growth, <span class="math inline">\(p=0.002\)</span> may be evidence of an effect of the experimental intervention, but, from everything we know about pH and cell biology, it would be absurd to conclude from any data that pH does not affect growth. To build useful models of how biological systems work, we want to know the magnitude of effects and our uncertainty in estimating these magnitudes. We can use a magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consequences of the effects of acidification on coral growth on fish production or carbon cycling.</p>
+<p>This book is an introduction to the estimation of effects of biological data, and measures of the uncertainty of theses estimates, using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and <span class="math inline">\(p\)</span>-values. All linear models, and their generalizations, are variations of</p>
+<span class="math display">\[\begin{align}
+y_i &amp;\sim N(\mu_i, \theta)\\
+\mathrm{E}(Y|X) &amp;= \mu\\
+\mu_i &amp;= f(\beta_0 + \beta_1 x_i)
+\end{align}\]</span>
+<p>Chapter 1 explains the meaning of this <strong>model specification</strong> but the point to make here is that because all linear models and their generalizations are variations of this specification, a modeling strategy of learning or doing statistics is more coherent than the NHST strategy using look-up tables or dichotomous keys of hypothesis tests. Generalizations of the basic linear model include linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is not a comprehensive source for any of these methods but, instead, <em>a path of the critical elements leading you to the doorway to the vast universe of each of these methods</em>.</p>
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+<p><strong>NHST Blues</strong> – The “discovery by p-value” strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with much less emphasis on estimation and uncertainty. The NHST strategy of learning or doing statistics is easy in that it requires little understanding of the statistical model underneath the tests and its assumptions, limitations, and behavior. The NHST strategy in combination with point-and-click software enables “mindless statistics”<a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a> and encourages the belief that statistics is a tool like a word processor is a tool, afterall, a rigorous analysis of one’s data requires little more than getting p-values and creating bar plots. Indeed, many PhD programs in the biosciences require no statistics coursework and the only training available to students is from the other graduate students and postdocs in the lab. As a consequence, the biological sciences literature is filled with error bars that imply data with negative values and p-values that have little relationship to the probability of the data under the null. More importantly for science, the reported statistics are often not doing for the study what the researchers and journal editors think they are doing.</p>
+</div>
+<div id="math" class="section level2">
+<h2><span class="header-section-number">0.1</span> Math</h2>
+</div>
+<div id="r-and-programming" class="section level2">
+<h2><span class="header-section-number">0.2</span> R and programming</h2>
+<!--chapter:end:index.Rmd-->
+</div>
+</div>
+<div id="part-i-r-fundamentals" class="section level1 unnumbered">
+<h1>Part I: R fundamentals</h1>
+<p>Placeholder</p>
+<div id="importing-packages" class="section level2">
+<h2><span class="header-section-number">0.3</span> Importing Packages</h2>
+</div>
+<div id="create-an-r-studio-project-for-this-class" class="section level2">
+<h2><span class="header-section-number">0.4</span> Create an R Studio Project for this Class</h2>
+</div>
+<div id="r-notebooks" class="section level2">
+<h2><span class="header-section-number">0.5</span> R Notebooks</h2>
+<div id="create-an-r-notebook-for-this-chapter" class="section level3">
+<h3><span class="header-section-number">0.5.1</span> Create an R Notebook for this Chapter</h3>
+</div>
+<div id="create-a-load-packages-chunk" class="section level3">
+<h3><span class="header-section-number">0.5.2</span> Create a “load-packages” chunk</h3>
+</div>
+<div id="create-a-simple-plot-chunk" class="section level3">
+<h3><span class="header-section-number">0.5.3</span> Create a “simple plot” chunk</h3>
+</div>
+<div id="create-more-r-chunks-and-explore-options-and-play-with-r-code" class="section level3">
+<h3><span class="header-section-number">0.5.4</span> Create more R chunks and explore options and play with R code</h3>
+<!--chapter:end:chapters/04-setup.Rmd-->
+</div>
+</div>
+</div>
+<div id="data-importing-and-saving-data" class="section level1">
+<h1><span class="header-section-number">1</span> Data – Importing and Saving Data</h1>
+<p>Placeholder</p>
+<div id="create-new-notebook-for-this-chapter" class="section level2">
+<h2><span class="header-section-number">1.1</span> Create new notebook for this chapter</h2>
+</div>
+<div id="importing-data" class="section level2">
+<h2><span class="header-section-number">1.2</span> Importing Data</h2>
+<div id="excel-file" class="section level3">
+<h3><span class="header-section-number">1.2.1</span> Excel File</h3>
+<div id="troubleshooting-file-import" class="section level4">
+<h4><span class="header-section-number">1.2.1.1</span> Troubleshooting File Import</h4>
+</div>
+<div id="peak-at-the-imported-data.table-to-check-that-the-file-was-imported-correctly-and-to-learn-about-the-contents." class="section level4">
+<h4><span class="header-section-number">1.2.1.2</span> Peak at the imported data.table to check that the file was imported correctly and to learn about the contents.</h4>
+</div>
+<div id="best-practices-for-creating-data-files" class="section level4">
+<h4><span class="header-section-number">1.2.1.3</span> Best practices for creating data files</h4>
+</div>
+<div id="explore-with-plots" class="section level4">
+<h4><span class="header-section-number">1.2.1.4</span> Explore with plots</h4>
+</div>
+</div>
+<div id="text-file" class="section level3">
+<h3><span class="header-section-number">1.2.2</span> Text File</h3>
+</div>
+</div>
+<div id="reshaping-data" class="section level2">
+<h2><span class="header-section-number">1.3</span> Reshaping Data</h2>
+<div id="wide-to-long" class="section level3">
+<h3><span class="header-section-number">1.3.1</span> Wide to long</h3>
+</div>
+<div id="stacking-multiple-sets-of-columns" class="section level3">
+<h3><span class="header-section-number">1.3.2</span> Stacking multiple sets of columns</h3>
+</div>
+</div>
+<div id="miscellaneous-data-wrangling" class="section level2">
+<h2><span class="header-section-number">1.4</span> Miscellaneous data wrangling</h2>
+<div id="vole-data" class="section level3">
+<h3><span class="header-section-number">1.4.1</span> Vole data</h3>
+</div>
+</div>
+<div id="saving-data" class="section level2">
+<h2><span class="header-section-number">1.5</span> Saving Data</h2>
+</div>
+<div id="problems" class="section level2">
+<h2><span class="header-section-number">1.6</span> Problems</h2>
+<!--chapter:end:chapters/06-data-reading_writing.Rmd-->
+</div>
+</div>
+<div id="part-ii-some-fundamentals-of-statistical-modeling" class="section level1 unnumbered">
+<h1>Part II: Some Fundamentals of Statistical Modeling</h1>
+<!--chapter:end:chapters/10-part-II-statistics-fundamentals.Rmd-->
+</div>
+<div id="an-introduction-to-statistical-modeling" class="section level1">
+<h1><span class="header-section-number">2</span> An Introduction to Statistical Modeling</h1>
+<p>Placeholder</p>
+<div id="two-specifications-of-a-linear-model" class="section level2">
+<h2><span class="header-section-number">2.1</span> Two specifications of a linear model</h2>
+<div id="the-error-draw-specification" class="section level3">
+<h3><span class="header-section-number">2.1.1</span> The “error draw” specification</h3>
+</div>
+<div id="the-conditional-draw-specification" class="section level3">
+<h3><span class="header-section-number">2.1.2</span> The “conditional draw” specification</h3>
+</div>
+<div id="comparing-the-two-ways-of-specifying-the-linear-model" class="section level3">
+<h3><span class="header-section-number">2.1.3</span> Comparing the two ways of specifying the linear model</h3>
+</div>
+</div>
+<div id="what-do-we-call-the-x-and-y-variables" class="section level2">
+<h2><span class="header-section-number">2.2</span> What do we call the <span class="math inline">\(X\)</span> and <span class="math inline">\(Y\)</span> variables?</h2>
+</div>
+<div id="statistical-models-are-used-for-prediction-explanation-and-description" class="section level2">
+<h2><span class="header-section-number">2.3</span> Statistical models are used for prediction, explanation, and description</h2>
+</div>
+<div id="modeling-strategy" class="section level2">
+<h2><span class="header-section-number">2.4</span> Modeling strategy</h2>
+</div>
+<div id="a-mean-is-the-simplest-model" class="section level2">
+<h2><span class="header-section-number">2.5</span> A mean is the simplest model</h2>
+</div>
+<div id="assumptions-for-inference-with-a-statistical-model" class="section level2">
+<h2><span class="header-section-number">2.6</span> Assumptions for inference with a statistical model</h2>
+</div>
+<div id="specific-assumptions-for-inference-with-a-linear-model" class="section level2">
+<h2><span class="header-section-number">2.7</span> Specific assumptions for inference with a linear model</h2>
+</div>
+<div id="statistical-model-or-regression-model" class="section level2">
+<h2><span class="header-section-number">2.8</span> “Statistical model” or “regression model”?</h2>
+</div>
+<div id="glm-vs.glm-vs.gls" class="section level2">
+<h2><span class="header-section-number">2.9</span> GLM vs. GLM vs. GLS</h2>
+<!--chapter:end:chapters/12-introduction-to-statistical-modeling.Rmd-->
+</div>
+</div>
+<div id="variability-and-uncertainty-standard-deviations-standard-errors-confidence-intervals" class="section level1">
+<h1><span class="header-section-number">3</span> Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals)</h1>
+<p>Placeholder</p>
+<div id="the-sample-standard-deviation-vs.the-standard-error-of-the-mean" class="section level2">
+<h2><span class="header-section-number">3.1</span> The sample standard deviation vs. the standard error of the mean</h2>
+<div id="sample-standard-deviation" class="section level3">
+<h3><span class="header-section-number">3.1.1</span> Sample standard deviation</h3>
+</div>
+<div id="standard-error-of-the-mean" class="section level3">
+<h3><span class="header-section-number">3.1.2</span> Standard error of the mean</h3>
+</div>
+</div>
+<div id="using-google-sheets-to-generate-fake-data-to-explore-the-standard-error" class="section level2">
+<h2><span class="header-section-number">3.2</span> Using Google Sheets to generate fake data to explore the standard error</h2>
+<div id="steps" class="section level3">
+<h3><span class="header-section-number">3.2.1</span> Steps</h3>
+</div>
+</div>
+<div id="using-r-to-generate-fake-data-to-explore-the-standard-error" class="section level2">
+<h2><span class="header-section-number">3.3</span> Using R to generate fake data to explore the standard error</h2>
+<div id="part-i" class="section level3">
+<h3><span class="header-section-number">3.3.1</span> part I</h3>
+</div>
+<div id="part-ii---means" class="section level3">
+<h3><span class="header-section-number">3.3.2</span> part II - means</h3>
+</div>
+<div id="part-iii---how-do-sd-and-se-change-as-sample-size-n-increases" class="section level3">
+<h3><span class="header-section-number">3.3.3</span> part III - how do SD and SE change as sample size (n) increases?</h3>
+</div>
+<div id="part-iv-generating-fake-data-with-for-loops" class="section level3">
+<h3><span class="header-section-number">3.3.4</span> Part IV – Generating fake data with for-loops</h3>
+</div>
+</div>
+<div id="bootstrapped-standard-errors" class="section level2">
+<h2><span class="header-section-number">3.4</span> Bootstrapped standard errors</h2>
+</div>
+<div id="confidence-interval" class="section level2">
+<h2><span class="header-section-number">3.5</span> Confidence Interval</h2>
+<!--chapter:end:chapters/15-uncertainty_sd_and_se.Rmd-->
+</div>
+</div>
+<div id="covariance-and-correlation" class="section level1">
+<h1><span class="header-section-number">4</span> Covariance and Correlation</h1>
+<p>Placeholder</p>
+<!--chapter:end:chapters/16-covariance-and-correlation.Rmd-->
+</div>
+<div id="p-values" class="section level1">
+<h1><span class="header-section-number">5</span> P-values</h1>
+<p>Placeholder</p>
+<div id="p-values-1" class="section level2">
+<h2><span class="header-section-number">5.1</span> <span class="math inline">\(p\)</span>-values</h2>
+</div>
+<div id="creating-a-null-distribution." class="section level2">
+<h2><span class="header-section-number">5.2</span> Creating a null distribution.</h2>
+<div id="the-null-distribution" class="section level3">
+<h3><span class="header-section-number">5.2.1</span> the Null Distribution</h3>
+</div>
+<div id="t-tests" class="section level3">
+<h3><span class="header-section-number">5.2.2</span> t-tests</h3>
+</div>
+<div id="p-values-from-the-perspective-of-permutation" class="section level3">
+<h3><span class="header-section-number">5.2.3</span> P-values from the perspective of permutation</h3>
+</div>
+</div>
+<div id="statistical-modeling-instead-of-hypothesis-testing" class="section level2">
+<h2><span class="header-section-number">5.3</span> Statistical modeling instead of hypothesis testing</h2>
+</div>
+<div id="frequentist-probability-and-the-interpretation-of-p-values" class="section level2">
+<h2><span class="header-section-number">5.4</span> frequentist probability and the interpretation of p-values</h2>
+<div id="background" class="section level3">
+<h3><span class="header-section-number">5.4.1</span> Background</h3>
+</div>
+<div id="this-book-covers-frequentist-approaches-to-statistical-modeling-and-when-a-probability-arises-such-as-the-p-value-of-a-test-statistic-this-will-be-a-frequentist-probability." class="section level3">
+<h3><span class="header-section-number">5.4.2</span> This book covers frequentist approaches to statistical modeling and when a probability arises, such as the <em>p</em>-value of a test statistic, this will be a frequentist probability.</h3>
+</div>
+<div id="two-interpretations-of-the-p-value" class="section level3">
+<h3><span class="header-section-number">5.4.3</span> Two interpretations of the <em>p</em>-value</h3>
+<div id="fishers-interpretation" class="section level4">
+<h4><span class="header-section-number">5.4.3.1</span> Fisher’s interpretation</h4>
+</div>
+<div id="neyman-pearson-interpretation" class="section level4">
+<h4><span class="header-section-number">5.4.3.2</span> Neyman-Pearson interpretation</h4>
+</div>
+</div>
+<div id="nhst" class="section level3">
+<h3><span class="header-section-number">5.4.4</span> NHST</h3>
+</div>
+<div id="some-major-misconceptions-of-the-p-value" class="section level3">
+<h3><span class="header-section-number">5.4.5</span> Some major misconceptions of the <span class="math inline">\(p\)</span>-value</h3>
+<div id="misconception-p-is-the-probability-that-the-null-is-true-and-1-p-is-probability-that-the-alternative-is-true" class="section level4">
+<h4><span class="header-section-number">5.4.5.1</span> Misconception: <span class="math inline">\(p\)</span> is the probability that the null is true <em>and</em> <span class="math inline">\(1-p\)</span> is probability that the alternative is true</h4>
+</div>
+<div id="misconception-a-p-value-is-repeatable" class="section level4">
+<h4><span class="header-section-number">5.4.5.2</span> Misconception: a <span class="math inline">\(p\)</span>-value is repeatable</h4>
+</div>
+<div id="misconception-0.05-is-the-lifetime-rate-of-false-discoveries" class="section level4">
+<h4><span class="header-section-number">5.4.5.3</span> Misconception: 0.05 is the lifetime rate of false discoveries</h4>
+</div>
+<div id="misconception-a-low-p-value-indicates-an-important-effect" class="section level4">
+<h4><span class="header-section-number">5.4.5.4</span> Misconception: a low <span class="math inline">\(p\)</span>-value indicates an important effect</h4>
+</div>
+<div id="misconception-a-low-p-value-indicates-high-model-fit-or-high-predictive-capacity" class="section level4">
+<h4><span class="header-section-number">5.4.5.5</span> Misconception: a low <span class="math inline">\(p\)</span>-value indicates high model fit or high predictive capacity</h4>
+<div id="what-the-p-value-does-not-mean" class="section level5">
+<h5><span class="header-section-number">5.4.5.5.1</span> What the <span class="math inline">\(p\)</span>-value does not mean</h5>
+</div>
+</div>
+</div>
+<div id="recommendations" class="section level3">
+<h3><span class="header-section-number">5.4.6</span> Recommendations</h3>
+</div>
+</div>
+<div id="problems-1" class="section level2">
+<h2><span class="header-section-number">5.5</span> Problems</h2>
+<!--chapter:end:chapters/17-p-values.Rmd-->
+</div>
+</div>
+<div id="creating-fake-data" class="section level1">
+<h1><span class="header-section-number">6</span> Creating Fake Data</h1>
+<p>Placeholder</p>
+<div id="continuous-x-fake-observational-data" class="section level3">
+<h3><span class="header-section-number">6.0.1</span> Continuous X (fake observational data)</h3>
+</div>
+<div id="categorical-x-fake-experimental-data" class="section level3">
+<h3><span class="header-section-number">6.0.2</span> Categorical X (fake experimental data)</h3>
+</div>
+<div id="correlated-x-fake-observational-data" class="section level3">
+<h3><span class="header-section-number">6.0.3</span> Correlated X (fake observational data)</h3>
+<div id="generating-correlated-x-variables" class="section level4">
+<h4><span class="header-section-number">6.0.3.1</span> Generating correlated X variables</h4>
+</div>
+<div id="creating-mulitple-x-variables-using-the-package-mvtnorm" class="section level4">
+<h4><span class="header-section-number">6.0.3.2</span> Creating mulitple X variables using the package mvtnorm</h4>
+</div>
+<div id="the-rcov1-algorithm-is-naive" class="section level4">
+<h4><span class="header-section-number">6.0.3.3</span> The rcov1 algorithm is naive</h4>
+</div>
+<div id="generating-multiple-columns-of-x-variables-with-a-non-singular-covariance-matrix" class="section level4">
+<h4><span class="header-section-number">6.0.3.4</span> Generating multiple columns of X variables with a non-singular covariance matrix</h4>
+<!--chapter:end:chapters/18-fake-data.Rmd-->
+</div>
+</div>
+</div>
+<div id="part-iii-introduction-to-linear-models" class="section level1 unnumbered">
+<h1>Part III: Introduction to Linear Models</h1>
+<!--chapter:end:chapters/20-part-iii-linear-model.Rmd-->
+</div>
+<div id="a-linear-model-with-a-single-continuous-x" class="section level1">
+<h1><span class="header-section-number">7</span> A linear model with a single, continuous <em>X</em></h1>
+<p>Placeholder</p>
+<div id="a-linear-model-with-a-single-continuous-x-is-classical-regression" class="section level2">
+<h2><span class="header-section-number">7.1</span> A linear model with a single, continuous <em>X</em> is classical “regression”</h2>
+<div id="using-a-linear-model-to-estimate-explanatory-effects" class="section level3">
+<h3><span class="header-section-number">7.1.1</span> Using a linear model to estimate explanatory effects</h3>
+<div id="probabilistic-vs.causal-conditioning" class="section level4">
+<h4><span class="header-section-number">7.1.1.1</span> Probabilistic vs. causal conditioning</h4>
+</div>
+</div>
+<div id="using-a-linear-model-for-prediction" class="section level3">
+<h3><span class="header-section-number">7.1.2</span> Using a linear model for prediction</h3>
+</div>
+<div id="reporting-results" class="section level3">
+<h3><span class="header-section-number">7.1.3</span> Reporting results</h3>
+</div>
+</div>
+<div id="working-in-r" class="section level2">
+<h2><span class="header-section-number">7.2</span> Working in R</h2>
+<div id="exploring-the-bivariate-relationship-between-y-and-x" class="section level3">
+<h3><span class="header-section-number">7.2.1</span> Exploring the bivariate relationship between <em>Y</em> and <em>X</em></h3>
+</div>
+<div id="fitting-the-linear-model" class="section level3">
+<h3><span class="header-section-number">7.2.2</span> Fitting the linear model</h3>
+</div>
+<div id="getting-to-know-the-linear-model-the-summary-function" class="section level3">
+<h3><span class="header-section-number">7.2.3</span> Getting to know the linear model: the <code>summary</code> function</h3>
+</div>
+<div id="display-an-alternative-to-summary" class="section level3">
+<h3><span class="header-section-number">7.2.4</span> display: An alternative to summary</h3>
+</div>
+<div id="confidence-intervals" class="section level3">
+<h3><span class="header-section-number">7.2.5</span> Confidence intervals</h3>
+</div>
+<div id="how-good-is-our-model" class="section level3">
+<h3><span class="header-section-number">7.2.6</span> How good is our model?</h3>
+</div>
+<div id="exploring-a-lm-object" class="section level3">
+<h3><span class="header-section-number">7.2.7</span> exploring a lm object</h3>
+</div>
+</div>
+<div id="problems-2" class="section level2">
+<h2><span class="header-section-number">7.3</span> Problems</h2>
+<!--chapter:end:chapters/22-continuous_X.Rmd-->
+</div>
+</div>
+<div id="a-linear-model-with-a-single-categorical-x" class="section level1">
+<h1><span class="header-section-number">8</span> A linear model with a single, categorical <em>X</em></h1>
+<p>Placeholder</p>
+<div id="a-linear-model-with-a-single-categorical-x-estimates-the-effects-of-x-on-the-response." class="section level2">
+<h2><span class="header-section-number">8.1</span> A linear model with a single, categorical <em>X</em> estimates the effects of <em>X</em> on the response.</h2>
+<div id="table-of-model-coefficients" class="section level3">
+<h3><span class="header-section-number">8.1.1</span> Table of model coefficients</h3>
+</div>
+<div id="the-linear-model" class="section level3">
+<h3><span class="header-section-number">8.1.2</span> The linear model</h3>
+<div id="some-math-to-convince-you-that-the-intercept-of-a-linear-model-with-a-categorical-x-is-the-mean-of-the-reference-group-and-the-intercept-of-a-line.-and-some-math-to-convince-you-that-the-coefficient-of-a-dummy-variable-in-a-linear-model-with-a-categorial-x-is-a-difference-in-means-and-a-slope." class="section level4">
+<h4><span class="header-section-number">8.1.2.1</span> Some math to convince you that the intercept of a linear model with a categorical <span class="math inline">\(X\)</span> is the mean of the reference group <em>and</em> the intercept of a line. And some math to convince you that the coefficient of a dummy variable in a linear model with a categorial <span class="math inline">\(X\)</span> is a difference in means <em>and</em> a slope.</h4>
+</div>
+</div>
+<div id="reporting-results-1" class="section level3">
+<h3><span class="header-section-number">8.1.3</span> Reporting results</h3>
+<div id="harrell-plot-of-the-data" class="section level4">
+<h4><span class="header-section-number">8.1.3.1</span> Harrell Plot of the data</h4>
+</div>
+<div id="in-text-reporting" class="section level4">
+<h4><span class="header-section-number">8.1.3.2</span> In-text reporting</h4>
+</div>
+<div id="correct-interpretation-of-the-confidence-interval-is-key" class="section level4">
+<h4><span class="header-section-number">8.1.3.3</span> Correct interpretation of the Confidence Interval is key</h4>
+</div>
+</div>
+</div>
+<div id="comparing-the-results-of-a-linear-model-to-classical-hypothesis-tests" class="section level2">
+<h2><span class="header-section-number">8.2</span> Comparing the results of a linear model to classical hypothesis tests</h2>
+<div id="t-tests-are-special-cases-of-a-linear-model" class="section level3">
+<h3><span class="header-section-number">8.2.1</span> t-tests are special cases of a linear model</h3>
+<div id="students-t-test" class="section level4">
+<h4><span class="header-section-number">8.2.1.1</span> Student’s t-test</h4>
+</div>
+<div id="welchs-t-test" class="section level4">
+<h4><span class="header-section-number">8.2.1.2</span> Welch’s t-test</h4>
+</div>
+<div id="paired-t-test" class="section level4">
+<h4><span class="header-section-number">8.2.1.3</span> Paired t-test</h4>
+</div>
+</div>
+<div id="anova-is-a-special-case-of-a-linear-model" class="section level3">
+<h3><span class="header-section-number">8.2.2</span> ANOVA is a special case of a linear model</h3>
+</div>
+</div>
+<div id="working-in-r-1" class="section level2">
+<h2><span class="header-section-number">8.3</span> Working in R</h2>
+<div id="fitting-the-model" class="section level3">
+<h3><span class="header-section-number">8.3.1</span> Fitting the model</h3>
+</div>
+<div id="changing-the-reference-level" class="section level3">
+<h3><span class="header-section-number">8.3.2</span> Changing the reference level</h3>
+</div>
+<div id="an-introduction-to-contrasts" class="section level3">
+<h3><span class="header-section-number">8.3.3</span> An introduction to contrasts</h3>
+</div>
+<div id="harrell-plot" class="section level3">
+<h3><span class="header-section-number">8.3.4</span> Harrell plot</h3>
+<div id="installing-the-harrellplot-package" class="section level4">
+<h4><span class="header-section-number">8.3.4.1</span> Installing the harrellplot package</h4>
+</div>
+<div id="using-harrellplot-to-make-a-nice-publishable-plot-of-treatment-effects" class="section level4">
+<h4><span class="header-section-number">8.3.4.2</span> Using harrellplot to make a nice, publishable plot of treatment effects</h4>
+<!--chapter:end:chapters/24-categorical_X.Rmd-->
+</div>
+</div>
+</div>
+</div>
+<div id="model-checking" class="section level1">
+<h1><span class="header-section-number">9</span> Model Checking</h1>
+<p>Placeholder</p>
+<div id="do-coefficients-make-numeric-sense" class="section level2">
+<h2><span class="header-section-number">9.1</span> Do coefficients make numeric sense?</h2>
+</div>
+<div id="all-statistical-analyses-should-be-followed-by-model-checking" class="section level2">
+<h2><span class="header-section-number">9.2</span> All statistical analyses should be followed by model checking</h2>
+</div>
+<div id="linear-model-assumptions" class="section level2">
+<h2><span class="header-section-number">9.3</span> Linear model assumptions</h2>
+</div>
+<div id="diagnostic-plots-use-the-residuals-from-the-model-fit" class="section level2">
+<h2><span class="header-section-number">9.4</span> Diagnostic plots use the residuals from the model fit</h2>
+<div id="residuals" class="section level3">
+<h3><span class="header-section-number">9.4.1</span> Residuals</h3>
+</div>
+<div id="a-normal-q-q-plot-is-used-to-check-normality" class="section level3">
+<h3><span class="header-section-number">9.4.2</span> A Normal Q-Q plot is used to check normality</h3>
+<div id="right-skewed" class="section level4">
+<h4><span class="header-section-number">9.4.2.1</span> Right skewed</h4>
+</div>
+<div id="excess-zeroes" class="section level4">
+<h4><span class="header-section-number">9.4.2.2</span> Excess zeroes</h4>
+</div>
+<div id="constrained-lower-and-upper-bounds" class="section level4">
+<h4><span class="header-section-number">9.4.2.3</span> Constrained lower and upper bounds</h4>
+</div>
+<div id="binary-responses" class="section level4">
+<h4><span class="header-section-number">9.4.2.4</span> Binary responses</h4>
+</div>
+</div>
+<div id="outliers---an-outlier-is-a-point-that-is-highly-unexpected-given-the-modeled-distribution." class="section level3">
+<h3><span class="header-section-number">9.4.3</span> Outliers - an outlier is a point that is highly unexpected given the modeled distribution.</h3>
+</div>
+</div>
+<div id="model-checking-homoskedasticity" class="section level2">
+<h2><span class="header-section-number">9.5</span> Model checking homoskedasticity</h2>
+</div>
+<div id="model-checking-independence---hapiness-adverse-example." class="section level2">
+<h2><span class="header-section-number">9.6</span> Model checking independence - hapiness adverse example.</h2>
+</div>
+<div id="using-r" class="section level2">
+<h2><span class="header-section-number">9.7</span> Using R</h2>
+<!--chapter:end:chapters/26-model-checking.Rmd-->
+</div>
+</div>
+<div id="model-fitting-and-model-fit-ols" class="section level1">
+<h1><span class="header-section-number">10</span> Model Fitting and Model Fit (OLS)</h1>
+<p>Placeholder</p>
+<div id="least-squares-estimation-and-the-decomposition-of-variance" class="section level2">
+<h2><span class="header-section-number">10.1</span> Least Squares Estimation and the Decomposition of Variance</h2>
+</div>
+<div id="ols-regression" class="section level2">
+<h2><span class="header-section-number">10.2</span> OLS regression</h2>
+</div>
+<div id="how-well-does-the-model-fit-the-data-r2-and-variance-explained" class="section level2">
+<h2><span class="header-section-number">10.3</span> How well does the model fit the data? <span class="math inline">\(R^2\)</span> and “variance explained”</h2>
+<!--chapter:end:chapters/28-model-fit.Rmd-->
+</div>
+</div>
+<div id="plotting-models" class="section level1">
+<h1><span class="header-section-number">11</span> Plotting Models</h1>
+<p>Placeholder</p>
+<div id="pretty-good-plots-show-the-model-and-the-data" class="section level2">
+<h2><span class="header-section-number">11.1</span> Pretty good plots show the model and the data</h2>
+<div id="pretty-good-plot-component-1-modeled-effects-plot" class="section level3">
+<h3><span class="header-section-number">11.1.1</span> Pretty good plot component 1: Modeled effects plot</h3>
+</div>
+<div id="pretty-good-plot-component-2-modeled-mean-and-ci-plot-with-jittered-raw-data" class="section level3">
+<h3><span class="header-section-number">11.1.2</span> Pretty good plot component 2: Modeled mean and CI plot with jittered raw data</h3>
+</div>
+<div id="combining-effects-and-modeled-mean-and-ci-plots-an-effects-and-response-plot." class="section level3">
+<h3><span class="header-section-number">11.1.3</span> Combining Effects and Modeled mean and CI plots – an Effects and response plot.</h3>
+</div>
+</div>
+<div id="some-comments-on-plot-components" class="section level2">
+<h2><span class="header-section-number">11.2</span> Some comments on plot components</h2>
+</div>
+<div id="working-in-r-2" class="section level2">
+<h2><span class="header-section-number">11.3</span> Working in R</h2>
+<div id="unpooled-se-bars-and-confidence-intervals" class="section level3">
+<h3><span class="header-section-number">11.3.1</span> Unpooled SE bars and confidence intervals</h3>
+</div>
+<div id="adding-bootstrap-intervals" class="section level3">
+<h3><span class="header-section-number">11.3.2</span> Adding bootstrap intervals</h3>
+</div>
+<div id="adding-modeled-error-intervals" class="section level3">
+<h3><span class="header-section-number">11.3.3</span> Adding modeled error intervals</h3>
+<div id="modeled-error-intervals-of-the-effect" class="section level4">
+<h4><span class="header-section-number">11.3.3.1</span> Modeled error intervals of the effect</h4>
+</div>
+<div id="modeled-error-intervals-of-the-mean" class="section level4">
+<h4><span class="header-section-number">11.3.3.2</span> Modeled error intervals of the mean</h4>
+</div>
+<div id="combining-effects-and-response-plots" class="section level4">
+<h4><span class="header-section-number">11.3.3.3</span> Combining effects and response plots</h4>
+</div>
+</div>
+<div id="adding-p-values" class="section level3">
+<h3><span class="header-section-number">11.3.4</span> Adding p-values</h3>
+</div>
+<div id="adding-custom-p-values" class="section level3">
+<h3><span class="header-section-number">11.3.5</span> Adding custom p-values</h3>
+</div>
+<div id="plotting-two-factors" class="section level3">
+<h3><span class="header-section-number">11.3.6</span> Plotting two factors</h3>
+<div id="three-factors" class="section level4">
+<h4><span class="header-section-number">11.3.6.1</span> Three factors</h4>
+<!--chapter:end:chapters/29-plotting_models.Rmd-->
+</div>
+</div>
+</div>
+</div>
+<div id="part-iv-more-than-one-x-multivariable-models" class="section level1 unnumbered">
+<h1>Part IV: More than one <span class="math inline">\(X\)</span> – Multivariable Models</h1>
+<!--chapter:end:chapters/30-part-iv-multivariable.Rmd-->
+</div>
+<div id="adding-covariates-to-a-linear-model" class="section level1">
+<h1><span class="header-section-number">12</span> Adding covariates to a linear model</h1>
+<p>Placeholder</p>
+<div id="adding-covariates-can-increases-the-precision-of-the-effect-of-interest" class="section level2">
+<h2><span class="header-section-number">12.1</span> Adding covariates can increases the precision of the effect of interest</h2>
+<div id="interaction-effects-with-covariates" class="section level3">
+<h3><span class="header-section-number">12.1.1</span> Interaction effects with covariates</h3>
+</div>
+<div id="add-only-covariates-that-were-measured-before-peaking-at-the-data" class="section level3">
+<h3><span class="header-section-number">12.1.2</span> Add only covariates that were measured before peaking at the data</h3>
+</div>
+</div>
+<div id="regression-to-the-mean" class="section level2">
+<h2><span class="header-section-number">12.2</span> Regression to the mean</h2>
+<div id="do-not-use-percent-change-believing-that-percents-account-for-effects-of-initial-weights" class="section level3">
+<h3><span class="header-section-number">12.2.1</span> Do not use percent change, believing that percents account for effects of initial weights</h3>
+</div>
+<div id="do-not-test-for-balance-of-baseline-measures" class="section level3">
+<h3><span class="header-section-number">12.2.2</span> Do not “test for balance” of baseline measures</h3>
+<!--chapter:end:chapters/32-covariates.Rmd-->
+</div>
+</div>
+</div>
+<div id="two-or-more-categorical-x-factorial-designs" class="section level1">
+<h1><span class="header-section-number">13</span> Two (or more) Categorical <span class="math inline">\(X\)</span> – Factorial designs</h1>
+<p>Placeholder</p>
+<div id="factorial-experiments" class="section level2">
+<h2><span class="header-section-number">13.1</span> Factorial experiments</h2>
+<div id="model-coefficients-an-interaction-effect-is-what-is-leftover-after-adding-the-treatment-effects-to-the-control" class="section level3">
+<h3><span class="header-section-number">13.1.1</span> Model coefficients: an interaction effect is what is leftover after adding the treatment effects to the control</h3>
+</div>
+<div id="what-is-the-biological-meaning-of-an-interaction-effect" class="section level3">
+<h3><span class="header-section-number">13.1.2</span> What is the biological meaning of an interaction effect?</h3>
+</div>
+<div id="what-about-models-with-more-than-two-factors" class="section level3">
+<h3><span class="header-section-number">13.1.3</span> What about models with more than two factors?</h3>
+</div>
+<div id="the-additive-model" class="section level3">
+<h3><span class="header-section-number">13.1.4</span> The additive model</h3>
+</div>
+<div id="contrasts-simple-vs.main-effects" class="section level3">
+<h3><span class="header-section-number">13.1.5</span> Contrasts – simple vs. main effects</h3>
+</div>
+</div>
+<div id="reporting-results-2" class="section level2">
+<h2><span class="header-section-number">13.2</span> Reporting results</h2>
+<div id="text-results" class="section level3">
+<h3><span class="header-section-number">13.2.1</span> Text results</h3>
+</div>
+<div id="harrellplot" class="section level3">
+<h3><span class="header-section-number">13.2.2</span> Harrellplot</h3>
+</div>
+<div id="interaction-plots" class="section level3">
+<h3><span class="header-section-number">13.2.3</span> Interaction plots</h3>
+</div>
+</div>
+<div id="recommendations-1" class="section level2">
+<h2><span class="header-section-number">13.3</span> Recommendations</h2>
+</div>
+<div id="working-in-r-3" class="section level2">
+<h2><span class="header-section-number">13.4</span> Working in R</h2>
+</div>
+<div id="problems-3" class="section level2">
+<h2><span class="header-section-number">13.5</span> Problems</h2>
+<!--chapter:end:chapters/34-factorial.Rmd-->
+</div>
+</div>
+<div id="anova-tables" class="section level1">
+<h1><span class="header-section-number">14</span> ANOVA Tables</h1>
+<p>Placeholder</p>
+<div id="summary-of-usage" class="section level2">
+<h2><span class="header-section-number">14.1</span> Summary of usage</h2>
+</div>
+<div id="example-a-one-way-anova-using-the-vole-data" class="section level2">
+<h2><span class="header-section-number">14.2</span> Example: a one-way ANOVA using the vole data</h2>
+</div>
+<div id="example-a-two-way-anova-using-the-urchin-data" class="section level2">
+<h2><span class="header-section-number">14.3</span> Example: a two-way ANOVA using the urchin data</h2>
+<div id="how-to-read-an-anova-table" class="section level3">
+<h3><span class="header-section-number">14.3.1</span> How to read an ANOVA table</h3>
+<div id="each-row-in-the-table-tests-a-null-hypothesis" class="section level4">
+<h4><span class="header-section-number">14.3.1.1</span> Each row in the table tests a null hypothesis</h4>
+</div>
+<div id="what-to-do-after-anova" class="section level4">
+<h4><span class="header-section-number">14.3.1.2</span> What to do after ANOVA?</h4>
+</div>
+</div>
+<div id="how-to-read-anova-results-reported-in-the-text" class="section level3">
+<h3><span class="header-section-number">14.3.2</span> How to read ANOVA results reported in the text</h3>
+</div>
+<div id="better-practice-estimates-and-their-uncertainty" class="section level3">
+<h3><span class="header-section-number">14.3.3</span> Better practice – estimates and their uncertainty</h3>
+</div>
+</div>
+<div id="unbalanced-designs" class="section level2">
+<h2><span class="header-section-number">14.4</span> Unbalanced designs</h2>
+<div id="what-is-going-on-in-unbalanced-anova-type-i-ii-iii-sum-of-squares" class="section level3">
+<h3><span class="header-section-number">14.4.1</span> What is going on in unbalanced ANOVA? – Type I, II, III sum of squares</h3>
+</div>
+<div id="back-to-interpretation-of-main-effects" class="section level3">
+<h3><span class="header-section-number">14.4.2</span> Back to interpretation of main effects</h3>
+</div>
+<div id="the-anova-tables-for-type-i-ii-and-iii-sum-of-squares-are-the-same-if-the-design-is-balanced." class="section level3">
+<h3><span class="header-section-number">14.4.3</span> The anova tables for Type I, II, and III sum of squares are the same if the design is balanced.</h3>
+</div>
+</div>
+<div id="working-in-r-4" class="section level2">
+<h2><span class="header-section-number">14.5</span> Working in R</h2>
+<div id="type-i-sum-of-squares-in-r" class="section level3">
+<h3><span class="header-section-number">14.5.1</span> Type I sum of squares in R</h3>
+</div>
+<div id="type-ii-and-iii-sum-of-squares" class="section level3">
+<h3><span class="header-section-number">14.5.2</span> Type II and III Sum of Squares</h3>
+<!--chapter:end:chapters/42-anova.Rmd-->
+</div>
+</div>
+</div>
+<div id="predictive-models" class="section level1">
+<h1><span class="header-section-number">15</span> Predictive Models</h1>
+<p>Placeholder</p>
+<div id="overfitting" class="section level2">
+<h2><span class="header-section-number">15.1</span> Overfitting</h2>
+</div>
+<div id="model-building-vs.variable-selection-vs.model-selection" class="section level2">
+<h2><span class="header-section-number">15.2</span> Model building vs. Variable selection vs. Model selection</h2>
+<div id="stepwise-regression" class="section level3">
+<h3><span class="header-section-number">15.2.1</span> Stepwise regression</h3>
+</div>
+<div id="cross-validation" class="section level3">
+<h3><span class="header-section-number">15.2.2</span> Cross-validation</h3>
+</div>
+<div id="penalization" class="section level3">
+<h3><span class="header-section-number">15.2.3</span> Penalization</h3>
+<div id="aic" class="section level4">
+<h4><span class="header-section-number">15.2.3.1</span> AIC</h4>
+</div>
+<div id="lasso" class="section level4">
+<h4><span class="header-section-number">15.2.3.2</span> LASSO</h4>
+</div>
+</div>
+</div>
+<div id="shrinkage" class="section level2">
+<h2><span class="header-section-number">15.3</span> Shrinkage</h2>
+<!--chapter:end:chapters/46-predictive-models.Rmd-->
+</div>
+</div>
+<div id="part-v-expanding-the-linear-model-generalized-linear-models-and-multilevel-linear-mixed-models" class="section level1 unnumbered">
+<h1>Part V: Expanding the Linear Model – Generalized Linear Models and Multilevel (Linear Mixed) Models</h1>
+<!--chapter:end:chapters/50-part-v-expanding-linear-model.Rmd-->
+</div>
+<div id="generalized-linear-models-i-count-data" class="section level1">
+<h1><span class="header-section-number">16</span> Generalized linear models I: Count data</h1>
+<p>Placeholder</p>
+<div id="the-generalized-linear-model" class="section level2">
+<h2><span class="header-section-number">16.1</span> The generalized linear model</h2>
+</div>
+<div id="count-data-example-number-of-trematode-worm-larvae-in-eyes-of-threespine-stickleback-fish" class="section level2">
+<h2><span class="header-section-number">16.2</span> Count data example – number of trematode worm larvae in eyes of threespine stickleback fish</h2>
+<div id="modeling-strategy-1" class="section level3">
+<h3><span class="header-section-number">16.2.1</span> Modeling strategy</h3>
+</div>
+<div id="checking-the-model-i-a-normal-q-q-plot" class="section level3">
+<h3><span class="header-section-number">16.2.2</span> Checking the model I – a Normal Q-Q plot</h3>
+</div>
+<div id="checking-the-model-ii-scale-location-plot-for-checking-homoskedasticity" class="section level3">
+<h3><span class="header-section-number">16.2.3</span> Checking the model II – scale-location plot for checking homoskedasticity</h3>
+</div>
+<div id="two-distributions-for-count-data-poisson-and-negative-binomial" class="section level3">
+<h3><span class="header-section-number">16.2.4</span> Two distributions for count data – Poisson and Negative Binomial</h3>
+</div>
+<div id="fitting-a-glm-with-a-poisson-distribution-to-the-worm-data" class="section level3">
+<h3><span class="header-section-number">16.2.5</span> Fitting a GLM with a Poisson distribution to the worm data</h3>
+</div>
+<div id="model-checking-fits-to-count-data" class="section level3">
+<h3><span class="header-section-number">16.2.6</span> Model checking fits to count data</h3>
+<div id="model-checking-a-glm-i-the-quantile-residual-q-q-plot" class="section level4">
+<h4><span class="header-section-number">16.2.6.1</span> Model checking a GLM I – the quantile residual Q-Q plot</h4>
+</div>
+<div id="model-checking-a-glm-ii-a-dispersion-plot" class="section level4">
+<h4><span class="header-section-number">16.2.6.2</span> Model checking a GLM II – a dispersion plot</h4>
+</div>
+</div>
+<div id="fitting-a-glm-with-a-negative-binomial-distribution-to-the-worm-data" class="section level3">
+<h3><span class="header-section-number">16.2.7</span> Fitting a GLM with a Negative Binomial distribution to the worm data</h3>
+<div id="model-checking-1" class="section level4">
+<h4><span class="header-section-number">16.2.7.1</span> Model checking</h4>
+</div>
+<div id="model-means-and-coefficients" class="section level4">
+<h4><span class="header-section-number">16.2.7.2</span> Model means and coefficients</h4>
+</div>
+</div>
+</div>
+<div id="working-in-r-5" class="section level2">
+<h2><span class="header-section-number">16.3</span> Working in R</h2>
+</div>
+<div id="problems-4" class="section level2">
+<h2><span class="header-section-number">16.4</span> Problems</h2>
+<!--chapter:end:chapters/52-glm01-counts.Rmd-->
+</div>
+</div>
+<div id="linear-mixed-models" class="section level1">
+<h1><span class="header-section-number">17</span> Linear mixed models</h1>
+<p>Placeholder</p>
+<div id="random-effects" class="section level2">
+<h2><span class="header-section-number">17.1</span> Random effects</h2>
+</div>
+<div id="random-effects-in-statistical-models" class="section level2">
+<h2><span class="header-section-number">17.2</span> Random effects in statistical models</h2>
+</div>
+<div id="linear-mixed-models-are-flexible" class="section level2">
+<h2><span class="header-section-number">17.3</span> Linear mixed models are flexible</h2>
+</div>
+<div id="visualizing-block-effects" class="section level2">
+<h2><span class="header-section-number">17.4</span> Visualizing block effects</h2>
+</div>
+<div id="linear-mixed-models-can-increase-precision-of-point-estimates" class="section level2">
+<h2><span class="header-section-number">17.5</span> Linear mixed models can increase precision of point estimates</h2>
+</div>
+<div id="linear-mixed-models-are-used-to-avoid-pseudoreplication" class="section level2">
+<h2><span class="header-section-number">17.6</span> Linear mixed models are used to avoid pseudoreplication</h2>
+</div>
+<div id="linear-mixed-models-shrink-coefficients-by-partial-pooling" class="section level2">
+<h2><span class="header-section-number">17.7</span> Linear mixed models shrink coefficients by partial pooling</h2>
+</div>
+<div id="working-in-r-6" class="section level2">
+<h2><span class="header-section-number">17.8</span> Working in R</h2>
+<div id="coral-data" class="section level3">
+<h3><span class="header-section-number">17.8.1</span> coral data</h3>
+<!--chapter:end:chapters/60-lmm01-blocking.Rmd-->
+</div>
+</div>
+</div>
+<div id="appendix-1-getting-started-with-r" class="section level1 unnumbered">
+<h1>Appendix 1: Getting Started with R</h1>
+<p>Placeholder</p>
+<div id="get-your-computer-ready" class="section level2">
+<h2><span class="header-section-number">17.9</span> Get your computer ready</h2>
+<div id="install-r" class="section level3">
+<h3><span class="header-section-number">17.9.1</span> Install R</h3>
+</div>
+<div id="install-r-studio" class="section level3">
+<h3><span class="header-section-number">17.9.2</span> Install R Studio</h3>
+</div>
+<div id="resources-for-installing-r-and-r-studio" class="section level3">
+<h3><span class="header-section-number">17.9.3</span> Resources for installing R and R Studio</h3>
+</div>
+<div id="install-latex" class="section level3">
+<h3><span class="header-section-number">17.9.4</span> Install LaTeX</h3>
+</div>
+</div>
+<div id="start-learning" class="section level2">
+<h2><span class="header-section-number">17.10</span> Start learning</h2>
+<div id="start-with-data-camp-introduction-to-r" class="section level3">
+<h3><span class="header-section-number">17.10.1</span> Start with Data Camp Introduction to R</h3>
+</div>
+<div id="then-move-to-introduction-to-r-studio" class="section level3">
+<h3><span class="header-section-number">17.10.2</span> Then Move to Introduction to R Studio</h3>
+</div>
+<div id="develop-your-project-with-an-r-studio-notebook" class="section level3">
+<h3><span class="header-section-number">17.10.3</span> Develop your project with an R Studio Notebook</h3>
+</div>
+</div>
+<div id="getting-data-into-r" class="section level2">
+<h2><span class="header-section-number">17.11</span> Getting Data into R</h2>
+</div>
+<div id="additional-r-learning-resources" class="section level2">
+<h2><span class="header-section-number">17.12</span> Additional R learning resources</h2>
+</div>
+<div id="packages-used-extensively-in-this-text" class="section level2">
+<h2><span class="header-section-number">17.13</span> Packages used extensively in this text</h2>
+<!--chapter:end:chapters/92-R_resources.Rmd-->
+</div>
+</div>
+<div id="appendix-2-online-resources-for-getting-started-with-statistical-modeling-in-r" class="section level1 unnumbered">
+<h1>Appendix 2: Online Resources for Getting Started with Statistical Modeling in R</h1>
+<p>Roughly, in order from most elementary to most advanced</p>
+<p><a href="https://https://learningstatisticswithr-bookdown.netlify.com">Learning Statistics with R</a> by Danielle Navarro and adapted to Bookdown (for web viewing) by Emily Kothe.</p>
+<p><a href="http://statsthinking21.org">Statististical Thinking for the 21st Century</a> by Russell A. Poldrack</p>
+<p><a href="https://leanpub.com/regmods">Regression Models for Data Science in R</a> by Brian Caffo</p>
+<p><a href="https://bookdown.org/roback/bookdown-bysh/">Broadening Your Statistical Horizons: Generalized Linear Models and Multilevel Models by J. Legler and P. Roback</a></p>
+<p><a href="https://www.huber.embl.de/msmb/index.html">Modern Statistics for Modern Biology</a></p>
+<p><a href="https://bookdown.org/rdpeng/artofdatascience/">The Art of Data Science by Roger D. Peng and Elizabeth Matsui</a></p>
+<!--chapter:end:chapters/93-Getting_started_with_linear_modeling.Rmd-->
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Gegenrezer<a href="#fnref1">↩</a></p></li>
+</ol>
+</div>
+<!--bookdown:body:end-->
+            </section>
+
+          </div>
+        </div>
+      </div>
+<!--bookdown:link_prev-->
+<!--bookdown:link_next-->
+    </div>
+  </div>
+<!--bookdown:config-->
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "";
+    if (src === "" || src === "true") src = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>

@@ -26,6 +26,7 @@ rmd_files: ["index.Rmd",
 "chapters/50-part-v-expanding-linear-model.Rmd",
 "chapters/52-glm01-counts.Rmd",
 "chapters/60-lmm01-blocking.Rmd",
+"chapters/70-gls.Rmd",
 "chapters/92-R_resources.Rmd",
 "chapters/93-Getting_started_with_linear_modeling.Rmd"]
 

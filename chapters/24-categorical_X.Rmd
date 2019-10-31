@@ -2,7 +2,6 @@
 
 ```{r setup-single-categorical-x, echo=FALSE, warning=FALSE, message=FALSE}
 library(ggplot2)
-library(reshape2)
 library(readxl)
 library(emmeans)
 library(data.table)
@@ -11,12 +10,39 @@ library(harrellplot)
 library(broom)
 library(car)
 library(Hmisc)
-library(lme4) # only if fitting lmm
-library(lmerTest) # only if fitting lmm
+library(nlme) # only if fitting lmm
 
+library(janitor)
+library(here)
+here <- here::here
 data_path <- "../data" # notebook
 data_path <- "data" # bookdown
 
+reglance <- function(x){
+  if(class(x)=="htest"){
+    t <- x$statistic
+    df <- x$parameter
+    p <- x$p.value
+  }
+   if(class(x)=="lm"){
+    df <- x$df.residual
+    t <- coef(summary(x))[2, "t value"]
+    p <- coef(summary(x))[2, "Pr(>|t|)"]
+  }
+ if(class(x)=="gls"){
+    N <- summary(x)$dims$N
+    k <- 2
+    df <- N - k
+    t <- summary(x)$tTable[2, "t-value"]
+    p <- summary(x)$tTable[2, "p-value"]
+  }
+  if(class(x)=="emmGrid"){
+    df <- summary(x)[1, "df"]
+    t <- summary(x)[1, "t.ratio"]
+    p <- summary(x)[1, "p.value"]
+  }
+  return(c(df=df, t=t, p=p))
+}
 ```
 
 ## A linear model with a single, categorical *X* estimates the effects of *X* on the response.
@@ -43,7 +69,7 @@ setnames(vole, old="lifespan_days", "lifespan")
 
 To introduce modeling with a single, categorical $X$ variable, I'll use the [Vole data] from Chapter 2. Normal cellular metabolism creates reactive oxygen species (ROS) that can disrupt cell function and potentially cause cell damage. Anti-oxidants are molecules that bind ROS, inhibiting their ability to disrupt cell activity. A working hypothesis for many years is that supplemental anti-oxidants should improve cell function and, scaling up, whole-animal function (such as lifespan). The vole data explores this with supplemental Vitamins C and E, which are anti-oxidants, in the diet of the short-tailed field vole (*Microtus agrestis*). 
 
-The goal of the study is to measure the effect of anti-oxidants on lifespan. The researchers randomly assigned the voles to one of thre treatment levels: "control", "vitamin E", and "vitamin C". The variable $treatment$, is a single, categorical $X$ variable. Categorical variables are often called **factors** and the treatment levels are often called **factor levels**. There are no units to a categorical $X$ variable (even though a certain amount of each anti-oxidant was supplemented). The response ($Y$) is $lifespan$ measured in days.
+The goal of the study is to measure the effect of anti-oxidants on lifespan. The researchers randomly assigned the voles to one of thre treatment levels: "control", "vitamin E", and "vitamin C". The variable $treatment$, is a single, categorical $X$ variable. Categorical variables are often called **factors** and the treatment levels are often called **factor levels**. "Levels" is a strange usage of this word; a less formal name for levels is "groups". There are no units to a categorical $X$ variable (even though a certain amount of each anti-oxidant was supplemented). The response ($Y$) is $lifespan$ measured in days.
 
 The linear model with a categorical $X$ variable with three levels is not immediately obvious, and so I don't present the model until after showing the table of model coefficients. The verbal model is
 
@@ -58,10 +84,10 @@ The *table of coefficients* from a linear model fit to some data is critically i
 
 ```{r vole-table, echo=FALSE}
 fit <- lm(lifespan ~ treatment, data=vole)
-knitr::kable(coefficients(summary(fit)), digits=c(1,1,1,3))
+knitr::kable(coefficients(summary(fit)), digits=c(1,1,1,3), caption="Coefficient table of fit linear model of vole data.")
 ```
 
-The table has three values in the column "Estimate". The first estimate, that for  "(intercept)" is the mean response in the reference level. Here, the reference level is the "control" group. The second estimate, that for "treatmentvitamin_C" is the difference between the mean of the vitamin C group and the the mean of the reference (control) group. The *direction* of this difference is important; it is $\bar{Y}_{vitamin\_c} - \bar{Y}_{control}$, that is the non-reference level minus the reference level. The third estimate, that for "treatmentvitamin_E" is just like the second estimate, except for the vitamin E group. That is, it is $\bar{Y}_{vitamin\_e} - \bar{Y}_{control}$. The 2nd and 3rd values in the "Estimate" columns are the "effects" in the model. These effects are "what happens" when we add a treatment, such as vitamin E supplementation. When we add the vitamin E supplement, we find the lifespan changes by `r coefficients(summary(fit))["treatmentvitamin_E", "Estimate"]` days, relative to the control.
+The table has three values in the column "Estimate". The first estimate, that for  "(intercept)" is the mean response in the reference level. Here, the reference level is the "control" group. The second estimate, that for "treatmentvitamin_C" is the difference between the mean of the vitamin C group and the the mean of the reference (control) group. The *direction* of this difference is important; it is $\bar{Y}_{vitamin\_c} - \bar{Y}_{control}$, that is the non-reference level minus the reference level. The third estimate, that for "treatmentvitamin_E" is just like the second estimate, except for the vitamin E group. That is, it is $\bar{Y}_{vitamin\_e} - \bar{Y}_{control}$. The 2nd and 3rd values in the "Estimate" columns are the "effects" in the model. These effects are "what happens" when we add a treatment, such as vitamin E supplementation. When we add the vitamin E supplement, we find the lifespan changes by `r round(coefficients(summary(fit))["treatmentvitamin_E", "Estimate"], 1)` days, relative to the control.
 
 So typically with categorical $X$, when we speak of an \emph{effect} we mean a difference in means.
 
@@ -110,22 +136,32 @@ gg
 ### The linear model
 We can see an immediate difference between the coefficient table for a linear model fit to a single, categorical $X$ and that for a single, continuous $X$. For the latter, there is a single coefficient for $X$. For the former, there is a coefficient for each level of the categorical $X$ *except* the "reference" level.
 
-The linear model for a single, continuous $X$ with three factor levels is
+The linear model for a single, categorical $X$ with three factor levels is
+
+\begin{equation}
+Y = \beta_0 + \beta_1 X_{group2} + \beta_2 X_{group3} + \varepsilon
+\end{equation}
+
+where $group2$ and $group3$ refer to the two non-reference groups.
+
+For the vole data, "control" is the reference, so the model is
 
 \begin{equation}
 lifespan = \beta_0 + \beta_1 vitamin\_C + \beta_2 vitamin\_E + \varepsilon
 \end{equation}
 
-The estimates in the coefficient table are the estimates of the parameters in the linear model. The estimates are the coefficients of the fit model
+**The "estimates" in the coefficient table are the estimates of the parameters in this linear model. These estimates are the coefficients of the fit model,**
 
 \begin{equation}
 lifespan_i = b_0 + b_1 vitamin\_C_i + b_2 vitamin\_E_i + e_i
 (\#eq:model-cat-x)
 \end{equation}
 
-Given the interpretation of the estimates above, $b_0$ is the mean of the control group, $b_1$ is the difference in means between the vitamin C and control groups, and $b_2$ is the difference in means between the vitamin E and control groups. These estimates and their meaning are illustrated in Figure \@ref(fig:vole-mean-plot). Take a while to understand this plot. Be able to "visualize" the meaning of the coefficients of a linear model in this way.
+Given the interpretation of the estimates above, $b_0$ is the mean of the control group, $b_1$ is the difference in means between the vitamin C and control groups, and $b_2$ is the difference in means between the vitamin E and control groups. These estimates and their meaning are illustrated in Figure \@ref(fig:vole-mean-plot). Take a while to memorize the bold-faced sentence above equation \@ref(eq:model-cat-x) and to understand this plot. Be able to "visualize" the meaning of the coefficients of a linear model in this way.
 
-Model \@ref(eq:model-cat-x) is a regression model. A regression model requires that the $X$ variables be numeric, so how can this model be a regression model? What are the numeric values of $vitamin_C$ and $vitamin_E$? The answer is very clever: $vitamin\_E$ and $vitamin\_C$ are **dummy variables** that contain a one, if response $i$ is from that treatment level, and zero otherwise. This is called dummy coding or treatment coding. The `lm` function creates these dummy variables under the table, in something called the **model matrix**, which we'll cover in another chapter. You won't see these columns in your data. But if you did, it would look something like this
+#### A linear model with a categorical X is a regression model with the treatment levels re-coded as numbers
+
+Model \@ref(eq:model-cat-x) is a regression model. A regression model requires that the $X$ variables be numeric, so how can this model be a regression model? What are the numeric values of $vitamin\_C$ and $vitamin\_E$? The answer is very clever: $vitamin\_C$ and $vitamin\_C$ are **dummy variables** that contain a one, if response $i$ is from that treatment level, and zero otherwise. This is called dummy coding or treatment coding. The `lm` function creates these dummy variables under the table, in something called the **model matrix**, which we'll cover in another chapter. You won't see these columns in your data. But if you did, it would look something like this
 
 ```{r vole-dummy-table, echo=FALSE}
 dt <- vole[, .SD, .SDcols=c("lifespan", "treatment")]
@@ -200,6 +236,112 @@ ci <- confint(fit)
 
 Remember, that the CI contains the range of parameter values that are consistent with the data (in the sense that a t-test wouldn't reject the hypothesis test). This means that a true value at the low end or the high end of the CI is consistent with the data. Your technical report/manuscript should discuss the consequences of this. For example, A small, increase in lifespan is consistant with the Vitamin E but not Vitamin C supplementation, if we use the 95% CI as a pretty good range for inferring "consistent with". Both a 223 day and a 7 day decrease in lifespan are consistant with the Vitamin C effect. 223 days seems like a huge effect, especially for a short lived vole. 7 days is certainly a much smaller effect, but this doesn't mean that it doesn't have important ecological, behavioral, or fitness consequences.
 
+## Comparing the results of a linear model to classical hypothesis tests
+### t-tests are special cases of a linear model
+
+There isn't "a" *t*-test but several flavors of *t*-test including
+
+1. Student's *t*-test. The classical "two-sample" test for comparing the means between two groups
+2. Welch's *t*-test. A modification of Student's test, which relaxes the assumption of equal variance between the groups.
+3. paired *t*-test. A version of the test when values in the two groups are "paired", for example, measuring weight in ten mice before treatment (at "baseline"), measuring weight in the same ten mice after treatment, then comparing the mean post-treatment to mean pre-treatment weight.
+
+All of these are special cases of the linear model. Welch's and paired t-test are swept within a linear model in later chapters. Here, I focus on Student's *t*-test.
+
+First, let's review *t*-values, which were introduced in Chapter 5 on *p*-values. A reminder, a *t*-value is a ratio of signal to noise, where the signal is an estimate of some parameter and the noise is the standard error of the estimate. The parameter of interest here is the difference in means between treatment and control, so *t* is
+
+\begin{equation}
+t = \frac{\bar{y}_t - \bar{y}_c}{s_{\bar{y}_t - \bar{y}_c}}
+(\#eq:lm-t-value)
+\end{equation}
+
+Note that the numerator and denominator in equation \@ref(eq:lm-t-value) are in the coefficient table of a linear model with categorical $X$ -- the numerator is the estimate of the effect of a treatment and the denominator is the standard error of this estimate.
+
+To explore these equalities, let's use data from
+
+**article** Bak, A.M., Vendelbo, M.H., Christensen, B., Viggers, R., Bibby, B.M., Rungby, J., Jørgensen, J.O.L., Møller, N. and Jessen, N., 2018. Prolonged fasting-induced metabolic signatures in human skeletal muscle of lean and obese men. PloS one, 13(9), p.e0200817.
+
+**data source** https://datadryad.org/stash/dataset/doi:10.5061/dryad.6121hj7
+
+The data are from a randomized **crossover** design where 18 men (9 lean and 9 obese) were measured for multiple metabolic markers at two times: 1) in a post-absorptive state after 12 hours overnight fast, and 2) in a prolonged fasting state after 72 hours of fasting. In addition, at each time point, metabolic markers were measured prior to and after an insulin infusion.
+
+```{r catx-import-glucose, echo=FALSE}
+folder <- "Data from Prolonged fasting-induced metabolic signatures in human skeletal muscle of lean and obese men"
+filename <- "datafiles.xlsx"
+file_path <- here(data_path, folder, filename)
+table1 <- data.table(read_excel(file_path, sheet="Table 1", range="a1:b19"))
+table2 <- data.table(read_excel(file_path, sheet="Table 2", range="a1:z37"))
+
+# clean column names
+table1 <- clean_names(table1)
+table2 <- clean_names(table2)
+
+# add group from table1 to table2
+table2 <- merge(table2, table1, by="id")
+```
+
+#### A student t-test is equivalant to the t-value and p-value in a coefficient table of a linear model *if* there are only two levels in the treatment factor
+
+Here I compare pre-insulin infusion blood levels of free fatty acids (ffa) ($ffa_t_210_min_m_m$) between obese and lean subjects at 12h. The data are in Table 2. The assigment of lean or obese is in Table 1, which needs to be merged with Table 2 in order to subset the lean subjects.
+
+Coefficient table from the linear model
+```{r, echo=FALSE}
+m1 <- lm(ffa_t_210_min_m_m ~ group,
+         data=table2[intervention=="12 h fast",])
+coef(summary(m1))
+```
+
+The *t*-value and *p*-value of the effect of obesity on free-fatty acids *is* a t-test. The numerator of *t* is the difference in free-fatty acids between obese and lean subjects (the "Estimate" in the coefficient table). The denominator of *t* if the standard error of this estimate (The "Std. Error" in the coefficient table).
+
+To confirm that that the the *t*and *p*-values of the effect of obesity on free-fatty acids *is* a t-test, let's compare the coefficient table to the output of a t-test.
+
+```{r, echo=FALSE}
+t1 <- t.test(ffa_t_210_min_m_m ~ group,
+             data=table2[intervention=="12 h fast",],
+             var.equal=TRUE)
+t1
+```
+
+The *t*-value in the t.test output is the same as the *t*-value of the effect of obesity ("groupobese") in the coefficient table of the linear model, except it has the opposite sign. This sign is arbitrary and simply reflects which mean is subtracted from which. The *p*-value for both is the same.
+
+#### A student t-test is *not* equivalant to the t-value and p-value in a coefficient table of a linear model *if* there are more than two levels in the treatment factor. This is a feture of a linear model, not a bug.
+
+Let's return to the vole data. The *t* and *p* values of the effects of vitamin C and vitamin E in the coefficient table of the linear model of $lifespan \sim treatment$ are
+
+```{r, echo=FALSE}
+m1 <- lm(lifespan ~ treatment, data=vole)
+t_table <- data.table(level=levels(vole$treatment)[2:3],
+  coef(summary(m1))[2:3, 3:4])
+colnames(t_table) <- c("Level", "t", "p")
+knitr::kable(t_table, digits=3)
+```
+
+while the *t*-tests between the two supplement levels and the control are
+
+```{r, echo=FALSE}
+t1 <- t.test(vole[treatment=="vitamin_C", lifespan],
+             vole[treatment=="control", lifespan], 
+             var.equal=TRUE)
+t2 <- t.test(vole[treatment=="vitamin_E", lifespan],
+             vole[treatment=="control", lifespan], 
+             var.equal=TRUE)
+t_table <- rbind(reglance(t1)[2:3],
+                 reglance(t2)[2:3])
+t_table <- data.table(level=levels(vole$treatment)[2:3],
+  t_table)
+colnames(t_table) <- c("Level", "t", "p")
+knitr::kable(t_table, digits=3)
+```
+The *t*-test statistics differ from those of the linear model because the two use *different* standard errors in the denominator of *t*. Both denominators are computed from a **pooled variance**, which estimates the population variance using a weighted average of the variances of each of the groups in the model. The linear model contains all three levels (groups) of $treatment$ and, consequently, the pooled variance is computed from the variances of all three groups. The *t*-test uses the pooled variance averaged over only the two levels compared.
+
+If the linear model uses a pooled variance over all three levels, this raises the question of why the standard error of the vitamin C and vitamin E effects differs (see the full table above). The reason is the vitamin C and vitamin E groups have different sample sizes, so while the standard errors in the table are computed using a common variance, they are computed using different $n$.
+
+#### Feature not a bug
+
+#### Use the linear model, not a t-test.
+
+### ANOVA is a special case of a linear model
+
+
 ## Working in R
 
 Import the vole data from the Dryad repository using the information above and in Chapter 2 section [Vole data].
@@ -228,18 +370,27 @@ The reference level is "control" -- we know this because there are estimates of 
 R assigns the order of the levels of a factor alphabetically, so the order of the levels of treatment are "control", "vitamin_C", "vitamin_E". The first of these is the reference level. Remember the intercept is the mean of the reference group and the remaining estimates are the differences in means from this reference. If we want to make some other level the reference, we can change the order of the factor levels using
 
 ```{r}
-vole[, treatment_reorder:=factor(treatment, 
+vole[, treatment:=factor(treatment, 
                          levels=c("vitamin_C", "vitamin_E", "control"))]
 ```
 
-The order of the levels in the levels argument sets the new order for any further analysis. One would typically replace the original variable with the re-ordered levels instead of creating a new variable as here, but the new variable was created to avoid bugs with the model fit object "fit" (the level order in the data and in the model object need to be the same). Regardless, Refit the model to see how this re-ordering changes the coefficients
+The order of the levels in the levels argument sets the new order for any further analysis. Refit the model to see how this re-ordering changes the coefficients
 
 ```{r}
-fit2 <- lm(lifespan ~ treatment_reorder, data=vole)
+fit2 <- lm(lifespan ~ treatment, data=vole)
 coef(summary(fit2))
 ```
 
 Understand why the values of these coefficients differ from those in the coefficient table above.
+
+Here, I'm returning the factors back to the original order.
+
+```{r}
+# put factors back to original
+vole[, treatment:=factor(treatment, 
+                         levels=c("control", "vitamin_C", "vitamin_E"))]
+
+```
 
 ### An introduction to contrasts
 
@@ -257,8 +408,6 @@ Let's use the emmeans object to get the contrasts for all combinations of treatm
 ```{r vole-constrasts}
 summary(contrast(fit.em, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE))
 ```
-
-I've sent to parameters to the contrast function and one to the summary function
 
 1. method="revpairwise". `contrast` can create different combinations of differences between means. Here I've specified all pairwise differences (the "rev" reverses the order of the subtraction). Notice that the statistics (estimate, SE, etc) are equal to the same statistics for $b_1$ and $b_2$ of the linear model. I said earlier that these coefficients are contrasts!
 2. adjust="none". In classical frequentist hypothesis testing, the p-value of a contrast in what are called "post-hoc tests" is adjusted to reflect "multiple testing" (more than one p-value is being computed). This adjustment is almost standard in biology, but the practice is hugely controversial. The concept of multiple testing is important, and we will return to this in a future chapter, but here I have chosen to show the unadjusted p-value. The reason is that I want the unadjusted confidence interval and the adjustment would adjust these as well. If deleted `adjust="none"` from the script, the contrast function would default to the **Tukey HSD** (Honestly Significant Difference) test. There are literally dozens and dozens of post-hoc tests, which largely reflects the misplaced emphasis on "better" $p$-values rather than parameter estimates and their uncertainty.

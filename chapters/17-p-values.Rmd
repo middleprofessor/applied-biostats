@@ -127,7 +127,7 @@ p_vitamin_E <- ((le_vitamin_E + ge_vitamin_E)+1)/(n_iter + 1)
 
 How do our observed differences compare? Let's focus on vitamin E. The vitamin_E effect is `r round(b["treatmentvitamin_E"], 1)` days. There are `r le_vitamin_E` sampled differences less than the observed value and `r ge_vitamin_E` greater than the absolute value of the observed value. Together this is `r ge_vitamin_E + le_vitamin_E` so the frequency of differences from the simulated null distribution that as larger or larger than the observed difference is `r round(p_vitamin_E, 3)` (this compuation includes the observed value in both the numerator and denominator).
 
-### *t*-tests
+### t-tests
 A *t*-test is a test of differences between two values. These could be
 
 1. the difference between the means of two samples (a "two-sample" *t*-test)
