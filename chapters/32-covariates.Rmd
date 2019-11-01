@@ -21,21 +21,19 @@ In its most general sense, **Covariates** are simply the $X$ variables in a stat
 
 I use fake data to introduce the concept of **statistical elimination** of a **covariate** in a statistical model. Here I am modeling the effect of a new drug on blood LDL-C levels. LDL is a kind of lipoprotein, which are particles in the blood that transport fats and cholesterol to and from different tissues. LDL-C is cholesterol associated with LDL particles. LDL-C is considered "bad cholesterol" because LDL is believed to transport cholesterol and other lipids to arterial walls, which is the basis for atherosclerosis.
 
-Twenty applied biostats students are recruited and are randomly assigned to either the new or old drug. The response is blood LDL-C level and the two treatment levels are "old" and "new". For the dummy variable coding, I'll make "old" the reference level.
+Twenty applied biostats students are recruited and are randomly assigned to either the "placebo" treatment level or "drug" treatment level. The response is blood LDL-C concentration. The drug manufacturer wants a measure of the effect of the new drug on ldlc.
 
 ```{r ancova-ldlc, echo=FALSE}
 set.seed(7)
 n <- 10 # replicates per grop
-fat <- rnorm(n*2, mean=.3, sd=.05)
-# fat is the fraction of calories from fat in diet.
-# think about this parameterization. Most people will vary between 15% and 45%.
-drug <- rep(c("old", "new"), each=10) # the treatment assignment
-fd <- data.table(drug=factor(drug, factor(c("old", "new"))), fat=fat) # the fake data.table
-X <- model.matrix(formula(~ fat + drug), data=fd) # the model matrix
+fd <- data.table(treatment=rep(c("placebo", "drug"), each=n),
+                 age=rnorm(n*2, mean=28, sd=3))
+fd[, treatment := factor(treatment, c("placebo", "drug"))]
+X <- model.matrix(formula(~ age + treatment), data=fd) # the model matrix
 
-b0 <- 100 # LDL-C for the reference group and zero dietary fat
-b1 <- 200 # the effect of dietary fat. Increasing fat by 10% adds
-# 200*.1 = 20 mg LDL-C/dL blood to their blood
+b0 <- 70 # LDL-C for the reference group and zero years old
+b1 <- 1.5 # the effect of age. Increasing fat by 20 years adds
+# 20*1.5 = 30 mg LDL-C/dL blood to their blood
 b2 <- -5 # the effect of the new drug -- lowers LDL-C by 5 mg/dL blood
 b <- c(b0, b1, b2) # but the parameters into a vector
 ldlc <- X%*%b + rnorm(n, sd=2) # matrix algebra
@@ -43,79 +41,120 @@ fd[, ldlc:=ldlc] # add ldlc to the fake data.table
 
 ```
 
-Let's model this with
+The plot below shows the LDL-C response in the placebo and drug groups, including the group means and 95% confidence intervals. The *p*-value is from the *t*-test of the effect of treatment using the model
 
 \begin{equation}
-ldlc = \beta_0 + \beta_1 drug + \varepsilon
+ldlc = \beta_0 + \beta_1 treatment + \varepsilon
 (\#eq:ancova-1)
 \end{equation}
 
-where $drug$ is the dummy variable with $old=0$ and $new=1$.
+where $treatment$ is the dummy variable with $placebo=0$ and $drug=1$.
 
-```{r ancova-plot1, echo=FALSE, message=FALSE, fig.cap="The fake LDL-C experiment."}
-ggdotplot(x="drug", y="ldlc", data=fd, add="mean_se")
-coef(summary(lm(ldlc~drug, data=fd)))
+```{r cov-harrelplot, eval=TRUE, echo=FALSE, message=FALSE, fig.cap="The fake LDL-C experiment."}
+m1 <- lm(ldlc~treatment, data=fd)
+m1.contrasts <- contrast(emmeans(m1, specs="treatment"), method="revpairwise")
+
+harrellplot(x="treatment", y="ldlc", data=fd)$gg
+
 ```
 
-The plot shows large overlap in LDL-C and no obvious effect of the drug. There "is no effect of the drug ($p = 0.754$)" is of course an incorrect interpretation of the hypothesis test of the estimate of $\beta_1$. A correct interpretation is, there is too much noise to say much about any effect.
+```{r ancova-plot1, eval=FALSE, echo=FALSE, message=FALSE, fig.cap="The fake LDL-C experiment."}
+group_contrasts = c("placebo", drug)
+ggerrorplot(x="treatment",
+          y="ldlc",
+          color="treatment",
+          desc_stat = "mean_ci",
+          data=fd, 
+          add="jitter",
+          add.params = list(color = "darkgray")) +
+  stat_compare_means(method="t.test",
+                     label.x = 1.4,
+                     label.y = 125,
+                     label="p.format"
+                    ) +
+  NULL
 
-In addition to assigning treatment level randomly, I also had the 20 students count calories from fat over the course of the experiment. Here is a plot of LDL-C vs. percent calories from fat, with treatment assignment color coded. Remember, these are the exact same values of LDL-C as in the first figure.
+```
+
+The plot shows large overlap in LDL-C. The coefficient table is
+
+```{r}
+round(coef(summary(lm(ldlc~treatment, data=fd))), 3)
+```
+
+There "is no effect of the drug ($p = .478$)" is of course an incorrect interpretation of the hypothesis test of the estimate of $\beta_1$. A correct interpretation is, there is too much noise to say much about the size or direction of the effect.
+
+LDL-C is strongly correlated with age and there is a large range in age among the Applied Bistats students. Consequently, age will contribute to a large fraction of the variance in LDL-C. If so, this age-related variance might be masking the effect of the drug. Here is a plot of LDL-C vs. age, with treatment assignment color coded as above. Remember, these are the exact same values of LDL-C as in the first figure.
 
 ```{r ancova-plot2, message=FALSE, echo=FALSE, fig.cap="Linear regression of $ldlc$ on dietary $fat$ fit to the fake LDL-C data. The points are color coded by treatment."}
-qplot(x=fat, y=ldlc, data=fd) + geom_smooth(method="lm", se=FALSE) + geom_point(aes(color=drug))
+qplot(x=age, y=ldlc, data=fd) + geom_smooth(method="lm", se=FALSE) + geom_point(aes(color=treatment))
 ```
 
 The line is the bivariate regression fit to the data ignoring treatment level so is the model
 
 \begin{equation}
-ldlc = \beta_0 + \beta_1 fat + \varepsilon
+ldlc = \beta_0 + \beta_1 age + \varepsilon
 (\#eq:ancova-2)
 \end{equation}
 
-I've color coded the points by treatment level but $drug$ is not in the model. It is clear that most of the "old" data points are above the line, or have positive residuals from the model, while the "new" data points are below the line, or have negative residuals from the model. A better way to think about this pattern is that **at any specific level of fat, the LDL-C for old is higher than the LDL-C for new**.
+I've color coded the points by treatment level but $treatment$ is not in the model. It is clear that most of the "placebo" data points are above the line, or have positive residuals from the model, while the "drug" data points are below the line, or have negative residuals from the model. A better way to think about this pattern is that **at any specific level of age, the LDL-C for drug is lower than the LDL-C for placebo**.
 
-What is happening? Dietary fat is contributing to the variance of LDL-C and this added noise makes it harder to measure the effect of the new drug relative to the old drug.
-If we could somehow measure the effect of drug at a specific level of dietary fat, then we could get a more precise estimate of the effect. But how to do this?
+What is happening? Age is contributing to the variance of LDL-C and this added noise makes it harder to measure the effect of the new drug relative to placebo. Age is masking the effect. If we could somehow measure the effect of the drug at a specific age, then we could get a more precise estimate of the effect. But how to do this? Here are three possible methods. The third is *the only* one you should use but the second is useful for understanding the third.
 
-1. We could just analyze a subset of the data, that is, only the cases in which the value of dietary fat is nearly equal. This throws away perfectly good data and, consequently, greatly reduces the sample size and thus precision to estimate the effect.
+1. We could just analyze a subset of the data, that is, only the cases in which the value of age is nearly equal. This throws away perfectly good data and, consequently, greatly reduces the sample size and thus precision to estimate the effect.
 
 2. We could use the residuals of the fitted model \@ref(eq:ancova-2) to estimate the effect of drug treatment (this is what we did by eye in figure \@ref(fig:ancova-plot2)). Here is the new model
 
 \begin{equation}
-ldlc.r = \beta_0 + \beta_1 drug + \varepsilon
+ldlc.r = \beta_0 + \beta_1 treatment + \varepsilon
 (\#eq:ancova-3)
 \end{equation}
 
-where $ldlc.r$ are the residuals. The effect of the new drug on these residuals is
+where $ldlc.r$ is the set of residuals. The effect of the new drug on these residuals is
 
 ```{r echo=FALSE}
-fit <- lm(ldlc ~ fat, data=fd)
-fd[, ldlc.r:=residuals(fit)]
-ggdotplot(x="drug", y="ldlc.r", data=fd, add="mean_se")
-fit <- lm(ldlc.r~drug, data=fd)
-coef(summary(fit))
+fit <- lm(ldlc ~ age, data=fd)
+fd[, ldlc.r :=residuals(fit)]
+group_contrasts = c("placebo", drug)
+ggerrorplot(x="treatment",
+          y="ldlc.r",
+          color="treatment",
+          desc_stat = "mean_ci",
+          data=fd, 
+          add="jitter",
+          add.params = list(color = "darkgray")) +
+  stat_compare_means(method="t.test",
+                     label.x = 1.4,
+                     label.y = 4,
+                     label="p.format"
+                    ) +
+  NULL
+
 
 ```
 
-In this two-stage analysis (stage 1: fit ldlc ~ fat to get residuals, stage 2: fit residuals ~ drug), we have *eliminated the effect of dietary fat* on the variance of the response and, as a consequence, the estimate of the effect of the drug is much more precise. Now the estimate of the effect is -4.7 mg/dL blood and the SE is only .9 (compare this to the values in the original analysis). While the SE of the diference is correct, any confidence interval or $t$-value is not because the df is wrong. In the two stage analysis we fit two parameters -- the slope (coefficient $b_1$) in stage 1 and the difference in means (coefficient $b_1$) in stage 2 -- but the $t$ in the table assumes we only fit one parameter (that from stage 2). Effectively, the stage 2 test is ignorant that the data ($ldlc.r$) are the result of a previous model fit. We could manually modify the computation of $t$, but the more proper method is to simply...
+In this two-stage analysis (stage 1: fit ldlc ~ age to get residuals, stage 2: fit residuals ~ treatment), we have *eliminated the effect of age* on the variance of the response and, as a consequence, the estimate of the effect of the drug is much more precise. Now the estimate of the effect is -4.7 mg/dL blood and the SE is only .9 (compare this to the values in the original analysis). While the SE of the diference is correct, any confidence interval or $t$-value is not because the df is wrong. In the two stage analysis we fit two parameters -- the slope (coefficient $b_1$) in stage 1 and the difference in means (coefficient $b_1$) in stage 2 -- but the $t$ in the table assumes we only fit one parameter (that from stage 2). Effectively, the stage 2 test is ignorant that the data ($ldlc.r$) are the result of a previous model fit. We could manually modify the computation of $t$, but the more proper method is to simply...
 
-3. Add dietary fat into the original linear model.
+3. Add age to the original linear model.
 
 \begin{equation}
-ldlc = \beta_0 + \beta_1 fat + \beta_2 drug + \varepsilon
+ldlc = \beta_0 + \beta_1 age + \beta_2 treatment + \varepsilon
 \end{equation}
 
 ```{r echo=FALSE}
-fit <- lm(ldlc ~ fat + drug, data=fd)
+fit <- lm(ldlc ~ age + treatment, data=fd)
+fit2 <- lm(ldlc ~ treatment + age, data=fd)
 coef(summary(fit))
+coef(summary(fit2))
 
 ```
 
 Here, the estimate is -5.1 and the SE is 0.9. Look back at the script generating the fake data; the true effect ($\beta_1$) of the new drug was set to -5.0 so this estimate is quite good.
 
-### Interaction effects with covariates
+## Adding covarates can decrease prediction error in predictive models
 
-### Add only covariates that were measured before peaking at the data
+## Adding covariates can reduce bias due to confounding in explanatory models
+
 
 ## Regression to the mean
 
