@@ -52,6 +52,8 @@ folder <- "Data from Deleterious consequences of antioxidant supplementation on 
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- here(data_path, folder, filename)
 vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
+# change column "lifespan_days" to "lifespan"
+setnames(vole, old="lifespan (days)", new="lifespan")
 # clean column names
 vole <- clean_names(vole)
 
@@ -62,9 +64,7 @@ vole[control==1, treatment:="control"]
 vole[vitamin_e==1, treatment:="vitamin_E"]
 # in rows where vitamin_c=1, set treatment value to "vitamin_c"
 vole[vitamin_c==1, treatment:="vitamin_C"]
-
-# change column "lifespan_days" to "lifespan"
-setnames(vole, old="lifespan_days", "lifespan")
+vole[, treatment := factor(treatment)]
 ```
 
 To introduce modeling with a single, categorical $X$ variable, I'll use the [Vole data] from Chapter 2. Normal cellular metabolism creates reactive oxygen species (ROS) that can disrupt cell function and potentially cause cell damage. Anti-oxidants are molecules that bind ROS, inhibiting their ability to disrupt cell activity. A working hypothesis for many years is that supplemental anti-oxidants should improve cell function and, scaling up, whole-animal function (such as lifespan). The vole data explores this with supplemental Vitamins C and E, which are anti-oxidants, in the diet of the short-tailed field vole (*Microtus agrestis*). 
@@ -281,7 +281,7 @@ table2 <- merge(table2, table1, by="id")
 
 #### A student t-test is equivalant to the t-value and p-value in a coefficient table of a linear model *if* there are only two levels in the treatment factor
 
-Here I compare pre-insulin infusion blood levels of free fatty acids (ffa) ($ffa_t_210_min_m_m$) between obese and lean subjects at 12h. The data are in Table 2. The assigment of lean or obese is in Table 1, which needs to be merged with Table 2 in order to subset the lean subjects.
+Here I compare pre-insulin infusion blood levels of free fatty acids (ffa) between obese and lean subjects at 12h. The data are in Table 2 and the response is the column "ffa_t_210_min_m_m". The assigment of lean or obese is in Table 1, which needs to be merged with Table 2 in order to subset the lean subjects.
 
 Coefficient table from the linear model
 ```{r, echo=FALSE}

@@ -7,6 +7,7 @@ library(ggpubr)
 library(emmeans)
 library(data.table)
 library(mvtnorm)
+library(harrellplot)
 
 colorblind <- function(n){
   # http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/#a-colorblind-friendly-palette
@@ -41,11 +42,11 @@ fd[, ldlc:=ldlc] # add ldlc to the fake data.table
 
 ```
 
-The plot below shows the LDL-C response in the placebo and drug groups, including the group means and 95% confidence intervals. The *p*-value is from the *t*-test of the effect of treatment using the model
+The plot below shows the LDL-C response in the placebo and drug groups, including the group means and 95% confidence intervals.
 
 \begin{equation}
 ldlc = \beta_0 + \beta_1 treatment + \varepsilon
-(\#eq:ancova-1)
+(\#eq:cov-no-cov)
 \end{equation}
 
 where $treatment$ is the dummy variable with $placebo=0$ and $drug=1$.
@@ -76,30 +77,31 @@ ggerrorplot(x="treatment",
 
 ```
 
-The plot shows large overlap in LDL-C. The coefficient table is
+The coefficient table is
 
-```{r}
-round(coef(summary(lm(ldlc~treatment, data=fd))), 3)
+```{r, echo=FALSE}
+m0 <- lm(ldlc~treatment, data=fd)
+round(coef(summary(m0)), 3)
 ```
 
-There "is no effect of the drug ($p = .478$)" is of course an incorrect interpretation of the hypothesis test of the estimate of $\beta_1$. A correct interpretation is, there is too much noise to say much about the size or direction of the effect.
+The plot shows large overlap in LDL-C. There "is no effect of the drug ($p = .478$)" is an incorrect interpretation of the hypothesis test of the estimate of $\beta_1$. A correct interpretation is, the estimated effect is -1.9 but everything from large, negative effects to moderate positive effects are consistent with the data. 
 
-LDL-C is strongly correlated with age and there is a large range in age among the Applied Bistats students. Consequently, age will contribute to a large fraction of the variance in LDL-C. If so, this age-related variance might be masking the effect of the drug. Here is a plot of LDL-C vs. age, with treatment assignment color coded as above. Remember, these are the exact same values of LDL-C as in the first figure.
+LDL-C is strongly correlated with age and there is a large range in age among the Applied Bistats students. Consequently, age will contribute to a large fraction of the variance in LDL-C. If so, this age-related variance *might* be masking the effect of the drug. Here is a plot of LDL-C vs. age, with treatment assignment color coded. Remember, these are the exact same values of LDL-C as in figure \@ref(fig:cov-harrelplot) above.
 
 ```{r ancova-plot2, message=FALSE, echo=FALSE, fig.cap="Linear regression of $ldlc$ on dietary $fat$ fit to the fake LDL-C data. The points are color coded by treatment."}
 qplot(x=age, y=ldlc, data=fd) + geom_smooth(method="lm", se=FALSE) + geom_point(aes(color=treatment))
 ```
 
-The line is the bivariate regression fit to the data ignoring treatment level so is the model
+The line is the bivariate regression fit to the data ignoring treatment level.
 
 \begin{equation}
 ldlc = \beta_0 + \beta_1 age + \varepsilon
-(\#eq:ancova-2)
+(\#eq:cov-age)
 \end{equation}
 
-I've color coded the points by treatment level but $treatment$ is not in the model. It is clear that most of the "placebo" data points are above the line, or have positive residuals from the model, while the "drug" data points are below the line, or have negative residuals from the model. A better way to think about this pattern is that **at any specific level of age, the LDL-C for drug is lower than the LDL-C for placebo**.
+While the points are color-coded by treatment level, $treatment$ is not in model \@ref(eq:cov-age). The color-coding makes it clear that most of the "placebo" data points are above the line, or have positive residuals from the model, while the "drug" data points are below the line, or have negative residuals from the model. A better way to think about this pattern is that **at any specific level of age, the LDL-C for drug is lower than the LDL-C for placebo**.
 
-What is happening? Age is contributing to the variance of LDL-C and this added noise makes it harder to measure the effect of the new drug relative to placebo. Age is masking the effect. If we could somehow measure the effect of the drug at a specific age, then we could get a more precise estimate of the effect. But how to do this? Here are three possible methods. The third is *the only* one you should use but the second is useful for understanding the third.
+What is happening? Age is contributing to the variance of LDL-C, and the noise in $\varepsilon$ in model \@ref(eq:cov-no-cov), and this added noise makes it harder to measure the effect of the new drug relative to placebo. Age is masking the effect. If we could somehow measure the effect of the drug at a specific age, then we could get a more precise estimate of the effect. But how to do this? Here are three possible methods. The third is *the only* one you should use but the second is useful for understanding the third.
 
 1. We could just analyze a subset of the data, that is, only the cases in which the value of age is nearly equal. This throws away perfectly good data and, consequently, greatly reduces the sample size and thus precision to estimate the effect.
 
@@ -110,13 +112,14 @@ ldlc.r = \beta_0 + \beta_1 treatment + \varepsilon
 (\#eq:ancova-3)
 \end{equation}
 
-where $ldlc.r$ is the set of residuals. The effect of the new drug on these residuals is
+where $ldlc.r$ is the set of residuals.
 
 ```{r echo=FALSE}
-fit <- lm(ldlc ~ age, data=fd)
-fd[, ldlc.r :=residuals(fit)]
-group_contrasts = c("placebo", drug)
-ggerrorplot(x="treatment",
+m1.1 <- lm(ldlc ~ age, data=fd) # stage 1
+fd[, ldlc.r :=residuals(m1.1)]
+m1.2 <- lm(ldlc.r ~ treatment, data=fd)
+group_contrasts = c("placebo", "drug")
+gg <- ggerrorplot(x="treatment",
           y="ldlc.r",
           color="treatment",
           desc_stat = "mean_ci",
@@ -130,51 +133,66 @@ ggerrorplot(x="treatment",
                     ) +
   NULL
 
-
+harrellplot(x="treatment",
+            y="ldlc.r", 
+            data=fd,
+            y_label = "LDL-C residuals")$gg
 ```
 
-In this two-stage analysis (stage 1: fit ldlc ~ age to get residuals, stage 2: fit residuals ~ treatment), we have *eliminated the effect of age* on the variance of the response and, as a consequence, the estimate of the effect of the drug is much more precise. Now the estimate of the effect is -4.7 mg/dL blood and the SE is only .9 (compare this to the values in the original analysis). While the SE of the diference is correct, any confidence interval or $t$-value is not because the df is wrong. In the two stage analysis we fit two parameters -- the slope (coefficient $b_1$) in stage 1 and the difference in means (coefficient $b_1$) in stage 2 -- but the $t$ in the table assumes we only fit one parameter (that from stage 2). Effectively, the stage 2 test is ignorant that the data ($ldlc.r$) are the result of a previous model fit. We could manually modify the computation of $t$, but the more proper method is to simply...
+Now the estimate of the effect is `r round(coef(summary(m1.2))["treatmentdrug", "Estimate"], 1)` mg/dL blood and the SE is only `r round(coef(summary(m1.2))["treatmentdrug", "Std. Error"], 2)`. In this two-stage analysis (stage 1: fit ldlc ~ age to get residuals, stage 2: fit residuals ~ treatment), we have *eliminated the effect of age* on the variance of the response and, as a consequence, the estimate of the effect of the drug is much more precise -- the effect of $treatment$ has a smaller standard error.
 
-3. Add age to the original linear model.
+3. A better method for this two-stage procedure that increases the precision of the estmate of the treatment effect by eliminating variance of a covariate ($age$) is to simply add the covariate to the original linear model.
 
 \begin{equation}
 ldlc = \beta_0 + \beta_1 age + \beta_2 treatment + \varepsilon
+(\#eq:cov-cov)
 \end{equation}
 
+which results in the Harrell Plot
+
+```{r, echo=FALSE}
+harrellplot(x="treatment", 
+            y="ldlc", 
+            covcols = "age", 
+            data=fd,
+            display.treatment="ci",
+            mean_intervals.method="lm")$gg
+```
+
+and the coefficient table
+
 ```{r echo=FALSE}
-fit <- lm(ldlc ~ age + treatment, data=fd)
-fit2 <- lm(ldlc ~ treatment + age, data=fd)
-coef(summary(fit))
-coef(summary(fit2))
+m2 <- lm(ldlc ~ age + treatment, data=fd)
+m2.coef <- coef(summary(m2))
+knitr::kable(m2.coef, digits=c(1,2,1,6), caption="Coefficients of the model that includes the covariate age.")
 
 ```
 
-Here, the estimate is -5.1 and the SE is 0.9. Look back at the script generating the fake data; the true effect ($\beta_1$) of the new drug was set to -5.0 so this estimate is quite good.
+In the linear model that includes the covariate $age$ (model \@ref(eq:cov-cov)), the SE of the treatment effect is `r round(coef(summary(m2))["treatmentdrug", "Std. Error"], 2)`. Compare this to SE of the treatment effect in the model without the covariate (model \@ref(eq:cov-no-cov)), which is `r round(coef(summary(m0))["treatmentdrug", "Std. Error"]/coef(summary(m2))["treatmentdrug", "Std. Error"],1)`X larger.
 
-## Adding covarates can decrease prediction error in predictive models
+## Adding covariates can decrease prediction error in predictive models
 
 ## Adding covariates can reduce bias due to confounding in explanatory models
 
+## Best practices 1: A pre-treatment measure of the response should be a covariate and not subtracted from the post-treatment measure (regression to the mean)
 
-## Regression to the mean
+It is common to measure the outcome variable ($Y$) both before and after the experimental treatments are applied and then compare the pre-post *change* in $Y$ in response to the treatment using a $t$-test or ANOVA using this linear model
 
-It is common to measure the outcome variable ($Y$) both before and after the experimental treatments are applied and then compare the pre-post *change* in $Y$ in response to the treatment using a $t$-test or ANOVA. Don't do this.
+\begin{equation}
+Y_{post}-Y_{pre} = \beta_0 + \beta_1 Treatment + \varepsilon
+(\#eq:cov-change-score)
+\end{equation}
 
-Instead, add the pre-treatment measure into the model as a covariate.
+**Don't do this**. Instead, add the pre-treatment measure into the model as a covariate.
 
 \begin{equation}
 Y_{post} = \beta_0 + \beta_1 Y_{pre} + \beta_2 Treatment + \varepsilon
 (\#eq:ancova-4)
 \end{equation}
 
-where $Treatment$ is a dummy variable for a two-level factor. A pre-treatment measure ($Y_{pre}$) is often called the *baseline* measure. The change in $Y$ ($\Delta Y = Y{post} - Y_{pre}$) is sometimes called a change score or gain score. $\Delta Y$ can be modeled as in equation \@ref(eq:ancova-4) and the $p$-value will be precisely the same (the estimate and SE will differ of course because the response variable is different).
+where $Treatment$ is a dummy variable for a two-level factor. A pre-treatment measure ($Y_{pre}$) is often called the *baseline* measure. The change in $Y$ ($\Delta Y = Y{post} - Y_{pre}$) is sometimes called a change score or gain score. If you really want to estimate the treatment effect on the change from pre-treatment value to post-treatment value, then use model \@ref(eq:ancova-4) with $\Delta Y$ as the response -- the $p$-value will be precisely the same (the estimate and SE will differ of course because the response variable is different).
 
-\begin{equation}
-\Delta Y = \beta_0 + \beta_1 Y_{pre} + \beta_2 Treatment + \varepsilon
-(\#eq:ancova-5)
-\end{equation}
-
-The reason why a researcher should not model $\Delta Y$ as a function of $Treatment$ without $Y_{pre}$ as a covariate is that the **regression to the mean**. To explain regression to the mean, I use fake data simulated to model the results from an important study on gut microbiomes. In this study, the authors (Turnbaugh et al. xxx) showed that mice with feces from obese (genotype *ob/ob*) donors had higher weight gain than mice with feces from lean (genotype *+/+*) donors, presumably because of the differences in microbial communities between the donor types (shown elsewhere in their paper). To support the inference of a large difference in weight change, they illustrated the percent change in each treatment level in their Fig 3C, which is replicated here using simulated data generated to match the original summary statistics (Figure \@ref(fig:ancova-mouseplot1)). 
+The reason why a researcher should not model a change score ($\Delta Y$) as a function of $Treatment$ without $Y_{pre}$ as a covariate is a phenomenon called **regression to the mean**. To explain regression to the mean, I use fake data simulated to model the results from an important study on gut microbiomes. In this study, the authors (Turnbaugh et al. xxx) showed that mice with feces from obese (genotype *ob/ob*) donors had higher weight gain than mice with feces from lean (genotype *+/+*) donors, presumably because of the differences in microbial communities between the donor types (shown elsewhere in their paper). To support the inference of a large difference in weight change, they illustrated the percent change in each treatment level in their Fig 3C, which is replicated here using simulated data generated to match the original summary statistics (Figure \@ref(fig:ancova-mouseplot1)). 
 
 ```{r ancova-mouse, echo=FALSE}
 # create fake data using available summary statistics from paper. Use a while
@@ -271,10 +289,12 @@ gg
 That looks like a big difference, with the mice from the obese-donor treatment level gaining much more fat than the mice from the lean-donor treatment level. Turnbaugh et al. used a simple t-test of this percent change to test the effect of the *ob/ob* treatment. The linear model underneath this $t$-test is
 
 \begin{equation}
-fat.gain = \beta_0 + \beta_1 obese + \varepsilon
+percent\_change\_fat = \beta_0 + \beta_1 obese + \varepsilon
 \end{equation}
 
-where $fat.gain$ is the percent gain in fat from baseline and $obese$ is a dummy variable with *ob/ob* $= 1$. The model coefficients are
+where $percent\_change\_fat$ is the percent change in fat from baseline and $obese$ is a dummy variable with *ob/ob* $= 1$. The percent change in fat is $\frac{fat_{post} - fat_{pre}}{fat_{pre}} \times 100$, so is a function of the change score $\Delta_{fat} = fat_{post} - fat_{pre}$.
+
+The model coefficients are
 
 ```{r ancova-mouse-model1, echo=FALSE}
 fit1 <- lm(percent ~ treatment, data=fake_mouse)
@@ -284,11 +304,24 @@ confint(fit1)
 
 Or, the increase in fat in the obese-treated mice was 21.9% (95%CI: 4.7, 39.2%, $p=0.016$) greater than the increase in lean-treated mice. This result, if generally verified with replication and rigorous probing, would have spectacular implications for human health.
 
-One might reasonably expect that if mice are randomized into two groups, then the expected difference in percent change from baseline is zero. This is unconditionally true but not conditionally true. That is, if we ignore initial fat weight, the expected difference is zero. But, the expected difference is also conditional on the initial difference in fat weights. More specifically, the expected difference is opposite in sign but proportional in magnitude to the initial difference. This conditional expectation is a consequence of regression to the mean. If the first measure of a random variable is extreme, the second measure will tend to be less extreme. And, if a second measure is extreme, the first measure will tend to be less extreme. 
+### Regression to the mean in words
 
-Despite random treatment assignment, the mean initial fat weight of the *ob/ob* group was 1.2SD less than the mean initial weight of the *+/+* group. By contrast, the mean final weight of the *ob/ob* group was 0.06SD larger than the mean final weight of the *+/+* group. This first difference is an extreme measure. The second is extremely close to the expectation if there is no treatment effect. Because the initial difference in weight is unusually negative, the expected difference in percent change will be unusually positive.
+Regression to the mean is the phenomenon that if an extreme value is sampled, the next sample will likely be less extreme. This makes sense, if you randomly sample a single human male and that individual is 6'10" (about 4 standard deviations above the mean), the next human you randomly sample will almost certainly be closer to the mean human male. Or, if you randomly sample five human males and the mean height in the group is 5'1" (about 3 standard deviations below the mean), the next sample of five human males that you measure will almost certainly be closer to the mean human male.
 
-This dependency between difference in percent change from baseline and difference in initial weight is easy to simulate. Simply
+How does regression to the mean apply to the analysis of change scores in a pre-post experiment, like the mouse fecal transplant study? In a pre-post experiment, subjects are randomized to treatment group. The response is measured at baseline and again at the conclusion of the experiment. Despite random treatment assignment, the mean fat weight of the *ob/ob* group at baseline was 1.2 standard deviations smaller than that of the *+/+* group. If there is no treatment effect, what is the expected difference at the end?
+
+To answer this, we need to know how an individual's fat weight at the end is related to its fat weight at baseline. An individual's final fat is dependent on its initial fat if factors that contribute to the measurement of fat are the same at baseline and the end. For example, if an individual has relatively high metabolism both at baseline and at the end, then that individual might have relatively low fat at baseline and at the end. This dependence of final value on baseline value is quantified by the correlation between the two measures. This correlation is $\rho$ (the greek letter rho). Factors that change over the duration of the experiment, including random measurement error, cause the correlation to be less than one. The two extremes of this correlatioun, and the expected difference in fat weight at the end are:
+
+1. $rho=0$ -- if an individual's final fat is independent of its initial fat then we expect the difference at end to be zero.
+2. $rho=1$ -- if an individuals's final fat is entirely dependent on its initial fat, then we'd expect the mean fat weight of the *ob/ob* group to be 1.2 standard deviations smaller than that of the *+/+* group, exactly as it was at baseline.
+
+Regression to the mean happens when $\rho < 1$ and it's consequences increase as $\rho$ goes to zero. What is meant by "consequences"?
+
+If the fat weight of the *ob/ob* group at baseline is 1.2 standard deviations smaller than that of the *+/+* group, and if $\rho=0$, then we'd expect the difference at the end to be zero. To get to zero difference at the end, the *ob/ob* mice would have to gain more fat weight than the *+/+* mice. Since the expectation of the mean difference at the end is zero the expectation of the change score *is bigger for the ob/ob mice than for the +/+ mice*. That is the expectation of the *difference* in change score is conditional on (or "a function of") the difference in fat weight at baseline.
+
+### Regression to the mean in pictures
+
+Let's simulate this to pump our intuition about regression to the mean and its consequences on pre-post experiments. 
 
 1. randomly sample a normal distribution as the "initial weight" and randomly assign to treatment class
 2. let the final weight have some correlation ($\rho$) with the initial weight. Some correlation should make sense -- we expect a mouse that has more fat than average at the start of the experiment to also have more fat than average at the end of the experiment. Run the experiment at different values of this correlation to see how it effects regression to the mean.
@@ -396,3 +429,4 @@ gg
 
 Contrary to some advice and maybe to intuition, it makes no sense to "test for balance" at baseline with a *t*-test of the difference in initial measures of $Y$. And, it makes no sense to use this test as a decision rule for how to proceed: if $p>0.05$ then use a simple $t$ test of the change scores, if $p<0.05$ then use ANCOVA with baseline measures in the model. First, a null-hypothesis significance test cannot tell you that there is "no difference" -- this is not what null-hypothesis tests do. Second, any $p$-value after the initial test isn't strictly valid as it does not take into account this decision step, but this is minor. Third, it doesn't matter; there will always be some difference in the actual means of the initial measures and, consequently, the conditional expectation of the final measures, or change in measures, or percent change will be dependent on this initial difference. So, if one has initial measures, one should use an linear model that adjusts for baseline measures to estimate the treatment effect in pre-post designs. And, if one isn't planning on taking an initial measure, then maybe you should, because the initial measure used in a linear model allows a better estimate of the treatment effect!
 
+## Best practices xxx: Use a covariate instead of normalizing a response
