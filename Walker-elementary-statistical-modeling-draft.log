@@ -1,0 +1,2359 @@
+This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  4 NOV 2019 11:39
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**Walker-elementary-statistical-modeling-draft.tex
+(./Walker-elementary-statistical-modeling-draft.tex
+LaTeX2e <2018-04-01> patch level 2
+Babel <3.18> and hyphenation patterns for 84 language(s) loaded.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/book.cls
+Document Class: book 2014/09/29 v1.4h Standard LaTeX document class
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/bk10.clo
+File: bk10.clo 2014/09/29 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count80
+\c@chapter=\count81
+\c@section=\count82
+\c@subsection=\count83
+\c@subsubsection=\count84
+\c@paragraph=\count85
+\c@subparagraph=\count86
+\c@figure=\count87
+\c@table=\count88
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/lm/lmodern.sty
+Package: lmodern 2009/10/30 v1.6 Latin Modern Fonts
+LaTeX Font Info:    Overwriting symbol font `operators' in version `normal'
+(Font)                  OT1/cmr/m/n --> OT1/lmr/m/n on input line 22.
+LaTeX Font Info:    Overwriting symbol font `letters' in version `normal'
+(Font)                  OML/cmm/m/it --> OML/lmm/m/it on input line 23.
+LaTeX Font Info:    Overwriting symbol font `symbols' in version `normal'
+(Font)                  OMS/cmsy/m/n --> OMS/lmsy/m/n on input line 24.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `normal'
+(Font)                  OMX/cmex/m/n --> OMX/lmex/m/n on input line 25.
+LaTeX Font Info:    Overwriting symbol font `operators' in version `bold'
+(Font)                  OT1/cmr/bx/n --> OT1/lmr/bx/n on input line 26.
+LaTeX Font Info:    Overwriting symbol font `letters' in version `bold'
+(Font)                  OML/cmm/b/it --> OML/lmm/b/it on input line 27.
+LaTeX Font Info:    Overwriting symbol font `symbols' in version `bold'
+(Font)                  OMS/cmsy/b/n --> OMS/lmsy/b/n on input line 28.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `bold'
+(Font)                  OMX/cmex/m/n --> OMX/lmex/m/n on input line 29.
+LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
+(Font)                  OT1/cmr/bx/n --> OT1/lmr/bx/n on input line 31.
+LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
+(Font)                  OT1/cmss/m/n --> OT1/lmss/m/n on input line 32.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
+(Font)                  OT1/cmr/m/it --> OT1/lmr/m/it on input line 33.
+LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
+(Font)                  OT1/cmtt/m/n --> OT1/lmtt/m/n on input line 34.
+LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `bold'
+(Font)                  OT1/cmr/bx/n --> OT1/lmr/bx/n on input line 35.
+LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
+(Font)                  OT1/cmss/bx/n --> OT1/lmss/bx/n on input line 36.
+LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `bold'
+(Font)                  OT1/cmr/bx/it --> OT1/lmr/bx/it on input line 37.
+LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
+(Font)                  OT1/cmtt/m/n --> OT1/lmtt/m/n on input line 38.
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amssymb.sty
+Package: amssymb 2013/01/14 v3.01 AMS font symbols
+(/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amsfonts.sty
+Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
+\@emptytoks=\toks14
+\symAMSa=\mathgroup4
+\symAMSb=\mathgroup5
+LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
+(Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsmath.sty
+Package: amsmath 2017/09/02 v2.17a AMS math features
+\@mathmargin=\skip43
+For additional information on amsmath, use the `?' option.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amstext.sty
+Package: amstext 2000/06/29 v2.01 AMS text
+(/usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsgen.sty
+File: amsgen.sty 1999/11/30 v2.0 generic functions
+\@emptytoks=\toks15
+\ex@=\dimen103
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsbsy.sty
+Package: amsbsy 1999/11/29 v1.2d Bold Symbols
+\pmbraise@=\dimen104
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsopn.sty
+Package: amsopn 2016/03/08 v2.02 operator names
+)
+\inf@bad=\count89
+LaTeX Info: Redefining \frac on input line 213.
+\uproot@=\count90
+\leftroot@=\count91
+LaTeX Info: Redefining \overline on input line 375.
+\classnum@=\count92
+\DOTSCASE@=\count93
+LaTeX Info: Redefining \ldots on input line 472.
+LaTeX Info: Redefining \dots on input line 475.
+LaTeX Info: Redefining \cdots on input line 596.
+\Mathstrutbox@=\box26
+\strutbox@=\box27
+\big@size=\dimen105
+LaTeX Font Info:    Redeclaring font encoding OML on input line 712.
+LaTeX Font Info:    Redeclaring font encoding OMS on input line 713.
+\macc@depth=\count94
+\c@MaxMatrixCols=\count95
+\dotsspace@=\muskip10
+\c@parentequation=\count96
+\dspbrk@lvl=\count97
+\tag@help=\toks16
+\row@=\count98
+\column@=\count99
+\maxfields@=\count100
+\andhelp@=\toks17
+\eqnshift@=\dimen106
+\alignsep@=\dimen107
+\tagshift@=\dimen108
+\tagwidth@=\dimen109
+\totwidth@=\dimen110
+\lineht@=\dimen111
+\@envbody=\toks18
+\multlinegap=\skip44
+\multlinetaggap=\skip45
+\mathdisplay@stack=\toks19
+LaTeX Info: Redefining \[ on input line 2817.
+LaTeX Info: Redefining \] on input line 2818.
+) (/usr/local/texlive/2018/texmf-dist/tex/generic/ifxetex/ifxetex.sty
+Package: ifxetex 2010/09/12 v0.6 Provides ifxetex conditional
+) (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/ifluatex.sty
+Package: ifluatex 2016/05/16 v1.4 Provides the ifluatex switch (HO)
+Package ifluatex Info: LuaTeX not detected.
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/base/fixltx2e.sty
+Package: fixltx2e 2016/12/29 v2.1a fixes to LaTeX (obsolete)
+Applying: [2015/01/01] Old fixltx2e package on input line 46.
+
+Package fixltx2e Warning: fixltx2e is not required with releases after 2015
+(fixltx2e)                All fixes are now in the LaTeX kernel.
+(fixltx2e)                See the latexrelease package for details.
+
+Already applied: [0000/00/00] Old fixltx2e package on input line 53.
+) (/usr/local/texlive/2018/texmf-dist/tex/xelatex/mathspec/mathspec.sty
+Package: mathspec 2016/12/22 v0.2b LaTeX Package (Mathematics font selection fo
+r XeLaTeX)
+(/usr/local/texlive/2018/texmf-dist/tex/latex/etoolbox/etoolbox.sty
+Package: etoolbox 2018/02/11 v2.5e e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count101
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/fontspec/fontspec.sty (/usr/loc
+al/texlive/2018/texmf-dist/tex/latex/l3packages/xparse/xparse.sty (/usr/local/t
+exlive/2018/texmf-dist/tex/latex/l3kernel/expl3.sty
+Package: expl3 2018/03/05 L3 programming layer (loader) 
+(/usr/local/texlive/2018/texmf-dist/tex/latex/l3kernel/expl3-code.tex
+Package: expl3 2018/03/05 L3 programming layer (code)
+\c_max_int=\count102
+\l_tmpa_int=\count103
+\l_tmpb_int=\count104
+\g_tmpa_int=\count105
+\g_tmpb_int=\count106
+\g__intarray_font_int=\count107
+\g__prg_map_int=\count108
+\c_log_iow=\count109
+\l_iow_line_count_int=\count110
+\l__iow_line_target_int=\count111
+\l__iow_one_indent_int=\count112
+\l__iow_indent_int=\count113
+\c_zero_dim=\dimen112
+\c_max_dim=\dimen113
+\l_tmpa_dim=\dimen114
+\l_tmpb_dim=\dimen115
+\g_tmpa_dim=\dimen116
+\g_tmpb_dim=\dimen117
+\c_zero_skip=\skip46
+\c_max_skip=\skip47
+\l_tmpa_skip=\skip48
+\l_tmpb_skip=\skip49
+\g_tmpa_skip=\skip50
+\g_tmpb_skip=\skip51
+\c_zero_muskip=\muskip11
+\c_max_muskip=\muskip12
+\l_tmpa_muskip=\muskip13
+\l_tmpb_muskip=\muskip14
+\g_tmpa_muskip=\muskip15
+\g_tmpb_muskip=\muskip16
+\l_keys_choice_int=\count114
+\c__fp_leading_shift_int=\count115
+\c__fp_middle_shift_int=\count116
+\c__fp_trailing_shift_int=\count117
+\c__fp_big_leading_shift_int=\count118
+\c__fp_big_middle_shift_int=\count119
+\c__fp_big_trailing_shift_int=\count120
+\c__fp_Bigg_leading_shift_int=\count121
+\c__fp_Bigg_middle_shift_int=\count122
+\c__fp_Bigg_trailing_shift_int=\count123
+\l__sort_length_int=\count124
+\l__sort_min_int=\count125
+\l__sort_top_int=\count126
+\l__sort_max_int=\count127
+\l__sort_true_max_int=\count128
+\l__sort_block_int=\count129
+\l__sort_begin_int=\count130
+\l__sort_end_int=\count131
+\l__sort_A_int=\count132
+\l__sort_B_int=\count133
+\l__sort_C_int=\count134
+\l__tl_build_start_index_int=\count135
+\l__tl_build_index_int=\count136
+\l__tl_analysis_normal_int=\count137
+\l__tl_analysis_index_int=\count138
+\l__tl_analysis_nesting_int=\count139
+\l__tl_analysis_type_int=\count140
+\l__regex_internal_a_int=\count141
+\l__regex_internal_b_int=\count142
+\l__regex_internal_c_int=\count143
+\l__regex_balance_int=\count144
+\l__regex_group_level_int=\count145
+\l__regex_mode_int=\count146
+\c__regex_cs_in_class_mode_int=\count147
+\c__regex_cs_mode_int=\count148
+\l__regex_catcodes_int=\count149
+\l__regex_default_catcodes_int=\count150
+\c__regex_catcode_L_int=\count151
+\c__regex_catcode_O_int=\count152
+\c__regex_catcode_A_int=\count153
+\c__regex_all_catcodes_int=\count154
+\l__regex_show_lines_int=\count155
+\l__regex_min_state_int=\count156
+\l__regex_max_state_int=\count157
+\l__regex_left_state_int=\count158
+\l__regex_right_state_int=\count159
+\l__regex_capturing_group_int=\count160
+\l__regex_min_pos_int=\count161
+\l__regex_max_pos_int=\count162
+\l__regex_curr_pos_int=\count163
+\l__regex_start_pos_int=\count164
+\l__regex_success_pos_int=\count165
+\l__regex_curr_char_int=\count166
+\l__regex_curr_catcode_int=\count167
+\l__regex_last_char_int=\count168
+\l__regex_case_changed_char_int=\count169
+\l__regex_curr_state_int=\count170
+\l__regex_step_int=\count171
+\l__regex_min_active_int=\count172
+\l__regex_max_active_int=\count173
+\l__regex_replacement_csnames_int=\count174
+\l__regex_match_count_int=\count175
+\l__regex_min_submatch_int=\count176
+\l__regex_submatch_int=\count177
+\l__regex_zeroth_submatch_int=\count178
+\g__regex_trace_regex_int=\count179
+\c_empty_box=\box28
+\l_tmpa_box=\box29
+\l_tmpb_box=\box30
+\g_tmpa_box=\box31
+\g_tmpb_box=\box32
+\l__box_top_dim=\dimen118
+\l__box_bottom_dim=\dimen119
+\l__box_left_dim=\dimen120
+\l__box_right_dim=\dimen121
+\l__box_top_new_dim=\dimen122
+\l__box_bottom_new_dim=\dimen123
+\l__box_left_new_dim=\dimen124
+\l__box_right_new_dim=\dimen125
+\l__box_internal_box=\box33
+\l__coffin_internal_box=\box34
+\l__coffin_internal_dim=\dimen126
+\l__coffin_offset_x_dim=\dimen127
+\l__coffin_offset_y_dim=\dimen128
+\l__coffin_x_dim=\dimen129
+\l__coffin_y_dim=\dimen130
+\l__coffin_x_prime_dim=\dimen131
+\l__coffin_y_prime_dim=\dimen132
+\c_empty_coffin=\box35
+\l__coffin_aligned_coffin=\box36
+\l__coffin_aligned_internal_coffin=\box37
+\l_tmpa_coffin=\box38
+\l_tmpb_coffin=\box39
+\l__coffin_display_coffin=\box40
+\l__coffin_display_coord_coffin=\box41
+\l__coffin_display_pole_coffin=\box42
+\l__coffin_display_offset_dim=\dimen133
+\l__coffin_display_x_dim=\dimen134
+\l__coffin_display_y_dim=\dimen135
+\l__coffin_bounding_shift_dim=\dimen136
+\l__coffin_left_corner_dim=\dimen137
+\l__coffin_right_corner_dim=\dimen138
+\l__coffin_bottom_corner_dim=\dimen139
+\l__coffin_top_corner_dim=\dimen140
+\l__coffin_scaled_total_height_dim=\dimen141
+\l__coffin_scaled_width_dim=\dimen142
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/l3kernel/l3xdvipdfmx.def
+File: l3xdvidpfmx.def 2017/03/18 v L3 Experimental driver: xdvipdfmx
+\g__driver_image_int=\count180
+))
+Package: xparse 2018/02/21 L3 Experimental document command parser
+\l__xparse_current_arg_int=\count181
+\g__xparse_grabber_int=\count182
+\l__xparse_m_args_int=\count183
+\l__xparse_mandatory_args_int=\count184
+\l__xparse_v_nesting_int=\count185
+)
+Package: fontspec 2017/11/09 v2.6g Font selection for XeLaTeX and LuaLaTeX
+(/usr/local/texlive/2018/texmf-dist/tex/latex/fontspec/fontspec-xetex.sty
+Package: fontspec-xetex 2017/11/09 v2.6g Font selection for XeLaTeX and LuaLaTe
+X
+\l__fontspec_script_int=\count186
+\l__fontspec_language_int=\count187
+\l__fontspec_strnum_int=\count188
+\l__fontspec_tmp_int=\count189
+\l__fontspec_em_int=\count190
+\l__fontspec_emdef_int=\count191
+\l__fontspec_strong_int=\count192
+\l__fontspec_strongdef_int=\count193
+\l__fontspec_tmpa_dim=\dimen143
+\l__fontspec_tmpb_dim=\dimen144
+\l__fontspec_tmpc_dim=\dimen145
+\g__file_internal_ior=\read1
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/fontenc.sty
+Package: fontenc 2017/04/05 v2.0i Standard LaTeX package
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/tuenc.def
+File: tuenc.def 2017/04/05 v2.0i Standard LaTeX file
+LaTeX Font Info:    Redeclaring font encoding TU on input line 82.
+))
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \fontspec with sig. 'O{}mO{}' on line 542.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setmainfont with sig. 'O{}mO{}' on line 546.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setsansfont with sig. 'O{}mO{}' on line 550.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setmonofont with sig. 'O{}mO{}' on line 554.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setmathrm with sig. 'O{}mO{}' on line 558.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setboldmathrm with sig. 'O{}mO{}' on line 562.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setmathsf with sig. 'O{}mO{}' on line 566.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setmathtt with sig. 'O{}mO{}' on line 570.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \setromanfont with sig. 'O{}mO{}' on line 574.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newfontfamily with sig. 'mO{}mO{}' on line 578.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newfontface with sig. 'mO{}mO{}' on line 582.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \defaultfontfeatures with sig. 't+om' on line 586.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \addfontfeatures with sig. 'm' on line 590.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \addfontfeature with sig. 'm' on line 594.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newfontfeature with sig. 'mm' on line 598.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newAATfeature with sig. 'mmmm' on line 602.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newopentypefeature with sig. 'mmm' on line 606.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newICUfeature with sig. 'mmm' on line 610.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \aliasfontfeature with sig. 'mm' on line 614.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \aliasfontfeatureoption with sig. 'mmm' on line 618.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newfontscript with sig. 'mm' on line 622.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \newfontlanguage with sig. 'mm' on line 626.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \DeclareFontsExtensions with sig. 'm' on line 630.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \IfFontFeatureActiveTF with sig. 'mmm' on line 634.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \EncodingCommand with sig. 'mO{}m' on line 3632.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \EncodingAccent with sig. 'mm' on line 3638.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \EncodingSymbol with sig. 'mm' on line 3644.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \EncodingComposite with sig. 'mmm' on line 3650.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \EncodingCompositeCommand with sig. 'mmm' on line 3656.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \DeclareUnicodeEncoding with sig. 'mm' on line 3681.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \UndeclareSymbol with sig. 'm' on line 3687.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \UndeclareAccent with sig. 'm' on line 3693.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \UndeclareCommand with sig. 'm' on line 3699.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \UndeclareComposite with sig. 'mm' on line 3706.
+.................................................
+(/usr/local/texlive/2018/texmf-dist/tex/latex/fontspec/fontspec.cfg)
+LaTeX Info: Redefining \itshape on input line 3891.
+LaTeX Info: Redefining \slshape on input line 3896.
+LaTeX Info: Redefining \scshape on input line 3901.
+LaTeX Info: Redefining \upshape on input line 3906.
+LaTeX Info: Redefining \em on input line 3936.
+LaTeX Info: Redefining \emph on input line 3961.
+LaTeX Info: Redefining \- on input line 4015.
+.................................................
+. LaTeX info: "xparse/redefine-command"
+. 
+. Redefining command \oldstylenums with sig. 'm' on line 4110.
+.................................................
+.................................................
+. LaTeX info: "xparse/define-command"
+. 
+. Defining command \liningnums with sig. 'm' on line 4114.
+.................................................
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+Package: xkeyval 2014/12/03 v2.7a package option processing (HA)
+(/usr/local/texlive/2018/texmf-dist/tex/generic/xkeyval/xkeyval.tex (/usr/local
+/texlive/2018/texmf-dist/tex/generic/xkeyval/xkvutils.tex
+\XKV@toks=\toks20
+\XKV@tempa@toks=\toks21
+(/usr/local/texlive/2018/texmf-dist/tex/generic/xkeyval/keyval.tex))
+\XKV@depth=\count194
+File: xkeyval.tex 2014/12/03 v2.7a key=value parser (HA)
+))
+\c@eu@=\count195
+\c@eu@i=\count196
+\c@mkern=\count197
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/upquote/upquote.sty
+Package: upquote 2012/04/19 v1.3 upright-quote and grave-accent glyphs in verba
+tim
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/textcomp.sty
+Package: textcomp 2017/04/05 v2.0i Standard LaTeX package
+Package textcomp Info: Sub-encoding information:
+(textcomp)               5 = only ISO-Adobe without \textcurrency
+(textcomp)               4 = 5 + \texteuro
+(textcomp)               3 = 4 + \textohm
+(textcomp)               2 = 3 + \textestimated + \textcurrency
+(textcomp)               1 = TS1 - \textcircled - \t
+(textcomp)               0 = TS1 (full)
+(textcomp)             Font families with sub-encoding setting implement
+(textcomp)             only a restricted character set as indicated.
+(textcomp)             Family '?' is the default used for unknown fonts.
+(textcomp)             See the documentation for details.
+Package textcomp Info: Setting ? sub-encoding to TS1/1 on input line 79.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/ts1enc.def
+File: ts1enc.def 2001/06/05 v3.0e (jk/car/fm) Standard LaTeX file
+)
+LaTeX Info: Redefining \oldstylenums on input line 334.
+Package textcomp Info: Setting cmr sub-encoding to TS1/0 on input line 349.
+Package textcomp Info: Setting cmss sub-encoding to TS1/0 on input line 350.
+Package textcomp Info: Setting cmtt sub-encoding to TS1/0 on input line 351.
+Package textcomp Info: Setting cmvtt sub-encoding to TS1/0 on input line 352.
+Package textcomp Info: Setting cmbr sub-encoding to TS1/0 on input line 353.
+Package textcomp Info: Setting cmtl sub-encoding to TS1/0 on input line 354.
+Package textcomp Info: Setting ccr sub-encoding to TS1/0 on input line 355.
+Package textcomp Info: Setting ptm sub-encoding to TS1/4 on input line 356.
+Package textcomp Info: Setting pcr sub-encoding to TS1/4 on input line 357.
+Package textcomp Info: Setting phv sub-encoding to TS1/4 on input line 358.
+Package textcomp Info: Setting ppl sub-encoding to TS1/3 on input line 359.
+Package textcomp Info: Setting pag sub-encoding to TS1/4 on input line 360.
+Package textcomp Info: Setting pbk sub-encoding to TS1/4 on input line 361.
+Package textcomp Info: Setting pnc sub-encoding to TS1/4 on input line 362.
+Package textcomp Info: Setting pzc sub-encoding to TS1/4 on input line 363.
+Package textcomp Info: Setting bch sub-encoding to TS1/4 on input line 364.
+Package textcomp Info: Setting put sub-encoding to TS1/5 on input line 365.
+Package textcomp Info: Setting uag sub-encoding to TS1/5 on input line 366.
+Package textcomp Info: Setting ugq sub-encoding to TS1/5 on input line 367.
+Package textcomp Info: Setting ul8 sub-encoding to TS1/4 on input line 368.
+Package textcomp Info: Setting ul9 sub-encoding to TS1/4 on input line 369.
+Package textcomp Info: Setting augie sub-encoding to TS1/5 on input line 370.
+Package textcomp Info: Setting dayrom sub-encoding to TS1/3 on input line 371.
+Package textcomp Info: Setting dayroms sub-encoding to TS1/3 on input line 372.
+
+Package textcomp Info: Setting pxr sub-encoding to TS1/0 on input line 373.
+Package textcomp Info: Setting pxss sub-encoding to TS1/0 on input line 374.
+Package textcomp Info: Setting pxtt sub-encoding to TS1/0 on input line 375.
+Package textcomp Info: Setting txr sub-encoding to TS1/0 on input line 376.
+Package textcomp Info: Setting txss sub-encoding to TS1/0 on input line 377.
+Package textcomp Info: Setting txtt sub-encoding to TS1/0 on input line 378.
+Package textcomp Info: Setting lmr sub-encoding to TS1/0 on input line 379.
+Package textcomp Info: Setting lmdh sub-encoding to TS1/0 on input line 380.
+Package textcomp Info: Setting lmss sub-encoding to TS1/0 on input line 381.
+Package textcomp Info: Setting lmssq sub-encoding to TS1/0 on input line 382.
+Package textcomp Info: Setting lmvtt sub-encoding to TS1/0 on input line 383.
+Package textcomp Info: Setting lmtt sub-encoding to TS1/0 on input line 384.
+Package textcomp Info: Setting qhv sub-encoding to TS1/0 on input line 385.
+Package textcomp Info: Setting qag sub-encoding to TS1/0 on input line 386.
+Package textcomp Info: Setting qbk sub-encoding to TS1/0 on input line 387.
+Package textcomp Info: Setting qcr sub-encoding to TS1/0 on input line 388.
+Package textcomp Info: Setting qcs sub-encoding to TS1/0 on input line 389.
+Package textcomp Info: Setting qpl sub-encoding to TS1/0 on input line 390.
+Package textcomp Info: Setting qtm sub-encoding to TS1/0 on input line 391.
+Package textcomp Info: Setting qzc sub-encoding to TS1/0 on input line 392.
+Package textcomp Info: Setting qhvc sub-encoding to TS1/0 on input line 393.
+Package textcomp Info: Setting futs sub-encoding to TS1/4 on input line 394.
+Package textcomp Info: Setting futx sub-encoding to TS1/4 on input line 395.
+Package textcomp Info: Setting futj sub-encoding to TS1/4 on input line 396.
+Package textcomp Info: Setting hlh sub-encoding to TS1/3 on input line 397.
+Package textcomp Info: Setting hls sub-encoding to TS1/3 on input line 398.
+Package textcomp Info: Setting hlst sub-encoding to TS1/3 on input line 399.
+Package textcomp Info: Setting hlct sub-encoding to TS1/5 on input line 400.
+Package textcomp Info: Setting hlx sub-encoding to TS1/5 on input line 401.
+Package textcomp Info: Setting hlce sub-encoding to TS1/5 on input line 402.
+Package textcomp Info: Setting hlcn sub-encoding to TS1/5 on input line 403.
+Package textcomp Info: Setting hlcw sub-encoding to TS1/5 on input line 404.
+Package textcomp Info: Setting hlcf sub-encoding to TS1/5 on input line 405.
+Package textcomp Info: Setting pplx sub-encoding to TS1/3 on input line 406.
+Package textcomp Info: Setting pplj sub-encoding to TS1/3 on input line 407.
+Package textcomp Info: Setting ptmx sub-encoding to TS1/4 on input line 408.
+Package textcomp Info: Setting ptmj sub-encoding to TS1/4 on input line 409.
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/microtype.sty
+Package: microtype 2018/01/14 v2.7a Micro-typographical refinements (RS)
+\MT@toks=\toks22
+\MT@count=\count198
+LaTeX Info: Redefining \textls on input line 793.
+\MT@outer@kern=\dimen146
+LaTeX Info: Redefining \textmicrotypecontext on input line 1339.
+\MT@listname@count=\count199
+(/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/microtype-xetex.def
+File: microtype-xetex.def 2018/01/14 v2.7a Definitions specific to xetex (RS)
+LaTeX Info: Redefining \lsstyle on input line 256.
+)
+Package microtype Info: Loading configuration file microtype.cfg.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/microtype.cfg
+File: microtype.cfg 2018/01/14 v2.7a microtype main configuration file (RS)
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hyperref.sty
+Package: hyperref 2018/02/06 v6.86b Hypertext links for LaTeX
+(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/hobsub-hyperref.sty
+Package: hobsub-hyperref 2016/05/16 v1.14 Bundle oberdiek, subset hyperref (HO)
+
+(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/hobsub-generic.sty
+Package: hobsub-generic 2016/05/16 v1.14 Bundle oberdiek, subset generic (HO)
+Package: hobsub 2016/05/16 v1.14 Construct package bundles (HO)
+Package: infwarerr 2016/05/16 v1.4 Providing info/warning/error messages (HO)
+Package: ltxcmds 2016/05/16 v1.23 LaTeX kernel commands for general use (HO)
+Package hobsub Info: Skipping package `ifluatex' (already loaded).
+Package: ifvtex 2016/05/16 v1.6 Detect VTeX and its facilities (HO)
+Package ifvtex Info: VTeX not detected.
+Package: intcalc 2016/05/16 v1.2 Expandable calculations with integers (HO)
+Package: ifpdf 2017/03/15 v3.2 Provides the ifpdf switch
+Package: etexcmds 2016/05/16 v1.6 Avoid name clashes with e-TeX commands (HO)
+Package etexcmds Info: Could not find \expanded.
+(etexcmds)             That can mean that you are not using pdfTeX 1.50 or
+(etexcmds)             that some package has redefined \expanded.
+(etexcmds)             In the latter case, load this package earlier.
+Package: kvsetkeys 2016/05/16 v1.17 Key value parser (HO)
+Package: kvdefinekeys 2016/05/16 v1.4 Define keys (HO)
+Package: pdftexcmds 2018/01/30 v0.27 Utility functions of pdfTeX for LuaTeX (HO
+)
+Package pdftexcmds Info: LuaTeX not detected.
+Package pdftexcmds Info: pdfTeX >= 1.30 not detected.
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode not found.
+Package: pdfescape 2016/05/16 v1.14 Implements pdfTeX's escape features (HO)
+Package: bigintcalc 2016/05/16 v1.4 Expandable calculations on big integers (HO
+)
+Package: bitset 2016/05/16 v1.2 Handle bit-vector datatype (HO)
+Package: uniquecounter 2016/05/16 v1.3 Provide unlimited unique counter (HO)
+)
+Package hobsub Info: Skipping package `hobsub' (already loaded).
+Package: letltxmacro 2016/05/16 v1.5 Let assignment for LaTeX macros (HO)
+Package: hopatch 2016/05/16 v1.3 Wrapper for package hooks (HO)
+Package: xcolor-patch 2016/05/16 xcolor patch
+Package: atveryend 2016/05/16 v1.9 Hooks at the very end of document (HO)
+Package: atbegshi 2016/06/09 v1.18 At begin shipout hook (HO)
+Package: refcount 2016/05/16 v3.5 Data extraction from label references (HO)
+Package: hycolor 2016/05/16 v1.8 Color options for hyperref/bookmark (HO)
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/auxhook.sty
+Package: auxhook 2016/05/16 v1.4 Hooks for auxiliary files (HO)
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/kvoptions.sty
+Package: kvoptions 2016/05/16 v3.12 Key value format for package options (HO)
+)
+\@linkdim=\dimen147
+\Hy@linkcounter=\count266
+\Hy@pagecounter=\count267
+(/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/pd1enc.def
+File: pd1enc.def 2018/02/06 v6.86b Hyperref: PDFDocEncoding definition (HO)
+)
+\Hy@SavedSpaceFactor=\count268
+(/usr/local/texlive/2018/texmf-dist/tex/latex/latexconfig/hyperref.cfg
+File: hyperref.cfg 2002/06/06 v1.2 hyperref configuration of TeXLive
+)
+Package hyperref Info: Hyper figures OFF on input line 4509.
+Package hyperref Info: Link nesting OFF on input line 4514.
+Package hyperref Info: Hyper index ON on input line 4517.
+Package hyperref Info: Plain pages OFF on input line 4524.
+Package hyperref Info: Backreferencing OFF on input line 4529.
+Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
+Package hyperref Info: Bookmarks ON on input line 4762.
+\c@Hy@tempcnt=\count269
+(/usr/local/texlive/2018/texmf-dist/tex/latex/url/url.sty
+\Urlmuskip=\muskip17
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+)
+LaTeX Info: Redefining \url on input line 5115.
+\XeTeXLinkMargin=\dimen148
+\Fld@menulength=\count270
+\Field@Width=\dimen149
+\Fld@charsize=\dimen150
+Package hyperref Info: Hyper figures OFF on input line 6369.
+Package hyperref Info: Link nesting OFF on input line 6374.
+Package hyperref Info: Hyper index ON on input line 6377.
+Package hyperref Info: backreferencing OFF on input line 6384.
+Package hyperref Info: Link coloring OFF on input line 6389.
+Package hyperref Info: Link coloring with OCG OFF on input line 6394.
+Package hyperref Info: PDF/A mode OFF on input line 6399.
+LaTeX Info: Redefining \ref on input line 6439.
+LaTeX Info: Redefining \pageref on input line 6443.
+\Hy@abspage=\count271
+\c@Item=\count272
+\c@Hfootnote=\count273
+)
+Package hyperref Info: Driver (autodetected): hxetex.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hxetex.def
+File: hxetex.def 2018/02/06 v6.86b Hyperref driver for XeTeX
+(/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/puenc.def
+File: puenc.def 2018/02/06 v6.86b Hyperref: PDF Unicode definition (HO)
+) (/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/stringenc.sty
+Package: stringenc 2016/05/16 v1.11 Convert strings between diff. encodings (HO
+)
+)
+\pdfm@box=\box43
+\c@Hy@AnnotLevel=\count274
+\HyField@AnnotCount=\count275
+\Fld@listcount=\count276
+\c@bookmark@seq@number=\count277
+(/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/rerunfilecheck.sty
+Package: rerunfilecheck 2016/05/16 v1.8 Rerun checks for auxiliary files (HO)
+Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
+82.
+)
+\Hy@SectionHShift=\skip52
+)
+Package hyperref Info: Option `unicode' set `true' on input line 29.
+(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/se-ascii-print.def
+File: se-ascii-print.def 2016/05/16 v1.11 stringenc: Printable ASCII characters
+
+)
+Package hyperref Info: Option `breaklinks' set `true' on input line 29.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/natbib/natbib.sty
+Package: natbib 2010/09/13 8.31b (PWD, AO)
+\bibhang=\skip53
+\bibsep=\skip54
+LaTeX Info: Redefining \cite on input line 694.
+\c@NAT@ctr=\count278
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/color.sty
+Package: color 2016/07/10 v1.1e Standard LaTeX Color (DPC)
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-cfg/color.cfg
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package color Info: Driver file: xetex.def on input line 147.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-def/xetex.def
+File: xetex.def 2017/06/24 v5.0h Graphics/color driver for xetex
+)) (/usr/local/texlive/2018/texmf-dist/tex/latex/fancyvrb/fancyvrb.sty
+Package: fancyvrb 2008/02/07
+
+Style option: `fancyvrb' v2.7a, with DG/SPQR fixes, and firstline=lastline fix 
+<2008/02/07> (tvz)
+\FV@CodeLineNo=\count279
+\FV@InFile=\read2
+\FV@TabBox=\box44
+\c@FancyVerbLine=\count280
+\FV@StepNumber=\count281
+\FV@OutFile=\write3
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/framed/framed.sty
+Package: framed 2011/10/22 v 0.96: framed or shaded text with page breaks
+\OuterFrameSep=\skip55
+\fb@frw=\dimen151
+\fb@frh=\dimen152
+\FrameRule=\dimen153
+\FrameSep=\dimen154
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/tools/longtable.sty
+Package: longtable 2014/10/28 v4.11 Multi-page Table package (DPC)
+\LTleft=\skip56
+\LTright=\skip57
+\LTpre=\skip58
+\LTpost=\skip59
+\LTchunksize=\count282
+\LTcapwidth=\dimen155
+\LT@head=\box45
+\LT@firsthead=\box46
+\LT@foot=\box47
+\LT@lastfoot=\box48
+\LT@cols=\count283
+\LT@rows=\count284
+\c@LT@tables=\count285
+\c@LT@chunks=\count286
+\LT@p@ftn=\toks23
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
+Package: booktabs 2016/04/27 v1.618033 publication quality tables
+\heavyrulewidth=\dimen156
+\lightrulewidth=\dimen157
+\cmidrulewidth=\dimen158
+\belowrulesep=\dimen159
+\belowbottomsep=\dimen160
+\aboverulesep=\dimen161
+\abovetopsep=\dimen162
+\cmidrulesep=\dimen163
+\cmidrulekern=\dimen164
+\defaultaddspace=\dimen165
+\@cmidla=\count287
+\@cmidlb=\count288
+\@aboverulesep=\dimen166
+\@belowrulesep=\dimen167
+\@thisruleclass=\count289
+\@lastruleclass=\count290
+\@thisrulewidth=\dimen168
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphicx.sty
+Package: graphicx 2017/06/01 v1.1a Enhanced LaTeX Graphics (DPC,SPQR)
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphics.sty
+Package: graphics 2017/06/25 v1.2c Standard LaTeX Graphics (DPC,SPQR)
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics/trig.sty
+Package: trig 2016/01/03 v1.10 sin cos tan (DPC)
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-cfg/graphics.cfg
+File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
+)
+Package graphics Info: Driver file: xetex.def on input line 99.
+)
+\Gin@req@height=\dimen169
+\Gin@req@width=\dimen170
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/grffile.sty
+Package: grffile 2017/06/30 v1.18 Extended file name support for graphics (HO)
+Package grffile Info: Option `multidot' is set to `true'.
+Package grffile Info: Option `extendedchars' is set to `false'.
+Package grffile Info: Option `space' is set to `true'.
+Package grffile Info: \Gin@ii of package `graphicx' fixed on input line 494.
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/parskip/parskip.sty
+Package: parskip 2001/04/09 non-zero parskip adjustments
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/titling/titling.sty
+Package: titling 2009/09/04 v2.1d maketitle typesetting
+\thanksmarkwidth=\skip60
+\thanksmargin=\skip61
+\droptitle=\skip62
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/amscls/amsthm.sty
+Package: amsthm 2017/10/31 v2.20.4
+\thm@style=\toks24
+\thm@bodyfont=\toks25
+\thm@headfont=\toks26
+\thm@notefont=\toks27
+\thm@headpunct=\toks28
+\thm@preskip=\skip63
+\thm@postskip=\skip64
+\thm@headsep=\skip65
+\dth@everypar=\toks29
+) (./Walker-elementary-statistical-modeling-draft.aux
+
+LaTeX Warning: Label `eq:lm-spec2' multiply defined.
+
+
+LaTeX Warning: Label `eq:lmm-spec1b' multiply defined.
+
+)
+\openout1 = `Walker-elementary-statistical-modeling-draft.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 138.
+LaTeX Font Info:    Try loading font information for TS1+cmr on input line 138.
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/ts1cmr.fd
+File: ts1cmr.fd 2014/09/29 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 138.
+LaTeX Font Info:    ... okay on input line 138.
+LaTeX Info: Redefining \microtypecontext on input line 138.
+Package microtype Info: Character protrusion enabled (level 2).
+Package microtype Info: Using protrusion set `basicmath'.
+Package microtype Info: No adjustment of tracking.
+Package microtype Info: No adjustment of spacing.
+Package microtype Info: No adjustment of kerning.
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/mt-LatinModernRoman.cfg
+File: mt-LatinModernRoman.cfg 2013/03/13 v1.0 microtype config. file: Latin Mod
+ern Roman (RS)
+)
+\AtBeginShipoutBox=\box49
+Package hyperref Info: Link coloring OFF on input line 138.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
+Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
+(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
+Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
+)
+\c@section@level=\count291
+)
+LaTeX Info: Redefining \ref on input line 138.
+LaTeX Info: Redefining \pageref on input line 138.
+LaTeX Info: Redefining \nameref on input line 138.
+(./Walker-elementary-statistical-modeling-draft.out) (./Walker-elementary-stati
+stical-modeling-draft.out)
+\@outlinefile=\write4
+\openout4 = `Walker-elementary-statistical-modeling-draft.out'.
+
+[1
+
+
+] [2
+
+] (./Walker-elementary-statistical-modeling-draft.toc
+LaTeX Font Info:    Try loading font information for OT1+lmr on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/lm/ot1lmr.fd
+File: ot1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)
+Package microtype Info: Loading generic protrusion settings for font family
+(microtype)             `lmr' (encoding: OT1).
+(microtype)             For optimal results, create family-specific settings.
+(microtype)             See the microtype manual for details.
+LaTeX Font Info:    Try loading font information for OML+lmm on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/lm/omllmm.fd
+File: omllmm.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)
+LaTeX Font Info:    Try loading font information for OMS+lmsy on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/lm/omslmsy.fd
+File: omslmsy.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)
+LaTeX Font Info:    Try loading font information for OMX+lmex on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/lm/omxlmex.fd
+File: omxlmex.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <10> on input line 2.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <7> on input line 2.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <5> on input line 2.
+LaTeX Font Info:    Try loading font information for U+msa on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/mt-msa.cfg
+File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
+)
+LaTeX Font Info:    Try loading font information for U+msb on input line 2.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+) (/usr/local/texlive/2018/texmf-dist/tex/latex/microtype/mt-msb.cfg
+File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
+) [3] [4] [5])
+\tf@toc=\write5
+\openout5 = `Walker-elementary-statistical-modeling-draft.toc'.
+
+[6] [7
+
+]
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <8> on input line 222.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <6> on input line 222.
+
+Underfull \vbox (badness 3568) has occurred while \output is active []
+
+[8] [9] [10
+
+] [11] [12
+
+]
+Chapter 1.
+
+Underfull \vbox (badness 1314) has occurred while \output is active []
+
+[13] [14]
+LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <10> not available
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 382.
+[15]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 474--474
+[]\TU/lmtt/m/n/10 ## []stat_bin()[] using []bins = 30[]. Pick better value with
+ []binwidth[].[] 
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/simple-pl
+ot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/simple-plo
+t-1.pdf>
+[16]
+Chapter 2.
+
+Underfull \hbox (badness 1122) in paragraph at lines 505--514
+[]\TU/lmtt/m/n/10 df <- read.csv(file.choose()) \TU/lmr/m/n/10 opens the famili
+ar “open file” di-
+ []
+
+
+Underfull \hbox (badness 1874) in paragraph at lines 505--514
+\TU/lmr/m/n/10 import is necessary. The catastrophic problem (for reproducibil-
+
+ []
+
+
+Underfull \hbox (badness 1910) in paragraph at lines 505--514
+\TU/lmr/m/n/10 during an R session? The researcher might think they opened
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 505--514
+\TU/lmr/m/n/10 “walker_maine_bee_data_clean_androscoggin.csv” but mistakenly
+ []
+
+
+Overfull \hbox (83.81pt too wide) in paragraph at lines 514--523
+[]\TU/lmtt/m/n/10 df <- read.table(file="my_data.txt") \TU/lmr/m/n/10 and \TU/l
+mtt/m/n/10 df <- read_excel(file="my_data.xlsx")
+ []
+
+[17
+
+] [18] [19] [20]
+Underfull \hbox (badness 1577) in paragraph at lines 767--774
+\TU/lmr/m/n/10 The \TU/lmtt/m/n/10 read_excel(file_path, sheet="nestlingMass") 
+\TU/lmr/m/n/10 reads the nestling-
+ []
+
+
+Underfull \vbox (badness 4266) has occurred while \output is active []
+
+[21] [22]
+Overfull \hbox (6.75pt too wide) in paragraph at lines 862--862
+[]\TU/lmtt/m/n/10 ##  [7] "nest temperature above ambient" "max daily temp hatc
+h day"[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 862--862
+[]\TU/lmtt/m/n/10 ##  [9] "mean max temp hatch to day2"    "mean max temp hatch
+ to day10"[] 
+ []
+
+
+Overfull \hbox (4.52998pt too wide) in paragraph at lines 897--902
+[][]$[][][][][] [] [] [] [][][] [] [][][][][][][] [] [][][] [] [][][][][] [] []
+[][][] [] [][][][][][][][] [] [][][] [] [] [] [][][][][][][][][][][]$[]
+ []
+
+
+Underfull \vbox (badness 1895) has occurred while \output is active []
+
+[23]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+chickdata-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plotc
+hickdata-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+chickdata-2.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plotc
+hickdata-2.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[24] [25]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot
+-bee-fig-2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-plot-
+bee-fig-2-1.pdf>
+[26]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
+rnative-plots-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
+native-plots-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
+rnative-plots-2.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
+native-plots-2.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[27]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alte
+rnative-plots-3.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-alter
+native-plots-3.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[28] [29] [30] [31]
+Overfull \hbox (39.89012pt too wide) in paragraph at lines 1279--1292
+[][] 
+ []
+
+[32] [33]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/data-vole
+-plot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/data-vole-
+plot-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[34] [35]
+LaTeX Font Info:    Try loading font information for TS1+lmr on input line 1457
+.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/lm/ts1lmr.fd
+File: ts1lmr.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/problem2-
+1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/problem2-1
+.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[36] [37] [38
+
+] [39] [40
+
+]
+Chapter 3.
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/line-1.pd
+f Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/line-1.pdf
+>
+[41] [42] [43]
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <14.4> on input line 1642.
+[44] [45]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/coldVoles
+-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/coldVoles-
+1.pdf>
+[46] [47] [48] [49]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[50] [51] [52
+
+]
+Chapter 4.
+
+Underfull \vbox (badness 1484) has occurred while \output is active []
+
+[53]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/histogram
+-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/histogram-
+1.pdf>
+
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 54 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[54]
+Overfull \hbox (85.21011pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.1.  THE SAMPLE STANDARD DEVIATION VS. THE STANDARD ERROR OF T
+HE MEAN \TU/lmr/m/n/10 55
+ []
+
+[55]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 56 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[56]
+Overfull \hbox (133.56795pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.2.  USING GOOGLE SHEETS TO GENERATE FAKE DATA TO EXPLORE THE 
+STANDARD ERROR \TU/lmr/m/n/10 57
+ []
+
+[57]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 58 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[58]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 2408--2408
+[]\TU/lmtt/m/n/10 ## []stat_bin()[] using []bins = 30[]. Pick better value with
+ []binwidth[].[] 
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-18-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-18-1.pdf>
+
+Underfull \vbox (badness 2591) has occurred while \output is active []
+
+
+Overfull \hbox (54.92903pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.3.  USING R TO GENERATE FAKE DATA TO EXPLORE THE STANDARD ERR
+OR \TU/lmr/m/n/10 59
+ []
+
+[59]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 60 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[60]
+Overfull \hbox (54.92903pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 4.3.  USING R TO GENERATE FAKE DATA TO EXPLORE THE STANDARD ERR
+OR \TU/lmr/m/n/10 61
+ []
+
+[61]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 62 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[62]
+Overfull \hbox (96.0pt too wide) in paragraph at lines 2650--2650
+[]\TU/lmtt/m/n/10 ## [1] "/Users/jwalker/Documents/Github projects/Bookdown pro
+jects/applied-biostats"[] 
+ []
+
+[63]
+Overfull \hbox (273.53343pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 64 \TU/lmr/m/sl/10 CHAPTER 4.  VARIABILITY AND UNCERTAINTY (STAN
+DARD DEVIATIONS, STANDARD ERRORS, CONFIDENCE INTERVALS)
+ []
+
+[64]
+Chapter 5.
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/covarianc
+e-scatterplot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/covariance
+-scatterplot-1.pdf>
+[65
+
+] [66]
+Chapter 6.
+
+Overfull \hbox (55.06013pt too wide) in paragraph at lines 2744--2755
+[][] 
+ []
+
+[67
+
+]
+Underfull \vbox (badness 2698) has occurred while \output is active []
+
+[68] [69]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/inference
+-strip-chart-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/inference-
+strip-chart-1.pdf>
+[70]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/null-dist
+ribution-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/null-distr
+ibution-1.pdf>
+[71] [72] [73]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/null-dist
+ribution-t-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/null-distr
+ibution-t-1.pdf>
+
+Underfull \vbox (badness 10000) detected at line 3124
+ []
+
+
+Underfull \vbox (badness 2426) has occurred while \output is active []
+
+[74] [75] [76]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 77
+ []
+
+[77] [78]
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 79
+ []
+
+[79] [80]
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <12> on input line 3471.
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 81
+ []
+
+[81]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1
+.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/uniform-1.
+pdf>
+[82]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig
+-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/dance-fig-
+1.pdf>
+
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 83
+ []
+
+[83] [84]
+Overfull \hbox (46.86345pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 6.4.  FREQUENTIST PROBABILITY AND THE INTERPRETATION OF P-VALUE
+S \TU/lmr/m/n/10 85
+ []
+
+[85] [86] [87] [88
+
+]
+Chapter 7.
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/continuou
+s-X-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/continuous
+-X-1.pdf>
+[89] [90]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/categoric
+al-X-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/categorica
+l-X-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[91]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-25-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-25-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[92] [93] [94] [95] [96]
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ##            [,1]        [,2]        [,3]        [,4]       
+ [,5][] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ## [1,]  0.4762049  0.76679336  0.02189702 -0.37886958 -0.203
+06443[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ## [2,] -0.3226816  0.26514622 -0.21147219  0.50680583 -0.723
+87940[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ## [3,]  0.6343127 -0.07414265  0.40381446  0.65434666  0.030
+24185[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ## [4,]  0.2450305 -0.53523178  0.22900376 -0.40906173 -0.658
+56872[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 4283--4283
+[]\TU/lmtt/m/n/10 ## [5,] -0.4546568  0.22305882  0.85982044 -0.06406746 -0.011
+66667[] 
+ []
+
+[97] [98] [99
+
+] [100
+
+]
+Chapter 8.
+
+Package natbib Warning: Citation `Dantzer_xxx' on page 101 undefined on input l
+ine 4327.
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-
+1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/squirrel-1
+.pdf>
+[101] [102]
+Overfull \hbox (92.77013pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 8.1.  A LINEAR MODEL WITH A SINGLE, CONTINUOUS \TU/lmr/m/it/10 
+X \TU/lmr/m/sl/10 IS CLASSICAL “REGRESSION” \TU/lmr/m/n/10 103
+ []
+
+[103] [104]
+Overfull \hbox (22.14001pt too wide) in paragraph at lines 4554--4558
+[]\TU/lmr/m/n/10 Here we want to fit a model of \TU/lmtt/m/n/10 FCM.ng.g.dry \T
+U/lmr/m/n/10 as a function of \TU/lmtt/m/n/10 Raw.Squirrel.Density\TU/lmr/m/n/1
+0 .
+ []
+
+[105]
+Overfull \hbox (6.32903pt too wide) in paragraph at lines 4601--4604
+[]\TU/lmr/m/n/10 will return the error “Error in eval(predvars, data, env) : ob
+ject ‘FCM_ng_g_dry’
+ []
+
+LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <12> not available
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 4607.
+[106] [107] [108] [109]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
+ostics-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
+stics-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
+ostics-2.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
+stics-2.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
+ostics-3.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
+stics-3.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagn
+ostics-4.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-diagno
+stics-4.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[110]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[111]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 4883--4883
+[]\TU/lmtt/m/n/10 ##  [5] "fitted.values" "assign"        "qr"            "df.r
+esidual"[] 
+ []
+
+
+Underfull \hbox (badness 2922) in paragraph at lines 4896--4898
+[]\TU/lmr/m/n/10 What does \TU/lmtt/m/n/10 fit$fitted.values \TU/lmr/m/n/10 ret
+urn? Answer using equation
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-fitte
+d-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fit-fitted
+-1.pdf>
+
+Underfull \hbox (badness 1910) in paragraph at lines 4921--4927
+[]\TU/lmr/m/n/10 Using the chick data from Chapter 3. Compare the effects of
+ []
+
+
+Underfull \hbox (badness 5519) in paragraph at lines 4921--4927
+\TU/lmr/m/n/10 nest_temperature_above_ambient on day13_mass by fitting two
+ []
+
+[112] [113] [114
+
+]
+Chapter 9.
+[115]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/vole-mean
+-plot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/vole-mean-
+plot-1.pdf>
+[116]
+Overfull \hbox (211.06465pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 9.1.  A LINEAR MODEL WITH A SINGLE, CATEGORICAL \TU/lmr/m/it/10
+ X \TU/lmr/m/sl/10 ESTIMATES THE EFFECTS OF \TU/lmr/m/it/10 X \TU/lmr/m/sl/10 O
+N THE RESPONSE. \TU/lmr/m/n/10 117
+ []
+
+[117] [118]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/harrellpl
+ot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/harrellplo
+t-1.pdf>
+
+LaTeX Warning: Reference `fig:voles' on page 119 undefined on input line 5190.
+
+
+Overfull \hbox (211.06465pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 9.1.  A LINEAR MODEL WITH A SINGLE, CATEGORICAL \TU/lmr/m/it/10
+ X \TU/lmr/m/sl/10 ESTIMATES THE EFFECTS OF \TU/lmr/m/it/10 X \TU/lmr/m/sl/10 O
+N THE RESPONSE. \TU/lmr/m/n/10 119
+ []
+
+[119] [120]
+Overfull \hbox (113.34904pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 9.2.  COMPARING THE RESULTS OF A LINEAR MODEL TO CLASSICAL HYPO
+THESIS TESTS \TU/lmr/m/n/10 121
+ []
+
+[121] [122]
+Overfull \hbox (17.25pt too wide) in paragraph at lines 5351--5351
+[]\TU/lmtt/m/n/10 ## alternative hypothesis: true difference in means is not eq
+ual to 0[] 
+ []
+
+
+Overfull \hbox (113.34904pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 9.2.  COMPARING THE RESULTS OF A LINEAR MODEL TO CLASSICAL HYPO
+THESIS TESTS \TU/lmr/m/n/10 123
+ []
+
+[123]
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5468--5468
+[]\TU/lmtt/m/n/10 ##                      Estimate Std. Error   t value     Pr(
+>|t|)[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5468--5468
+[]\TU/lmtt/m/n/10 ## (Intercept)         503.39286   27.40978 18.365445 1.07829
+6e-32[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5468--5468
+[]\TU/lmtt/m/n/10 ## treatmentvitamin_C -115.07707   54.45772 -2.113145 3.72663
+2e-02[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 5468--5468
+[]\TU/lmtt/m/n/10 ## treatmentvitamin_E  -89.91667   52.48574 -1.713164 9.00142
+8e-02[] 
+ []
+
+[124] [125]
+Overfull \hbox (54.0pt too wide) in paragraph at lines 5576--5576
+[]\TU/lmtt/m/n/10 ##  contrast              estimate   SE df lower.CL upper.CL 
+t.ratio p.value[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5576--5576
+[]\TU/lmtt/m/n/10 ##  vitamin_C - control     -115.1 54.5 93     -223    -6.93 
+-2.113  0.0373[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5576--5576
+[]\TU/lmtt/m/n/10 ##  vitamin_E - control      -89.9 52.5 93     -194    14.31 
+-1.713  0.0900[] 
+ []
+
+
+Overfull \hbox (48.75pt too wide) in paragraph at lines 5576--5576
+[]\TU/lmtt/m/n/10 ##  vitamin_E - vitamin_C     25.2 64.9 93     -104   154.13 
+ 0.387  0.6993[] 
+ []
+
+[126]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-41-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-41-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[127] [128]
+Chapter 10.
+[129
+
+] [130] [131] [132]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
+ck-histogram, model-check-residuals1-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
+k-histogram, model-check-residuals1-1.pdf>
+
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 133
+ []
+
+[133]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
+ck-normal-qq-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
+k-normal-qq-1.pdf>
+
+Underfull \vbox (badness 4366) has occurred while \output is active []
+
+[134]
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 135
+ []
+
+[135]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
+ck-lognormal-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
+k-lognormal-1.pdf>
+[136]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-42-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-42-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/model-che
+ck-proportions-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/model-chec
+k-proportions-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (19.72124pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 10.4.  DIAGNOSTIC PLOTS USE THE RESIDUALS FROM THE MODEL FIT \T
+U/lmr/m/n/10 137
+ []
+
+[137] [138]
+Chapter 11.
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
+-ma-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data-
+ma-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[139
+
+]
+
+LaTeX Warning: Reference `fig:fake-data-ma' on page 140 undefined on input line
+ 6064.
+
+
+LaTeX Warning: Reference `fig:fake-data-ma' on page 140 undefined on input line
+ 6067.
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data
+-ols-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/fake-data-
+ols-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[140]
+
+LaTeX Warning: Reference `fig:fake-data-ols' on page 141 undefined on input lin
+e 6078.
+
+
+Overfull \hbox (93.1863pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 11.3.  HOW WELL DOES THE MODEL FIT THE DATA? $\OML/lmm/m/it/10 
+R[]$ \TU/lmr/m/sl/10 AND “VARIANCE EXPLAINED” \TU/lmr/m/n/10 141
+ []
+
+[141]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/egg-data-
+1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/egg-data-1
+.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ols-devia
+tions-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/ols-deviat
+ions-1.pdf>
+[142]
+Overfull \hbox (93.1863pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 11.3.  HOW WELL DOES THE MODEL FIT THE DATA? $\OML/lmm/m/it/10 
+R[]$ \TU/lmr/m/sl/10 AND “VARIANCE EXPLAINED” \TU/lmr/m/n/10 143
+ []
+
+[143] [144]
+Chapter 12.
+[145
+
+]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-eff
+ect-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-effe
+ct-1.pdf>
+[146]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-mea
+ns-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-mean
+s-1.pdf>
+[147] [148]
+
+LaTeX Warning: Reference `plots-effect' on page 149 undefined on input line 638
+9.
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-har
+rellplot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-harr
+ellplot-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-har
+relplot2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-harr
+elplot2-1.pdf>
+[149] [150] [151] [152]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-unp
+ooled-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/plots-unpo
+oled-1.pdf>
+[153]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-43-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-43-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[154]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-45-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-45-1.pdf>
+[155]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-46-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-46-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-47-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-47-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[156]
+Overfull \vbox (1.22552pt too high) detected at line 6660
+ []
+
+[157]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-48-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-48-1.pdf>
+[158] [159]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-51-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-51-1.pdf>
+[160]
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <24.88> on input line 6772.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <20.74> on input line 6772.
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <17.28> on input line 6772.
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 6774.
+
+[161
+
+] [162
+
+]
+Chapter 13.
+[163]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/cov-harre
+lplot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/cov-harrel
+plot-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-pl
+ot2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-plo
+t2-1.pdf>
+[164]
+
+LaTeX Warning: Reference `eq:ancova-2' on page 165 undefined on input line 6885
+.
+
+
+Overfull \hbox (127.91902pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 13.1.  ADDING COVARIATES CAN INCREASES THE PRECISION OF THE EFF
+ECT OF INTEREST \TU/lmr/m/n/10 165
+ []
+
+[165]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-53-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-53-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-54-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-54-1.pdf>
+
+Underfull \vbox (badness 1796) has occurred while \output is active []
+
+[166]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (127.91902pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 13.1.  ADDING COVARIATES CAN INCREASES THE PRECISION OF THE EFF
+ECT OF INTEREST \TU/lmr/m/n/10 167
+ []
+
+[167]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-mo
+useplot1-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-mou
+seplot1-1.pdf>
+[168]
+Overfull \hbox (662.40088pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 13.4.  BEST PRACTICES 1: A PRE-TREATMENT MEASURE OF THE RESPONS
+E SHOULD BE A COVARIATE AND NOT SUBTRACTED FROM THE POST-TREATMENT MEASURE (REG
+RESSION TO THE MEAN) \TU/lmr/m/n/10 169
+ []
+
+[169] [170]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-si
+m1-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-sim
+1-1.pdf>
+
+LaTeX Warning: Reference `eq:ancova-5' on page 171 undefined on input line 7154
+.
+
+
+Overfull \hbox (662.40088pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 13.4.  BEST PRACTICES 1: A PRE-TREATMENT MEASURE OF THE RESPONS
+E SHOULD BE A COVARIATE AND NOT SUBTRACTED FROM THE POST-TREATMENT MEASURE (REG
+RESSION TO THE MEAN) \TU/lmr/m/n/10 171
+ []
+
+[171] [172]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-si
+m2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/ancova-sim
+2-1.pdf>
+
+Overfull \hbox (113.75012pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 13.5.  BEST PRACTICES XXX: USE A COVARIATE INSTEAD OF NORMALIZI
+NG A RESPONSE \TU/lmr/m/n/10 173
+ []
+
+[173] [174]
+Chapter 14.
+File: images/2x2_table.png Graphic file (type bmp)
+<images/2x2_table.png>
+[175
+
+]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 176 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[176]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[177]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 178 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[178]
+Overfull \hbox (85.87013pt too wide) in paragraph at lines 7498--7515
+[][] 
+ []
+
+[179]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ha
+rrellplot1-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-har
+rellplot1-1.pdf>
+
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 180 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[180]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ha
+rrellplot2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-har
+rellplot2-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-in
+teraction-plot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-int
+eraction-plot-1.pdf>
+
+Underfull \vbox (badness 1831) has occurred while \output is active []
+
+[181]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 182 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[182] [183]
+File: images/frew_fig_4b.png Graphic file (type bmp)
+<images/frew_fig_4b.png>
+
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 184 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[184]
+Underfull \hbox (badness 1371) in paragraph at lines 7765--7768
+[]\TU/lmr/bx/n/10 Filename \TU/lmr/m/n/10 “Data file for Dryad.xlsx” \TU/lmr/bx
+/n/10 sheet \TU/lmr/m/n/10 “Data” **Source*:** []$[][][][][] []
+ []
+
+File: images/kardol_fig_3.png Graphic file (type bmp)
+<images/kardol_fig_3.png>
+[185]
+Overfull \hbox (29.95395pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 186 \TU/lmr/m/sl/10 CHAPTER 14.  TWO (OR MORE) CATEGORICAL $\OML
+/lmm/m/it/10 X$ \TU/lmr/m/sl/10 – FACTORIAL DESIGNS
+ []
+
+[186
+
+]
+Chapter 15.
+[187] [188] [189] [190] [191] [192]
+Underfull \vbox (badness 5726) has occurred while \output is active []
+
+[193] [194]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-an
+ova-ggplot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/urchin-ano
+va-ggplot-1.pdf>
+[195]
+Underfull \vbox (badness 7832) has occurred while \output is active []
+
+[196] [197] [198] [199] [200] [201] [202]
+Chapter 16.
+[203
+
+]
+Underfull \hbox (badness 4634) in paragraph at lines 8855--8855
+[]\TU/lmr/bx/n/14.4 Model building vs. Variable selection
+ []
+
+[204] [205
+
+] [206
+
+]
+Chapter 17.
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot
+1-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot1
+-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[207]
+Underfull \vbox (badness 3746) has occurred while \output is active []
+
+[208] [209] [210]
+Overfull \hbox (29.7003pt too wide) detected at line 9080
+[]
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot
+2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-plot2
+-1.pdf>
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 211
+ []
+
+[211] [212]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-qqpl
+ot-sim-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-qqplo
+t-sim-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
+-scale-location-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
+scale-location-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 213
+ []
+
+[213] [214]
+
+LaTeX Warning: Reference `fig:glm1-poisson' on page 215 undefined on input line
+ 9213.
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-pois
+son-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-poiss
+on-1.pdf>
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 215
+ []
+
+[215]
+Overfull \hbox (72.50146pt too wide) detected at line 9265
+[]
+ []
+
+[216]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
+-poisson-qr-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
+poisson-qr-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 217
+ []
+
+[217] [218]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
+-poisson-dispersion-plot-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
+poisson-dispersion-plot-1.pdf>
+
+Overfull \hbox (62.51361pt too wide) detected at line 9411
+[]
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm
+-nb-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worm-
+nb-1.pdf>
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 219
+ []
+
+[219] [220]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 9493--9493
+[]\TU/lmtt/m/n/10 ##  contrast              estimate    SE  df asymp.LCL asymp.
+UCL z.ratio[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9493--9493
+[]\TU/lmtt/m/n/10 ##  Uninfected - Control    -0.317 0.136 Inf    -0.583   -0.0
+514 -2.339[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9493--9493
+[]\TU/lmtt/m/n/10 ##  Infected LG - Control   -0.197 0.158 Inf    -0.507    0.1
+126 -1.248[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9493--9493
+[]\TU/lmtt/m/n/10 ##  Infected HG - Control    0.540 0.108 Inf     0.329    0.7
+504  5.019[] 
+ []
+
+
+Overfull \hbox (22.5pt too wide) in paragraph at lines 9512--9512
+[]\TU/lmtt/m/n/10 ##  contrast              ratio     SE  df asymp.LCL asymp.UC
+L z.ratio[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9512--9512
+[]\TU/lmtt/m/n/10 ##  Uninfected / Control  0.728 0.0988 Inf     0.558      0.9
+5 -2.339[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9512--9512
+[]\TU/lmtt/m/n/10 ##  Infected LG / Control 0.821 0.1298 Inf     0.602      1.1
+2 -1.248[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9512--9512
+[]\TU/lmtt/m/n/10 ##  Infected HG / Control 1.715 0.1845 Inf     1.389      2.1
+2  5.019[] 
+ []
+
+
+Overfull \hbox (265.36575pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 17.2.  COUNT DATA EXAMPLE – NUMBER OF TREMATODE WORM LARVAE IN 
+EYES OF THREESPINE STICKLEBACK FISH \TU/lmr/m/n/10 221
+ []
+
+[221] [222]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-work
+ing-in-r-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm1-worki
+ng-in-r-1.pdf>
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-c
+hunk-56-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/unnamed-ch
+unk-56-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[223]
+Overfull \hbox (6.75pt too wide) in paragraph at lines 9611--9611
+[]\TU/lmtt/m/n/10 ##  DHARMa nonparametric dispersion test via mean deviance re
+sidual[] 
+ []
+
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/glm-worki
+ng-in-r-2-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/glm-workin
+g-in-r-2-1.pdf>
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[224]
+Overfull \hbox (33.0pt too wide) in paragraph at lines 9663--9663
+[]\TU/lmtt/m/n/10 ##  contrast              estimate    SE  df asymp.LCL asymp.
+UCL z.ratio[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9663--9663
+[]\TU/lmtt/m/n/10 ##  Uninfected - Control    -0.317 0.136 Inf    -0.583   -0.0
+514 -2.339[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9663--9663
+[]\TU/lmtt/m/n/10 ##  Infected LG - Control   -0.197 0.158 Inf    -0.507    0.1
+126 -1.248[] 
+ []
+
+
+Overfull \hbox (27.75pt too wide) in paragraph at lines 9663--9663
+[]\TU/lmtt/m/n/10 ##  Infected HG - Control    0.540 0.108 Inf     0.329    0.7
+504  5.019[] 
+ []
+
+
+Underfull \vbox (badness 1142) has occurred while \output is active []
+
+[225]
+Overfull \hbox (22.5pt too wide) in paragraph at lines 9686--9686
+[]\TU/lmtt/m/n/10 ##  contrast              ratio     SE  df asymp.LCL asymp.UC
+L z.ratio[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9686--9686
+[]\TU/lmtt/m/n/10 ##  Uninfected / Control  0.728 0.0988 Inf     0.558      0.9
+5 -2.339[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9686--9686
+[]\TU/lmtt/m/n/10 ##  Infected LG / Control 0.821 0.1298 Inf     0.602      1.1
+2 -1.248[] 
+ []
+
+
+Overfull \hbox (17.25pt too wide) in paragraph at lines 9686--9686
+[]\TU/lmtt/m/n/10 ##  Infected HG / Control 1.715 0.1845 Inf     1.389      2.1
+2  5.019[] 
+ []
+
+[226]
+Chapter 18.
+[227
+
+] [228]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+[229] [230]
+
+LaTeX Warning: Reference `lmm-spec1b' on page 231 undefined on input line 9971.
+
+
+[231]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm1-sim1
+-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm1-sim1-
+1.pdf>
+[232]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10058--10058
+[]\TU/lmtt/m/n/10 ##               Estimate Std. Error       df   t value     P
+r(>|t|)[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10058--10058
+[]\TU/lmtt/m/n/10 ## (Intercept) 10.0235749  0.3954736 8.999737 25.345750 1.114
+804e-09[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10058--10058
+[]\TU/lmtt/m/n/10 ## TreatmentT+  0.6884787  0.2700797 9.000052  2.549169 3.123
+718e-02[] 
+ []
+
+
+Overfull \hbox (68.28122pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.5.  LINEAR MIXED MODELS CAN INCREASE PRECISION OF POINT ESTI
+MATES \TU/lmr/m/n/10 233
+ []
+
+[233] [234]
+File: Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm-parti
+alpooling-1.pdf Graphic file (type pdf)
+<use Walker-elementary-statistical-modeling-draft_files/figure-latex/lmm-partia
+lpooling-1.pdf>
+
+Overfull \hbox (51.81233pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.7.  LINEAR MIXED MODELS SHRINK COEFFICIENTS BY PARTIAL POOLI
+NG \TU/lmr/m/n/10 235
+ []
+
+[235] [236]
+Overfull \hbox (51.81233pt too wide) has occurred while \output is active
+\TU/lmr/m/sl/10 18.7.  LINEAR MIXED MODELS SHRINK COEFFICIENTS BY PARTIAL POOLI
+NG \TU/lmr/m/n/10 237
+ []
+
+[237] [238]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10411--10411
+[]\TU/lmtt/m/n/10 ##                          Estimate Std. Error       df     
+t value[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10411--10411
+[]\TU/lmtt/m/n/10 ## (Intercept)           1.268411111  0.1541680 30.42768  8.2
+2745788[] 
+ []
+
+[239]
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10411--10411
+[]\TU/lmtt/m/n/10 ## Vermetids1            0.004655556  0.2091398 22.94243  0.0
+2226049[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10411--10411
+[]\TU/lmtt/m/n/10 ## Sediment1             0.285202305  0.2160126 23.53130  1.3
+2030428[] 
+ []
+
+
+Overfull \hbox (12.0pt too wide) in paragraph at lines 10411--10411
+[]\TU/lmtt/m/n/10 ## Vermetids1:Sediment1 -0.773546750  0.3006674 23.24638 -2.5
+7276556[] 
+ []
+
+
+Overfull \hbox (6.75pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  contrast  estimate    SE   df lower.CL upper.CL t.ratio p
+.value[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  1,0 - 0,0  0.00466 0.209 23.0   -0.428   0.4373  0.022  0
+.9824[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  0,1 - 0,0  0.28520 0.217 23.6   -0.163   0.7330  1.316  0
+.2009[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  0,1 - 1,0  0.28055 0.217 23.6   -0.167   0.7283  1.294  0
+.2081[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  1,1 - 0,0 -0.48369 0.209 23.0   -0.916  -0.0511 -2.313  0
+.0300[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  1,1 - 1,0 -0.48834 0.209 23.0   -0.921  -0.0557 -2.335  0
+.0286[] 
+ []
+
+
+Overfull \hbox (1.5pt too wide) in paragraph at lines 10431--10431
+[]\TU/lmtt/m/n/10 ##  1,1 - 0,1 -0.76889 0.217 23.6   -1.217  -0.3211 -3.547  0
+.0017[] 
+ []
+
+[240]
+Chapter 19.
+[241
+
+]
+Overfull \hbox (1.52562pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 242 \TU/lmr/m/sl/10 CHAPTER 19.  LINEAR MODELS WITH HETEROGENOUS
+ VARIANCE
+ []
+
+[242
+
+] [243]
+Overfull \hbox (1.52562pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 244 \TU/lmr/m/sl/10 CHAPTER 19.  LINEAR MODELS WITH HETEROGENOUS
+ VARIANCE
+ []
+
+[244] [245]
+Overfull \hbox (1.52562pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 246 \TU/lmr/m/sl/10 CHAPTER 19.  LINEAR MODELS WITH HETEROGENOUS
+ VARIANCE
+ []
+
+[246
+
+] (./Walker-elementary-statistical-modeling-draft.bbl [247]
+Overfull \hbox (1.52562pt too wide) has occurred while \output is active
+\TU/lmr/m/n/10 248 \TU/lmr/m/sl/10 CHAPTER 19.  LINEAR MODELS WITH HETEROGENOUS
+ VARIANCE
+ []
+
+[248
+
+]
+
+Package natbib Warning: Empty `thebibliography' environment on input line 3.
+
+)
+
+Package natbib Warning: There were undefined citations.
+
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 10620.
+[249]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 10620.
+(./Walker-elementary-statistical-modeling-draft.aux)
+Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 10620.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 10620
+.
+Package rerunfilecheck Info: File `Walker-elementary-statistical-modeling-draft
+.out' has not changed.
+(rerunfilecheck)             Checksum: 5BC66B5494C160A0D658A0D32825B33E.
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: There were multiply-defined labels.
+
+ ) 
+Here is how much of TeX's memory you used:
+ 23325 strings out of 492970
+ 459038 string characters out of 6133938
+ 595237 words of memory out of 5000000
+ 26980 multiletter control sequences out of 15000+600000
+ 603002 words of font info for 116 fonts, out of 8000000 for 9000
+ 1348 hyphenation exceptions out of 8191
+ 45i,11n,54p,10485b,456s stack positions out of 5000i,500n,10000p,200000b,80000s
+
+Output written on Walker-elementary-statistical-modeling-draft.pdf (249 pages).
+
