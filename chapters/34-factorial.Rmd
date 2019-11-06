@@ -10,18 +10,19 @@ library(harrellplot)
 library(car)
 library(broom)
 library(cowplot)
+library(ggsci) # scale color
+library(here)
+here <- here::here
 
-data_path <- "../data" # notebook
 data_path <- "data" # bookdown
 
-#source("../R/gg_interaction.R")
-source("R/gg_interaction.R")
+source(here("R/gg_interaction.R"))
 ```
 
 ```{r factorial-urchin-import, echo=FALSE}
 folder <- "Data from Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins"
 filename <- "urchin.txt"
-file_path <- paste(data_path, folder, filename, sep="/")
+file_path <- here(data_path, folder, filename)
 urchin <- fread(file_path)
 ```
 
@@ -30,7 +31,9 @@ A factorial experiment is one in which there are two or more categorical $X$ tha
 
 The urchin data are from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100) and the factors are crossed, so this is a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
 
-![The urchin experimental design as a 2 x 2 table ](images/2x2_table.png){ width=50% }
+```{r factorial-2x2, echo=FALSE, out.width = "400px"}
+knitr::include_graphics(here("images/2x2_table.png"))
+```
 
 The upper left cell contains the 13C level with the Temperature factor and the 400 µAtm level within the CO2 factor. The replicates in this cell were grown with no added treatments, so this cell is the "control" for Temp and the control for CO2, which we will use as the "reference" group for the linear model. The replicates in the lower left cell were grown with an added temperature treatment (in this case, a 5 C higher temperature). The replicates in the upper right cell were grown an added CO2 treatment (a 700 µATM higher CO2). And finally, the replicates in the bottom right cell were grown with both the added temperature (+5 C) and added CO2 (+700 µATM). Here, I use a "+" or "-" to designate the addition (or not) of the treatment, so our $2 \times 2$ treatment levels are Temp-/CO2-, Temp+/CO2-, Temp-/CO2+ and Temp+/CO2+.
 
@@ -41,7 +44,7 @@ A factorial design allows a researcher to estimate the interaction between two f
 \begin{equation}
 Resp_i = b_0 + b_1 Temp^+ + b_2 CO2^+ + b_3 Temp^+ CO2^+ + e_i
 \end{equation}
-%
+
 Again, $Temp^+$ and $CO2^+$ are dummy variables. The model also includes $Temp^+ CO2^+$, which is a dummy variable for the interaction between Temp and CO2. The value of this interaction dummy variable is literally the product of the two main factor dummy variables ($Temp^+$ and $CO2^+$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
 
 ```{r urchin-dummy, echo=FALSE}
@@ -73,12 +76,108 @@ ci <- confint(fit)
 knitr::kable(coef(summary(fit)), digits=c(2,2,1,3))
 ```
 
-The Intercept ($b_0$) is the mean (8.23) of the reference (Temp-/CO2-) group, and so the mean of the upper left cell in Table 1). The Temp+ coefficient ($b_1$) is the estimate of the added temperature effect relative to the reference, and so is the mean of the lower left cell minus the mean of the upper left cell ($b_1=\bar{Y}_{Temp^+}-\bar{Y}_{-/-}$). The CO2+ coefficient ($b_2$) is the estimate of the added CO2 effect relative to the reference, and so is the mean of the upper right cell minus the mean of the upper left cell ($b_2=\bar{Y}_{CO2^+}-\bar{Y}_{-/-}$). The Temp+:CO2+ coefficient ($b_3$) is the estimate of the **interaction effect**, which is the effect in addition to the Temp$^+$ and CO2$^+$ effects. If you added $b_1$ and $b_2$ to $b_0$, you would get the mean of the Temp$^+$/CO2$^+$ group *if the effects were purely additive*. So the interaction effect is the difference between the mean of the bottom right cell and the sum of the coefficients of the other three cells ($b_3 = \bar{Y}_{Temp^+CO2^+} - (b0 + b1 + b2)$). An interaction is a **non-additive effect**. Think about this. Adding 5 C increases respiration by 4.51 units. Adding 700 $\mu$ATM CO2 decreases respiration by .32 units. If these effects were purely additive, then adding both 5 C and 700 $\mu$ATM should result in a mean of 8.23 + 4.51 - .32 = 12.42 units for the Temp$^+$/CO2$^+$ group. What is the mean of this group?
+The Intercept ($b_0$) is the mean (8.23) of the reference (Temp-/CO2-) group, and so the mean of the upper left cell in Table 1). The Temp+ coefficient ($b_1$) is the estimate of the added temperature effect relative to the reference, and so is the mean of the lower left cell minus the mean of the upper left cell ($b_1=\bar{Y}_{Temp^+}-\bar{Y}_{Temp-/CO2-}$). The CO2+ coefficient ($b_2$) is the estimate of the added CO2 effect relative to the reference, and so is the mean of the upper right cell minus the mean of the upper left cell ($b_2=\bar{Y}_{CO2^+}-\bar{Y}_{Temp-/CO2-}$). The Temp+:CO2+ coefficient ($b_3$) is the estimate of the **interaction effect**, which is the effect in addition to the Temp$^+$ and CO2$^+$ effects. If you added $b_1$ and $b_2$ to $b_0$, you would get the mean of the Temp$^+$/CO2$^+$ group *if the effects were purely additive*. So the interaction effect is the difference between the mean of the bottom right cell and the sum of the coefficients of the other three cells ($b_3 = \bar{Y}_{Temp^+CO2^+} - (b0 + b1 + b2)$). An interaction is a **non-additive effect**. Think about this. Adding 5 C increases respiration by 4.51 units. Adding 700 $\mu$ATM CO2 decreases respiration by .32 units. If these effects were purely additive, then adding both 5 C and 700 $\mu$ATM should result in a mean of 8.23 + 4.51 - .32 = 12.42 units for the Temp$^+$/CO2$^+$ group. What is the mean of this group?
 
 9.74! So the difference between the ``additive expectation'' and the actual mean is $9.74 - 12.42 = -2.68$, which is the interaction effect (coefficient).
 
+```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (dashed line) is the mean of the reference. b1 (length of vector b1) is the mean of the Temp treatment minus the mean of the reference. b2 (length of vector b2) is the mean of the CO2 treatment minus the mean of the reference. b3 (length of vector b3) is the mean of the Temp + CO2 treatment minus what this value would be if there were no interaction (indicated by the open gold circle)}
+urchin[, Temp:=factor(Temp)]
+urchin[, CO2:=factor(CO2, c("400","1100"))]
+m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+m1.emm <- summary(emmeans(m1, specs=c("Temp", "CO2")))
+b <- coef(m1)
+b0 <- b[1]
+b1 <- b[2]
+b2 <- b[3]
+b3 <- b[4]
+
+off <- 0.125
+# ref dotted line
+line1 <- data.frame(
+  x=0.75,
+  xend=2+.5,
+  y=b0,
+  yend=b0
+)
+# additive
+mean4 <- data.frame(
+  x=2.125,
+  y=b0 + b1 + b2
+)
+# ref arrow
+arrow.b0 <- data.frame(
+  x = 0.6,
+  xend = 0.35,
+  y = b0,
+  yend = b0
+)
+# b1 arrow
+arrow.b1 <- data.frame(
+  x = 2 - off,
+  xend = 2 - off,
+  y = b0,
+  yend = b0 + b1
+)
+arrow.b2 <- data.frame(
+  x = 1 + off,
+  xend = 1 + off,
+  y = b0,
+  yend = b0 + b2
+)
+arrow.b2.2 <- data.frame(
+  x = 2 + off,
+  xend = 2 + off,
+  y = b0 + b1,
+  yend = b0 + b1 + b2
+)
+arrow.b3 <- data.frame(
+  x = 2 + off,
+  xend = 2 + off,
+  y = b0 + b1 + b2,
+  yend = b0 + b1 + b2 + b3
+)
+
+dodge <- 0.5
+pd <- position_dodge(dodge)
+ggplot(data=m1.emm, aes(x=Temp, y=emmean, color=CO2)) +
+  geom_point(size=3, position=pd) +
+  geom_point(data=mean4, aes(x=x, y=y), color=(pal_jco("default")(4))[2], shape=1, size=3) +
+  ylab("Resp") +
+  geom_segment(data=line1, aes(x=x, y=y, xend=xend, yend=yend), linetype=2, color="grey") +
+  annotate("text", label="b[0]", parse=TRUE, x=0.65, y=(b[1]), size=8) +
+  #geom_segment(data=arrow.b0, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
+  geom_segment(data=arrow.b1, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
+  annotate("text", label="b[1]", parse=TRUE, x=2-off-.1, y=(b0 + 0.5*b1), size=8) +
+  geom_segment(data=arrow.b2, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
+  annotate("text", label="b[2]", parse=TRUE, x=1+off+.1, y=(b0 + 0.5*b2), size=8) +
+  #annotate("text", label="b[2]", parse=TRUE, x=1+off, y=(b0 + b2 + 0.7), size=8) +
+  #geom_segment(data=arrow.b2.2, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
+  geom_segment(data=arrow.b3, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
+  annotate("text", label="b[3]", parse=TRUE, x=2+off+.1, y=(arrow.b3$y + arrow.b3$yend)/2, size=8) +
+  theme_classic() +
+  scale_color_jco() +
+  NULL
+```
+
 ### What is the biological meaning of an interaction effect?
 I can dead lift 150 pounds and my friend Jake can deadlift 175 pounds. Working together, we should be able to lift 325 pounds. What if together, we could actually lift 400 pounds? If this were the case, this would be an interaction with an effect equal to 75 pounds. Is this biologically plausible? If so, what is the mechanism? Here is a possible mechanism (although I am highly skeptical of it having a magnitude of 75 pounds): when lifting an object as part of a group, the central nervous system allows increased motor unit recruitment, and so each person can lift more weight than they could if lifting alone. A positive interaction like this is called *synergistic*. Always think about the biological meaning of an interaction effect.
+
+### The interpretation of the coefficients in a factorial model is entirely dependent on the reference...
+
+at least using dummy coding of the factor variables, which is the default in R. To see this, here is the coefficient table of the model but assigning Temp+/CO2+ as the reference (by re-ordering levels in both factors)
+
+```{r factor-interpretation2}
+urchin1 <- copy(urchin)
+# change factor levels for analysis aesthetics
+urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"), c("+","-"))]
+urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"), c("+","-"))]
+
+fit <- lm(Resp ~ Temp*CO2, data=urchin1)
+ci <- confint(fit)
+knitr::kable(coef(summary(fit)), digits=c(2,2,1,3))
+
+```
+This dependence of the coefficients on the reference is a feature not a bug. It is what we mean when we pose the questions "Compared to larvae raised at today's temperature, what is the effect of adding 5° Temp on larval respiration?", "Compared to larvae raised at today's CO2, what is the effect of adding 700 ppm CO2 on larval respiration?", and "Compared to larvae raised at today's temperature and CO2, what is the effect of adding 5° Temp and 700 ppm CO2 on larval respiration?" If we change the reference, we are asking different questions.
 
 ### What about models with more than two factors?
 A factorial model can have more than two factors, for example, a model with three factors (A, B, and C), each with two levels (which I'll designate with a "+"), is
@@ -99,15 +198,15 @@ Sometimes researchers fit reduced models. For example, the $p$-value for the int
 \begin{equation}
 Resp_i = b_0 + b_1Temp^+ + b_2CO2^+ + e_i
 \end{equation}
-%
-This particular reduced model is often referred to as the **additive model**, since it excludes the the interaction term, which is a *product* of other terms. Indeed, the title of the urchin paper is "Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins, *Strongylocentrotus purpuratus*." It is important to recognize that unless the interaction effect is precisely zero, the coefficients of Temp+ and CO2+ will change. Here are the coefficients of the additive model
+
+This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. Indeed, the title of the urchin paper is "Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins, *Strongylocentrotus purpuratus*." It is important to recognize that unless the interaction effect is precisely zero, the coefficients of Temp+ and CO2+ will change. Here are the coefficients of the additive model
 
 ```{r urchin-reduced-model, echo=FALSE}
 fit <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
 knitr::kable(coef(summary(fit)), digits=c(2,2,1,3))
 ```
 
-For several reasons, one should not drop a term because $p>0.05$.
+It is okay to drop the interaction term to estimate a "simple" effect of each factor by "smoothing over" a small, non-additive (interaction) effect, but, for several reasons, one should not drop a term because $p>0.05$.
 
 1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
 2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or event that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
