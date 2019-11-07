@@ -11,6 +11,8 @@ library(car)
 library(broom)
 library(cowplot)
 library(ggsci) # scale color
+library(gt) # tables
+library(kableExtra)
 library(here)
 here <- here::here
 
@@ -31,8 +33,8 @@ A factorial experiment is one in which there are two or more categorical $X$ tha
 
 The urchin data are from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100 µAtm) and the factors are fully **crossed**. This is a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
 
-```{r factorial-2x2, echo=FALSE, out.width = "400px"}
-knitr::include_graphics(here("images/2x2_table.png"))
+```{r factorial-2x2, echo=FALSE}
+knitr::include_graphics(paste("images/2x2_table.png"))
 ```
 
 The upper left cell represents the combination of 13 C and 400 µAtm level within the CO2 factor. The replicates in this cell were grown with no added treatments, so this cell is the "control" for Temp and the control for CO2, which we will use as the "reference" group for the linear model. The replicates in the lower left cell were grown with an added temperature treatment (in this case, a 5 C higher temperature). The replicates in the upper right cell were grown with an added CO2 treatment (700 µATM higher CO2). And finally, the replicates in the bottom right cell were grown with both the added temperature (+5 C) and added CO2 (+700 µATM). Here, I use a "+" or "-" to designate the addition (or not) of the treatment, so our $2 \times 2$ treatment levels are Temp-/CO2-, Temp+/CO2-, Temp-/CO2+ and Temp+/CO2+.
@@ -43,6 +45,7 @@ A factorial design allows a researcher to estimate the interaction between two f
 
 \begin{equation}
 Resp = \beta_0 + \beta_1 Temp^+ + \beta_2 CO2^+ + \beta_3 Temp^+ CO2^+
+(\#eq:factorial-full)
 \end{equation}
 
 Again, $Temp^+$ and $CO2^+$ are dummy variables. The model also includes $Temp^+ CO2^+$, which is a dummy variable for the interaction between Temp and CO2. The value of this interaction dummy variable is literally the product of the two main factor dummy variables ($Temp^+$ and $CO2^+$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
@@ -72,7 +75,7 @@ urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
 urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
 
 m1 <- lm(Resp ~ Temp*CO2, data=urchin1)
-knitr::kable(coef(summary(m1)), digits=c(2,2,1,3))
+knitr::kable(coef(summary(m1)), digits=c(2,2,1,3), caption="Coefficient table of the factorial model")
 ```
 
 1. The Intercept ($b_0$) is the mean (8.23) of the reference (Temp-/CO2-) group, and so the mean of the upper left cell in Table 1).
@@ -82,7 +85,7 @@ knitr::kable(coef(summary(m1)), digits=c(2,2,1,3))
 
 9.74! So the difference between the ``additive expectation'' and the actual mean is $9.74 - 12.42 = -2.68$, which is the interaction effect (coefficient). A graphical interpretation of these coefficients are in the figure of treatment means below (figure \@ref(factorial-what-are-coefficients-plot))
 
-```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (dashed line) is the mean of the reference. b1 (length of vector b1) is the mean of the Temp treatment minus the mean of the reference. b2 (length of vector b2) is the mean of the CO2 treatment minus the mean of the reference. b3 (length of vector b3) is the mean of the Temp + CO2 treatment minus what this value would be if there were no interaction (indicated by the open gold circle)}
+```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (dashed line) is the mean of the reference. b1 (length of vector b1) is the mean of the Temp treatment minus the mean of the reference. b2 (length of vector b2) is the mean of the CO2 treatment minus the mean of the reference. b3 (length of vector b3) is the mean of the Temp + CO2 treatment minus what this value would be if there were no interaction (indicated by the open gold circle)"}
 urchin[, Temp:=factor(Temp)]
 urchin[, CO2:=factor(CO2, c("400","1100"))]
 m1 <- lm(Resp ~ Temp*CO2, data=urchin)
@@ -180,43 +183,230 @@ knitr::kable(coef(summary(m1.2)), digits=c(2,2,1,3))
 ```
 This dependence of the coefficients on the reference is a feature not a bug. It is what we mean when we pose the questions "Compared to larvae raised at today's temperature, what is the effect of adding 5° Temp on larval respiration?", "Compared to larvae raised at today's CO2, what is the effect of adding 700 ppm CO2 on larval respiration?", and "Compared to larvae raised at today's temperature and CO2, what is the effect of adding 5° Temp and 700 µAtm CO2 on larval respiration?" If we change the reference, we are asking different questions.
 
-### In a factorial model, there are multiple effects of each factor
+### Estimated marginal means
 
-There is no "effect" of factor A in an experiment with crossed A and B factors. Instead, there is an effect of factor A for each level of factor B. Or, using the variables of the urchin experiment, there is an effect of Temp for each level of CO2, so there is an effect of Temp when CO2 is 400 µAtm and an effect of Temp when CO2 is 1100 µAtm. Similarly, there is an effect of CO2 when Temp is 13 C and an effect of CO2 when Temp is 18 C. The effects of factor A at each level of factor B are sometimes called the "simple" effects. Another name could be the "conditional" effects, since the value of the effect of A is conditional on the level factor B.
+The modeled means (or predicted values) of the factorial model (Model \@ref(eq:factorial-full)) fit to the urchin data are shown in the table below. The values in the last column and row are the **marginal means**, which are the means of the associated row or column. More generally, *marginal* refers to a statistic averaged across multiple levels of another variable
 
-The conditional effects are four of the pairwise contrasts of the $2 \times 2$ combination of treatment levels of the urchin data.
+
+```{r factorial-means, echo=FALSE}
+options(knitr.kable.NA = '')
+
+m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
+m1.mm <- data.frame(
+  "CO2.400" = m1.emm[CO2=="400", emmean],
+  "CO2.1100"  = m1.emm[CO2=="1100", emmean]
+)
+m1.mm <- cbind(m1.mm, apply(m1.mm, 1, mean))
+m1.mm <- rbind(m1.mm, apply(m1.mm, 2, mean))
+m1.mm[3,3] <- NA
+colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "mean")
+m1.mm <- cbind(Temp=c("13 C", "18 C", "mean"), m1.mm)
+
+# gt_tbl <- gt(m1.mm,
+#              rowname_col = "Temp"
+# )
+# gt_tbl <- tab_stubhead_label(gt_tbl,
+#   label = "Temp"
+# )
+# gt_tbl <- tab_spanner(gt_tbl,
+#   label = "CO2",
+#   columns = vars("400 µAtm", "1100 µAtm")
+# )
+# gt_tbl <- tab_spanner(gt_tbl,
+#   label = "",
+#   columns = vars("mean")
+# )
+# gt_tbl <- fmt_missing(gt_tbl,
+#                       columns=vars("mean"),
+#                       missing_text = ""
+#                       )
+# gt_tbl <- fmt_number(gt_tbl,
+#                       columns=everything(),
+#                       decimals = 2
+#                       )
+# #gt_tbl
+# 
+gt_table_2 <- gt(m1.mm
+)
+gt_table_2 <- tab_spanner(gt_table_2,
+  label = "CO2",
+  columns = vars("400 µAtm", "1100 µAtm")
+)
+gt_table_2 <- tab_spanner(gt_table_2,
+  label = "",
+  columns = vars("mean")
+)
+gt_table_2 <- tab_spanner(gt_table_2,
+  label = "",
+  columns = vars("Temp")
+)
+gt_table_2 <- fmt_missing(gt_table_2,
+                      columns=vars("mean"),
+                      missing_text = ""
+                      )
+gt_table_2 <- fmt_number(gt_table_2,
+                      columns=2:4,
+                      decimals = 2
+                      )
+gt_table_2 <-  tab_style(gt_table_2,
+    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    locations = cells_data(
+      columns = vars("mean"),
+      rows = 1:2
+  ))
+gt_table_2 <-  tab_style(gt_table_2,
+    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    locations = cells_data(
+      columns = vars("400 µAtm"),
+      rows = 3
+  ))
+gt_table_2 <-  tab_style(gt_table_2,
+    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    locations = cells_data(
+      columns = vars("1100 µAtm"),
+      rows = 3
+  ))
+gt_table_2 <-  tab_style(gt_table_2,
+    style = cells_styles(bkgd_color  = "white"),
+    locations = cells_data(
+      columns = vars("Temp"),
+      rows = 2
+  ))
+gt_table_2 <-  tab_style(gt_table_2,
+    style = cells_styles(bkgd_color  = "white"),
+    locations = cells_data(
+      columns = vars("400 µAtm"),
+      rows = 2
+   ))
+ gt_table_2 <-  tab_style(gt_table_2,
+     style = cells_styles(bkgd_color  = "white"),
+     locations = cells_data(
+       columns = vars("1100 µAtm"),
+       rows = 2
+   ))
+
+# gt_table_2
+
+table_3 <- knitr::kable(m1.mm, digits=4, caption="Marginal means from the full factorial model")
+# table_3 <- column_spec(table_3, 4, background = "#CCCCCC")
+# table_3 <- row_spec(table_3, 3, background = "#CCCCCC")
+# table_3 <- add_header_above(table_3, 
+#                             c(" " = 1, "CO2" = 2, " " = 1))
+table_3
+```
+
+### In a factorial model, there are multiple effects of each factor (simple effects)
+
+With a single factor, there was a single effect for each non-reference level of the factor. For example, if the levels are "control", "knockout", and "rescue", the knockout effect is the contrast between knockout and control and the rescue effect is the contrast between rescue and control. In a factorial experiment with crossed A and B factors, there are multiple effects of a non-reference level of factor A -- one for each level of factor B. For the urchin experiment, there is an effect of the 18 C level of Temp when CO2 is 400 µAtm and an effect when CO2 is 1100 µAtm. Similarly, there is an effect of the 1100 level of CO2 when Temp is 13 C and when Temp is 18 C. These effects, or **contrasts** (differences in modeled means), are sometimes called the **simple effects**. Another name could be the "conditional" effects, since the value of the effect is conditional on the level factor B.
+
+One way to visualize the simple effects is by using the $2 \times 2$ table of treatment combinations. The contrasts in the right-side column are the simple effects of CO2 at each level of Temp. The contrasts in the bottom row are the simple effects of Temp at each level of CO2. Note that the first simple effect for each factor has a corresponding row in the table of coefficients of the fit model above.
+
+```{r factorial-simple, echo=FALSE}
+options(knitr.kable.NA = '')
+m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
+m1.mm <- data.frame(
+  "CO2.400" = m1.emm[CO2=="400", emmean],
+  "CO2.1100"  = m1.emm[CO2=="1100", emmean]
+)
+m1.mm <- cbind(m1.mm, contrast = m1.mm[,2] - m1.mm[,1])
+m1.mm <- rbind(m1.mm, m1.mm[2,] - m1.mm[1,])
+m1.mm[3,3] <- NA
+row.names(m1.mm) <- NULL
+colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "contrast")
+m1.mm <- cbind("Temp"=c("13 C", "18 C", "contrast"), m1.mm)
+knitr::kable(m1.mm, digits=4, caption = "Condional (simple) effects of full factorial model fit to urchin data")
+```
+
+The 95% confidence intervals and *p*-values of the simple effects of the factorial model (Model \@ref(eq:factorial-full)) are given in the table below.
 
 ```{r factorial-conditional-effects, echo=FALSE}
 m1 <- lm(Resp ~ Temp*CO2, data=urchin)
 m1.emm <- emmeans(m1, specs=c("Temp","CO2"))
-summary(contrast(m1.emm, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE))
+m1.effects <- data.table(summary(contrast(m1.emm,
+                 method="revpairwise",
+                 adjust="none",
+                 simple = "each",
+                 combine=TRUE),
+        infer=c(TRUE,TRUE)))
+setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
+y_cols <- c("CO2", "Temp","Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
+knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
+
+```
+
+The first line is the effect of the 18 C level of Temp when CO2 is 400 µAtm. The 3rd line is the effect of the 1100 µAtm level of CO2 when Temp is 13 C.
+
+### Marginal effects
+
+The average of the simple effects for a factor are the **marginal effects**, sometimes called the **main effects** (especially in ANOVA). Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large.
+
+```{r factorial-main}
+m1.main <- copy(m1.mm)
+m1.main$Temp <- as.character(m1.main$Temp)
+temp_marginal <- mean(unlist(m1.main[3, 2:3]))
+co2_marginal <- mean(m1.main$contrast, na.rm=TRUE)
+m1.main <- rbind(m1.main, c(NA, NA, NA, co2_marginal))
+m1.main[4,1] <- "marginal"
+m1.main <- cbind(m1.main, marginal=c(NA, NA, temp_marginal, NA))
+knitr::kable(m1.main, digits=4)
 ```
 
 ### The additive model
 
-If an interaction effect is small, then it might be useful to estimate the effects of the two factors as if the interaction were equal to zero. The resulting coefficients for the two factors are averaged effects, where the average is over all the levels of the other factor (see below). This can be useful if theThis model is
+If an interaction effect is small, then it can be useful to estimate the effects of the two factors as if the interaction were equal to zero.
 
 \begin{equation}
 Resp = \beta_0 + \beta_1Temp^+ + \beta_2CO2^+
 \end{equation}
 
-This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. The model coefficients of the reduced model are 
+This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. The model coefficients of the additive model are 
 
 ```{r urchin-reduced-model, echo=FALSE}
 m2 <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
 knitr::kable(coef(summary(m2)), digits=c(2,2,1,3))
 
+m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
+m2 <- lm(Resp ~ Temp+CO2, data=urchin)
+contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
+coef(m2)
+contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
+m4 <- lm(Resp ~ Temp, data=urchin)
+coef(m4)
+contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
+
 means_table <- urchin[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)]
-co2_effect_18 <- (m1.emm[Temp=="18" & CO2=="1100", emmean] - m1.emm[Temp=="18" & CO2=="400", emmean])
-co2_effect_13 <- (m1.emm[Temp=="13" & CO2=="1100", emmean] - m1.emm[Temp=="13" & CO2=="400", emmean])
-co2_effect <- (co2_effect_13 + co2_effect_18)/2
+t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
+t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
+(t1100 + t400)/2
+
+urchin.na <- urchin[!is.na(Resp)]
+urchin.na <- urchin.na[1:(nrow(urchin.na)-2)]
+m1 <- lm(Resp ~ Temp*CO2, data=urchin.na)
+contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
+m2 <- lm(Resp ~ Temp+CO2, data=urchin.na)
+contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
+coef(m2)
+contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
+m4 <- lm(Resp ~ Temp, data=urchin.na)
+coef(m4)
+contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
+emmeans(m1, specs=c("Temp", "CO2"))
+emmeans(m2, specs=c("Temp", "CO2"))
+(means_table <- urchin.na[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)])
+t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
+t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
+(t1100 + t400)/2
+(10*t1100 + 12*t400)/(12+10)
+
 ```
 
-In the original coefficient table, from the full model including the interaction, $b_1$ is the effect of temperature when CO2 has the reference (400 µAtm) value. Here, $b_1$ is the pooled effect of temperature, which is the average of the effects computed at each level of CO2.
+The resulting coefficients of the additive model are **marginal effects** -- the effects averaged over all levels of the other factor. Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaninful if there is large large heterogeneity of the simple effects (that is, when the interaction effect is large).
 
-\begin{equation}
-b_1 = \overbar{Temp_{+}}
-\end{equation}
+
+In the original coefficient table, from the full model including the interaction, $b_1$ is the effect of temperature when CO2 has the reference (400 µAtm) value. Here, $b_1$ is the **pooled** effect of temperature, which is a weighted average of the effects computed at each level of CO2.
 
 In this table, the estimate of $Temp^+$ is It is okay to drop the interaction term to estimate a "simple" effect of each factor by "smoothing over" a small, non-additive (interaction) effect, but, for several reasons, one should not drop a term because $p>0.05$.
 
@@ -382,7 +572,9 @@ dt.res1$tables$anova.1
 dt.res1$tables$anova.3
 ```
 
-![Frew et al. Figure 4b](images/frew_fig_4b.png){ width=50% }
+```{r, echo=FALSE}
+knitr::include_graphics(paste("images/frew_fig_4b.png"))
+```
 
 3. Kardol et al investigated the effect of moss growth in response to rainfall and community structure. Analyze the effect of these two factors on biomass gain and generate a Harrell plot alternative to their bar plot in Fig. 3 (see below). What is striking about your plot compared to theirs?
 
@@ -390,7 +582,10 @@ dt.res1$tables$anova.3
 **sheet** "Data"
 **Source*:** https://datadryad.org/resource/doi:10.5061/dryad.66d5f
 
-![Kardol et al. Figure 3](images/kardol_fig_3.png){ width=50% }
+```{r, echo=FALSE}
+knitr::include_graphics(paste("images/kardol_fig_3.png"))
+```
+
 ```{r moss, echo=FALSE, eval=FALSE}
 
 ```
