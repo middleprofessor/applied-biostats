@@ -26,12 +26,14 @@ folder <- "Data from Temperature and CO2 additively regulate physiology, morphol
 filename <- "urchin.txt"
 file_path <- here(data_path, folder, filename)
 urchin <- fread(file_path)
+urchin[, Temp:=factor(Temp)]
+urchin[, CO2:=factor(CO2, c("400","1100"))]
 ```
 
 ## Factorial experiments 
-A factorial experiment is one in which there are two or more categorical $X$ that are **crossed**, so the groups contain different combinations of levels of each factor. Factorial experiments are used to estimate the **interaction** between factors. Let's explore this using data from xxx
+A factorial experiment is one in which there are two or more categorical $X$ that are **crossed**, resulting in a group for all combinations of the levels of each factor. Factorial experiments are used to estimate the **interaction** between factors, which occurs when the effect of the level of one factor depends on the levels of the other factors. For example, a researcher wants to estimate the effect of an environmental toxin on basal metabolic rate (BMR) in a fish and designs an experiment with two factors: $Treatment$ with levels "control" and "toxin" and $Sex$, with levels "male" and "female". If the magnitude (and possibly sign) of the effect of the toxin on BMR differs between males and females, there is an interaction between $Treatment$ and $Sex$. Interactions are usually denoted with a $\times$ symbol: $Treatment \times Sex$. Interactions are ubiquitous, although sometimes they are small enough to ignore with little to no loss of understading.
 
-The urchin data are from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100 µAtm) and the factors are fully **crossed**. This is a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
+This chapter uses data from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100 µAtm) and the factors are fully crossed, which makes this a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
 
 ```{r factorial-2x2, echo=FALSE}
 knitr::include_graphics(paste("images/2x2_table.png"))
@@ -53,8 +55,8 @@ Again, $Temp^+$ and $CO2^+$ are dummy variables. The model also includes $Temp^+
 ```{r urchin-dummy, echo=FALSE}
 urchin1 <- copy(urchin)
 # change factor levels for analysis aesthetics
-urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
-urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
+urchin1[, CO2:=factor(ifelse(CO2=="400","-", "+"))]
+urchin1[, Temp:=factor(ifelse(Temp=="13", "-", "+"))]
 dt <- urchin1[, .SD, .SDcols=c("Resp", "Temp", "CO2")]
 dt <- rbind(dt[Temp=="-" & CO2=="-"][1:2,],
             dt[Temp=="+" & CO2=="-"][1:2,],
@@ -69,10 +71,6 @@ knitr::kable(model_matrix)
 The coefficient table is
 
 ```{r urchin-full-model, echo=FALSE}
-urchin1 <- copy(urchin)
-# change factor levels for analysis aesthetics
-urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
-urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
 
 m1 <- lm(Resp ~ Temp*CO2, data=urchin1)
 knitr::kable(coef(summary(m1)), digits=c(2,2,1,3), caption="Coefficient table of the factorial model")
@@ -86,8 +84,6 @@ knitr::kable(coef(summary(m1)), digits=c(2,2,1,3), caption="Coefficient table of
 9.74! So the difference between the ``additive expectation'' and the actual mean is $9.74 - 12.42 = -2.68$, which is the interaction effect (coefficient). A graphical interpretation of these coefficients are in the figure of treatment means below (figure \@ref(factorial-what-are-coefficients-plot))
 
 ```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (dashed line) is the mean of the reference. b1 (length of vector b1) is the mean of the Temp treatment minus the mean of the reference. b2 (length of vector b2) is the mean of the CO2 treatment minus the mean of the reference. b3 (length of vector b3) is the mean of the Temp + CO2 treatment minus what this value would be if there were no interaction (indicated by the open gold circle)"}
-urchin[, Temp:=factor(Temp)]
-urchin[, CO2:=factor(CO2, c("400","1100"))]
 m1 <- lm(Resp ~ Temp*CO2, data=urchin)
 m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
 b <- coef(m1)
@@ -174,8 +170,8 @@ at least using dummy coding of the factor variables, which is the default in R. 
 ```{r factor-interpretation2, echo=FALSE}
 urchin2 <- copy(urchin)
 # change factor levels for analysis aesthetics
-urchin2[, CO2:=factor(ifelse(CO2==400,"-", "+"), c("+","-"))]
-urchin2[, Temp:=factor(ifelse(Temp==13, "-", "+"), c("+","-"))]
+urchin2[, CO2:=factor(ifelse(CO2=="400","-", "+"), c("+","-"))]
+urchin2[, Temp:=factor(ifelse(Temp=="13", "-", "+"), c("+","-"))]
 
 m1.2 <- lm(Resp ~ Temp*CO2, data=urchin2)
 knitr::kable(coef(summary(m1.2)), digits=c(2,2,1,3))
@@ -250,37 +246,37 @@ gt_table_2 <- fmt_number(gt_table_2,
                       decimals = 2
                       )
 gt_table_2 <-  tab_style(gt_table_2,
-    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    style = cell_fill(color  = "#CCCCCC"),
     locations = cells_data(
       columns = vars("mean"),
       rows = 1:2
   ))
 gt_table_2 <-  tab_style(gt_table_2,
-    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    style = cell_fill(color  = "#CCCCCC"),
     locations = cells_data(
       columns = vars("400 µAtm"),
       rows = 3
   ))
 gt_table_2 <-  tab_style(gt_table_2,
-    style = cells_styles(bkgd_color  = "#CCCCCC"),
+    style = cell_fill(color  = "#CCCCCC"),
     locations = cells_data(
       columns = vars("1100 µAtm"),
       rows = 3
   ))
 gt_table_2 <-  tab_style(gt_table_2,
-    style = cells_styles(bkgd_color  = "white"),
+    style = cell_fill(color  = "white"),
     locations = cells_data(
       columns = vars("Temp"),
       rows = 2
   ))
 gt_table_2 <-  tab_style(gt_table_2,
-    style = cells_styles(bkgd_color  = "white"),
+    style = cell_fill(color  = "white"),
     locations = cells_data(
       columns = vars("400 µAtm"),
       rows = 2
    ))
  gt_table_2 <-  tab_style(gt_table_2,
-     style = cells_styles(bkgd_color  = "white"),
+    style = cell_fill(color  = "white"),
      locations = cells_data(
        columns = vars("1100 µAtm"),
        rows = 2
@@ -294,6 +290,15 @@ table_3 <- knitr::kable(m1.mm, digits=4, caption="Marginal means from the full f
 # table_3 <- add_header_above(table_3, 
 #                             c(" " = 1, "CO2" = 2, " " = 1))
 table_3
+```
+
+The marginal means with their CIs are
+
+```{r}
+m1.emm.temp <- summary(emmeans(m1, specs=c("Temp")))
+m1.emm.co2 <- summary(emmeans(m1, specs=c("CO2")))
+m1.emm.temp
+m1.emm.co2
 ```
 
 ### In a factorial model, there are multiple effects of each factor (simple effects)
@@ -314,9 +319,9 @@ m1.mm <- cbind(m1.mm, contrast = m1.mm[,2] - m1.mm[,1])
 m1.mm <- rbind(m1.mm, m1.mm[2,] - m1.mm[1,])
 m1.mm[3,3] <- NA
 row.names(m1.mm) <- NULL
-colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "contrast")
-m1.mm <- cbind("Temp"=c("13 C", "18 C", "contrast"), m1.mm)
-knitr::kable(m1.mm, digits=4, caption = "Condional (simple) effects of full factorial model fit to urchin data")
+colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "simple")
+m1.mm <- cbind("Temp"=c("13 C", "18 C", "simple"), m1.mm)
+knitr::kable(m1.mm, digits=4, caption = "Conditional (simple) effects of full factorial model fit to urchin data")
 ```
 
 The 95% confidence intervals and *p*-values of the simple effects of the factorial model (Model \@ref(eq:factorial-full)) are given in the table below.
@@ -340,19 +345,40 @@ The first line is the effect of the 18 C level of Temp when CO2 is 400 µAtm. Th
 
 ### Marginal effects
 
-The average of the simple effects for a factor are the **marginal effects**, sometimes called the **main effects** (especially in ANOVA). Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large.
+The average of the simple effects for a factor are the **marginal effects**, or the **main effects** in ANOVA terminology.
 
-```{r factorial-main}
+```{r factorial-main, echo=FALSE}
 m1.main <- copy(m1.mm)
 m1.main$Temp <- as.character(m1.main$Temp)
 temp_marginal <- mean(unlist(m1.main[3, 2:3]))
-co2_marginal <- mean(m1.main$contrast, na.rm=TRUE)
+co2_marginal <- mean(m1.main$simple, na.rm=TRUE)
 m1.main <- rbind(m1.main, c(NA, NA, NA, co2_marginal))
 m1.main[4,1] <- "marginal"
 m1.main <- cbind(m1.main, marginal=c(NA, NA, temp_marginal, NA))
 knitr::kable(m1.main, digits=4)
 ```
 
+The 95% confidence interval and *p*-value of these marginal effects are
+```{r factorial-marginal, echo=FALSE, message=FALSE}
+m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+m1.emm.1 <- emmeans(m1, specs=c("Temp"))
+m1.effects.1 <- data.table(summary(contrast(m1.emm.1,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE)))
+m1.emm.2 <- emmeans(m1, specs=c("CO2"))
+m1.effects.2 <- data.table(summary(contrast(m1.emm.2,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE)))
+m1.effects <- rbind(m1.effects.1, m1.effects.2)
+setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
+y_cols <- c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
+knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
+```
+
+Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large. The urchin example is a good example of marginal effects that would be highly misleading to present without further comment.
+ 
 ### The additive model
 
 If an interaction effect is small, then it can be useful to estimate the effects of the two factors as if the interaction were equal to zero.
@@ -361,89 +387,98 @@ If an interaction effect is small, then it can be useful to estimate the effects
 Resp = \beta_0 + \beta_1Temp^+ + \beta_2CO2^+
 \end{equation}
 
-This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. The model coefficients of the additive model are 
+This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. The model coefficients of the additive model are given in the table below.
 
 ```{r urchin-reduced-model, echo=FALSE}
 m2 <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
 knitr::kable(coef(summary(m2)), digits=c(2,2,1,3))
 
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
-m2 <- lm(Resp ~ Temp+CO2, data=urchin)
-contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
-coef(m2)
-contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
-m4 <- lm(Resp ~ Temp, data=urchin)
-coef(m4)
-contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
-
-means_table <- urchin[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)]
-t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
-t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
-(t1100 + t400)/2
-
-urchin.na <- urchin[!is.na(Resp)]
-urchin.na <- urchin.na[1:(nrow(urchin.na)-2)]
-m1 <- lm(Resp ~ Temp*CO2, data=urchin.na)
-contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
-m2 <- lm(Resp ~ Temp+CO2, data=urchin.na)
-contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
-coef(m2)
-contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
-m4 <- lm(Resp ~ Temp, data=urchin.na)
-coef(m4)
-contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
-emmeans(m1, specs=c("Temp", "CO2"))
-emmeans(m2, specs=c("Temp", "CO2"))
-(means_table <- urchin.na[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)])
-t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
-t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
-(t1100 + t400)/2
-(10*t1100 + 12*t400)/(12+10)
+eval_it <- FALSE
+if(eval_it==TRUE){
+  m1 <- lm(Resp ~ Temp*CO2, data=urchin)
+  contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
+  m2 <- lm(Resp ~ Temp+CO2, data=urchin)
+  contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
+  coef(m2)
+  contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
+  m4 <- lm(Resp ~ Temp, data=urchin)
+  coef(m4)
+  contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
+  
+  urchin[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)]
+  emmeans(m1, specs=c("Temp", "CO2"))
+  emmeans(m2, specs=c("Temp", "CO2"))
+  
+  urchin.na <- urchin[!is.na(Resp)]
+  urchin.na <- urchin.na[1:(nrow(urchin.na)-2)]
+  m1 <- lm(Resp ~ Temp*CO2, data=urchin.na)
+  contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
+  m2 <- lm(Resp ~ Temp+CO2, data=urchin.na)
+  contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
+  coef(m2)
+  contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
+  m4 <- lm(Resp ~ Temp, data=urchin.na)
+  coef(m4)
+  contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
+  emmeans(m1, specs=c("Temp", "CO2"))
+  emmeans(m2, specs=c("Temp", "CO2"))
+  (means_table <- urchin.na[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)])
+  t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
+  t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
+  (t1100 + t400)/2
+  (10*t1100 + 12*t400)/(12+10)
+  
+}
 
 ```
 
-The resulting coefficients of the additive model are **marginal effects** -- the effects averaged over all levels of the other factor. Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaninful if there is large large heterogeneity of the simple effects (that is, when the interaction effect is large).
+The conditional effects of the reduced model are
 
-
-In the original coefficient table, from the full model including the interaction, $b_1$ is the effect of temperature when CO2 has the reference (400 µAtm) value. Here, $b_1$ is the **pooled** effect of temperature, which is a weighted average of the effects computed at each level of CO2.
-
-In this table, the estimate of $Temp^+$ is It is okay to drop the interaction term to estimate a "simple" effect of each factor by "smoothing over" a small, non-additive (interaction) effect, but, for several reasons, one should not drop a term because $p>0.05$.
-
-1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
-2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or event that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
-
-### Contrasts -- simple vs. main effects
-
-In a $m \times p$ design, there are $mp$ cell means and, therefore, $mp(mp-1)/2$ pairwise contrasts. For the urchin data, these are
-
-1. Temp+/CO2- - Temp-/CO2-  (bottom left - top left)
-2. Temp+/CO2+ - Temp-/CO2+  (bottom right - top right)
-3. Temp-/CO2+ - Temp-/CO2-  (top right - top left)
-4. Temp+/CO2+ - Temp+/CO2-  (bottom right - bottom left)
-5. Temp-/CO2+ - Temp+/CO2-  (top right - bottom left)
-6. Temp+/CO2+ - Temp-/CO2-  (bottom right - top left)
-
-(1) and (2) are the **simple effects** of Temp at each level of CO2. (3) and (4) are the simple effects of CO2 at each level of Temp. (5) is the response of the CO2 treatment at the reference level of Temp minus the response of the Temp treatment at the reference level of CO2. This probably is not a very interesting contrast. (6) is the combined response of Temp and CO2, including the interaction, minus the control. This also is unlikely to be of much interest.
-
-```{r urchin-simple-effects, echo=FALSE}
-# recode factor levels for aesthetics
-urchin2 <- copy(urchin1)
-urchin2[, CO2:=factor(ifelse(CO2=="-","CO2-", "CO2+"))]
-urchin2[, Temp:=factor(ifelse(Temp=="-", "Temp-", "Temp+"))]
-
-fit <- lm(Resp ~ Temp*CO2, data=urchin2)
-knitr::kable(summary(pairs(emmeans(fit, specs=c("Temp", "CO2")), adjust="none", reverse=TRUE), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
-```
-
-**Main effects** are contrasts between 
-```{r urchin-main, echo=FALSE, eval=FALSE}
+```{r}
 m1 <- lm(Resp ~ Temp + CO2, data=urchin)
-coef(summary(m1))
-knitr::kable(summary(contrast(emmeans(fit, specs=c("Temp", "CO2")),
-                              adjust="none",
-                              method="revpairwise"), infer=c(TRUE, TRUE)), digits=c(2, 2, 2, 0, 1, 1, 1, 3))
+m1.emm <- emmeans(m1, specs=c("Temp","CO2"))
+m1.effects <- data.table(summary(contrast(m1.emm,
+                 method="revpairwise",
+                 adjust="none",
+                 simple = "each",
+                 combine=TRUE),
+        infer=c(TRUE,TRUE)))
+setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
+y_cols <- c("CO2", "Temp","Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
+knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
+
 ```
+
+The table shows that all conditional effects within a factor are the same. This makes sense -- if the model fit is additive, the interaction effect is set to zero and, consequently there cannot be differences in conditional effects. Probably a better way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically computes marginal effects.
+
+```{r}
+m1 <- lm(Resp ~ Temp + CO2, data=urchin)
+m1.emm.1 <- emmeans(m1, specs=c("Temp"))
+m1.effects.1 <- data.table(summary(contrast(m1.emm.1,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE)))
+m1.emm.2 <- emmeans(m1, specs=c("CO2"))
+m1.effects.2 <- data.table(summary(contrast(m1.emm.2,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE)))
+m1.effects <- rbind(m1.effects.1, m1.effects.2)
+setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
+y_cols <- c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
+knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
+```
+
+Compare the table of marginal effects of the additive model to the table of marginal effects of the full model. The estimates are the same but the *t*-values and *p*-values differ because of different degrees of freedom (the full model estimates one more parameter, the interaction effect). The estimate is the same only if the design is balanced, which means that each combination of treatment levels has the same sample size *n*.
+
+### Reduce models for the right reason
+
+Unless one factor truly has no effect, there will always be an interaction. As stated above, interactions are ubiquitous. If an interaction is small, it can make sense to drop the interaction term and re-fit an additive model to estimate marginal effects in order to present a simplified picture of what is going on, with the recognition that these estimates are smoothing over the heterogenity in conditional (simple) effects that truly exist.
+
+Aided and abetted by statistics textbooks for biologists, there is a long history of researchers dropping an interaction effect because the interaction $p>0.05$. Don't do this. It doesn't make any sense.
+
+1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if the interaction were $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
+2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or even that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
 
 ### What about models with more than two factors?
 A factorial model can have more than two factors, for example, a model with three factors (A, B, and C), each with two levels (which I'll designate with a "+"), is
@@ -520,27 +555,89 @@ An interaction plot is an okay plot. It doesn't show the data, only a descriptiv
 
 ## Working in R
 
-A **full-factorial** model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. R expands this formula to `y ~ A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
+A **full-factorial** model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
 
 ```{r urchin-full-factorial}
-# re-label levels and convert to factors.
-urchin1 <- copy(urchin)
-urchin1[, CO2:=factor(ifelse(CO2==400,"-", "+"))]
-urchin1[, Temp:=factor(ifelse(Temp==13, "-", "+"))]
-fit <- lm(Resp ~ Temp*CO2, data=urchin1) # use urchin1 data with relabeled levels
-coef(summary(fit))
+m1 <- lm(Resp ~ Temp*CO2, data=urchin) # use urchin1 data with relabeled levels
+coef(summary(m1))
 ```
 
-The first thing this script does is to re-label the levels of Temp and CO2. The relabeling is more aesthically pleasing in the tabled output. If we didn't relable, it would be necessary to convert CO2 and Temp to factors or else R would treat these as numeric and not factors.
+Modeled means are estimated using `emmeans::emmeans`. The means for all combinations of Temp and CO2 are obtained with the specs argument.
+
+```{r}
+m1.emm <- emmeans(m1, specs=c("Temp", "CO2"))
+m1.emm
+```
+
+The marginal means are
+
+```{r}
+m1.emm.temp <- emmeans(m1, specs=c("Temp"))
+m1.emm.co2 <- emmeans(m1, specs=c("CO2"))
+m1.emm.temp
+m1.emm.co2
+```
+
+All six pairwise contrasts are computed using `emmeans::contrast`. The adjust argument specifies the adjustment for multiple testing. The method argument specifies the type of contrast (pairwise and revpairwise give all pairwise contrasts. revpairwise simply gives the reverse of pairwise)
+
+```{r}
+m1.contrast <- contrast(m1.emm, adjust="none", method="revpairwise")
+m1.contrast
+```
+
+To add the CIs to this table use
+
+```{r}
+m1.contrast_2 <- summary(m1.contrast, infer=c(TRUE, TRUE))
+m1.contrast_2
+```
+
+The four conditional (simple) effects are computed using the arguments `simple="each"` and `combine=TRUE`.
+
+```{r}
+m1.effects <- summary(contrast(m1.emm,
+                 method="revpairwise",
+                 adjust="none",
+                 simple = "each",
+                 combine=TRUE),
+        infer=c(TRUE,TRUE))
+m1.effects
+```
+
+The marginal effects of the factorial model are
+
+```{r}
+m1.emm.1 <- emmeans(m1, specs=c("Temp"))
+m1.effects.1 <- summary(contrast(m1.emm.1,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE))
+m1.effects.1
+m1.emm.2 <- emmeans(m1, specs=c("CO2"))
+m1.effects.2 <- summary(contrast(m1.emm.2,
+                 method="revpairwise",
+                 adjust="none"),
+        infer=c(TRUE,TRUE))
+m1.effects.2
+
+```
+
+These can be combined into a single table using `rbind`
+
+```{r}
+m1.effects <- rbind(data.table(m1.effects.1), data.table(m1.effects.2))
+m1.effects
+```
+
 
 The additive model is specified by the formula `y ~ A + B`
 
 ```{r urchin-additive}
-fit <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
-coef(summary(fit))
+m2 <- lm(Resp ~ Temp + CO2, data=urchin) # use urchin1 data with relabeled levels
+coef(summary(m2))
 ```
 
-
+The modeled means, marginal means, and marginal effects are computed as above.
 ## Problems
 
 1. Draw four $2 \times 2$ tables and label the row and column headers using the levels of the urchin treatment. In the first table, insert the cell means. In the 2nd table, insert the equation for the coefficient. In the third table, solve the equations. And in the fourth column, insert the estimates from the table above. Are tables 3 and 4 the same? If not, you've goofed somewhere.
@@ -556,11 +653,11 @@ coef(summary(fit))
 ```{r urchin-insect, echo=FALSE, eval=FALSE}
 folder <- "Data from Increased root herbivory under elevated atmospheric carbon dioxide concentrations is reversed by silicon-based plant defences"
 filename <- "canegrub_feedingtrial.csv"
-file_path <- paste(data_path, folder, filename, sep="/")
+file_path <- here(data_path, folder, filename)
 feeding <- fread(file_path)
 # open design file
 filename <- "treatments.csv"
-file_path <- paste(data_path, folder, filename, sep="/")
+file_path <- here(data_path, folder, filename)
 treatments <- fread(file_path)
 treatments[, CO2treat:=factor(CO2treat)]
 treatments[, Silicon:=factor(Silicon, c("silicon0", "silicon+"))]
