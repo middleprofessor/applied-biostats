@@ -501,13 +501,23 @@ The effect of the increased temperature at the control CO2 level was 4.5 pmol O2
 The CI on the interaction includes both large negative values and trivially small values, including zero, and, consequently, our data is compatible with both scientific models (that is, we can neither support nor reject the predictions of the scientific model using these results).
 
 ## Working in R
+### Model formula
 
-A **full-factorial** model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
+A full-factorial model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. The * indicates to cross A and B. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
 
 ```{r urchin-full-factorial}
 m1 <- lm(Resp ~ Temp*CO2, data=urchin) # use urchin1 data with relabeled levels
 coef(summary(m1))
 ```
+
+The additive model is specified by the formula `y ~ A + B`
+
+```{r urchin-additive}
+m2 <- lm(Resp ~ Temp + CO2, data=urchin) # use urchin1 data with relabeled levels
+coef(summary(m2))
+```
+
+### Modeled means
 
 Modeled means are estimated using `emmeans::emmeans`. The means for all combinations of Temp and CO2 are obtained with the specs argument.
 
@@ -515,6 +525,8 @@ Modeled means are estimated using `emmeans::emmeans`. The means for all combinat
 m1.emm <- emmeans(m1, specs=c("Temp", "CO2"))
 m1.emm
 ```
+
+### Marginal means
 
 The marginal means are
 
@@ -525,19 +537,18 @@ m1.emm.temp
 m1.emm.co2
 ```
 
+### Contrasts
+
 All six pairwise contrasts are computed using `emmeans::contrast`. The adjust argument specifies the adjustment for multiple testing. The method argument specifies the type of contrast (pairwise and revpairwise give all pairwise contrasts. revpairwise simply gives the reverse of pairwise)
 
 ```{r}
 m1.contrast <- contrast(m1.emm, adjust="none", method="revpairwise")
-m1.contrast
+# add CIs
+m1.contrast.ci <- summary(m1.contrast, infer=c(TRUE, TRUE))
+m1.contrast.ci
 ```
 
-To add the CIs to this table use
-
-```{r}
-m1.contrast_2 <- summary(m1.contrast, infer=c(TRUE, TRUE))
-m1.contrast_2
-```
+### Simple effects
 
 The four conditional (simple) effects are a subset of the contrasts above and are computed using the arguments `simple="each"` and `combine=TRUE`.
 
@@ -550,6 +561,8 @@ m1.effects <- summary(contrast(m1.emm,
         infer=c(TRUE,TRUE))
 m1.effects
 ```
+
+### Marginal effects
 
 The marginal effects of the factorial model are
 
@@ -576,16 +589,6 @@ m1.effects.marginal <- rbind(data.table(m1.effects.1), data.table(m1.effects.2))
 m1.effects.marginal
 ```
 
-
-The additive model is specified by the formula `y ~ A + B`
-
-```{r urchin-additive}
-m2 <- lm(Resp ~ Temp + CO2, data=urchin) # use urchin1 data with relabeled levels
-coef(summary(m2))
-```
-
-The modeled means, marginal means, and marginal effects are computed as above.
-
 ### Plotting results
 #### Bar plot with uniform coloring poorly communicate the factorial design
 ```{r}
@@ -601,7 +604,7 @@ ggbarplot(x="xlabel",
 ```
 
 #### Plots that communicate the factorial design
-```{r}
+```{r factorial-interaction-plots, fig.height=7, fig.cap="Interaction plots. (B) is the classic interaction plot, which is characterized by lines connecting the groups that share the same Factor B level. This line allows one to visual the effect of Factor A (the slope) at each level of Factor B."}
 # bar-plot with 2nd factor different color
 pd <- position_dodge(0.7)
 gg1 <- ggbarplot(x="Temp",
@@ -670,7 +673,7 @@ gg4 <- ggboxplot(x="Temp",
 plot_grid(gg1, gg2, gg3, gg4, nrow=2, labels="AUTO")
 ```
 
-A common way to plot the results of factorial models is with an **interaction plot** (Fig xxxB). In the interaction plot of the urchin data, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
+A common way to plot the results of factorial models is with an **interaction plot** (Figure \@ref(fig:factorial-interaction-plots)). In the interaction plot of the urchin data, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
 
 1. The slope of a line is the effect of $Temp$ on $Resp$
 2. The relative *elevation* of the two lines is the effect of $CO2$ on $Resp$
@@ -703,7 +706,8 @@ m1.effects.dt <- rbind(m1.coefs.dt[4,], m1.contrasts.dt, fill=TRUE)
 
 # effects plot
 # get p-values
-pval <- round(m1.effects.dt$p.value, 4)
+pval <- as.character(round(m1.effects.dt$p.value, 3))
+pval[2] <- "0.0003"
 gg_effects <- ggdotplot(x="Term", 
                  y="estimate", 
                  data=m1.effects.dt, 
@@ -714,8 +718,9 @@ gg_effects <- ggdotplot(x="Term",
                 width=0.15, color=(pal_jco("default")(4))[1]) +
   ylab("Contrast") +
   geom_hline(yintercept=0, linetype = 2) +
-  annotate("text", x = 1:5, y = rep(8.0, 5), label = pval) +
-  annotate("text", x=5.4, y=8.0, label="p-value") +
+  annotate("text", x = 1:5, y = rep(7.75, 5), label = pval) +
+  annotate("text", x=5.4, y=7.75, label="p-value") +
+  expand_limits(y = 8.3) +
   xlab("Contrast") +
   coord_flip() + 
   NULL
@@ -727,10 +732,12 @@ This effects plot shows the four simple effects, the single interaction (Temp18:
 
 #### Harrell plots
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, fig.height=7}
 gg_effects <- gg_effects + scale_y_continuous(position="right")
 
-plot_grid(gg_effects, gg_response, nrow=2, align = "v", rel_heights = c(1, 1))
+plot_grid(gg_effects, gg_response, nrow=2, 
+          align = "v", 
+          rel_heights = c(1, 1.75))
 ```
 
 The effects and interaction plot are combined into a single plot.
