@@ -223,64 +223,64 @@ m1.mm <- cbind(Temp=c("13 C", "18 C", "mean"), m1.mm)
 #                       )
 # #gt_tbl
 # 
-gt_table_2 <- gt(m1.mm
-)
-gt_table_2 <- tab_spanner(gt_table_2,
-  label = "CO2",
-  columns = vars("400 µAtm", "1100 µAtm")
-)
-gt_table_2 <- tab_spanner(gt_table_2,
-  label = "",
-  columns = vars("mean")
-)
-gt_table_2 <- tab_spanner(gt_table_2,
-  label = "",
-  columns = vars("Temp")
-)
-gt_table_2 <- fmt_missing(gt_table_2,
-                      columns=vars("mean"),
-                      missing_text = ""
-                      )
-gt_table_2 <- fmt_number(gt_table_2,
-                      columns=2:4,
-                      decimals = 2
-                      )
-gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "#CCCCCC"),
-    locations = cells_data(
-      columns = vars("mean"),
-      rows = 1:2
-  ))
-gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "#CCCCCC"),
-    locations = cells_data(
-      columns = vars("400 µAtm"),
-      rows = 3
-  ))
-gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "#CCCCCC"),
-    locations = cells_data(
-      columns = vars("1100 µAtm"),
-      rows = 3
-  ))
-gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "white"),
-    locations = cells_data(
-      columns = vars("Temp"),
-      rows = 2
-  ))
-gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "white"),
-    locations = cells_data(
-      columns = vars("400 µAtm"),
-      rows = 2
-   ))
- gt_table_2 <-  tab_style(gt_table_2,
-    style = cell_fill(color  = "white"),
-     locations = cells_data(
-       columns = vars("1100 µAtm"),
-       rows = 2
-   ))
+# gt_table_2 <- gt(m1.mm
+# )
+# gt_table_2 <- tab_spanner(gt_table_2,
+#   label = "CO2",
+#   columns = vars("400 µAtm", "1100 µAtm")
+# )
+# gt_table_2 <- tab_spanner(gt_table_2,
+#   label = "",
+#   columns = vars("mean")
+# )
+# gt_table_2 <- tab_spanner(gt_table_2,
+#   label = "",
+#   columns = vars("Temp")
+# )
+# gt_table_2 <- fmt_missing(gt_table_2,
+#                       columns=vars("mean"),
+#                       missing_text = ""
+#                       )
+# gt_table_2 <- fmt_number(gt_table_2,
+#                       columns=2:4,
+#                       decimals = 2
+#                       )
+# gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "#CCCCCC"),
+#     locations = cells_data(
+#       columns = vars("mean"),
+#       rows = 1:2
+#   ))
+# gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "#CCCCCC"),
+#     locations = cells_data(
+#       columns = vars("400 µAtm"),
+#       rows = 3
+#   ))
+# gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "#CCCCCC"),
+#     locations = cells_data(
+#       columns = vars("1100 µAtm"),
+#       rows = 3
+#   ))
+# gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "white"),
+#     locations = cells_data(
+#       columns = vars("Temp"),
+#       rows = 2
+#   ))
+# gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "white"),
+#     locations = cells_data(
+#       columns = vars("400 µAtm"),
+#       rows = 2
+#    ))
+#  gt_table_2 <-  tab_style(gt_table_2,
+#     style = cell_fill(color  = "white"),
+#      locations = cells_data(
+#        columns = vars("1100 µAtm"),
+#        rows = 2
+#    ))
 
 # gt_table_2
 
@@ -294,11 +294,11 @@ table_3
 
 The marginal means with their CIs are
 
-```{r}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 m1.emm.temp <- summary(emmeans(m1, specs=c("Temp")))
 m1.emm.co2 <- summary(emmeans(m1, specs=c("CO2")))
-m1.emm.temp
-m1.emm.co2
+knitr::kable(m1.emm.temp)
+knitr::kable(m1.emm.co2)
 ```
 
 ### In a factorial model, there are multiple effects of each factor (simple effects)
@@ -434,7 +434,7 @@ if(eval_it==TRUE){
 
 The conditional effects of the reduced model are
 
-```{r}
+```{r, echo=FALSE}
 m1 <- lm(Resp ~ Temp + CO2, data=urchin)
 m1.emm <- emmeans(m1, specs=c("Temp","CO2"))
 m1.effects <- data.table(summary(contrast(m1.emm,
@@ -451,7 +451,7 @@ knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
 
 The table shows that all conditional effects within a factor are the same. This makes sense -- if the model fit is additive, the interaction effect is set to zero and, consequently there cannot be differences in conditional effects. Probably a better way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically computes marginal effects.
 
-```{r}
+```{r, echo=FALSE}
 m1 <- lm(Resp ~ Temp + CO2, data=urchin)
 m1.emm.1 <- emmeans(m1, specs=c("Temp"))
 m1.effects.1 <- data.table(summary(contrast(m1.emm.1,
@@ -496,62 +496,9 @@ It is easy enough to get an ANOVA table with $p$-values for this model but I don
 
 ### Text results
 
-The effect of the increased temperature at the control CO2 level was 4.5 (95% CI: 2.4, 6.7; $p < 0.001$) pmol O2/hr/larva. The effect of increased CO2 at the control temperature was -0.3 (95% CI: -2.4, 1.8; $p=.76$) pmol O2/hr/larva. The interaction effect was -2.7 (95% CI: -5.7, 0.3; $p = 0.079$) pmol O2/hr/larva. Because of the relatively large interaction, the effect of temperature at the high level of CO2 was less than half the effect at the low level of CO2 (estimate: 1.82; 95% CI: -0.3, 4.0; $p = 0.091$) and the effect of CO2 at the high level of Temp was 10 times greater than that at the low level of Temp (estimate: -3.0; 95% CI: -5.1, -.9; $p = 0.0084$).
+The effect of the increased temperature at the control CO2 level was 4.5 pmol O2/hr/larva (95% CI: 2.4, 6.7; $p < 0.001$). The effect of increased CO2 at the control temperature was -0.3 pmol O2/hr/larva (95% CI: -2.4, 1.8; $p=.76$). The interaction effect was -2.7 pmol O2/hr/larva (95% CI: -5.7, 0.3; $p = 0.079$). Because of the relatively large interaction, the effect of temperature at the high level of CO2 was less than half the effect at the low level of CO2 (estimate: 1.82; 95% CI: -0.3, 4.0; $p = 0.091$) and the effect of CO2 at the high level of Temp was 10 times greater than that at the low level of Temp (estimate: -3.0; 95% CI: -5.1, -.9; $p = 0.0084$).
 
 The CI on the interaction includes both large negative values and trivially small values, including zero, and, consequently, our data is compatible with both scientific models (that is, we can neither support nor reject the predictions of the scientific model using these results).
-
-### Harrellplot
-
-If the focus is on the interaction, then a Harrell Plot of coefficients is a good choice for communicating this.
-
-```{r urchin-harrellplot1, echo=FALSE}
-harrellplot(x="Temp", y="Resp", g="CO2", contrasts.method = "coefficients", data=urchin2)$gg
-```
-
-The plot shows that a relatively big and positive Temp effect, a relatively small CO2 effect (and one with too much noise to have any confidence of the sign) and a intermediate interaction effect. In the original paper, the researchers were testing a scientific (not statistical!) model that predicted no interaction, and the researchers argued that these data support this model because of the small p-value for this effect (see the table above). Well, the data do support that model (one end of the 95% CI for the interaction includes zero, and other very small values) but they also support a model of a large interaction (the other end of the 95% CI includes large negative effects). The data are too course (or the signal:noise ratio is to small) to have much confidence in the size of the interaction effect. Some comments:
-
-1. It is not valid to claim that an effect "doesn't" exist because p > 0.05 (see chapter xxx)
-2. Researchers need to draw conclusions based on *both* ends of the CI, as well as the mean!
-3. A sample size of 6 will generally be very low power to get a precise estimate of the interaction unless the sampling variability is very small.
-
-If we are more interested in differences between the different treatment combinations, then a Harrell plot with the contrasts is a good way to communicate this.
-
-```{r urchin-harrellplot2, echo=FALSE}
-harrellplot(x="Temp", y="Resp", g="CO2", data=urchin2)$gg
-```
-The four contrasts are differences between the means of pairs of cells in the $2 \times 2$ table:
-
-1. "Temp+: CO2+ - CO2-" -- lower right - lower left
-2. "Temp-: CO2+ - CO2-" -- upper right - upper left
-3. "CO2+: Temp+ - Temp-" -- lower right - upper right
-4. "CO2-: Temp+ - Temp-" -- lower left - upper left
-
-### Interaction plots
-A common way to plot the results of the model is with an **interaction plot**. 
-
-```{r urchin-interaction-plot, echo=FALSE}
- # use this for interaction plot aesthetics
-urchin3 <- copy(urchin)
-urchin3[, CO2:=factor(CO2)]
-urchin3[, Temp:=factor(Temp)]
-gg_interaction_plot(x=c("Temp", "CO2"), y="Resp", data=urchin3)
-```
-
-In this interaction plot, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
-
-1. The slope of a line is the effect of $Temp$ on $Resp$
-2. The relative *elevation* of the lines is the effect of $CO2$ on $Resp$
-3. The difference in slope *or* the relative elevation at each level of $Temp$ is the interaction effect
-
-Let's deconstruct this. The top (CO2-) line is the effect of $Temp$ at the control (400 $\mu$ATM) value of $CO2$. The slope of the bottom (CO2+) line is the effect of $Temp$ at the high (1100 $\mu$ATM) value of $CO2$. *These lines have different slopes*, or the slope *is conditional on* the level of CO2. This means that the effect of $Temp$ on respiration is *conditional on the value of $CO2$*. Think about this. This is what an interaction implies--conditional effects.
-
-At the reference temperature (13 C), the CO2+ line is barely below the CO2- line. But at the high temperature (18 C), the CO2+ line is far below the CO2- line. That is, the relative elevation (the $CO2$ effect) is conditional on the level of $Temp$. It will always be the case that if the effect of Factor A is conditional on the levels of Factor B, then the effect of Factor B will be conditional on the levels of Factor A.
-
-An interaction plot is an okay plot. It doesn't show the data, only a descriptive summary (means and standard errors). If we are interested in the interaction effect, it doesn't give us a very good sense of the error in this effect. And *that* is a problem because with real data, two lines are never precisely parallel. Our interpretation of the similarity of the slopes would probably mostly reflect our pre-conceived scientific model.
-
-## Recommendations
-
-1. Should an interaction term be dropped from a model? In biological data, there will almost certainly be an interaction effect with everything. The goal, then, should be to model the effect and use the estimate and the uncertainty in the effect, *in combination with the goals of the analysis*, to make any decision about dropping a term.
 
 ## Working in R
 
@@ -571,7 +518,7 @@ m1.emm
 
 The marginal means are
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 m1.emm.temp <- emmeans(m1, specs=c("Temp"))
 m1.emm.co2 <- emmeans(m1, specs=c("CO2"))
 m1.emm.temp
@@ -592,7 +539,7 @@ m1.contrast_2 <- summary(m1.contrast, infer=c(TRUE, TRUE))
 m1.contrast_2
 ```
 
-The four conditional (simple) effects are computed using the arguments `simple="each"` and `combine=TRUE`.
+The four conditional (simple) effects are a subset of the contrasts above and are computed using the arguments `simple="each"` and `combine=TRUE`.
 
 ```{r}
 m1.effects <- summary(contrast(m1.emm,
@@ -625,8 +572,8 @@ m1.effects.2
 These can be combined into a single table using `rbind`
 
 ```{r}
-m1.effects <- rbind(data.table(m1.effects.1), data.table(m1.effects.2))
-m1.effects
+m1.effects.marginal <- rbind(data.table(m1.effects.1), data.table(m1.effects.2))
+m1.effects.marginal
 ```
 
 
@@ -638,11 +585,161 @@ coef(summary(m2))
 ```
 
 The modeled means, marginal means, and marginal effects are computed as above.
+
+### Plotting results
+#### Bar plot with uniform coloring poorly communicate the factorial design
+```{r}
+# bar plot with uniform color
+urchin[, xlabel := paste0("Temp:",Temp,"/","CO2:",CO2)]
+ggbarplot(x="xlabel",
+          y="Resp",
+          data=urchin[!is.na(Resp),],
+          add=c("mean_ci", "jitter"),
+          fill=(pal_jco("default")(4))[1]) +
+  xlab("Treatment") +
+  NULL
+```
+
+#### Plots that communicate the factorial design
+```{r}
+# bar-plot with 2nd factor different color
+pd <- position_dodge(0.7)
+gg1 <- ggbarplot(x="Temp",
+          y="Resp",
+          fill="CO2",
+          data=urchin[!is.na(Resp),],
+          add=c("mean_ci"),
+          position=pd) +
+  geom_point(aes(fill=CO2), 
+             color="black", 
+             position=position_jitterdodge(jitter.width=0.2), 
+             show.legend=FALSE, 
+             alpha=0.5) +
+  scale_fill_jco() +
+  NULL
+
+# "interaction" plot
+m1.emm.dt <- data.table(summary(m1.emm))
+pd = position_dodge(0.7)
+gg2 <- ggplot(data=m1.emm.dt, 
+                      aes(x=Temp, 
+                          y=emmean, 
+                          shape=CO2, 
+                          color=CO2, 
+                          group=CO2)) +
+  geom_point(position=pd, size=3) +
+  geom_errorbar(aes(x=Temp, 
+                                 ymin=lower.CL, 
+                                 ymax=upper.CL,
+                                 group=CO2)
+                , position=pd, width=0.1) +
+  geom_line(position=pd) +
+  ylab("Resp") +
+  scale_color_jco() +
+  theme_pubr() +
+  #theme(legend.position="bottom") +
+  NULL
+
+# interaction "jitter" plot
+gg3 <- gg2 +
+  geom_point(data=urchin[!is.na(Resp),], aes(x=Temp, y=Resp, fill=CO2),
+             position=position_jitterdodge(jitter.width=0.2)) +
+#             position=position_jitter(width=0.2)) +
+  theme(legend.position="bottom") +
+  NULL
+gg_response <- gg3 # used below
+
+# box "interaction" plot
+m1.emm.dt <- data.table(summary(m1.emm))
+pd <- position_dodge(0.8)
+gg4 <- ggboxplot(x="Temp",
+          y="Resp",
+          data=urchin[!is.na(Resp),],
+          fill="CO2") +
+  scale_fill_jco() +
+  geom_point(data=m1.emm.dt, 
+             aes(x=Temp, y=emmean, group=CO2),
+             color="red",
+             position=pd) +
+  geom_line(data=m1.emm.dt, 
+            aes(x=Temp, y=emmean, group=CO2),
+            position=pd) +
+  theme(legend.position="bottom") +
+  NULL
+
+plot_grid(gg1, gg2, gg3, gg4, nrow=2, labels="AUTO")
+```
+
+A common way to plot the results of factorial models is with an **interaction plot** (Fig xxxB). In the interaction plot of the urchin data, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
+
+1. The slope of a line is the effect of $Temp$ on $Resp$
+2. The relative *elevation* of the two lines is the effect of $CO2$ on $Resp$
+3. The difference in slope *or* the relative elevation at each level of $Temp$ is the interaction effect
+
+Let's deconstruct this. The top (CO2-) line is the effect of $Temp$ at the control (400 µATM) value of $CO2$. The slope of the bottom (CO2+) line is the effect of $Temp$ at the high (1100 µATM) value of $CO2$. *These lines have different slopes*, or the slope *is conditional on* the level of CO2. This means that the effect of $Temp$ on respiration is *conditional on the value of $CO2$*. Think about this. This is what an interaction implies--conditional effects.
+
+At the reference temperature (13 C), the CO2+ line is barely below the CO2- line. But at the high temperature (18 C), the CO2+ line is far below the CO2- line. That is, the relative elevation (the $CO2$ effect) is conditional on the level of $Temp$. It will always be the case that if the effect of Factor A is conditional on the levels of Factor B, then the effect of Factor B will be conditional on the levels of Factor A.
+
+An interaction plot is an okay plot. It doesn't show the data, only a minimal, descriptive summary (means and standard errors). If we are interested in the interaction effect, it doesn't give us a very good sense of the error in this effect. And *that* is a problem because with real data, two lines are never precisely parallel. Our interpretation of the similarity of the slopes would probably mostly reflect our pre-conceived scientific model.
+
+#### Effects plots
+
+```{r, warning=FALSE, message=FALSE}
+# need m1.emm and m1.effects from above
+# convert to data.table
+m1.coefs <- coef(summary(m1))
+m1.ci <- confint(m1)
+m1.coefs.dt <- data.table(Term=row.names(m1.coefs), m1.coefs, m1.ci)
+# convert labels to match those of m1.effects
+setnames(m1.coefs.dt, 
+         old=c("Estimate", "Std. Error", "Pr(>|t|)", "2.5 %", "97.5 %"),
+         new=c("estimate", "SE", "p.value", "lower.CL", "upper.CL"))
+m1.contrasts.dt <- data.table(m1.effects)
+# create a label for each contrast
+m1.contrasts.dt[, Term:=ifelse(CO2!=".", 
+                              paste0(CO2, ":", contrast), 
+                              paste0(Temp, ":", contrast))]
+m1.effects.dt <- rbind(m1.coefs.dt[4,], m1.contrasts.dt, fill=TRUE)
+
+# effects plot
+# get p-values
+pval <- round(m1.effects.dt$p.value, 4)
+gg_effects <- ggdotplot(x="Term", 
+                 y="estimate", 
+                 data=m1.effects.dt, 
+                 color = (pal_jco("default")(4))[1],
+                 fill = (pal_jco("default")(4))[1],
+                 size=0.5) +
+  geom_errorbar(aes(x=Term, ymin=lower.CL, ymax=upper.CL),
+                width=0.15, color=(pal_jco("default")(4))[1]) +
+  ylab("Contrast") +
+  geom_hline(yintercept=0, linetype = 2) +
+  annotate("text", x = 1:5, y = rep(8.0, 5), label = pval) +
+  annotate("text", x=5.4, y=8.0, label="p-value") +
+  xlab("Contrast") +
+  coord_flip() + 
+  NULL
+
+gg_effects
+```
+
+This effects plot shows the four simple effects, the single interaction (Temp18:CO21100), and their 95% confidence intervals. In the original paper, the researchers were testing a scientific (not statistical!) model that predicted no interaction between CO2 and Temp, and the researchers argued that these data supported this model because of the "not statistically significant" *p*-value for the interaction effect. The data are consistent with this model (one end of the 95% CI for the interaction includes zero) but also support a model of a large, negative interaction (the other end of the 95% CI includes large negative values). The data are too course (or the signal:noise ratio is to small) to have much confidence in the size of the interaction effect.
+
+#### Harrell plots
+
+```{r, warning=FALSE, message=FALSE}
+gg_effects <- gg_effects + scale_y_continuous(position="right")
+
+plot_grid(gg_effects, gg_response, nrow=2, align = "v", rel_heights = c(1, 1))
+```
+
+The effects and interaction plot are combined into a single plot.
+
 ## Problems
 
 1. Draw four $2 \times 2$ tables and label the row and column headers using the levels of the urchin treatment. In the first table, insert the cell means. In the 2nd table, insert the equation for the coefficient. In the third table, solve the equations. And in the fourth column, insert the estimates from the table above. Are tables 3 and 4 the same? If not, you've goofed somewhere.
 
-2. Frew et al. (2017) showed that increasing atomospheric CO2 increases grub activity in the soil which in turn increases root damage to sugarcane. They used a 2 x 2 experiment to then show that silicon added to the soild decreased the damage to the roots by the grubs (silicon minerals are very hard and plants uptake silicon from the soil to mineralize tissues to protect against insect damage). There are lots of analyses in the paper, but I want you to reproduce Fig. 4b, but using gg_interaction_plot and fit the model using lm.
+2. Frew et al. (2017) showed that increasing atomospheric CO2 increases grub activity in the soil which in turn increases root damage to sugarcane. They used a 2 x 2 experiment to then show that silicon added to the soild decreased the damage to the roots by the grubs (silicon minerals are very hard and plants uptake silicon from the soil to mineralize tissues to protect against insect damage). There are lots of analyses in the paper -- try to reproduce Fig. 4b, but using an interaction plot.
 
 (The treatment assignments are in a different file than the experimental results. Use the `merge` function to glue the two tables together, keying on the common column "plant")
 

@@ -9,8 +9,9 @@ library(readxl)
 library(data.table)
 library(plyr) # mapvalues
 library(stringr)
-library(ggpubr)
-library(cowplot)
+library(ggpubr) # plots
+library(cowplot) # combine plots
+library(ggsci) # scale color
 library(emmeans)
 library(nlme)
 library(lmerTest)
@@ -415,5 +416,20 @@ ggbarplot(x="treatment",
 ```
 
 
-#### Three factors
+### Interaction plot
+
+```{r}
+#pairs_i <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
+
+pd = position_dodge(0.2)
+ggplot(data=m1.emm, aes(x=treatment, y=count, shape=strain, color=strain, group=strain)) +
+  geom_point(position=pd, size=3) +
+  geom_errorbar(data=m1.emm, aes(x=treatment, ymin=asymp.LCL, ymax=asymp.UCL, group=strain),position=pd, width=0.1) +
+  geom_line(position=pd) +
+  ylab("Neutrophil count") +
+  scale_color_jco() +
+  theme_pubr() +
+  NULL
+
+```
 
