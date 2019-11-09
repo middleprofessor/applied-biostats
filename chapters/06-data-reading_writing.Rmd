@@ -309,15 +309,15 @@ plant[2, root_mass:=NA]
 knitr::kable(plant, digits=1)
 ```
 
-This "cleans" plant by omitting rows with any missing value
+This code "cleans" the data.table *plant* by omitting rows with any missing value
 
 ```{r}
 plant <- na.omit(plant)
 ```
 
-The problem is, any analysis of $shoot\_mass$ will not contain the value `round(plant[2, shoot_mass], 1) because it was deleted from the data frame along the rest of the row with the missing value.
+The problem is, any analysis of $shoot\_mass$ will not contain the value `r round(plant[2, shoot_mass], 1)` because it was deleted from the data frame along with the rest of the row containing the missing value.
 
-As with subsetting, handle missing values at the level of the analysis by effectively using the subset of data with no missing values *for that analysis*. The function `is.na` returns a boolean (TRUE, FALSE) for each element in a list. Consequently, the function `!is.na` can be used to obtain the rows in which the value of $root_mass$ is "not na".
+Instead of deleting the entire row, retain all data but handle missing values at the level of the analysis. This can be done using the subset mechanism. The function `is.na` returns a boolean (a variable with values TRUE or FALSE) for each element in a list. Consequently, the function `!is.na` can be used to obtain the rows in which the value of $root_mass$ is "not na".
 
 ```{r}
 summary_table <- plant[!is.na(root_mass),
@@ -329,7 +329,7 @@ summary_table <- plant[!is.na(root_mass),
 knitr::kable(summary_table, digits=1)
 ```
 
-The `mean` and `sd` functions have NA handling methods. These are used in the script below Compare the results to the script using `!is.na`. Without using `!is.na`, the sample size for the control, *for the variable root_mass*, is incorrect--it is simply the number of rows where $Treatment$ is "cn". Consequently, the computation of the SE for root mass for the control is incorrect.
+Many R functions automatically handle missing values. For example, the `mean` and `sd` functions have NA handling methods. These are used in the script below and generate the correct mean and sd. But the computation of the standard error fails to compute the correct answer because it uses the wrong N. Compare the results to the script using `!is.na`. Without using `!is.na`, the sample size for the control, *for the variable root_mass*, is incorrect--it is simply the number of rows where $Treatment$ is "cn".
 
 ```{r}
 summary_table <- plant[,
@@ -341,7 +341,7 @@ summary_table <- plant[,
 knitr::kable(summary_table, digits=1)
 ```
 
-Familiarize yourself with these and with the NA handling methods of other functions such as `lm` and `predict`.
+Familiarize yourself with these and with the NA handling methods of other functions, especially `lm` and `predict`.
 
 ### Reshaping data
 
