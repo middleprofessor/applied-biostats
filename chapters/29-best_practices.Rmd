@@ -1,4 +1,10 @@
-# Best Practices
+# Best Practices -- Issues in Inference
+
+```{r best-setup, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table)
+library(emmeans)
+```
+
 ## t-tests and ANOVA
 Welch, paired
 
@@ -6,14 +12,40 @@ Welch, paired
 ### "Types" of Error
 I, II, S, M
 
+## multiple testing
+
+**Multiple testing** is the practice of adjusting *p*-values (and less commonly confidence intervals) to account for the expected increase in the frequency of Type I error when there are multiple tests (typically Null Hypothesis Significance Tests). Multiple testing tends to arise in two types of situations:
+
+1. Multiple pairwise contrasts among treatment levels (or combinations of levels) are estimated.
+2. The effects of a treatment on multiple responses are estimated.
+
+Despite the ubiquitous presence of multiple testing in elementary biostatistics textbooks, in the applied biology literature, and in journal guidelines, the practice of adjusting *p*-values for multiple tests is highly controversial among statisticians. In general, I advocate that researchers **do not adjust p-values for multiple tests**.
+
+### Some background
+
+The logic of multiple testing goes something like this: the more tests that a researcher does, the higher the probability that a false positive (Type I error) will occur, therefore a researcher should 
+
+If a researcher carries out multiple tests *of data in which the null hypothesis is true*, what is the probability of finding at least one Type I error? This is easy to compute. If the frequency of Type I error for a single test is $\alpha$, then the probability of no Type I error is $1 - \alpha$. For two tests, the probability of no Type I error in either test is the product of the probability for each test, or $(1 - \alpha)^2$. By the same logic, for $m$ tests, the probabilty of no type I error in any of the tests is $(1 - \alpha)^m$. The probability of at least one type one error, across the $m$ tests, then, is $1 - (1 - \alpha)^m$. A table of these probabilities for different $m$ is given below. If the null is true in all tests, then at least one Type I error is more likely than not if there are 14 tests, and close to certain if there more than 50 tests. Don't skip over this paragraph -- the logic is important even if I don't advocate adjusting for multiple tests.
+
+```{r best-type1-table, echo=FALSE}
+m <- c(1, 3, 6, 10, 50, 100)
+p <- 1 - (1 - 0.05)^m
+knitr::kable(data.table(m = m,
+                        p = p),
+             digits=c(0, 2),
+             caption="Probability of at least one type I error within the set of multiple tests, for data in which the null hypothesis is true. The Type I error rate for a single test is 0.05. The number of tests is m. The probability is p.")
+```
+
+I don't advocate multiple testing (in general) because I don't find the question ("what is the expected probability of a type I error given $m$ tests in which the null is true") to be a very interesting or relevant question.
+
+### Multiple testing -- working in R
+
+## p-hacking
+
+## difference in p is not different
+
 ## transformation, non-parametric, not "pre-testing"
 
 ## max vs. mean
 
 ## pre-post, normalization
-
-## multiple testing
-
-## p-hacking
-
-## difference in p is not different
