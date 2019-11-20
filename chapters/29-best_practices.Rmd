@@ -4,7 +4,9 @@
 library(readxl)
 library(janitor)
 library(data.table)
+library(MASS)
 library(emmeans)
+library(ggpubr)
 library(here)
 here <- here::here
 data_path <- "data"
@@ -100,13 +102,61 @@ summary(m1.pairs.tukey, infer=c(TRUE, TRUE))
 ```
 
 #### Tukey HSD adjustment of conditional effects
-Here I compare the Tukey HSD adjustment between all pairwise comparisons and the subset that are the conditional (simple) effects. The data are those from Fig. 2D of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with four treatment levels. The response is neutrophil count.
+Here I compare the Tukey HSD adjustment between all pairwise comparisons and the subset that are the conditional (simple) effects.
 
 ## p-hacking
 
 ## difference in p is not different
 
 ## transformation, non-parametric, not "pre-testing"
+
+Inference in statistical models (standard errors, confidence intervals, *p*-values) are a function of the modeled distributions of the parameters (for linear models, this parameter is the conditional (or error) variance $\sigma^2$); if the data do not approximate the modeled distribution, then inferential statistics might be to liberal (standard errors are too small, confidence intervals are too narrow, Type I error is more than nominal) or to conservative (standard errors are too large, confidence intervals are too wide, Type I error is less than nominal).
+
+Linear models assume that the "the data" (specifically, the conditional values, or, equivalently, the residuals from the model) approximate a Normal distribution. Chapter xxx showed how to qualitatively assess how well residuals approximate a Normal distribution using a Q-Q plot. If the researcher concludes that the data poorly approximate a normal distribution because of outliers, the researcher can use robust methods to estimate the parameters. If the approximation is poor because the residuals suggest a skewed distribution or one with heavy or light tails, the researcher cancan choose among several strategies
+
+1. continue to use the linear model, many of which are fairly robust to non-normal data, especially when the sample size is not small.
+2. transform the data in a way that makes the conditional response more closely approximate a normal distribution.
+3. use a non-parametric method, which are methods that do not assume a particular distribution
+4. use a generalized linear model (GLM), which is appropriate if the conditional response approximates any of the distributions that can be modeled using GLM.
+
+A general rule of thumb is: Do not use the *p*-value from a "test for normality" (such as a Shapiro-Wilk test) to decide between using the linear model (or t-test or ANOVA) and an alternative such as a generalized linear model (or transformation or non-parametric test). No real data is normal. Tests of normality will tend to "not reject" normality (p > 0.05) when the sample size is small and "reject" normality (p < 0.05) when the sample size is very large. But again, a "not rejected" hypothesis test does not mean the null (in this case, the data are normal) is true. More importantly, where the test for normality tends to fail to reject (encouraging a researcher to use parametric statistics) is where parametric inference performs the worst (because of small *n*) and where the test for normality tends to reject (encouraging a researcher to use non-parametric statistics) is where the parametric inference performs the best (because of large sample size) (Lumley xxx).
+
+### Log transformations
+
+Many response variables within biology, including count data, and almost anything that grows, are right skewed and have variances that increase with the mean. A log transform of a response variable with this kind of distribution will tend to make the residuals more approximately normal and the variance less dependent of the mean. At least two issues arise
+
+1. if the response is count data, and the data include counts of zero, then a fudge factor has to be added to the response since log(0) doesn't exist. The typical fudge factor is to add 1 to *all* values, but this is arbitrary and results do depend on the magnitude of this fudge factor.
+2. the estimates are on a log scale and do not have the units of the response. The estimates can be back-transformed by taking the exponent of a coefficient or contrast but this itself produces problems. For example, the backtransformed mean of the log-transformed response is not the mean on the origianl scale (the arithmetic mean) but the **geometric mean**. Geometric means are smaller than arithmetic means, appreciably so if the data are heavily skewed. Do we want our understanding of a system to be based on geometric means?
+
+### Non-parametric tests
+
+1. In general, the role of a non-parametric test is a better-behaved *p*-value, that is, one whose Type I error is well controlled. As such, non-parametric tests are more about Null-Hypothesis Statistical Testing and less (or not at all) about Estimation.
+2. In general, non-parametric tests are only available for fairly simple experimental designs. There standard alternatives for the simplest comparisons of means are
+    * Independent sample (Student's) *t* test: Mann-Whitney-Wilcoxan
+    * Paired *t* test: Wilcoxan signed-rank test
+    
+One rarely sees non-parametric tests for more complex designs that include covariates, or multiple factors, but for these, one could 1) convert the response to ranks and fit the usual linear model, or 2) implement a permutation test that properly accounts for **exchangeability**.
+
+Permutation tests control Type I error and are powerful. That said, I would recommend a permutation test as a supplment to, and not replacement of, inference from a generalized linear model.
+
+#### Permutation test
+
+A permutation test effectively computes the probability that a random assignment of a response to a particular value of *X* generates a test statistic as large or larger than the observed statistic. If this probability is small, then this "random assignment" is unlikely. From this we infer that the actual assignment matters, which implies a treatment effect.
+
+Create data from a negative binomial distribution, which is right skewed
+
+```{r}
+n <- 10^4
+mu <- c(100, 110)
+sigma <- 10
+beta_0 <- log(mu[1])
+beta_1 <- log(mu[2] - mu[1])
+log_sigma <- log(sigma)
+dummy <- rep(c(0,1), each=n)
+eta <- beta_0 + beta_1*dummy + rnorm(n*2, log_sigma)
+y1 <- exp(eta)
+```
+
 
 ## max vs. mean
 
