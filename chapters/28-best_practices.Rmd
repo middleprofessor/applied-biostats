@@ -8,6 +8,7 @@ library(MASS)
 library(emmeans)
 library(ggpubr)
 library(here)
+library(lmPerm, quietly=T)
 here <- here::here
 data_path <- "data"
 ```
@@ -108,7 +109,7 @@ Here I compare the Tukey HSD adjustment between all pairwise comparisons and the
 
 ## difference in p is not different
 
-## transformation, non-parametric, not "pre-testing"
+## Inference when data are not Normal
 
 Inference in statistical models (standard errors, confidence intervals, *p*-values) are a function of the modeled distributions of the parameters (for linear models, this parameter is the conditional (or error) variance $\sigma^2$); if the data do not approximate the modeled distribution, then inferential statistics might be to liberal (standard errors are too small, confidence intervals are too narrow, Type I error is more than nominal) or to conservative (standard errors are too large, confidence intervals are too wide, Type I error is less than nominal).
 
@@ -119,7 +120,7 @@ Linear models assume that the "the data" (specifically, the conditional values, 
 3. use a non-parametric method, which are methods that do not assume a particular distribution
 4. use a generalized linear model (GLM), which is appropriate if the conditional response approximates any of the distributions that can be modeled using GLM.
 
-A general rule of thumb is: Do not use the *p*-value from a "test for normality" (such as a Shapiro-Wilk test) to decide between using the linear model (or t-test or ANOVA) and an alternative such as a generalized linear model (or transformation or non-parametric test). No real data is normal. Tests of normality will tend to "not reject" normality (p > 0.05) when the sample size is small and "reject" normality (p < 0.05) when the sample size is very large. But again, a "not rejected" hypothesis test does not mean the null (in this case, the data are normal) is true. More importantly, where the test for normality tends to fail to reject (encouraging a researcher to use parametric statistics) is where parametric inference performs the worst (because of small *n*) and where the test for normality tends to reject (encouraging a researcher to use non-parametric statistics) is where the parametric inference performs the best (because of large sample size) (Lumley xxx).
+Do not use the *p*-value from a "test for normality" (such as a Shapiro-Wilk test) to decide between using the linear model (or t-test or ANOVA) and an alternative such as a generalized linear model (or transformation or non-parametric test). No real data is normal. Tests of normality will tend to "not reject" normality (p > 0.05) when the sample size is small and "reject" normality (p < 0.05) when the sample size is very large. But again, a "not rejected" hypothesis test does not mean the null (in this case, the data are normal) is true. More importantly, where the test for normality tends to fail to reject (encouraging a researcher to use parametric statistics) is where parametric inference performs the worst (because of small *n*) and where the test for normality tends to reject (encouraging a researcher to use non-parametric statistics) is where the parametric inference performs the best (because of large sample size) (Lumley xxx).
 
 ### Log transformations
 
@@ -131,11 +132,11 @@ Many response variables within biology, including count data, and almost anythin
 ### Non-parametric tests
 
 1. In general, the role of a non-parametric test is a better-behaved *p*-value, that is, one whose Type I error is well controlled. As such, non-parametric tests are more about Null-Hypothesis Statistical Testing and less (or not at all) about Estimation.
-2. In general, non-parametric tests are only available for fairly simple experimental designs. There standard alternatives for the simplest comparisons of means are
+2. In general, classic non-parametric tests are only available for fairly simple experimental designs. Classic non-parametric tests include
     * Independent sample (Student's) *t* test: Mann-Whitney-Wilcoxan
     * Paired *t* test: Wilcoxan signed-rank test
     
-One rarely sees non-parametric tests for more complex designs that include covariates, or multiple factors, but for these, one could 1) convert the response to ranks and fit the usual linear model, or 2) implement a permutation test that properly accounts for **exchangeability**.
+One rarely sees non-parametric tests for more complex designs that include covariates, or multiple factors, but for these, one could 1) convert the response to ranks and fit the usual linear model, or 2) implement a permutation test that properly preserves **exchangeability**.
 
 Permutation tests control Type I error and are powerful. That said, I would recommend a permutation test as a supplment to, and not replacement of, inference from a generalized linear model.
 
@@ -146,17 +147,168 @@ A permutation test effectively computes the probability that a random assignment
 Create data from a negative binomial distribution, which is right skewed
 
 ```{r}
-n <- 10^4
-mu <- c(100, 110)
-sigma <- 10
-beta_0 <- log(mu[1])
-beta_1 <- log(mu[2] - mu[1])
-log_sigma <- log(sigma)
-dummy <- rep(c(0,1), each=n)
-eta <- beta_0 + beta_1*dummy + rnorm(n*2, log_sigma)
-y1 <- exp(eta)
+set.seed(5)
+n <- 10
+fake_data <- data.table(
+  treatment = rep(c("cn", "tr"), each=n),
+  count = rnegbin(n*2, mu=rep(c(10, 14), each=n), theta=1)
+)
 ```
 
+Some statistics of the fake data
+
+```{r}
+fake_data[, .(N=.N, mean=mean(count), sd=sd(count)), by=treatment]
+```
+
+A plot of the fake data
+
+```{r}
+ggerrorplot(x="treatment",
+            y = "count",
+            data = fake_data,
+            add = c("mean_ci", "jitter"),
+            palette = "jco",
+            color = "treatment")
+
+```
+
+What the distribution of the fake data looks like
+
+```{r, message=FALSE, warning=FALSE}
+n <- 10^4
+qplot(rnegbin(n, mu=10, theta=1))
+```
+
+A linear model to estimate the treatment effect.
+
+```{r}
+knitr::kable(coef(summary(lm(count ~ treatment, data=fake_data))),
+             digits = c(1, 1, 1, 3))
+```
+
+A non-parametric (Mann-Whitney-Wilcoxon) test
+
+```{r}
+wilcox.test(count ~ treatment, data=fake_data)
+```
+
+
+Finally, a permutation, test. The basic algorithm is
+
+1. compute the test statistic for the observed data, assign this to $\theta_1$
+2. permute the response
+3. compute the test statistic for the permuted data, assign these to $\theta_{2..m}$
+4. repeat 2 and 3 $m-1$ times
+5. compute $p$ as
+
+\begin{equation}
+p_{perm} = \frac{N_{\theta_i \ge \theta_{1}}}{m}
+\end{equation}
+
+This is easily done with a **for loop** in which the observed statistic is the first value in the vector of statistics. If this is done, the minimum value in the numerator for the computation of $p_{perm}$ is 1, which insures that $p_{perm}$ is not zero.
+
+The test statistic depends on the analysis. For the simple comparison of means, a simple test statistic is the difference in means. This is the numerator of the test statistic in a *t*-test. The test has more power if the test-statistic is scaled (Manley xxx), so a better test statistic would be *t*, which scales the difference by its standard error.
+
+Here, I implement this algorithm. The test is two-tailed, so the absolute difference is recorded. The first value computed is the observed absolute difference.
+
+```{r}
+set.seed(1)
+n_permutations <- 5000
+d <- numeric(n_permutations)
+
+# create a new column which will contain the permuted response
+# for the first iteration, this will be the observed order
+fake_data[, count_perm := count]
+
+for(i in 1:n_permutations){
+  d[i] <- abs(t.test(count_perm ~ treatment, data = fake_data)$statistic)
+  
+  # permute the count_perm column for the next iteration
+  fake_data[, count_perm := sample(count)]
+}
+p <- sum(d >= d[1])/n_permutations
+p
+```
+
+#### Some R packages with permutation tests.
+
+`lmPerm::lmp` generates permutation p-values for parameters of any kind of linear model. The test statistic is the sum of squares of the term scaled by the residual sum of squares of the model.
+
+```{r}
+coef(summary(lmp(count ~ treatment, perm="Prob", Ca=0.01, 
+                 data=fake_data)))
+```
+
+### Performance of parametric tests and alternatives
+
+#### Type I error
+
+If we are going to compute a $p$-value, we want it to be uniformly distributed "under the null". A simple way to check this is to compute Type I error. If we set $\alpha = 0.05$, then we'd expect 5% of tests of an experiment with no effect to have $p < 0.05$.
+
+```{r, comment=FALSE, results='hide'}
+# first create a matrix with a bunch of data sets, each in its own column
+n <- 10
+n_sets <- 4000
+fake_matrix <- rbind(matrix(rnegbin(n*n_sets, mu=10, theta=1), nrow=n),
+                   matrix(rnegbin(n*n_sets, mu=10, theta=1), nrow=n))
+treatment <- rep(c("cn", "tr"), each=n)
+
+tests <- c("lm", "log_lm","mww", "perm")
+res_matrix <- matrix(NA, nrow=n_sets, ncol=length(tests))
+colnames(res_matrix) <- tests
+for(j in 1:n_sets){
+  res_matrix[j, "lm"] <- coef(summary(lm(fake_matrix[,j] ~ treatment
+                                 )))[2, "Pr(>|t|)"]
+  res_matrix[j, "log_lm"] <- coef(summary(lm(log(fake_matrix[,j] + 1) ~ treatment
+                                 )))[2, "Pr(>|t|)"]
+  res_matrix[j, "mww"] <- wilcox.test(fake_matrix[,j] ~ treatment,
+                                      exact=FALSE)$p.value
+  res_matrix[j, "perm"] <- coef(summary(lmp(fake_matrix[,j] ~ treatment,
+                                 perm="Prob", Ca=0.01)))[2, "Pr(Prob)"]
+}
+
+```
+
+```{r}
+apply(res_matrix, 2, function(x) sum(x < 0.05)/n_sets)
+```
+
+Type I error is computed for the linear model, the linear model with a log transformed responpse, Mann-Whitney-Wilcoxon, and permutation tests. All four tests are slightly conservative for data that look like that modeled. The computed Type I error of the permutation test is closest to the nominal value of 0.05.
+
+#### Power
+
+If all we care about is a $p-value$ then we want to use a test that is most powerful.
+
+```{r, comment=FALSE, results='hide'}
+# first create a matrix with a bunch of data sets, each in its own column
+n <- 5
+n_sets <- 4000
+fake_matrix <- rbind(matrix(rnegbin(n*n_sets, mu=10, theta=1), nrow=n),
+                   matrix(rnegbin(n*n_sets, mu=20, theta=1), nrow=n))
+treatment <- rep(c("cn", "tr"), each=n)
+
+tests <- c("lm", "log_lm","mww", "perm")
+res_matrix <- matrix(NA, nrow=n_sets, ncol=length(tests))
+colnames(res_matrix) <- tests
+for(j in 1:n_sets){
+  res_matrix[j, "lm"] <- coef(summary(lm(fake_matrix[,j] ~ treatment
+                                 )))[2, "Pr(>|t|)"]
+  res_matrix[j, "log_lm"] <- coef(summary(lm(log(fake_matrix[,j] + 1) ~ treatment
+                                 )))[2, "Pr(>|t|)"]
+  res_matrix[j, "mww"] <- wilcox.test(fake_matrix[,j] ~ treatment,
+                                      exact=FALSE)$p.value
+  res_matrix[j, "perm"] <- coef(summary(lmp(fake_matrix[,j] ~ treatment,
+                                 perm="Prob", Ca=0.01)))[2, "Pr(Prob)"]
+}
+
+```
+
+```{r}
+apply(res_matrix, 2, function(x) sum(x < 0.05)/n_sets)
+```
+
+As above, Power is computed for the linear model, linear model with a log-transformed response, Mann-Whitney-Wilcoxan, and permutation, by simulating a "low power" experiment. The effect is huge (twice as many cells) but the power is low because the sample size is small ($n = 5$). At this sample size, and for this model of fake data, all tests have low power. The power of the log-transformed response is the largest. A problem is, this is not a test of the means but of the log transformed mean plus 1. The power of the permutation test is about 25% larger than that of the linear model and Mann-Whitney-Wilcoxan test. An advantage of this test is that it is a p-value of the mean. A good complement to this p-value would be bootstraped confidence intervals. Repeat this simulation using $n=40$ do see how the relative power among the three change in a simulation of an experiment with more power.
 
 ## max vs. mean
 
