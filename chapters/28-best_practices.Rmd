@@ -38,6 +38,7 @@ Despite the ubiquitous presence of multiple testing in elementary biostatistics 
 Finally, recognize that anytime there are multiple tests, Type M errors will arise due to the vagaries of sampling. This means that in a rank-ordered list of the effects, those at the top have measured effects that are probably bigger than the true effect. An alternative to adjusted *p*-values is a **penalized regression** model that shrinks effects toward the mean effect.
 
 ### Some background
+#### Family-wise error rate
 
 The logic of multiple testing goes something like this: the more tests that a researcher does, the higher the probability that a false positive (Type I error) will occur, therefore a researcher should should adjust *p*-values so that the Type I error over the set (or "family") of tests is 5%. This adjusted Type I error rate is the "family-wise error rate". 
 
@@ -51,9 +52,12 @@ knitr::kable(data.table(m = m,
              digits=c(0, 2),
              caption="Probability of at least one type I error within the set of multiple tests, for data in which the null hypothesis is true. The Type I error rate for a single test is 0.05. The number of tests is m. The probability is p.")
 ```
+#### False discovery rate
+
 
 ### Multiple testing -- working in R
-#### Multiple pairwise contrasts
+
+#### Tukey HSD adjustment of all pairwise comparisons
 
 The `adjust` argument in `emmeans::contrast()` controls the method for *p*-value adjustment. The default is "tukey".
 
@@ -62,8 +66,6 @@ The `adjust` argument in `emmeans::contrast()` controls the method for *p*-value
 3. "bonferroni" -- the standard bonferroni, which is conservative
 4. "fdr" -- the false discovery rate
 5. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables
-
-#### Tukey HSD adjustment of all pairwise comparisons
 
 The data are those from Fig. 2D of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with four treatment levels. The response is neutrophil count.
 
@@ -102,8 +104,8 @@ m1.pairs.tukey <- contrast(m1.emm, method="revpairwise", adjust="tukey")
 summary(m1.pairs.tukey, infer=c(TRUE, TRUE))
 ```
 
-#### Tukey HSD adjustment of conditional effects
-Here I compare the Tukey HSD adjustment between all pairwise comparisons and the subset that are the conditional (simple) effects.
+### False Discovery Rate
+
 
 ## p-hacking
 
@@ -113,88 +115,77 @@ Here I compare the Tukey HSD adjustment between all pairwise comparisons and the
 
 Inference in statistical models (standard errors, confidence intervals, *p*-values) are a function of the modeled distributions of the parameters (for linear models, this parameter is the conditional (or error) variance $\sigma^2$); if the data do not approximate the modeled distribution, then inferential statistics might be to liberal (standard errors are too small, confidence intervals are too narrow, Type I error is more than nominal) or to conservative (standard errors are too large, confidence intervals are too wide, Type I error is less than nominal).
 
-Linear models assume that the "the data" (specifically, the conditional values, or, equivalently, the residuals from the model) approximate a Normal distribution. Chapter xxx showed how to qualitatively assess how well residuals approximate a Normal distribution using a Q-Q plot. If the researcher concludes that the data poorly approximate a normal distribution because of outliers, the researcher can use robust methods to estimate the parameters. If the approximation is poor because the residuals suggest a skewed distribution or one with heavy or light tails, the researcher cancan choose among several strategies
+Linear models assume that "the data" (specifically, the conditional values, or, equivalently, the residuals from the model) approximate a Normal distribution. Chapter xxx showed how to qualitatively assess how well residuals approximate a Normal distribution using a Q-Q plot. If the researcher concludes that the data poorly approximate a normal distribution because of outliers, the researcher can use robust methods to estimate the parameters. If the approximation is poor because the residuals suggest a skewed distribution or one with heavy or light tails, the researcher can choose among several strategies
 
-1. continue to use the linear model, many of which are fairly robust to non-normal data, especially when the sample size is not small.
-2. transform the data in a way that makes the conditional response more closely approximate a normal distribution.
-3. use a non-parametric method, which are methods that do not assume a particular distribution
-4. use a generalized linear model (GLM), which is appropriate if the conditional response approximates any of the distributions that can be modeled using GLM.
+1. continue to use the linear model; inference can be fairly robust to non-normal data, especially when the sample size is not small.
+2. use a generalized linear model (GLM), which is appropriate if the conditional response approximates any of the distributions that can be modeled using GLM (Chapter xxx)
+3. use bootstrap for confidence intervals and permutation test for *p*-values
+4. transform the data in a way that makes the conditional response more closely approximate a normal distribution.
+5. use a classic non-parametric test, which are methods that do not assume a particular distribution
 
-Do not use the *p*-value from a "test for normality" (such as a Shapiro-Wilk test) to decide between using the linear model (or t-test or ANOVA) and an alternative such as a generalized linear model (or transformation or non-parametric test). No real data is normal. Tests of normality will tend to "not reject" normality (p > 0.05) when the sample size is small and "reject" normality (p < 0.05) when the sample size is very large. But again, a "not rejected" hypothesis test does not mean the null (in this case, the data are normal) is true. More importantly, where the test for normality tends to fail to reject (encouraging a researcher to use parametric statistics) is where parametric inference performs the worst (because of small *n*) and where the test for normality tends to reject (encouraging a researcher to use non-parametric statistics) is where the parametric inference performs the best (because of large sample size) (Lumley xxx).
+This list is roughly in the order of how I would advise researchers, although the order of 1-3 is pretty arbitrary. I would rarely advise a researcher to use (4) and never advise (5). Probably the most common strategies in the biology literature are (4) and (5). The first is also common but probably more from lack of recognition of issues or because a "test of normality" failed to reject that the data are "not normal".
 
-### Log transformations
+On this last point, do not use the *p*-value from a "test for normality" (such as a Shapiro-Wilk test) to decide between using the linear model (or t-test or ANOVA) and an alternative such as a generalized linear model (or transformation or non-parametric test). No real data is normal. Tests of normality will tend to "not reject" normality (p > 0.05) when the sample size is small and "reject" normality (p < 0.05) when the sample size is very large. But again, a "not rejected" hypothesis test does not mean the null (in this case, the data are normal) is true. More importantly, where the test for normality tends to fail to reject (encouraging a researcher to use parametric statistics) is where parametric inference performs the worst (because of small *n*) and where the test for normality tends to reject (encouraging a researcher to use non-parametric statistics) is where the parametric inference performs the best (because of large sample size) (Lumley xxx).
 
-Many response variables within biology, including count data, and almost anything that grows, are right skewed and have variances that increase with the mean. A log transform of a response variable with this kind of distribution will tend to make the residuals more approximately normal and the variance less dependent of the mean. At least two issues arise
+### Working in R
+The data for demonstrating different strategies are from Fig. 4A of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with two treatment levels. The response is neutrophil count.
 
-1. if the response is count data, and the data include counts of zero, then a fudge factor has to be added to the response since log(0) doesn't exist. The typical fudge factor is to add 1 to *all* values, but this is arbitrary and results do depend on the magnitude of this fudge factor.
-2. the estimates are on a log scale and do not have the units of the response. The estimates can be back-transformed by taking the exponent of a coefficient or contrast but this itself produces problems. For example, the backtransformed mean of the log-transformed response is not the mean on the origianl scale (the arithmetic mean) but the **geometric mean**. Geometric means are smaller than arithmetic means, appreciably so if the data are heavily skewed. Do we want our understanding of a system to be based on geometric means?
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of the counts in the wildtype (WT) and sox10 knockout (sox10-) groups. Both groups show a strong right skew, which is common with count data."}
+folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
+filename <- "journal.pbio.2000689.s008.xlsx"
 
-### Non-parametric tests
+# figure 2D data
+sheet_i <- "Figure 4"
+range_i <- "a2:b125"
+file_path <- here(data_path, folder, filename)
+fig4a <- read_excel(file_path, sheet=sheet_i, range=range_i) %>%
+  clean_names() %>%
+  melt(variable.name="treatment", value.name="count") %>%
+  data.table()
 
-1. In general, the role of a non-parametric test is a better-behaved *p*-value, that is, one whose Type I error is well controlled. As such, non-parametric tests are more about Null-Hypothesis Statistical Testing and less (or not at all) about Estimation.
-2. In general, classic non-parametric tests are only available for fairly simple experimental designs. Classic non-parametric tests include
-    * Independent sample (Student's) *t* test: Mann-Whitney-Wilcoxan
-    * Paired *t* test: Wilcoxan signed-rank test
-    
-One rarely sees non-parametric tests for more complex designs that include covariates, or multiple factors, but for these, one could 1) convert the response to ranks and fit the usual linear model, or 2) implement a permutation test that properly preserves **exchangeability**.
+gghistogram(x = "count", 
+            bins = 30,
+            fill = "treatment", 
+            color = "treatment",
+            add = "mean", 
+            rug = FALSE,
+            palette = "npg",
+            #palette = c("#00AFBB", "#E7B800"),
+            data=fig4a)
 
-Permutation tests control Type I error and are powerful. That said, I would recommend a permutation test as a supplment to, and not replacement of, inference from a generalized linear model.
+```
 
-#### Permutation test
+
+A linear model to estimate the treatment effect and 95% confidence interval.
+
+```{r}
+m1 <- lm(count ~ treatment, data=fig4a)
+m1_emm <- emmeans(m1, specs="treatment")
+summary(contrast(m1_emm, method="revpairwise"), infer=c(TRUE, TRUE))
+```
+
+### Bootstrap Confidence Intervals
+
+```{r}
+n_iter <- 5000
+b1 <- numeric(5000)
+inc <- 1:nrow(fig4a) # the rows for the first iteration are all rows, so this is the observed effect
+for(i in 1:n_iter){
+  # inc creates the index of rows to resample preserving the sample size specific to each group
+  b1[i] <- coef(lm(count ~ treatment, data=fig4a[inc, ]))["treatmentsox10"]
+  inc <- c(sample(which(fig4a[, treatment] == "wt"), replace=TRUE),
+           sample(which(fig4a[, treatment] == "sox10"), replace=TRUE))
+}
+ci <- quantile(b1, c(0.025, 0.975))
+c(contrast = b1[1], ci[1], ci[2])
+```
+
+### Permutation test
 
 A permutation test effectively computes the probability that a random assignment of a response to a particular value of *X* generates a test statistic as large or larger than the observed statistic. If this probability is small, then this "random assignment" is unlikely. From this we infer that the actual assignment matters, which implies a treatment effect.
 
-Create data from a negative binomial distribution, which is right skewed
 
-```{r}
-set.seed(5)
-n <- 10
-fake_data <- data.table(
-  treatment = rep(c("cn", "tr"), each=n),
-  count = rnegbin(n*2, mu=rep(c(10, 14), each=n), theta=1)
-)
-```
-
-Some statistics of the fake data
-
-```{r}
-fake_data[, .(N=.N, mean=mean(count), sd=sd(count)), by=treatment]
-```
-
-A plot of the fake data
-
-```{r}
-ggerrorplot(x="treatment",
-            y = "count",
-            data = fake_data,
-            add = c("mean_ci", "jitter"),
-            palette = "jco",
-            color = "treatment")
-
-```
-
-What the distribution of the fake data looks like
-
-```{r, message=FALSE, warning=FALSE}
-n <- 10^4
-qplot(rnegbin(n, mu=10, theta=1))
-```
-
-A linear model to estimate the treatment effect.
-
-```{r}
-knitr::kable(coef(summary(lm(count ~ treatment, data=fake_data))),
-             digits = c(1, 1, 1, 3))
-```
-
-A non-parametric (Mann-Whitney-Wilcoxon) test
-
-```{r}
-wilcox.test(count ~ treatment, data=fake_data)
-```
-
-
-Finally, a permutation, test. The basic algorithm is
+The basic algorithm is
 
 1. compute the test statistic for the observed data, assign this to $\theta_1$
 2. permute the response
@@ -219,13 +210,13 @@ d <- numeric(n_permutations)
 
 # create a new column which will contain the permuted response
 # for the first iteration, this will be the observed order
-fake_data[, count_perm := count]
+fig4a[, count_perm := count]
 
 for(i in 1:n_permutations){
-  d[i] <- abs(t.test(count_perm ~ treatment, data = fake_data)$statistic)
+  d[i] <- abs(t.test(count_perm ~ treatment, data = fig4a)$statistic)
   
   # permute the count_perm column for the next iteration
-  fake_data[, count_perm := sample(count)]
+  fig4a[, count_perm := sample(count)]
 }
 p <- sum(d >= d[1])/n_permutations
 p
@@ -236,8 +227,38 @@ p
 `lmPerm::lmp` generates permutation p-values for parameters of any kind of linear model. The test statistic is the sum of squares of the term scaled by the residual sum of squares of the model.
 
 ```{r}
+set.seed(2)
 coef(summary(lmp(count ~ treatment, perm="Prob", Ca=0.01, 
-                 data=fake_data)))
+                 data=fig4a)))
+```
+
+### Non-parametric tests
+
+1. In general, the role of a non-parametric test is a better-behaved *p*-value, that is, one whose Type I error is well controlled. As such, non-parametric tests are more about Null-Hypothesis Statistical Testing and less (or not at all) about Estimation.
+2. In general, classic non-parametric tests are only available for fairly simple experimental designs. Classic non-parametric tests include
+    * Independent sample (Student's) *t* test: Mann-Whitney-Wilcoxan
+    * Paired *t* test: Wilcoxan signed-rank test
+    
+One rarely sees non-parametric tests for more complex designs that include covariates, or multiple factors, but for these, one could 1) convert the response to ranks and fit the usual linear model, or 2) implement a permutation test that properly preserves **exchangeability**.
+
+Permutation tests control Type I error and are powerful. That said, I would recommend a permutation test as a supplment to, and not replacement of, inference from a generalized linear model.
+
+A non-parametric (Mann-Whitney-Wilcoxon) test of the fake data generated above
+
+```{r}
+wilcox.test(count ~ treatment, data=fig4a)
+```
+
+### Log transformations
+
+Many response variables within biology, including count data, and almost anything that grows, are right skewed and have variances that increase with the mean. A log transform of a response variable with this kind of distribution will tend to make the residuals more approximately normal and the variance less dependent of the mean. At least two issues arise
+
+1. if the response is count data, and the data include counts of zero, then a fudge factor has to be added to the response since log(0) doesn't exist. The typical fudge factor is to add 1 to *all* values, but this is arbitrary and results do depend on the magnitude of this fudge factor.
+2. the estimates are on a log scale and do not have the units of the response. The estimates can be back-transformed by taking the exponent of a coefficient or contrast but this itself produces problems. For example, the backtransformed mean of the log-transformed response is not the mean on the origianl scale (the arithmetic mean) but the **geometric mean**. Geometric means are smaller than arithmetic means, appreciably so if the data are heavily skewed. Do we want our understanding of a system to be based on geometric means?
+
+```{r}
+coef(summary(lm(log(count + 1) ~ treatment, data=fig4a)))
+
 ```
 
 ### Performance of parametric tests and alternatives
