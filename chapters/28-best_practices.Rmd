@@ -6,9 +6,10 @@ library(janitor)
 library(data.table)
 library(MASS)
 library(emmeans)
+library(lmPerm, quietly=T)
+# library(lmboot)
 library(ggpubr)
 library(here)
-library(lmPerm, quietly=T)
 here <- here::here
 data_path <- "data"
 ```
@@ -166,6 +167,16 @@ summary(contrast(m1_emm, method="revpairwise"), infer=c(TRUE, TRUE))
 
 ### Bootstrap Confidence Intervals
 
+A bootstrap confidence interval is computed from the distribution of a statistic from many sets of re-sampled data. The basic algorith is
+
+1. compute the parameter for the observed data, assign this to $\theta_1$
+2. resample $n$ rows of the data, with replacement. "with replacement" means to sample from the entire set of data and not the set that has yet to be sampled. $n$ is the original sample size; by resampling $n$ rows with replacement, some rows will be sampled more than once, and some rows will not be sampled at all.
+3. compute the parameter for the resampled data, assign these to $\theta_{2..m}$
+4. repeat 2 and 3 $m-1$ times
+5. given the distribution of $m$ parameter estimates, compute the lower interval as the $\frac{\alpha}{2}$th percentile and the upper interval as the $1 - \frac{\alpha}{2}$th percentile. For 95% confidence intervals, these are the 2.5th and 97.5th percentiles.
+
+The focal parameter in the Fig. 4A neutrophil count data is the difference in the mean count for the sox10 and wild type groups (the coefficient for $treatment$ in the linear model). The script below, which computes the 95% confidence intervals of this difference, resamples *within* each group to preserve the original sample size within each group.
+
 ```{r}
 n_iter <- 5000
 b1 <- numeric(5000)
@@ -178,6 +189,19 @@ for(i in 1:n_iter){
 }
 ci <- quantile(b1, c(0.025, 0.975))
 c(contrast = b1[1], ci[1], ci[2])
+```
+
+#### Some R packages for bootstrap confidence intervals
+
+
+
+```{r}
+boot_diff <- function(data, ){
+  data[]
+}
+
+  
+}
 ```
 
 ### Permutation test
@@ -299,7 +323,13 @@ Type I error is computed for the linear model, the linear model with a log trans
 
 #### Power
 
-If all we care about is a $p-value$ then we want to use a test that is most powerful.
+Power is the probability of a test to reject the null hypothesis if the null hypothesis is false (that is, if an effect exists)
+
+\begin{equation}
+\mathrm{Power} = \mathrm{Prob}(p < \alpha | mathrm{effect} \neq 0)
+\end{equation}
+
+If all we care about is a $p-value$ then we want to use a test that is most powerful. But, while power is defined using $\alpha$, we *can* care about power even if we don't consider $\alpha$ to be a very useful concept because increased power also increases the precision of an estimate (that is, narrows confidence intervals).
 
 ```{r, comment=FALSE, results='hide'}
 # first create a matrix with a bunch of data sets, each in its own column
