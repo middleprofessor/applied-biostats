@@ -196,7 +196,9 @@ c(contrast = b1[1], ci[1], ci[2])
 
 
 ```{r}
-
+boot_diff <- function(data, ){
+  data[]
+}
 
   
 }
