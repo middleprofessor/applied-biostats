@@ -196,12 +196,12 @@ c(contrast = b1[1], ci[1], ci[2])
 
 
 ```{r}
-boot_diff <- function(data, ){
-  data[]
+boot_diff <- function(data, indices, n_resamples){
+  dt <- data[indices]
 }
 
   
-}
+
 ```
 
 ### Permutation test
