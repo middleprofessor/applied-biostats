@@ -7,7 +7,8 @@ library(data.table)
 library(MASS)
 library(emmeans)
 library(lmPerm, quietly=T)
-# library(lmboot)
+library(simpleboot)
+library(boot)
 library(ggpubr)
 library(here)
 here <- here::here
@@ -142,7 +143,8 @@ file_path <- here(data_path, folder, filename)
 fig4a <- read_excel(file_path, sheet=sheet_i, range=range_i) %>%
   clean_names() %>%
   melt(variable.name="treatment", value.name="count") %>%
-  data.table()
+  data.table() %>%
+  na.omit
 
 gghistogram(x = "count", 
             bins = 30,
@@ -167,15 +169,15 @@ summary(contrast(m1_emm, method="revpairwise"), infer=c(TRUE, TRUE))
 
 ### Bootstrap Confidence Intervals
 
-A bootstrap confidence interval is computed from the distribution of a statistic from many sets of re-sampled data. The basic algorith is
+A bootstrap confidence interval is computed from the distribution of a statistic from many sets of re-sampled data. The basic algorithm is
 
-1. compute the parameter for the observed data, assign this to $\theta_1$
+1. compute the statistic for the observed data, assign this to $\theta_1$
 2. resample $n$ rows of the data, with replacement. "with replacement" means to sample from the entire set of data and not the set that has yet to be sampled. $n$ is the original sample size; by resampling $n$ rows with replacement, some rows will be sampled more than once, and some rows will not be sampled at all.
-3. compute the parameter for the resampled data, assign these to $\theta_{2..m}$
+3. compute the statistic for the resampled data, assign these to $\theta_{2..m}$
 4. repeat 2 and 3 $m-1$ times
-5. given the distribution of $m$ parameter estimates, compute the lower interval as the $\frac{\alpha}{2}$th percentile and the upper interval as the $1 - \frac{\alpha}{2}$th percentile. For 95% confidence intervals, these are the 2.5th and 97.5th percentiles.
+5. Given the distribution of $m$ estimates, compute the lower interval as the $\frac{\alpha}{2}$th percentile and the upper interval as the $1 - \frac{\alpha}{2}$th percentile. For 95% confidence intervals, these are the 2.5th and 97.5th percentiles.
 
-The focal parameter in the Fig. 4A neutrophil count data is the difference in the mean count for the sox10 and wild type groups (the coefficient for $treatment$ in the linear model). The script below, which computes the 95% confidence intervals of this difference, resamples *within* each group to preserve the original sample size within each group.
+Let's apply this algorithm to the data from fig4A neutrophil count data in the coefficient table above. The focal statistic in these data is the difference in the mean count for the sox10 and wild type groups (the parameter for $treatment$ in the linear model). The script below, which computes the 95% confidence intervals of this difference, resamples within **strata**, that is, within each group; it does this to preserve the original sample size within each group.
 
 ```{r}
 n_iter <- 5000
@@ -191,11 +193,38 @@ ci <- quantile(b1, c(0.025, 0.975))
 c(contrast = b1[1], ci[1], ci[2])
 ```
 
+The intervals calculated in step 5 are **percentile intervals**. A histogram of the the re-sampled differences helps to visualize the bootstrap (this is a pedagogical tool, not something you would want to publish).
+
+```{r, echo=FALSE, fig.cap="Distribution of the 5000 resampled estimates of the difference in means between the sox10 and wt treatment levels. The dashed lines are located at the 2.5th and 97.5th percentiles of the distribution."}
+gghistogram(x = "b1", 
+            bins = 30,
+            rug = FALSE,
+            palette = "npg",
+            data=data.table(b1=b1)) +
+  geom_vline(xintercept=c(ci), linetype=2) +
+  xlab("mean(sox10) - mean(wt)") +
+  NULL
+
+```
+
+
 #### Some R packages for bootstrap confidence intervals
 
-
+Percentile intervals are known to be biased, meaning the intervals are shifted. The `boot` package computes a bias-corrected interval in addition to a percentile interval. `boot` is a very powerful bootstrap package but requires the researcher to write functions to compute the parameter of interest. `simpleboot` provides functions for common analysis that does this for you (in R speak, we say that `simpleboot` is a "wrapper" to `boot`). The function `simpleboot::two.boot` computes a `boot`-like object that returns, among other values, the distribution of $m$ statistics. The `simpleboot` object is then be fed to `boot::boot.ci` to get bias-corrected intervals.
 
 ```{r}
+bs_diff <- two.boot(fig4a[treatment=="sox10", count],
+                    fig4a[treatment=="wt", count],
+                    mean, 
+                    R=5000)
+boot.ci(bs_diff, type="bca")
+```
+
+```{r}
+lmBoot <- function(lm.object, R, rows=FALSE){
+  m.residuals <- residuals(lm.object)
+  
+}
 boot_diff <- function(data, indices, n_resamples){
   dt <- data[indices]
 }
