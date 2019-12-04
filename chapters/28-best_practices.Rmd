@@ -15,10 +15,6 @@ library(here)
 here <- here::here
 data_path <- "data"
 ```
-
-## t-tests and ANOVA
-Welch, paired
-
 ## Power
 ### "Types" of Error
 I, II, S, M
@@ -59,7 +55,7 @@ knitr::kable(data.table(m = m,
 
 If a researcher carries out thousands of tests to "discover" new facts, and uses $p < 0.05$ as evidence of discovery, then what is the frequency of **false discoveries**?
 
-#### Inflated effects
+#### p-value filter I -- Inflated effects
 
 If a researcher caries out many tests, and ranks the effects by magnitude or *p*-value, then the effect sizes of the largest effects will be inflated. Before explaining why, let's simulate this using an experiment of allelopathic effects of the invasive garlic mustard (*Alliaria petiolata*) on gene expression in the native American ginseng (*Panax quinquefolius*). In the treated group, we have ten pots, each with an American ginseng plant grown in a container with a mustard plant. In the control group, we have ten pots, each with an American ginseng plant grown in a container with another American ginseng. I've simulated the response of 10,000 genes. The treatment has a true effect in 10% of the 10,000 genes but most effects are very small.
 
@@ -119,6 +115,9 @@ The consequence of an inflated estimate of the effect and a deflated estimate of
 
 In the example here, all genes at the top have inflated estimates of the effect because of the positive, random component. This inflation effect is a function of the signal to noise ratio, which is controled by theta and sigma in the simulation. If theta is increased (try theta=1), or if sigma is decreased, the signal to noise ratio increases (try it and look at the histogram of the new distribution of effects) and both the 1) inflation and the 2) rise to the top phenomenon decrease.
 
+#### p-hacking
+
+
 ### Multiple testing -- working in R
 
 #### Tukey HSD adjustment of all pairwise comparisons
@@ -170,16 +169,14 @@ summary(m1.pairs.tukey, infer=c(TRUE, TRUE))
 
 ### False Discovery Rate
 
-
-## p-hacking
-
 ## difference in p is not different
 
 ## Inference when data are not Normal
+No real data are normal, although many are pretty good approximations of a normal distribution.
 
-Inference in statistical models (standard errors, confidence intervals, *p*-values) are a function of the modeled distributions of the parameters (for linear models, this parameter is the conditional (or error) variance $\sigma^2$); if the data do not approximate the modeled distribution, then inferential statistics might be to liberal (standard errors are too small, confidence intervals are too narrow, Type I error is more than nominal) or to conservative (standard errors are too large, confidence intervals are too wide, Type I error is less than nominal).
+I'll come back to this point, but first, let's back up. Inference in statistical models (standard errors, confidence intervals, *p*-values) are a function of the modeled distributions of the parameters (for linear models, this parameter is the conditional (or error) variance $\sigma^2$); if the data do not approximate the modeled distribution, then inferential statistics might be to liberal (standard errors are too small, confidence intervals are too narrow, Type I error is more than nominal) or to conservative (standard errors are too large, confidence intervals are too wide, Type I error is less than nominal).
 
-Linear models assume that "the data" (specifically, the conditional values, or, equivalently, the residuals from the model) approximate a Normal distribution. Chapter xxx showed how to qualitatively assess how well residuals approximate a Normal distribution using a Q-Q plot. If the researcher concludes that the data poorly approximate a normal distribution because of outliers, the researcher can use robust methods to estimate the parameters. If the approximation is poor because the residuals suggest a skewed distribution or one with heavy or light tails, the researcher can choose among several strategies
+Linear models assume that "the data" (specifically, the conditional response, or, equivalently, the residuals from the model) approximate a Normal distribution. Chapter xxx showed how to qualitatively assess how well residuals approximate a Normal distribution using a Q-Q plot. If the researcher concludes that the data poorly approximate a normal distribution because of outliers, the researcher can use robust methods to estimate the parameters. If the approximation is poor because the residuals suggest a skewed distribution or one with heavy or light tails, the researcher can choose among several strategies
 
 1. continue to use the linear model; inference can be fairly robust to non-normal data, especially when the sample size is not small.
 2. use a generalized linear model (GLM), which is appropriate if the conditional response approximates any of the distributions that can be modeled using GLM (Chapter xxx)
@@ -194,7 +191,7 @@ On this last point, do not use the *p*-value from a "test for normality" (such a
 ### Working in R
 The data for demonstrating different strategies are from Fig. 4A of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with two treatment levels. The response is neutrophil count.
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of the counts in the wildtype (WT) and sox10 knockout (sox10-) groups. Both groups show a strong right skew, which is common with count data."}
+```{r best-import-non-normal-counts, echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of the counts in the wildtype (WT) and sox10 knockout (sox10-) groups. Both groups show a strong right skew, which is common with count data."}
 folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
 filename <- "journal.pbio.2000689.s008.xlsx"
 
@@ -223,10 +220,11 @@ gghistogram(x = "count",
 
 A linear model to estimate the treatment effect and 95% confidence interval.
 
-```{r}
+```{r best-lm-counts}
 m1 <- lm(count ~ treatment, data=fig4a)
 m1_emm <- emmeans(m1, specs="treatment")
-summary(contrast(m1_emm, method="revpairwise"), infer=c(TRUE, TRUE))
+summary(contrast(m1_emm, method="revpairwise"),
+        infer=c(TRUE, TRUE))
 ```
 
 ### Bootstrap Confidence Intervals
@@ -241,7 +239,7 @@ A bootstrap confidence interval is computed from the distribution of a statistic
 
 Let's apply this algorithm to the data from fig4A neutrophil count data in the coefficient table above. The focal statistic in these data is the difference in the mean count for the sox10 and wild type groups (the parameter for $treatment$ in the linear model). The script below, which computes the 95% confidence intervals of this difference, resamples within **strata**, that is, within each group; it does this to preserve the original sample size within each group.
 
-```{r}
+```{r best-bootstrap}
 n_iter <- 5000
 b1 <- numeric(5000)
 inc <- 1:nrow(fig4a) # the rows for the first iteration are all rows, so this is the observed effect
@@ -257,7 +255,7 @@ c(contrast = b1[1], ci[1], ci[2])
 
 The intervals calculated in step 5 are **percentile intervals**. A histogram of the the re-sampled differences helps to visualize the bootstrap (this is a pedagogical tool, not something you would want to publish).
 
-```{r, echo=FALSE, fig.cap="Distribution of the 5000 resampled estimates of the difference in means between the sox10 and wt treatment levels. The dashed lines are located at the 2.5th and 97.5th percentiles of the distribution."}
+```{r best-bootstrap-histogram, echo=FALSE, fig.cap="Distribution of the 5000 resampled estimates of the difference in means between the sox10 and wt treatment levels. The dashed lines are located at the 2.5th and 97.5th percentiles of the distribution."}
 gghistogram(x = "b1", 
             bins = 30,
             rug = FALSE,
@@ -274,25 +272,12 @@ gghistogram(x = "b1",
 
 Percentile intervals are known to be biased, meaning the intervals are shifted. The `boot` package computes a bias-corrected interval in addition to a percentile interval. `boot` is a very powerful bootstrap package but requires the researcher to write functions to compute the parameter of interest. `simpleboot` provides functions for common analysis that does this for you (in R speak, we say that `simpleboot` is a "wrapper" to `boot`). The function `simpleboot::two.boot` computes a `boot`-like object that returns, among other values, the distribution of $m$ statistics. The `simpleboot` object is then be fed to `boot::boot.ci` to get bias-corrected intervals.
 
-```{r}
+```{r best-bca-intervals}
 bs_diff <- two.boot(fig4a[treatment=="sox10", count],
                     fig4a[treatment=="wt", count],
                     mean, 
                     R=5000)
 boot.ci(bs_diff, type="bca")
-```
-
-```{r}
-lmBoot <- function(lm.object, R, rows=FALSE){
-  m.residuals <- residuals(lm.object)
-  
-}
-boot_diff <- function(data, indices, n_resamples){
-  dt <- data[indices]
-}
-
-  
-
 ```
 
 ### Permutation test
@@ -318,7 +303,7 @@ The test statistic depends on the analysis. For the simple comparison of means, 
 
 Here, I implement this algorithm. The test is two-tailed, so the absolute difference is recorded. The first value computed is the observed absolute difference.
 
-```{r}
+```{r best-permutation}
 set.seed(1)
 n_permutations <- 5000
 d <- numeric(n_permutations)
@@ -341,7 +326,7 @@ p
 
 `lmPerm::lmp` generates permutation p-values for parameters of any kind of linear model. The test statistic is the sum of squares of the term scaled by the residual sum of squares of the model.
 
-```{r}
+```{r best-lmp}
 set.seed(2)
 coef(summary(lmp(count ~ treatment, perm="Prob", Ca=0.01, 
                  data=fig4a)))
@@ -360,7 +345,7 @@ Permutation tests control Type I error and are powerful. That said, I would reco
 
 A non-parametric (Mann-Whitney-Wilcoxon) test of the fake data generated above
 
-```{r}
+```{r best-wilcoxon}
 wilcox.test(count ~ treatment, data=fig4a)
 ```
 
@@ -371,10 +356,66 @@ Many response variables within biology, including count data, and almost anythin
 1. if the response is count data, and the data include counts of zero, then a fudge factor has to be added to the response since log(0) doesn't exist. The typical fudge factor is to add 1 to *all* values, but this is arbitrary and results do depend on the magnitude of this fudge factor.
 2. the estimates are on a log scale and do not have the units of the response. The estimates can be back-transformed by taking the exponent of a coefficient or contrast but this itself produces problems. For example, the backtransformed mean of the log-transformed response is not the mean on the origianl scale (the arithmetic mean) but the **geometric mean**. Geometric means are smaller than arithmetic means, appreciably so if the data are heavily skewed. Do we want our understanding of a system to be based on geometric means?
 
+#### Working in R -- log transformations
+
+If we fit a linear model to a log-transformed response then the resulting coefficients and predictions are on the **log scale**. To make interpretation of the analysies easier, we probably want to **back-transform** the coefficients or the predictions to the original scale of the response, which is called the **response scale**. 
+
+```{r best-fit-log}
+m2 <- lm(log(count + 1) ~ treatment, data=fig4a)
+(m2_emm <- emmeans(m2,
+                  specs="treatment",
+                  type = "response"))
+```
+
+The emmeans package is amazing. Using the argument `type = "response"` not only backtransforms the means to the response scale but also substracts the 1 that was added to all values in the model.
+
+What about the effect of treatment on count?
+
 ```{r}
-coef(summary(lm(log(count + 1) ~ treatment, data=fig4a)))
+summary(contrast(m2_emm, 
+                 method="revpairwise",
+                 type = "response"),
+        infer=c(TRUE, TRUE))
 
 ```
+
+It isn't necessary to backtransform the estimated marginal means prior to computing the contrasts as this can be done in the contrast function itself. Here, the `type = "response"` argument in the contrast function is redundant since this was done in the computation of the means. But it is transparent so I want it there.
+
+**Don't skip this paragraph** Look at the value in the "contrast" column -- it is "sox10 / wt" and not "sox10 - wt". The backtransformed effect is a ratio instead of a difference. **A difference on the log scale is a ratio on the response scale** because of this equality
+
+\begin{equation}
+\mathrm{exp}(\mu_2-\mu_1) = \frac{\mathrm{exp}(\mu_2)}{\mathrm{exp}(\mu_1)})
+\end{equation}
+
+The interpretation is: If $b^*$ is the backtransformed effect, then, given a one unit increase in $X$, the expected value of the response increases $b^*\times$. For a categorical $X$, this means the backtransformed effect is the ratio of backtransformed means -- its what you have to multiply the mean of the reference by to get the mean of the treated group. And, because it is the response that is log-transformed, these means are not arithemetic means but geometric means. Here, this is complicated by the model -- the response is not a simple log transformation but log(response + 1). It is easy enough to get the geometric mean of the treated group -- multiply the backtransformed intercept by the backtransformed coefficient and then subtract 1 -- but because of this subtraction of 1, the interpretation of the backtransformed effect is awkward at best (recall that I told you that a linear model of a log transformed response, and especially the log of the response plus one, leads to difficulty in interpreting the effects).
+
+```{r}
+# backtransformed control mean -- a geometric mean
+mu_1 <- exp(coef(m2)[1])
+
+# backtransformed effect
+b1_star <- exp(coef(m2)[2])
+
+# product minus 1
+mu_1*b1_star -1
+
+# geometric mean of treatment group
+n <- length(fig4a[treatment=="sox10", count])
+exp(mean(log(fig4a[treatment=="sox10", count+1])))-1
+```
+
+
+Back-transformed effect
+```{r best-backtransformed effect}
+m1 <- lm(count ~ treatment, data=fig4a)
+
+```
+
+
+```{r best-backtransformed-estimates}
+exp(coef(m2)) 
+```
+
 
 ### Performance of parametric tests and alternatives
 

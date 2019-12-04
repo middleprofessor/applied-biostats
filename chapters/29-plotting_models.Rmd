@@ -12,6 +12,7 @@ library(stringr)
 library(ggpubr) # plots
 library(cowplot) # combine plots
 library(ggsci) # scale color
+library(lazyWeave) # pvalues
 library(emmeans)
 library(nlme)
 library(lmerTest)
@@ -21,13 +22,6 @@ library(DHARMa)
 
 here <- here::here 
 data_path <- "data" # bookdown
-
-# bookdown <- TRUE # compiling from bookdown
-# if(bookdown==TRUE){
-#   data_path <- "data" # bookdown
-# }else{
-#   data_path <- "../data" # bookdown
-# }
 
 odd <- function(x) x%%2 != 0
 
@@ -48,7 +42,7 @@ The answer to these questions should inform what is and what is not plotted. The
 
 A typical pretty good plot contains some combination of
 
-1. Modeled effects with confidence intervals. "Effects" are the coefficients of a model, or contrasts constructed from the model, such as all pairwise differences between the means of the levels of a factor. Inferences are typically made from the estimated effects
+1. Modeled effects with confidence intervals. "Effects" are the coefficients of a model, or contrasts constructed from the model, such as pairwise differences between the means of the levels of a factor. Inferences are typically made from the estimated effects
 2. Modeled means and standard errors or confidence intervals.
 3. Raw data points or a summary distribution of these.
 
@@ -76,7 +70,7 @@ dt_wide <- clean_names(dt_wide)
 setnames(dt_wide, old=colnames(dt_wide), new=gsub("_donor", "", colnames(dt_wide)))
 # wide to long
 exp2d <- na.omit(melt(dt_wide, measure.vars=colnames(dt_wide), variable.name="donor", value.name="count"))
-exp2d[, donor:=factor(donor, c("wt", "gf", "sox10", "iap_mo"))]
+exp2d[, donor:=factor(donor, c("wt", "gf", "iap_mo", "sox10"))]
 
 # figure 6d data
 sheet_i <- "Figure 6"
@@ -151,9 +145,9 @@ pval <- effects.nb$p[as.integer(effects.nb$contrast)]
 
 ```
 
-The y-axis contains each of the *paired comparisons* among the four treatment levels. The x-axis is the response, which is the ratio of the means of the two groups in the comparison. For example, the top comparison shows that guts in fish exposed to sox10 donors have 2.7X more neutrophils per length of gut than guts in fish exposed to wild type donors. The bars are 95% confidence intervals, with is the range of effects that are compatible with the observed data at the 95% level (confidence intervals are disscussed in depth in chapter xxx.). The small end of the interval for the sox10/wt comparison is 1.31, meaning that effects as small as 31% increased neutrophil count are compatible with the data. It is up to the research community to decide if 2.7X or 1.31X are physiologically meaningful effects. *p*-values from the hypothesis tests are included.
+The y-axis contains all pairwise comparisons among the four treatment levels. The x-axis is the response, which is the ratio of the means of the two groups in the comparison. For example, the top comparison shows that guts in fish exposed to sox10 donors have 2.7X more neutrophils per length of gut than guts in fish exposed to wild type donors. The bars are 95% confidence intervals, with is the range of effects that are compatible with the observed data at the 95% level (confidence intervals are disscussed in depth in chapter xxx.). The small end of the interval for the sox10/wt comparison is 1.31, meaning that effects as small as 31% increased neutrophil count are compatible with the data. It is up to the research community to decide if 2.7X or 1.31X are physiologically meaningful effects. *p*-values from the hypothesis tests are included.
 
-### Pretty good plot component 2: Modeled mean and CI plot with jittered raw data
+### Pretty good plot component 2: Modeled mean and CI plot
 
 Often the means of the treatment levels are meaningful, for example, if neutrophils per length of gut is a standard measure then researchers working in this area will be familiar with usual and unusal values. The data used in Fig \@ref(fig:plots-effect) are used to plot means and confidence intervals of the mean using a **bar chart**, which is a pretty good chart type for measures such as counts in which negative values are prohibited and zero is meaningful.
 
@@ -172,15 +166,15 @@ gg2 <- ggbarplot(x="donor",
              width=0.1, height=0) +
   NULL
   
-(gg2 + stat_pvalue_manual(effects.nb, label = "p", y.position=c(28, 31, 25, 34, 37, 28)))
+(gg2 + stat_pvalue_manual(effects.nb, label = "p", y.position=c(12, 15, 18, 28, 25, 31)))
 
 ```
 
 Fig. \@ref(fig:plots-means) plots the *modeled* means, represented by the tops of the bars, the modeled 95% confidence intervals of each mean, represented by the error bars, and the *p*-values for all pairwise comparisons. What do I mean by *modeled* means and error intervals?
 
 1. Modeled means and error intervals are estimated from the statistical model. Many published plots are of raw means and error intervals, meaning that the mean and error for each treatment level is computed only using the response measures in that treatment level.
-2. A modeled mean will often be equal to the raw mean, but this will not always be the case, for example if there are covariates in the model, or the researchers are using a *hierarchical model* (Chapter xxx).
-3. Modeled error intervals are never the same as the raw error intervals, and are commonly conspicuously different. Almost always, we should plot modeled means and error intervals, since these represent the means that are relevant to inference.
+2. A modeled mean will often be equal to the raw mean, but this will not always be the case, for example if there are covariates in the model (Chapter xxx).
+3. Modeled error intervals are never the same as the raw error intervals, and are commonly conspicuously different. Almost always, we should plot modeled means and error intervals, since these represent the statistics that are relevant to inference.
 
 Fig. \@ref(fig:plots-means) also plots the raw count data as "jittered" black dots. "Showing the data" is a pretty good feature of a plot because it allows the reader to get a sense of the underlying sample size and distribution including outliers, which can be used to mentally model check the published statistical analysis. For example, the jittered dots in Fig. \@ref(fig:plots-means) suggest a **heterogeneity** of variances; specifically, the treatment level with the largest mean has a conspicuously higher variance. This pattern violates the assumptions of a general linear model and should raise a red flag to a reader if the researchers used a general linear model to analyze the data.
 
@@ -332,7 +326,7 @@ plot_grid(gg_top, gg2, nrow=2, align = "v", rel_heights = c(1, 1))
 
 p-values are added to the base ggpubr plot using `stat_compare_means`. The pairs to compare are specified with `comparison =`. The model to compute the p-values is "t.test". **It is important to know what exactly is being computed when analyzing data and reporting results** and "t test" is not sufficient to know this. The t-test could be the classic t-test or a Welch test (which adjusts the standard error to account for heterogenity in variance between groups). In this example, there are multiple tests and the standard error could be the pooled estimate estimated from the linear model, or a pairwise estimate. And, given the multiple comparisons, the p-values could be adjusted or not. These kinds of questions can be checked with a function's help page. `?stat_compare_means` doesn't answer these questions but suggests `compare_means`, which also doesn't answer these questions. The script below has checks to see what p-values the function is returning.
 
-```{r}
+```{r plot-p-values}
 pairs_i <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
 ggbarplot(x="donor", 
           y="count", 
@@ -364,6 +358,108 @@ if(check_it==TRUE){
 So the p-values returned by `stat_compare_means(method="t.test")` are computed from independent Welch t-tests.
 
 ### Adding custom p-values
+
+What if we want the *p*-values in the plot above to come from a linear model, or a generalized linear model and not from the available tests in the ggpubr package? The function `stat_pvalue_manual` in ggpubr allows this.
+
+Throughout this text, *p*-values are computed using `emmeans::contrast`. To use these *p*-values in a plot, the steps are
+
+1. Fit the model
+2. Estimate the means and contrasts using the emmeans package
+3. Add a column of formatted p-values to the contrast table
+4. Plot the modeled means and error bars
+5. Plot the formatted p-values using `stat_pvalue_manual`
+
+Step 3 depends on the model fit in step 1. Here I fit count data using both a linear model, a log-transform, and a generalized linear model to show the how to build a p-value table.
+
+```{r plots-functions}
+odd <- function(x) x%%2 != 0
+even <- function(x) x%%2 == 0
+```
+
+#### Formatted p-values using a linear model
+```{r}
+m1 <- lm(count ~ donor, data=exp2d)
+# estimate the modeled means and CIs
+m1.emm <- emmeans(m1, specs="donor")
+# estimate the p-values of the contrasts
+m1.pairs <- contrast(m1.emm, method="revpairwise") %>%
+  summary() %>%
+  data.table()
+# extract the two groups being compared in each row
+groups <- unlist(str_split(m1.pairs$contrast, " - "))
+m1.pairs[, group1 := groups[odd(1:length(groups))]]
+m1.pairs[, group2 := groups[even(1:length(groups))]]
+# create a column of p-values for display.
+m1.pairs[, p := pvalString(p.value)]
+```
+
+#### Formatted p-values using a model with a log transformed response
+If a linear model is fit to data using a transformed response (in this case, the log of the count plus one), the group means are estimated on the transformed scale so need to be backtransformed to the "response" scale using the argument `type = "response"`. With a log transformation, the contrast is now a ratio instead of a difference, and so the script to extract the pair of group names has to be modified from that above.
+
+```{r}
+m2 <- lm(log(count+1) ~ donor, data=exp2d)
+# estimate the modeled means and CIs on the response scale
+m2.emm <- emmeans(m2, specs="donor", type="response")
+# estimate the p-values of the contrasts
+m2.pairs <- contrast(m2.emm, method="revpairwise") %>%
+  summary() %>%
+  data.table()
+# the contrast column separates with a hypehn
+groups <- unlist(str_split(m2.pairs$contrast, " / "))
+m2.pairs[, group1 := groups[odd(1:length(groups))]]
+m2.pairs[, group2 := groups[even(1:length(groups))]]
+# create a column of p-values for display.
+m2.pairs[, p := pvalString(p.value)]
+```
+
+#### Formatted p-values using a generalized linear model with a log link function
+For a generalized linear model that uses a log link, predicted means are estimated on the log scale and need to be backtransformed to the "response" scale using the argument `type = "response"`. The contrast is now a ratio instead of a difference, and the script to extract the pair of group labels has to be modified from that used in the script for the linear model fit.
+
+```{r}
+m3 <- glm.nb(count ~ donor, data=exp2d)
+m3.emm <- emmeans(m3, specs="donor", type="response")
+# estimate the p-values of the contrasts
+m3.pairs <- contrast(m3.emm, method="revpairwise") %>%
+  summary() %>%
+  data.table()
+# the contrast column separates with a hypehn
+groups <- unlist(str_split(m3.pairs$contrast, " / "))
+m3.pairs[, group1 := groups[odd(1:length(groups))]]
+m3.pairs[, group2 := groups[even(1:length(groups))]]
+# create a column of p-values for display.
+m3.pairs[, p := pvalString(p.value)]
+```
+
+#### Using the manual p-values in a plot
+
+Here I use the tables from the generalized linear model (m3). The *p*-values are added with `stat_pvalue_manual`. Here, I limit the comparisons to those in rows 4-6. The most manual part of adding manual p-values is setting the position for the brackets using the "position" argument. The values in this argument are the y-coordinates of the brackets. This may take some trial-and-error to position the brackets satisfactorily.
+
+```{r plots-custom-p}
+# convert the emm table and change colname "response" to "count"
+m3.emm <- data.table(summary(m3.emm))
+setnames(m3.emm, old="response", new="count")
+
+gg <- ggbarplot(x="donor", 
+          y="count", 
+          data=m3.emm, 
+          fill = "steelblue") +
+  ylab("Count") +
+  
+  geom_errorbar(aes(x=donor, ymin=asymp.LCL, ymax=asymp.UCL),
+                width=0.15) +
+  
+  geom_jitter(data=exp2d, aes(x=donor, y=count),
+             color="black",
+             width=0.1, height=0) +
+  
+  stat_pvalue_manual(m3.pairs[4:6,], # only show sox effects
+                           label = "p", 
+                           y.position=c(31, 28, 25)) +
+  NULL
+
+gg
+
+```
 
 ### Plotting two factors
 
@@ -433,3 +529,43 @@ ggplot(data=m1.emm, aes(x=treatment, y=count, shape=strain, color=strain, group=
 
 ```
 
+### Plot components
+#### Showing the data
+
+If there are only a few cases per group, there is little reason to summarize the distribution. Instead plot the individual points using a stripchart or a jitter plot
+
+```{r}
+# sample 4 points from each group to make it a small n experiment
+inc <- exp2d[, .(inc=sample(min(.I):max(.I), 4)), by=donor][, inc]
+ggstripchart(x = "donor",
+             y = "count",
+             alpha = 0.5,
+             add = "mean",
+             data = exp2d[inc,])
+```
+
+With more points, a stripchart can be okay but with too many points the distribution might be obscured. Reasonable alternatives are a box plot, a violin plot, and a dotplot.
+
+```{r, message=FALSE}
+gg1 <- ggstripchart(x = "donor",
+          y = "count",
+          fill="steelblue",
+          data = exp2d)
+
+gg2 <- ggboxplot(x = "donor",
+          y = "count",
+          fill="steelblue",
+          data = exp2d)
+
+gg3 <- ggviolin(x = "donor",
+          y = "count",
+          fill="steelblue",
+          data = exp2d)
+gg4 <- ggdotplot(x = "donor",
+          y = "count",
+          fill="steelblue",
+          data = exp2d)
+plot_grid(gg1, gg2, gg3, gg4, nrow=2)
+```
+
+##

@@ -28,10 +28,10 @@ m3 <- lmer(strength ~ 1 + (1|batch) + (1|sample), data=Pastes)
 m4 <- lmer(strength ~ 1 + (1|batch) + (1|batch:sample), data=Pastes)
 # and the same as m1 but if we labeled casks differently among batches.
 m5 <- lmer(strength ~ 1 + (1|batch/sample), data=Pastes)
-summary(m1)
-summary(m2)
-summary(m3)
-summary(m4)
-summary(m5)
+coef(summary(m1))
+coef(summary(m2))
+coef(summary(m3))
+coef(summary(m4))
+coef(summary(m5))
 ```
 
