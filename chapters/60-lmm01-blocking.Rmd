@@ -94,7 +94,7 @@ y_{ij} = (\beta_{0} + \beta_{0j}) + (\beta_{1} + \beta_{1j}) x_i + \varepsilon_i
 
 where $i$ indexes the observation and $j$ indexes the block (culture, plot, mouse, etc). The intercept parameter $\beta_{0j}$ is a **random intercept** and the slope parameter $\beta_{1j}$ is a **random slope**. The intercept for observation *i* (that is, its expected value when $X=0$) has a **fixed** component ($\beta_0$) that is common to all observations and a random component ($\beta_{0j}$) that is common within a block but differs among blocks (see table below). In the above equation, I've used parentheses to show how these combine into the random intercept that is unique for each block. Similarly, the random slope (treatment effect) has a fixed part ($\beta_1$) that is common to all observations and a random component ($\beta_{1j}$) that is common within a block but differs among blocks (see table below). Again, these are collected within a pair of parentheses in the equation above.
 
-```{r lmm-table, echo=FALSE}
+```{r lmm-table, echo=FALSE, message=FALSE, warning=FALSE}
 n <- 5 # number of measures per treatment within each block
 k <- 6 # number of blocks
 set.seed(3)
@@ -594,14 +594,14 @@ To understand this, rank order the treatment effects for each strain. An individ
 
 The major function for working with linear mixed models is `lmer()` from the lme4 package. An older, and still sometimes used and useful function is `lme()` from the nlme package. The authors of the lme4 package argue that the df in a linear mixed model are too approximate for a useful $p$-value and, consequently, the `lme` function does not return a $p$-value. Many biological researchers want a $p$-value and typically use the `lmerTest` package to get this.
 
-With the random factor in the column "block:
+**Specifying a linear mixed model using `lme`**. The random factor is in the column "block". To conform to some packages that use lme4 objects, any variable used to model a random effect should be converted to type `factor`.
 
-1. add a random intercept using `y ~ treatment + (1|block)`
-2. add a random slope and intercept using  `y ~ treatment + (treatment|block)`
+1. add a random intercept using `y ~ treatment + (1|block)`. This adds a random intercept for each level of treatment.
+2. add a random slope and intercept using  `y ~ treatment + (treatment|block)`. This adds a random intercept for each level of treatment and a random slope for each level of treatment.
 
 A message that might appear is "boundary (singular) fit: see ?isSingular". This does not mean there is a problem with the fit model.
 
-A warning that "Model failed to converge with 1 negative eigenvalue" does mean there is a problem. A solution is to simply the model (remove a random slope if one is specified) 
+A warning that "Model failed to converge with 1 negative eigenvalue" does mean there is a problem. A solution is to simplify the model by, for example, removing a random slope.
 
 ### coral data
 
