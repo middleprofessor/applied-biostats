@@ -1,0 +1,44 @@
+# Estimating effects and uncertainty with a statistical model
+
+1. Explore the data
+2. Fit the model
+3. Check the model fit
+4. Estimate the predicted means
+5. Estimate the contrasts between groups
+6. Plot the data and model summary
+7. Write the methods
+8. Write the results
+
+## Which model do I fit?
+
+If you want to model the variance due to sampling with a normal distribution, use a *linear model* using the function `lm`.
+
+```{r, eval = FALSE}
+m1 <- lm(y ~ treatment, data = dt)
+```
+
+If you want to model the sampling variance with a specific distribution, use a *generalized linear model* using the function `glm`.
+
+```{r, eval=FALSE}
+m2 <- glm(y ~ treatment, family = binomial, data = dt)
+```
+
+If you want to model non-independence in subsets of observations that come in batches, then use a *mixed model* by adding a random factor. If you add the random factor to a linear model, this is a *linear mixed model*, which can be fit with the function `lmer`.
+
+```{r, eval = FALSE}
+# random intercept only 
+m3 <- lmer(y ~ treatment + (1|batch), data = dt)
+# random intercept and slope
+m4 <- lmer(y ~ treatment + (treatment|batch), data = dt)
+```
+
+If you add the random factor to a generalized linear model, this is a *generalized linear mixed model*, which can be fit with the function `glmer`.
+
+```{r, eval=FALSE}
+# random intercept only 
+m5 <- glmer(y ~ treatment + (treatment|batch), family = binomial, data = dt)
+# random intercept and slope
+m6 <- glmer(y ~ treatment + (treatment|batch), family = binomial, data = dt)
+```
+
+

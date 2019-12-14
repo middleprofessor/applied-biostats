@@ -245,6 +245,54 @@ gg
 ```
 
 ## Data wrangling
+### Converting a single column with all combinations of a 2 x 2 factorial experiment into two columns, each containing the two levels of a factor
+
+**Article source**: Tauriello, D., Palomo-Ponce, S., Stork, D. et al. TGFβ drives immune evasion in genetically reconstituted colon cancer metastasis. Nature 554, 538–543 (2018) doi:10.1038/nature25492
+
+**Data source**: https://www.nature.com/articles/nature25492#Sec23
+
+filename: "41586_2018_BFnature25492_MOESM10_ESM.xlsx"
+
+sheet: "Fig. 4h-tumours"
+
+```{r}
+folder <- "TGF-beta drives immune evasion in genetically reconstituted colon cancer metastasis"
+fn <- "41586_2018_BFnature25492_MOESM10_ESM.xlsx"
+file_path <- here('data', folder, fn)
+tumor <- read_excel(file_path, sheet="Fig. 4h-tumours") %>%
+  clean_names()  %>%
+  data.table()
+tumor[, name := factor(name)]
+
+```
+
+The analysis of the data in Fig. 4h specifies a single $X$ variable "Treatment" with four levels: "Con", "Gal", "aPD-L1", and "Gal+aPD-L1". These levels indicate that the design is actually **factorial** with two factors, each with two levels. The first factor has levels "no Gal" and "Gal". The second factor has levels "no aPD-L1", "aPD-L1". The single column Treatment "flattens" the  2 X 2 factorial design to a 4 x 1 design. In general, we would want to analyze an experiment like this as factorial model, because this allows us to make inferences about the *interaction effect* between the two factors. For these inferences, we need a standard error, or a confidence interval, or a *p*-value of the estimate. In order to analyze the data with a factorial model, we need to create two new columns -- one column is the factor variable containing the two levels of Gal and one column is the factor variable containing the two levels of aPD-L1.
+
+```{r}
+gal_levels <- c("no Gal", "Gal")
+tumor[, gal := ifelse(treatment == "Gal" | treatment == "Gal+aPD-L1",
+                      gal_levels[2],
+                      gal_levels[1])]
+
+apd_levels <- c("no aPD-L1", "aPD-L1")
+tumor[, apdl1 := ifelse(treatment == "aPD-L1" | treatment == "Gal+aPD-L1",
+                      apd_levels[2],
+                      apd_levels[1])]
+
+# re-order factor levels
+tumor[, gal:=factor(gal, gal_levels)]
+tumor[, apdl1:=factor(apdl1, apd_levels)]
+
+```
+
+A way to check the results to make sure that our conversion is correct is to compute the sampel size for the 2 x 2 combinations, but include the original treatment column in the `by` list.
+
+```{r}
+tumor[!is.na(num_positive_per_mm), .(N=.N), by=.(treatment, gal, apdl1)]
+```
+
+That looks good.
+
 ### Combining data
 
 **Source article** Bak, A.M., Vendelbo, M.H., Christensen, B., Viggers, R., Bibby, B.M., Rungby, J., Jørgensen, J.O.L., Møller, N. and Jessen, N., 2018. Prolonged fasting-induced metabolic signatures in human skeletal muscle of lean and obese men. PloS one, 13(9), p.e0200817.
@@ -255,7 +303,7 @@ gg
 
 The data are from a randomized **crossover** design where 18 men (9 lean and 9 obese) were measured for multiple metabolic markers at two times: 1) in a post-absorptive state after 12 hours overnight fast, and 2) in a prolonged fasting state after 72 hours of fasting. In addition, at each time point, metabolic markers were measured prior to and after an insulin infusion. Here, we want to reproduce values in Table 2, which are measures of mean blood insulin and metabolite levels after 12 hours and 72 hours fasting in both the lean and obese groups.
 
-A difficulty for the analyst is that the response data are in the "Table 2" sheet but the variable containing the assignment to "lean" or "obese" group is in the "Table 1" sheet. To analyze these response, the two datasets need to be combined into a single data frame. The important consideration when combining data is that like is matched with like. For the fasting dataset, "like" is the subject id, and we have some data for each subject id in Table 1 and other data for the same subject ids in Table 2. This means that we essentially want to glue the columns of table 2 to the columns of table 1 in a way that insures that the correct data for each subject id is on the same row. This is a bit more complicated for these data because Table 1 contains 18 data rows, one for each subject id and Table 2 contains 36 data rows, 2 for each subject id, because each subject has data measured at 12 hours and at 72 hours.
+A difficulty for the analyst is that the response data are in the "Table 2" sheet but the variable containing the assignment to "lean" or "obese" group is in the "Table 1" sheet. To analyze these response, the two datasets need to be combined into a single data frame. The important consideration when combining data is that *like is matched with like*. For the fasting dataset, "like" is the subject id, and we have some data for each subject id in Table 1 and other data for the same subject ids in Table 2. This means that we essentially want to glue the columns of table 2 to the columns of table 1 in a way that insures that the correct data for each subject id is on the same row. This is a bit more complicated for these data because Table 1 contains 18 data rows, one for each subject id and Table 2 contains 36 data rows, 2 for each subject id, because each subject has data measured at 12 hours and at 72 hours.
 
 ```{r data-import-glucose, echo=FALSE}
 folder <- "Data from Prolonged fasting-induced metabolic signatures in human skeletal muscle of lean and obese men"
@@ -281,7 +329,7 @@ It is common to see researchers create multiple subsets of data for further proc
 
 There are many ways to subset data in R. Experienced users tend to divide up into those using base R, those using the tidyverse packages, or those using data.table. Learn one well. This book uses data.table.
 
-In these examples, dt is the name of a data frame (that has been converted to a data table), not a function. Remember that all functions are followed by parentheses.
+In these examples, dt is the name of a data table (a data frame that has been converted to a data table), not a function. Remember that all functions are followed by parentheses.
 
 1. `dt[sex=="female",]` includes all rows in which the column *sex* contains the value "female"
 2. `dt[sex=="female" & age > 18, ]` includes all rows in which the column `sex` contains the value "female" AND the column *age* contains values greater than 18
@@ -480,9 +528,10 @@ fd <- melt(fd_wide,
            value.name=c("sprint_pre", "sprint_post"))
 knitr::kable(fd, digits=1)
 ```
+
 ### Miscellaneous data wrangling
-####  Vole data
-This books uses data on the lifespans of voles given three different treatments (control, vitamin E supplementation, vitamin C supplmentation), from
+#### Vole data {#vole-data}
+A interesting data set to introduce a linear model for estimating treatment effects in an experiment are from
 
 Selman, C., McLaren, J.S., Collins, A.R., Duthie, G.G. and Speakman, J.R., 2013. Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal. Biology letters, 9(4), p.20130432.
 
@@ -496,9 +545,9 @@ The vole data were archived in a format that requires some wrangling before it c
 folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- here(data_path, folder, filename)
-vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
-# clean column names
-vole <- clean_names(vole)
+vole <- read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98") %>%
+  clean_names() %>%
+  data.table()
 
 # create treatment column
 # in rows where control=1, set treatment value to "control"
@@ -550,42 +599,4 @@ write.table(vole, save_file_path, sep=",", quote=FALSE)
 ```
 
 Look at your project directory to make sure the file is where it should be! We used `write.table()` to create a tab-delimited text file using `sep="\t"` to specify tabs to separate the row elements. "\t" is the standard character string for a tab. Check in your output folder and open the file in a text editor.
-
-## Problems
-
-1. Download the dataset "data-Lodjak.et.al-2016-FuncEcol.xlsx" from the Dryad repository at https://datadryad.org/resource/doi:10.5061/dryad.rd01s. The .xlsx file presents the data cleanly but the trade-off is that the 1) multiple header rows, and 2) spaces in the header labels, 3) parentheses in the header labels make it more complex to import in a usable way. Import the data and plot Body Mass against Age (that is make Body Mass the "Y" variable and Age the "X" variable) using the qplot function. You should recode the column labels to remove spaces and parentheses using the setnames function.
-
-```{r problem1, echo=FALSE, fig.show='hide', comment=FALSE, eval=FALSE}
-data_folder <- "Data from Causal link between insulin-like growth factor 1 and growth in nestlings of a wild passerine bird"
-filename <- "data-Lodjak.et.al-2016-FuncEcol.xlsx"
-file_path <- here(data_path, data_folder, filename)
-igf <- data.table(read_excel(file_path, sheet="Body mass data", range="B3:F1433"))
-#new_names <- c("Nest_ID", "Manipulation_group", "Nestling_ID", "Age", "Body_mass")
-#setnames(igf, old=colnames(igf), new=new_names)
-igf <- clean_names(igf)
-#setnames(igf, old=colnames(igf), new=gsub("[(.*)]","", colnames(igf)))
-qplot(x=age_day, y=body_mass_g, data=igf)
-```
-
-2. Download the dataset "Results2015.txt" from the Dryad repository at https://datadryad.org//resource/doi:10.5061/dryad.65vk4. Try to reproduce Fig. 1. It's not easy. I've inserted the figure below but also download the paper and look at Fig. 1.
-
-```{r problem2, echo=FALSE, comment=FALSE, eval=TRUE}
-data_folder <- "Data from Dung beetles reduce livestock gastrointestinal parasite availability on pasture"
-filename <- "Results2015.txt"
-file_path <- here(data_path, data_folder, filename)
-dung <- fread(file_path)
-dung <- clean_names(dung)
-gg <- ggplot(data=dung, aes(x=watered, y=l3_average)) +
-  geom_boxplot() +
-  coord_cartesian(ylim = c(0, 198)) +
-  NULL
-gg
-```
-
-3. (grad students only) Download and plot data from a Dryad Repository dataset of your choice.
-
-```{r dung-beetle-fig, echo=FALSE, eval=FALSE}
-dung_path <- here(image_path, "Dung_beetles_reduce_livestock-fig_1.png")
-knitr::include_graphics(dung_path)
-```
 

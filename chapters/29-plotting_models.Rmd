@@ -220,24 +220,24 @@ Regardless, the effects plot is the most important component as this is the illu
 
 A reasonable goal of any research project should be a script to generate the final plots entirely within the R environment and not rely on external drawing software to add finishing features. `ggplot2` is one of the major plotting environments in R and the one that seems to have the strongest following, especially among new R users. `ggplot2` has the ability to generate extremely personalized and finished plots. However, creating a plot with multiple layers (bars, lines, error intervals, raw data points, p-values) can often require many hours of googling.
 
-`ggpubr` is an extension to `ggplot2` (it calls ggplot2 functions under the hood) and provides many canned functions for producing the kinds of ggplots that are published in biological journals. With one line of script, a researcher can generate a publishable plot that is as good or better than many published plot. That said, the means and error intervals used in `ggpubr` plots are the raw and not modeled values, and, consequently, `ggpubr` is not sufficient to generate pretty good plots. It is easy enough to add custom error bars to a ggpubr plot.
+`ggpubr` is an extension to `ggplot2` (it calls ggplot2 functions under the hood) and provides many canned functions for producing the kinds of ggplots that are published in biological journals. With one line of script, a researcher can generate a publishable plot that is as good or better than many published plot.
+
+**Here I show how to add custom (ggplot2) features to a ggpubr plot**
 
 ### Unpooled SE bars and confidence intervals
-`ggplot2` and `ggpubr` default to unpooled error intervals (standard error bars and confidence intervals). 
+`ggplot2` and `ggpubr` default to unpooled error intervals (standard error bars and confidence intervals).
 
 ```{r plots-unpooled, fig.cap="(A) Mean and 1 SE error bar. (B) Mean and 95% CI."}
-gg1 <- ggbarplot(x="donor", 
-                 y="count", 
-                 data=exp2d,
-                 add=c("mean_se"),
-                 color = "black",
+gg1 <- ggbarplot(data = exp2d,
+                 x = "donor", 
+                 y = "count", 
+                 add = c("mean_se"),
                  fill = "steelblue"
 )
-gg2 <- ggbarplot(x="donor", 
-                 y="count", 
-                 data=exp2d,
-                 add=c("mean_ci"),
-                 color = "black",
+gg2 <- ggbarplot(data = exp2d,
+                 x = "donor", 
+                 y = "count", 
+                 add = c("mean_ci"),
                  fill = "steelblue"
 )
 plot_grid(gg1, gg2, ncol=2, labels="AUTO")
@@ -245,15 +245,22 @@ plot_grid(gg1, gg2, ncol=2, labels="AUTO")
 
 ### Adding bootstrap intervals
 
+A better CI than an unpooled CI, especially for non-normal data such as counts, is a bootstrap CI. ggplot2 automates this. A stripchart shows the data, which are "de-emphasized" -- in order to emphasize the mean and CI -- by using a lighter shade for the individual points. In order to not *also* de-emphasize the plotted mean, a ggplot2 line plots the mean instead of ggpubr.
+
 ```{r}
-gg <- ggbarplot(x="donor", 
-                y="count", 
-                data=exp2d,
-                add=c("mean"),
-                color = "black",
-                fill = "steelblue"
+gg <- ggstripchart(data=exp2d,
+                   x="donor", 
+                   y="count", 
+                   alpha = 0.3
 ) + 
-  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", width=0.1)
+  stat_summary(fun.data = "mean_cl_boot", 
+               geom = "errorbar", 
+               width = 0.1) +
+  stat_summary(fun.y = "mean", 
+               geom = "point", 
+               size = 2)
+
+
 gg
 ```
 

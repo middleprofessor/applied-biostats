@@ -1,10 +1,12 @@
 # Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals)
 
-```{r setup01, echo=FALSE}
+```{r uncertain-setup, echo=FALSE}
 library(here)
 library(readxl)
+library(janitor)
 library(ggplot2)
 library(data.table)
+
 here <- here::here # plyr also defines a here function
 data_path <- "data"
 ```
@@ -26,12 +28,13 @@ set.seed(1) # set seed so that same fake data occurs each time.
 fake_data <- data.table(Diameter=rnorm(n, mean=69.1, sd=3.1))
 gg <- ggplot(data=fake_data, aes(x=Diameter)) +
   geom_histogram() +
+  xlab("Diameter (µm)") +
   NULL
 gg
 
 ```
 
-The mean of this sample is `r round(mean(fake_data$Diameter),1)` and the standard deviation is `r round(sd(fake_data$Diameter),1)`. The standard deviation is the square root of the variance, and so computed by
+The mean of this sample is `r round(mean(fake_data$Diameter),1)`µm and the standard deviation is `r round(sd(fake_data$Diameter),1)` µm. The standard deviation is the square root of the variance, and so computed by
 
 \begin{equation}
 s_y = \sqrt{\frac{\sum_{i=1}^n{(y_i - \overline{y})^2}}{n-1}}
@@ -40,28 +43,37 @@ s_y = \sqrt{\frac{\sum_{i=1}^n{(y_i - \overline{y})^2}}{n-1}}
 
 Memorize this equation. To understand the logic of this measure of variability, note that $y_i - \overline{y}$ is the **deviation** of the $i$th value from the sample mean, so the numerator is the sum of squared deviations. The numerator is a sum over $n$ items and the denominator is $n-1$ so the variance is (almost!) an averaged squared deviation. More variable samples will have bigger deviations and, therefore, bigger average squared deviations. Since the standard deviation is the square root of the variance, a standard deviation is the square root of an average squared deviation. This makes it similar in value to the averaged deviation (or average of the absolute values of the deviations since the average deviation is, by definition of a mean, zero).
 
-Notes on the variance and standard deviation
+#### Notes on the variance and standard deviation
 
 1. Variances are additive but standard deviations are not. This means that the variance of the sum of two independent (uncorrelated) random variables is simply the sum of the variances of each of the variables. This is important for many statistical analyses.
 2. The units of variance are the square of the original units, which is awkward for interpretation. The units of a standard deviation is the same as that of the original variable, and so is much easier to interpet.
 3. For variables that are approximately normally distributed, we can map the standard deviation to the quantiles of the distribution. For example, 68% of the values are within one standard deviation of the mean, 95% of the values are within two standard deviations, and 99% of the values are within three standard deviations.
 
 ### Standard error of the mean
-A standard error of a statistic is a measure of the precision of the statistic. The standard error of the mean is a measure of the precision of the estimate of the mean. The smaller the standard error, the more precise the estimate. The standard error of the mean (SEM) is computed as
+A standard error of a statistic is a measure of the precision of the statistic. The standard error of the mean is a measure of the precision of the estimate of the mean. The standard error of a difference in means is a measure of the precision of the estimate of the difference in means. The smaller the standard error, the more precise the estimate. The standard error of the mean (SEM) is computed as
 
 \begin{equation}
 SEM = \frac{s_y}{\sqrt{n}}
 (\#eq:se)
 \end{equation}
 
-The SEM is often denoted $s_{\bar{y}}$ to indicate that it is a standard deviation of the mean ($\bar{y}$). In what sense is a standard error a measure of variability? This is kinda weird. If we sample 100 cells in the slide of muscle tissue and compute the mean diameter, how can the mean have a standard deviation? There is only one value! To understand how the SEM is a standard deviation, imagine 1) resampling 100 cells and 2) recomputing a mean from the re-sampled data, then repeating this resampling and recomputation an infinite number of times and each time, you write down the newly computed mean. The true standard error of the mean is the standard deviation of this infinitely long column of means. This means that a standard error of the mean, computed from a single sample using equation \@ref(eq:se) is itself a sample statistic.
+The SEM is often denoted $s_{\bar{y}}$ to indicate that it is a standard deviation of the mean ($\bar{y}$).
 
-Notes on standard errors
+#### The standard error of the mean can be thought of as a standard deviation of an infinitely long column of re-sampled means
 
-1. The SEM is only one kind of standard error. A standard deviation can be computed for any statistic -- these are all standard errors. For some statistics, such as the mean, the standard error can be computed directly using an equation, such as that for the SEM (equation \@ref(eq:se). For other statistics, a computer intensive method such as the **bootstrap** is necessary to compute a standard error. We will return to the bootstrap at the end of this chapter.
-2. The units of a standard error are the units of the measured variable.
-3. A standard error is proportional to sample variability (the sample standard deviation, $s_y$) and inversely proportional to sample size ($n$). Sample variability is a function of both natural variation (there really is variation in diameter among fibers in the quadriceps muscle) and measurement error (imaging software with higher resolution can measure a diameter with less error). Since the SEM is a measure of the precision of estimating a mean, this means this precision will increase (or the SEM will decrease) if 1) an investigator uses methods that reduce measurement error and 2) an investigator computes the mean from a larger sample.
-4. This last point (the SEM decreases with sample size) seems obvious when looking at equation \@ref(eq:se), since $n$ is in the denominator. Of course $n$ is also in the denominator of equation \@ref(eq:variance) for the sample standard deviation but the standard deviation does not decrease as sample size increases. First this wouldn't make any sense -- variability is variability. A sample of 10,000 cell diameters should be no more variable than a sample of 100 cell diameters (think about if you agree with this or not). Second, this should also be obvious from equation \@ref(eq:variance). The standard deviation is the square root of an average and averages don't increase with the number of things summed since both the the numerator (a sum) and denominator increase with $n$. 
+In what sense is a standard error a standard deviation? This is kinda weird. If we sample 100 cells in the slide of muscle tissue and compute the mean diameter, how can the mean have a standard deviation? There is only one value!
+
+To understand how the SEM is a standard deviation, imagine that we sample $n$ values from $N(\mu, \sigma^2)$ (a normal distribution with mean $\mu$ and variance $\sigma^2$. The mean of our sample is an estimate of $\mu$ the standard deviation of sample is an estimate of $\sigma$) an infinite number of times and each time, we write down the mean of the new sample. The standard deviation of this infinitely long column of means is the standard error of the mean. Our observed SEM is an estimate of this true value because our observed  standard deviation is an estimate of $\sigma$.
+
+#### A standard deviation can be computed for any statistic -- these are all standard errors. 
+
+The SEM is only one kind of standard error. A standard deviation can be computed for any statistic -- these are all standard errors. For some statistics, such as the mean, the standard error can be computed directly using an equation, such as that for the SEM (equation \@ref(eq:se)). For other statistics, a computer intensive method known as the **bootstrap** is necessary to compute a standard error. We will return to the bootstrap in Section \@ref(bootstrap).
+
+#### Notes on standard errors
+
+1. The units of a standard error are the units of the measured variable.
+2. A standard error is proportional to sample variability (the sample standard deviation, $s_y$) and inversely proportional to sample size ($n$). Sample variability is a function of both natural variation (there really is variation in diameter among fibers in the quadriceps muscle) and measurement error (imaging software with higher resolution can measure a diameter with less error). Since the SEM is a measure of the precision of estimating a mean, this means this precision will increase (or the SEM will decrease) if 1) an investigator uses methods that reduce measurement error and 2) an investigator computes the mean from a larger sample.
+3. This last point (the SEM decreases with sample size) seems obvious when looking at equation \@ref(eq:se), since $n$ is in the denominator. Of course $n$ is also in the denominator of equation \@ref(eq:variance) for the sample standard deviation but the standard deviation does not decrease as sample size increases. First this wouldn't make any sense -- variability is variability. A sample of 10,000 cell diameters should be no more variable than a sample of 100 cell diameters (think about if you agree with this or not). Second, this should also be obvious from equation \@ref(eq:variance). The standard deviation is the square root of an average and averages don't increase with the number of things summed since both the the numerator (a sum) and denominator increase with $n$. 
 
 ## Using Google Sheets to generate fake data to explore the standard error
 In statistics we are interested in estimated parameters of a **population** using measures from a **sample**. The goal in this section is to use Google Sheets (or Microsoft Excel) to use fake data to discover the behavior of sampling and to gain some intuition about uncertainty using standard errors.
@@ -223,11 +235,27 @@ sqrt(mean(sems2))
 1/sqrt(n)
 ```
 
-## Bootstrapped standard errors
+## Bootstrapped standard errors {#bootstrap}
 
-A standard error of the mean is the expected standard deviation of an infinite number of hypothetically re-sampled means. A bootstrap standard error of a statistic is the standard deviation of the statistic from a finite number of *resamples* of the data.
+The bootstrap is certainly one of the most valuable tools invented in modern statistics. But, it's not only a useful tool for applied statistics, it's a useful tool for understanding statistics. Playing with a parametric bootstrap will almost certainly induce an "aha, so that's what statisticians mean by ..." moment.
 
-Let's download some data to explore this concept. The data are archived at Dryad Repository.
+To understand the bootstrap, let's review a standard error. A *parametric* standard error of a mean is the *expected* standard deviation of an infinite number of means. A standard error of any statistic is the *expected* standard deviation of that statistic. I highlight *expected* to emphasize that parametric standard errors assume a certain distribution (not necessarily a Normal distribution, although the equation for the SEM in Equation \@ref(eq:se) assumes a normal distribution if the standard deviation is computed as in Equation \@ref(eq:sd)).
+
+A bootstrapped standard error of a statistic is the **empirical** standard deviation of the statistic from a finite number of *samples*. The basic algorithm for a bootstrap is (here "the statistic" is the mean of the sample)
+
+1. sample $n$ values from a probability distribution
+2. compute the mean
+3. repeat step 1 and 2 many times
+4. for a bootstrapped standard error, compute the standard deviation of the set of means saved from each iteration of steps 1 and 2.
+
+The probability distribution can come from two sources:
+
+1. A **parametric bootstrap** uses samples from a parametric probability distribution, such as a Normal distribution or a poisson distribution (remember, these are "parametric" because the distribution is completely described by a set of parameters). A good question is why bother? In general, one would use a parametric bootstrap for a statistic for which there is no formula for the standard error, but the underlying data come from a parametric probability distribution.
+2. A **non-parametric** bootstrap uses *resamples from the data*. The data are resampled *with replacement*. "Resample with replacement" means to sample $n$ times from the full set of observed values. If we were to do this manually, we would i) write down each value of the original sample on its own piece of paper and throw all pieces into a hat. ii) pick a paper from the hat, add its value to sample $i$, and return the paper to the hat. iii) repeat step ii $n$ times, where $n$ is the original sample size. The new sample contains some values multiple times (papers that were picked out of the hat more than once) and is missing some values (papers that were not picked out in any of the $n$ picks). A good question is, why bother? A non-parametric bootstrap assumes no specific *parametric* probability distribution but it does assume the distributio of the observed sample is a good approximation of the true population distribution (in which case, the probability of picking a certain value is a good approximation to the true probability).
+
+### An example of bootstrapped standard errors using vole data
+
+Let's use the vole data to explore the bootstrap and "resampling". The data are archived at Dryad Repository. Use the script in Section \@ref(vole-data) to wrangle the data into a usable format.
 
 1. URL: https://datadryad.org//resource/doi:10.5061/dryad.31cc4
 2. file: RSBL-2013-0432 vole data.xlsx
@@ -235,60 +263,108 @@ Let's download some data to explore this concept. The data are archived at Dryad
 
 The data are the measured lifespans of the short-tailed field vole (*Microtus agrestis*) under three different experimental treatments: vitamin E supplementation, vitamin C supplementation, and control (no vitamin supplementation). Vitamins C and E are antioxidants, which are thought to be protective of basic cell function since they bind to the cell-damaging reactive oxygen species that result from cell metabolism.
 
-
 ```{r import_voles_10, echo=FALSE, warning=FALSE, message=FALSE}
 folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- here(data_path, folder, filename)
-vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
-setnames(vole, old=colnames(vole), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
+vole <- read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98") %>%
+  clean_names() %>%
+  data.table()
+# create treatment column
+# in rows where control=1, set treatment value to "control"
+vole[control==1, treatment:="control"]
+# in rows where vitamin_e=1, set treatment value to "vitamin_e"
+vole[vitamin_e==1, treatment:="vitamin_E"]
+# in rows where vitamin_c=1, set treatment value to "vitamin_c"
+vole[vitamin_c==1, treatment:="vitamin_C"]
+
+# change column "lifespan_days" to "lifespan"
+setnames(vole, old="lifespan_days", "lifespan")
+
 ```
 
-I've read in the file using read_excel and converted to a data.table named `vole`. I used `setnames` to rename the columns to lifespan, control, vitamin_E, and vitamin_C. The data are in a **wide format** -- that is instead of a single "treatment" column, there are three columns ("control", "vitamin C", "vitamin E") with value = 1, if that row (or lifespan) was assigned the treatment of the column label and zero otherwise. In general, we want data.tables to be in long format.
+Let's compute the standard error of the mean of the control group lifespan using both a parametric and a nonparametric bootstrap. To implement the algorithm above using easy-to-understand code, I'll first extract the set of lifespan values for the control group and assign it to its own variable.
 
-Compute the standard error of the mean of the lifespan for the control group using equation \@ref(eq:se). One simple way to do this for the control group is to extract the subset of the data satisfying the condition control = 1 (the value in the column "control" equals 1). In R, these conditional querries use `==`.
-
-```{r subset}
-control_voles <- na.omit(vole[control==1, lifespan]) # subset of data satisfying condition and
-# omitting missing data, if these exist
-n <- length(control_voles) # the sample size
-se <- sd(control_voles)/sqrt(n-1) # standard error of the mean of the control voles
+```{r uncertain-subset-voles}
+control_voles <- vole[treatment=="control", lifespan]
 ```
 
-Okay, the SEM using equation \@ref(eq:se) is `r round(se, 2)`. Let's compare this with a bootstrap estimate of the SEM. There are several R packages that do a bootstrap but here I've coded one using a for-loop both to practice with for-loops and to help communicate what a bootstrap *is*.
+`[treatment=="control", ]` indexes the rows (that is, returns the row numbers) that satisfy the condtion `treatment = "control"`. Or, put another way, it selects the **subset** of rows that contain the value "control" in the column "treatment". `[, lifespan]` indexes the column labeled "lifespan". Combined, these two indices extract the values of the column "lifespan" in the subset of rows that contain the value "control" in the column "treatment". The resulting vector of values is assigned to the variable "control_voles".
 
-The basic algorithm for a bootstrap is
+#### parametric bootstrap
 
-1. **re-sample the data with replacement**. Here "the data" is the set of lifespans for the Control voles. "Resample with replacement" means to sample $n$ times from the full set of values. If we were to do this manually, we would i) write down each value of Control lifespan on its own piece of paper and throw all pieces into a hat. ii) pick a paper from the hat, add its value to sample $i$, and return the paper to the hat. iii) repeat step ii $n$ times, where $n$ is the original sample size. The new sample contains some values multiple times (papers that were picked out of the hat more than once) and is missing some values (papers that were not picked out in any of the $n$ picks).
-2. Compute the statistic with the new sample.
-3. Repeat steps 1 and 2 $p$ times, which will result in a $p$-length vector of the statistic. Typically $p$ is somewhere between 2000 and 10,000.
-4. For the standard error of the statistic, compute the standard deviation of the re-sampled statistic.
+```{r uncertain-parametric-bootstrap}
+# we'll use these as parameters for parametric bootstrap
+n <- length(control_voles)
+mu <- mean(control_voles)
+sigma <- sd(control_voles)
 
-A for-loop automates this algorithm.
+n_iter <- 1000 # number of bootstrap iterations, or p
+means <- numeric(n_iter) # we will save the means each iteration to this
+
+for(iter in 1:n_iter){ # this line sets up the number of iterations, p
+  fake_sample <- rnorm(n, mean=mu, sd=sigma)
+  means[iter] <- mean(fake_sample)
+}
+(se_para_boot <- sd(means))
+```
+
+#### non-parametric bootstrap
 
 ```{r bootstrap-Vole}
-set.seed(1)
-n_iter <- 2000 # number of bootstrap iterations, or p
+n_iter <- 1000 # number of bootstrap iterations, or p
 means <- numeric(n_iter) # we will save the means each iteration to this
-inc <- 1:n # the first sample is the actual sample
+inc <- 1:n # inc indexes the elements to sample. By setting inc to 1:n prior to the loop, the first mean that is computed is the observed mean
 for(iter in 1:n_iter){ # this line sets up the number of iterations, p
   means[iter] <- mean(control_voles[inc]) # inc is the set of rows to include in the computation of the mean.
   inc <- sample(1:n, replace=TRUE) # re-sample for the next iteration
 }
-se_boot <- sd(means)
-getwd()
+(se_np_boot <- sd(means))
 ```
 
-The SEM using the bootstrap is `r round(se_boot, 2)`. Again, the SEM using equation \@ref(eq:se) is `r round(se, 2)`.
+The parametric bootstrapped SEM is `r round(se_para_boot, 2)`. The non-parametric bootstrapped SEM is `r round(se_np_boot, 2)`. Run these several times to get a sense how much variation there is in the bootstrapped estimate of the SEM given the number of iterations. Compute the **parametric** standard error using equation \@ref(eq:se) and compare to the bootstrapped values.
+
+```{r parametric-se, echo=FALSE}
+se_para <- sd(control_voles)/sqrt(n)
+```
+
 
 ## Confidence Interval
 
-Here I introduce a **confidence interval** (abbreviated to CI) using the mean of a sample but the concept is easily generalized to any parameter of a statistical model. The mean of the Control voles is `r round(mean(control_voles), 1)` and the SE of the mean is `r round(se, 2)`. The SE is used to construct the lower and upper boundary of a "1 - $\alpha$" confidence interval using `lower <- mean(x) - qt(alpha/2, df = n)*se(x)` and `upper <- mean(x) + qt(alpha/2, df = n)*se(x)`.
+Here I introduce a **confidence interval** of a sample mean but the concept is easily generalized to any parameter. The mean of the Control voles is `r round(mean(control_voles), 1)` and the SE of the mean is `r round(se_para, 2)`. The SE is used to construct the lower and upper boundary of a "1 - $\alpha$" confidence interval using `lower <- mean(x) + qt(alpha/2, df = n-1)*se(x)` and `upper <- mean(x) + qt(1-(alpha/2), df = n-1)*se(x)`.
 
-\begin{equation}
-upper = mean + 
-\end{equation}
+```{r}
+(lower <- mean(control_voles) + qt(0.05/2, df=(n-1))*sd(control_voles)/sqrt(n))
+(upper <- mean(control_voles) + qt(1 - 0.05/2, df=(n-1))*sd(control_voles)/sqrt(n))
+```
 
-A confidence interval of the mean is a measure of the uncertainty in the estimate of the mean. A 95% confidence interval has a 95\% probability (in the sense of long-run frequency) of containing the true mean. This probability is a property of the population of intervals that could be computed using the same sampling and measuring procedure. It is not correct, without further assumptions, to state that "there is a 95% probability that the true mean lies within the interval". Perhaps a more useful interpretation is that the interval contains the range of means that are consistent with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval (this interpretation does not imply anything about the true value).
+The function `qt` maps a probability to a *t*-value -- this is the opposite of a *t* test, which maps a *t*-value to a probability. Sending $\alpha/2$ and $1 - \alpha/2$ to `qt` returns the bounds of the confidence intereval on a standardized scale. Multiplying these bounds by the standard error of the control vole lifespan pops the bounds onto the scale of the control vole lifespans. 
 
+We can check our manual computation with the linear model
+
+```{r}
+confint(lm(control_voles ~ 1))
+```
+
+### Interpretation of a confidence interval
+Okay, so what *is* a confidence interval? A confidence interval of the mean is a measure of the uncertainty in the estimate of the mean. A 95% confidence interval has a 95\% probability (in the sense of long-run frequency) of containing the true mean. It is not correct to state that "there is a 95% probability that the true mean lies within the interval". These sound the same but they are two different probabilities. The first (correct interpretation) is a probability of a procedure -- if we re-do this procedure (sample data, compute the mean, and compute a 95% CI), 95% of these CIs will contain the true mean. The second (incorrect interpretation) is a probability that a parameter ($\mu$, the true mean) lies within some range. The second (incorrect) interepretation of the CI is correct only if we also assume that *any* value of the mean is equally probable (Greenland xxx), an assumption that is absurd for almost any data. 
+
+Perhaps a more useful interpretation of a confidence interval is, a confidence interval contains the range of true means that are compatible with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval (this interpretation does not imply anything about the true value) (Greenland xxx). The "compatibility" interpretation is very useful because it implies that values outside of the interval are less compatible with the data.
+
+Let's look at the confidence intervals of all three vole groups in light of the "compatibility" interpretation.
+
+```{r}
+vole_ci <- vole[, .(lifespan = mean(lifespan),
+                    lo = mean(lifespan) + sd(lifespan)/sqrt(.N)*qt(.025, (.N-1)),
+                    up = mean(lifespan) + sd(lifespan)/sqrt(.N)*qt(.975, (.N-1)),
+                    N = .N),
+                by = .(treatment)]
+ggplot(data=vole_ci, aes(x=treatment, y=lifespan)) +
+  geom_point() +
+  geom_errorbar(aes(x=treatment, ymin=lo, ymax=up), 
+                width=0.1) +
+  NULL
+
+
+```
 
