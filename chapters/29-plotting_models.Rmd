@@ -218,11 +218,13 @@ Regardless, the effects plot is the most important component as this is the illu
 
 ## Working in R
 
-A reasonable goal of any research project should be a script to generate the final plots entirely within the R environment and not rely on external drawing software to add finishing features. `ggplot2` is one of the major plotting environments in R and the one that seems to have the strongest following, especially among new R users. `ggplot2` has the ability to generate extremely personalized and finished plots. However, creating a plot with multiple layers (bars, lines, error intervals, raw data points, p-values) can often require many hours of googling.
+A reasonable goal of any research project should be a script to generate the final plots entirely within the R environment and not rely on external drawing software to add finishing features. [ggplot2](https://ggplot2.tidyverse.org) is one of the major plotting environments in R and the one that seems to have the strongest following, especially among new R users. ggplot2 has the ability to generate extremely personalized and finished plots. However, creating a plot with multiple layers (bars, lines, error intervals, raw data points, p-values, text annotations) can often require many hours of googling.
 
-`ggpubr` is an extension to `ggplot2` (it calls ggplot2 functions under the hood) and provides many canned functions for producing the kinds of ggplots that are published in biological journals. With one line of script, a researcher can generate a publishable plot that is as good or better than many published plot.
+[ggpubr](https://cran.r-project.org/web/packages/ggpubr/index.html) is an extension to ggplot2 (it calls ggplot2 functions under the hood) and provides many canned functions for producing the kinds of ggplots that are published in biological journals. With one line of script, a researcher can generate a publishable plot that is as good or better than many published plot.
 
 **Here I show how to add custom (ggplot2) features to a ggpubr plot**
+
+Throughout this book, ggpubr is used to create a basic plot and then additional features are added to the basic plot using ggplot2 functions.
 
 ### Unpooled SE bars and confidence intervals
 `ggplot2` and `ggpubr` default to unpooled error intervals (standard error bars and confidence intervals).
@@ -245,41 +247,204 @@ plot_grid(gg1, gg2, ncol=2, labels="AUTO")
 
 ### Adding bootstrap intervals
 
-A better CI than an unpooled CI, especially for non-normal data such as counts, is a bootstrap CI. ggplot2 automates this. A stripchart shows the data, which are "de-emphasized" -- in order to emphasize the mean and CI -- by using a lighter shade for the individual points. In order to not *also* de-emphasize the plotted mean, a ggplot2 line plots the mean instead of ggpubr.
+A bootstrap CI uses resamples of the data to estimate the interval and is a better choice than the default CI for data such as counts and proportions. The plot below uses ggpubr to create a stripchart of the data and the color of the data points are "de-emphasized" -- in order to emphasize the mean and CI -- by making them more transparent (using the argument `alpha`). `alpha` is added before the argument to add the mean in order to no de-emphasize the mean.
 
-```{r}
-gg <- ggstripchart(data=exp2d,
-                   x="donor", 
-                   y="count", 
-                   alpha = 0.3
+```{r plot-boot-plot, fig.cap="Sample means with bootstrapped 95% confidence intervals."}
+set.seed(1)
+gg.boot <- ggstripchart(data=exp2d,
+                   x = "donor", 
+                   y = "count", 
+                   alpha = 0.4,
+                   add = "mean"
 ) + 
   stat_summary(fun.data = "mean_cl_boot", 
                geom = "errorbar", 
                width = 0.1) +
-  stat_summary(fun.y = "mean", 
-               geom = "point", 
-               size = 2)
+  NULL
 
 
-gg
+gg.boot
 ```
 
-### Adding modeled error intervals
+### Adding modeled means and error intervals
 
-Plotting the modeled error intervals "shows the model". `emmeans` is a comprehensive and flexible package for computing modeled standard errors and confidence intervals for all of the statistical models covered in this text.
+This section is extremely important for implementing the work flow advocated in this text. The goal is to plot the modeled means with some sort of error interval, typically a confidence interval, *and* to show the data or a summary of the data in a single plot. The procedure is
+
+1. fit the model
+2. use the fit model to estimate the modeled means and confidence limits using `emmeans` from the [emmeans package](https://cran.r-project.org/web/packages/emmeans/index.html).
+3. use the `emmean` object to estimate the contrasts of interests using the `contrast` function from emmeans.
+4. Use the objects from steps 2 and 3 to plot the modeled means
+
+**Step 1: Fit the model**. A negative binomial, generalized linear model with log-link is fit to the count data.
+
+```{r plot-nb-fit}
+m1 <- glm.nb(count ~ donor, data=exp2d)
+coef(summary(m1))
+```
+
+**Step 2: Estimate the modeled means and confidence levels**. The second step is to pass the fit model object (m1) to `emmeans` to estimate the modeled means. We need to specify the means that we want to estimate. Here, we want to estimate the means of the levels of $donor$, which is passed to `emmeans` using the argument "specs". Because the linear predictor of the model is on the log scale, we use the "type" arugment to specify that we want the means to be backtransformed to the **response scale**, which is the scale of the measurement (number of cells)
+
+```{r plot-nb-emm}
+m1.emm <- emmeans(m1, specs="donor", type="response")
+m1.emm
+```
+
+**Step 3: Compute the contrasts, with p-values and confidence levels**. Contrasts among levels, or combinations of levels, are computed by passing the emmeans object (m1.emm) to the `contrast` function. Here, we set "method" to "revpairwise" in order to compute contrasts among all pairs of levels of $donor$. There are $m = 4$ levels and so $m(m-1)/2 = 6$ pairwise contrasts. "revpairwise" is used instead of "pairwise" because the former sets the direction of the contrasts that include the reference as non-reference level minus reference level. Finally, I use the "adjust" argument to specify no *p*-value adjustment for multiple tests.
+
+```{r plot-nb-pairs1}
+m1.pairs <- contrast(m1.emm, method="revpairwise", adjust="none")
+```
+
+
+
+**Step 4: Plot the modeled means and 95% error intervals**.
+
+```{r plot-nb-plot, warning=FALSE, message=FALSE, fig.cap="Modeled means and 95% confidence interval computed from a negative binomial generalized linear model."}
+set.seed(1)
+gg.nb <- ggstripchart(data=exp2d,
+                 x="donor", 
+                 y="count",
+                 alpha = 0.4) +
+  ylab("Neutrophil count") +
+  geom_errorbar(data=summary(m1.emm), 
+                aes(y=response,
+                    ymin=asymp.LCL, 
+                    ymax=asymp.UCL), 
+                width=0.1) +
+  geom_point(data=summary(m1.emm), 
+                aes(y=response), 
+                size=2) +
+  NULL
+
+gg.nb
+```
+
+Some notes on the plot code
+
+1. A column name passed to a `ggpubr` function must be in quotes but a column name passed to a `ggplot2` function cannot be in quotes
+2. **This is very important**. The data passed to ggplot2 must be a data.frame. In order for the ggplot2 functions to use the m1.emm object, the object has to be passed as `summary(m1.emm)`.
+3. **This is very important**. The name of the y-axis variable in the `ggstripchart` function is "count", because the function is using a column from the data.table exp2d. The name of the y-axis variable in the `geom_errorbar` and `geom_point` functions is "response" which is the name given to the expected value of the response (which is $count$) in the m1.emm object. This column takes different names depending on the fit object sent to the `emmeans` function. Importantly, because the y-axis in the `geom_errorbar` and `geom_point` functions has a different name then the name of the y-axis variable used to create the basic plot, the name of the y-axis column has to be specified.
+
+### Adding p-values
+
+In this section, I show how to add *p*-values to a ggpubr plot using `stat_compare_means`. Because this function has only a limited set of models that can be used to compute the *p*-values, I don't find it very useful and instead recommend adding custom *p*-values from the fit model (or from a permutation test) using the method in the next section.
+
+For this example, a "t.test" is used to compute the p-values. The mean and error are the sample-based estimates because these, and not the modeled estimates, are consistent with the t-test *p*-values.
+
+```{r plot-p-values, fig.cap="t-test p-values for the plot of sample means and CIs. The p-values were computed using ggpubr's function stat_compare_means."}
+compare_list <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
+
+gg.sample <- ggstripchart(data=exp2d,
+          x="donor", 
+          y="count",
+          alpha = 0.4,
+          add=c("mean_ci")) +
+  stat_compare_means(method = "t.test", comparisons=compare_list) +
+  ylab("Neutrophil count") +
+  NULL
+
+gg.sample
+```
+
+Notes on the code
+
+1. The pairs to compare with a *p*-value are specified with `comparison =`. The order of the pairs in the list function determine the order plotted from bottom (lowest on the y-axis) to top (highest on the y-axis).
+
+**It is important to know what exactly is being computed when analyzing data and reporting results** and "t test" is not sufficient to know this. The t-test could be the classic t-test or a Welch test. In this example, there are multiple comparisons and the standard error of the test statistic could be the pooled estimate from the linear model, or a pairwise estimate computed separately for each pair. And, given the multiple comparisons, the p-values could be adjusted or not. These kinds of questions can be checked with a function's help page. `?stat_compare_means` doesn't answer these questions but suggests `compare_means`, which also doesn't answer these questions. The script below has checks to see what p-values the function is returning. Run it in your session by changing the value of check_it to TRUE.
 
 ```{r}
-m1 <- glm.nb(count ~ donor, data=exp2d)
-emm.m1 <- emmeans(m1, specs="donor", type="response")
-effects.m1 <- summary(contrast(emm.m1, method="revpairwise"), infer=c(TRUE, TRUE))
 
-# make emm.m1 a data.table
-emm.m1 <- data.table(summary(emm.m1))
-# the y column needs to have the same label as the plotted data
-setnames(emm.m1, old="response", new="count")
+# checks on the p-value
+# t-tests using SE pooled over all four groups
+check_it <- FALSE
+if(check_it==TRUE){
+  m1.lm <- lm(count~donor, data=exp2d)
+  m1.lm.emm <- emmeans(m1.lm, specs="donor")
+  contrast(m1.lm.emm, method="trt.vs.ctrl", ref=4, adjust="none") # pooled SD
+  
+  pairwise.t.test(exp2d$count, exp2d$donor, p.adjust.method="none", pool.sd=FALSE) # non-pooled SD
+  # compare
+  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"]) # matches, this is Welch t
+  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"], var.equal=TRUE)
+}
+
 ```
 
+So, the *p*-values returned by `stat_compare_means(method="t.test")` are computed from independent (not pooled over the four groups) Welch t-tests.
+
+### Adding custom p-values
+
+If we want to add permutation *p*-values to the plot with bootstrapped CIs (\@ref(fig:plot-boot-plot) or add *p*-values from the generalized linear model to the plot of modeled means and CIs (\@ref(fig:plot-nb-plot), we need to use the function `stat_pvalue_manual` from the ggpubr package. In order to implement this, we need to add a step to the work flow path above
+
+**Step 5: Add group columns and a column of formatted p-values to the contrast table**
+
+The `stat_pvalue_manual` function needs to read a data frame with a columns labeled "group1" and "group2" that contain the pairs of levels to compare with a plotted p-value and a column "p" containing the nicely formatted p-values to add to the plot. There is no R function to create this table, but here is a script to add these to the contrast object returned by the `contrast` function of emmeans. In this example, I use m1.pairs from above and add the p-values to the plot of modeled means and CIs (\@ref(fig:plot-nb-plot).
+
+First, we need these functions. Run these two lines to define the functions `odd` and `even`
+
+```{r plots-functions}
+odd <- function(x) x%%2 != 0
+even <- function(x) x%%2 == 0
+```
+
+Second, we need to use these functions to add the columns. There are several R packages that provide functions to format *p*-values. Here, I use the function `pvalString` from the [lazyWeave](https://www.rdocumentation.org/packages/lazyWeave/versions/3.0.2/topics/pvalString) package. This script also uses `str_split` from the package [stringr](https://cran.r-project.org/web/packages/stringr/index.html).
+
+```{r}
+# convert m1.pairs to a data.table and assign to a new object, in order to
+# keep a clean copy of m1.pairs
+m1.pvalues <- data.table(summary(m1.pairs))
+
+
+# if the linear model is from a glm with log link, use this
+groups <- unlist(str_split(m1.pvalues$contrast, " / "))
+# add the group1 and group 2 columns
+m1.pvalues[, group1 := groups[odd(1:length(groups))]]
+m1.pvalues[, group2 := groups[even(1:length(groups))]]
+
+# create a column of nicely formatted p-values for display.
+m1.pvalues[, p := pvalString(p.value)]
+```
+
+Some notes on the script to build the p-value table, if you don't want your code to fail.
+
+1. The script to extract the pair of group labels `str_split(m1.pvalues$contrast, " / "))` has to be modified so that the characters within the quotes matches the characters separating the groups in the "contrast" column of the contrast table (here, m1.pairs). This will typically be either a space-minus-space or a space-slash-space. Look at the table to check.
+2. I typically want the confidence limits of the contrasts and get these *when I compute the contrast table* using the script
+
+```{r}
+m1.pairs.2 <- summary(contrast(m1.emm, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE))
+```
+
+Here, m1.pairs.2 has already been converted to a data.frame using `summary` and so the script `data.table(summary(m1.pairs.2))` will fail. If this is the case, simply use `data.table(m1.pairs.2)`.
+
+Now we can add the p-value to the ggplot object gg.nb created above. This is the beauty of a ggplot object (including those created by ggpubr), we can just keep adding stuff to it.
+
+```{r plot-manual-p-values, fig.cap="xxx"}
+
+gg.nb <- gg.nb +
+    stat_pvalue_manual(m1.pvalues[4:6,], # only show sox effects
+                           label = "p", 
+                           y.position=c(31, 28, 25)) +
+  NULL
+
+gg.nb
+```
+
+Notes on adding manual *p*-values to the plot:
+
+1. The pairs of groups to compare are specified by indexing the rows of m1.pvalues. Above, I limit the comparisons to those in rows 4-6. If I wanted to specify non-continous rows, I could use something like `m1.pvalues[c(1,3,5),]`, for example.
+2. The most manual part of adding manual p-values is setting the position for the brackets using the "position" argument. The values in this argument are the y-coordinates of the brackets. This may take some trial-and-error to position the brackets satisfactorily.
+
 #### Modeled error intervals of the effect
+
+For the plot of effects, but not that of the means, we need the confidence intervals of the contrasts in addition to the *p*-values. Here I just replace the original m1.pairs object with the new one.
+
+```{r plot-nb-pairs2}
+m1.pairs <- summary(m1.pairs, infer=c(TRUE, TRUE))
+m1.pairs
+```
+
+We should *always* look at these contrasts and confidence limits but, step 3 (the computation of the contrasts) is only necessary for the plot of the means if one wants to add *p*-values of the contrasts.
+
 ```{r, message=FALSE}
 (gg1 <- ggdotplot(x="contrast", 
                  y="ratio", 
@@ -299,25 +464,6 @@ setnames(emm.m1, old="response", new="count")
 
 ```
 
-#### Modeled error intervals of the mean
-```{r}
-(gg2 <- ggbarplot(x="donor", 
-          y="count", 
-          data=exp2d,
-          add=c("mean", "jitter"),
-          color = "darkgray",
-          fill = "steelblue",
-          size=0.5) +
-  ylab("Neutrophil count") +
-  
-  # emm.m1 contains the SE and 95% CIs. Either could be plotted. Here I plot the CI
-  geom_errorbar(data=emm.m1, aes(ymin=asymp.LCL, ymax=asymp.UCL), width=0.1) +
-  NULL)
-
-```
-
-Note that the CIs are asymmetric about the mean (and these modeled CIs will never include negative values for count data).
-
 #### Combining effects and response plots
 
 The ggplots are combined using the package `cowplot`
@@ -328,145 +474,6 @@ plot_grid(gg_top, gg2, nrow=2, align = "v", rel_heights = c(1, 1))
 
 ```
 
-
-### Adding p-values
-
-p-values are added to the base ggpubr plot using `stat_compare_means`. The pairs to compare are specified with `comparison =`. The model to compute the p-values is "t.test". **It is important to know what exactly is being computed when analyzing data and reporting results** and "t test" is not sufficient to know this. The t-test could be the classic t-test or a Welch test (which adjusts the standard error to account for heterogenity in variance between groups). In this example, there are multiple tests and the standard error could be the pooled estimate estimated from the linear model, or a pairwise estimate. And, given the multiple comparisons, the p-values could be adjusted or not. These kinds of questions can be checked with a function's help page. `?stat_compare_means` doesn't answer these questions but suggests `compare_means`, which also doesn't answer these questions. The script below has checks to see what p-values the function is returning.
-
-```{r plot-p-values}
-pairs_i <- list(c("sox10", "iap_mo"), c("sox10", "gf"), c("sox10", "wt"))
-ggbarplot(x="donor", 
-          y="count", 
-          data=exp2d,
-          add=c("mean_se", "jitter"),
-          color = "black",
-          fill = "steelblue",
-          size=0.5) +
-  stat_compare_means(method = "t.test", comparisons=pairs_i) +
-  ylab("Neutrophil count") +
-  NULL
-
-# checks on the p-value
-# t-tests using SE pooled over all four groups
-check_it <- FALSE
-if(check_it==TRUE){
-  m1 <- lm(count~donor, data=exp2d)
-  m1.emm <- emmeans(m1, specs="donor")
-  contrast(m1.emm, method="trt.vs.ctrl", ref=3, adjust="none") # not pooled SE
-  
-  pairwise.t.test(exp2d$count, exp2d$donor, p.adjust.method="none", pool.sd=FALSE) # this matches
-  # compare
-  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"]) # matches, this is Welch t
-  t.test(count~donor, data=exp2d[donor=="wt" | donor=="sox10"], var.equal=TRUE)
-}
-
-```
-
-So the p-values returned by `stat_compare_means(method="t.test")` are computed from independent Welch t-tests.
-
-### Adding custom p-values
-
-What if we want the *p*-values in the plot above to come from a linear model, or a generalized linear model and not from the available tests in the ggpubr package? The function `stat_pvalue_manual` in ggpubr allows this.
-
-Throughout this text, *p*-values are computed using `emmeans::contrast`. To use these *p*-values in a plot, the steps are
-
-1. Fit the model
-2. Estimate the means and contrasts using the emmeans package
-3. Add a column of formatted p-values to the contrast table
-4. Plot the modeled means and error bars
-5. Plot the formatted p-values using `stat_pvalue_manual`
-
-Step 3 depends on the model fit in step 1. Here I fit count data using both a linear model, a log-transform, and a generalized linear model to show the how to build a p-value table.
-
-```{r plots-functions}
-odd <- function(x) x%%2 != 0
-even <- function(x) x%%2 == 0
-```
-
-#### Formatted p-values using a linear model
-```{r}
-m1 <- lm(count ~ donor, data=exp2d)
-# estimate the modeled means and CIs
-m1.emm <- emmeans(m1, specs="donor")
-# estimate the p-values of the contrasts
-m1.pairs <- contrast(m1.emm, method="revpairwise") %>%
-  summary() %>%
-  data.table()
-# extract the two groups being compared in each row
-groups <- unlist(str_split(m1.pairs$contrast, " - "))
-m1.pairs[, group1 := groups[odd(1:length(groups))]]
-m1.pairs[, group2 := groups[even(1:length(groups))]]
-# create a column of p-values for display.
-m1.pairs[, p := pvalString(p.value)]
-```
-
-#### Formatted p-values using a model with a log transformed response
-If a linear model is fit to data using a transformed response (in this case, the log of the count plus one), the group means are estimated on the transformed scale so need to be backtransformed to the "response" scale using the argument `type = "response"`. With a log transformation, the contrast is now a ratio instead of a difference, and so the script to extract the pair of group names has to be modified from that above.
-
-```{r}
-m2 <- lm(log(count+1) ~ donor, data=exp2d)
-# estimate the modeled means and CIs on the response scale
-m2.emm <- emmeans(m2, specs="donor", type="response")
-# estimate the p-values of the contrasts
-m2.pairs <- contrast(m2.emm, method="revpairwise") %>%
-  summary() %>%
-  data.table()
-# the contrast column separates with a hypehn
-groups <- unlist(str_split(m2.pairs$contrast, " / "))
-m2.pairs[, group1 := groups[odd(1:length(groups))]]
-m2.pairs[, group2 := groups[even(1:length(groups))]]
-# create a column of p-values for display.
-m2.pairs[, p := pvalString(p.value)]
-```
-
-#### Formatted p-values using a generalized linear model with a log link function
-For a generalized linear model that uses a log link, predicted means are estimated on the log scale and need to be backtransformed to the "response" scale using the argument `type = "response"`. The contrast is now a ratio instead of a difference, and the script to extract the pair of group labels has to be modified from that used in the script for the linear model fit.
-
-```{r}
-m3 <- glm.nb(count ~ donor, data=exp2d)
-m3.emm <- emmeans(m3, specs="donor", type="response")
-# estimate the p-values of the contrasts
-m3.pairs <- contrast(m3.emm, method="revpairwise") %>%
-  summary() %>%
-  data.table()
-# the contrast column separates with a hypehn
-groups <- unlist(str_split(m3.pairs$contrast, " / "))
-m3.pairs[, group1 := groups[odd(1:length(groups))]]
-m3.pairs[, group2 := groups[even(1:length(groups))]]
-# create a column of p-values for display.
-m3.pairs[, p := pvalString(p.value)]
-```
-
-#### Using the manual p-values in a plot
-
-Here I use the tables from the generalized linear model (m3). The *p*-values are added with `stat_pvalue_manual`. Here, I limit the comparisons to those in rows 4-6. The most manual part of adding manual p-values is setting the position for the brackets using the "position" argument. The values in this argument are the y-coordinates of the brackets. This may take some trial-and-error to position the brackets satisfactorily.
-
-```{r plots-custom-p}
-# convert the emm table and change colname "response" to "count"
-m3.emm <- data.table(summary(m3.emm))
-setnames(m3.emm, old="response", new="count")
-
-gg <- ggbarplot(x="donor", 
-          y="count", 
-          data=m3.emm, 
-          fill = "steelblue") +
-  ylab("Count") +
-  
-  geom_errorbar(aes(x=donor, ymin=asymp.LCL, ymax=asymp.UCL),
-                width=0.15) +
-  
-  geom_jitter(data=exp2d, aes(x=donor, y=count),
-             color="black",
-             width=0.1, height=0) +
-  
-  stat_pvalue_manual(m3.pairs[4:6,], # only show sox effects
-                           label = "p", 
-                           y.position=c(31, 28, 25)) +
-  NULL
-
-gg
-
-```
 
 ### Plotting two factors
 
