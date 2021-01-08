@@ -1,0 +1,10 @@
+ASK1 inhibits browning of white adipose tissue in obesity
+highly cited
+
+Fig 1. t tests
+Fig 1h 2 x 2 analyzed as t-test. Could be a good difference in p isn't different
+
+Fig 2 could be a good fig for
+1. initial chapter on a "complete" analysis (at least for one fig) with different kinds of figures and tests
+2. p-value chapter comparing multiple comparison
+3. Fig 2c is excellent example of interaction p > 0.05 when one of the simple effects is p <0.0001 and other is p = 0.8! 

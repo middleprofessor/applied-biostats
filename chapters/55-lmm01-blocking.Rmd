@@ -1,4 +1,5 @@
-# Linear mixed models
+# Models with random effects -- Blocking and pseudoreplication
+
 ## Random effects
 
 ```{r lmm-setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -24,7 +25,13 @@ data_path <- "data"
 
 ```{r fake-data, echo=FALSE}
 
-all_treatments_per_batch <- function(sigma=1, sigma_b0=1, sigma_b1=1, beta_0=10, beta_1=1, n_block=6, n_subsamp=10, Y_label="Y", trt_levels=c("Cn","Tr"), block_label="block", confound=FALSE){
+all_treatments_per_batch <- function(sigma=1,
+                                     sigma_b0=1,
+                                     sigma_b1=1,
+                                     beta_0=10,
+                                     beta_1=1,
+                                     n_block=6,
+                                     n_subsamp=10, Y_label="Y", trt_levels=c("Cn","Tr"), block_label="block", confound=FALSE){
   # sigma - conditional error sd
   # sigma_b0 - sd of random intercepts
   # sigma_b1 - sd of random slope
@@ -354,14 +361,16 @@ plot_grid(gg1, gg2, rel_widths=c(1,1.5), labels="AUTO")
 
 This consequence of pseudoreplication when batch and treatment are confounded is seen in the coefficient table of four models fit to the fake data in Figure \@ref(fig:lmm1-pseudoreplication-fig).
 
-**A linear model fit to all data (pseudoreplication).**
+**A linear model fit to all data (pseudoreplication)**
+
 ```{r, echo=FALSE}
 m1 <- lm(Y~Treatment, data=fd)
 knitr::kable(tidy(m1, conf.int=TRUE)[2,], 
              digits = c(0, 5, 5, 2, 3, 3, 3))
 ```
 
-**A linear model fit the batch means.**
+**A linear model fit the batch means**
+
 ```{r, echo=FALSE}
 m2 <- lm(Y~Treatment, data=fd[, .(Y=mean(Y)), by=.(block, Treatment)])
 knitr::kable(tidy(m2, conf.int=TRUE)[2,], 
@@ -377,11 +386,26 @@ knitr::kable(tidy(m3, conf.int=TRUE)[2, 3:10],
 
 ```
 
-**A linear mixed model with random intercept.**
+**A linear mixed model with random intercept**
+
 ```{r, echo=FALSE}
 m4 <- lmer(Y~Treatment + (1|block), data=fd)
 knitr::kable(tidy(m4, conf.int=TRUE)[2, 3:10], 
              digits = c(0, 5, 5, 2, 2, 3, 3, 3))
+# emmeans(m4, specs = "Treatment",
+#            lmer.df = "kenward-roger") %>%
+#   contrast(method = "revpairwise") %>%
+#   summary(infer = TRUE)
+# 
+# emmeans(m4, specs = "Treatment",
+#            lmer.df = "satterthwaite") %>%
+#   contrast(method = "revpairwise") %>%
+#   summary(infer = TRUE)
+# 
+# emmeans(m4, specs = "Treatment",
+#            lmer.df = "asymptotic") %>%
+#   contrast(method = "revpairwise") %>%
+#   summary(infer = TRUE)
 
 ```
 

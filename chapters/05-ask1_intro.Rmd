@@ -1,0 +1,20 @@
+# Background physiology to the experiments in Figure 2 of "ASK1 inhibits browning of white adipose tissue in obesity" {-}
+
+A little background on the subject of the article: white adipose tissue (WAT) is composed of adipose (fat) cells that function as energy storage cells. The energy is in the form of the fatty acids in the triacylglycerols, which form large lipid drops in the cell. The stored fatty acids are released from the WAT when other organs need energy. Mammalian brown adipose tissue (BAT) is composed of adipose cells that burn the stored fat to generate heat. This is enabled by the expression of the protein *uncoupling receptor 1* (UCP1) in the mitochondria. UCP1 uncouples the proton gradient across the inner mitochondrial membrane from ATP synthesis.
+
+In response to adverse health consequences of obesity, including metabolic syndrome, researchers are investigating various ways to increase BAT, or stimulate BAT activity, or transform WAT cells into more BAT-like cells, by turning up expression of UCP1. The regulation of UPC1 in WAT is a potential drug target for obesity.
+
+The researchers of the ASK1 study investigated the effects of an intracellular signaling protein (ASK1) on the browning of white adipose tissue. Previous research had suggested that 1) inflammation stimulates ASK1 activity and 2) increased ASK1 acitivty inhibits UPC1 expression (Figure \@ref(fig:ask1-mechanism). The experiments in Figure 2 of the ASK1 study follow this up and explore the question, if ASK1 is knocked out in the WAT cells, will this reverse the adverse effects of a high-fat diet, including weight gain, glucose intolerance, and liver triacylglycerol levels?
+
+```{r ask1-mechanism, echo=FALSE, fig.cap="Inflammation to obesity stimulates ASK1 activity. ASK1 activity inhibits UCP1 expression."}
+image_path <- here::here("images", "ASK1_UCP1.png")
+knitr::include_graphics(image_path)
+```
+
+For the experiments in Figure 2, the researchers created mice in which the ASK1 gene was inhibited from being expressed (or "knocked out") in the white adipose tissue cells. The $ask1$ treatment has two levels: "ASK1Δadipo", which are the adipocyte-specific ASK1 knockout (KO) mice, and "ASK1F/F", which are the controls. For some of the experiments, the researchers split the mice in each $ask1$ treatment level and assigned these to either a Chow or a High Fat Diet (HFD). This experimental design is two-crossed factors, each with two levels, which I call a $2 \times 2$ factorial design in this text.
+
+* Some of the plots are coded directly in this document. Others use functions from the chapter "Plotting functions". But, to use these in an R Markdown document, these functions have to be saved in a "R Script" file. This script file then needs to be read at the start of the R Markdown document. I named the script file "ggplotsci.R" and placed it in a folder called "R" at the level of the project (directly within the project folder).
+
+* This example was written with the Bookdown style sheet (because its part of this book), which doesn't have one nice features of creating R Markdown documents for reports and manuscripts -- code folding. In an R Markdown document with code folding, a user can toggle between showing and hiding code. The html output with code folding is here.
+
+ 

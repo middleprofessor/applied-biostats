@@ -1,0 +1,32 @@
+1. example analysis
+- fit model
+- model check
+- coefficients
+- means table
+- contrasts
+- plot
+- t test
+- ANOVA
+2. uncertainty and standard error
+- SD
+- SE
+- CI
+ - parametric
+ - bootstrap
+- p values
+ - parametric
+ - permutation
+3. linear models
+- continuous X
+- categorical X
+4. how a model is fit - least squares
+5. model checking
+6. 
+
+- Chapter on simulations addressing why
+	- individual t-tests vs. t-tests that use model sigma vs. partial pooling
+	- flat anova vs. two way anova vs. 2-way factorial
+- Chapter on simulations on best practices and common practices
+	- normalization
+	- difference from baseline
+	

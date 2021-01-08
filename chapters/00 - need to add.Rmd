@@ -1,0 +1,41 @@
+---
+title: "to add"
+author: "Jeffrey A. Walker"
+date: "11/28/2020"
+output: html_document
+---
+
+# Import Chapter
+- Melting lists of columns. Data Fig 5e of Peroxisomal targeting of a protein phosphatase type 2C via mitochondrial transit.
+
+# Experimental design chapter
+ - see Broman pdf in zotero > classes > bio413 > experimental design
+ 
+# Categorical chapter
+ - simulation of multiple t-tests v. paired comparisons.
+
+
+# Model check chapter
+## list of most important things that can go wrong
+-- lack of independence (pseudoreplication)
+-- heterogenity with unequal n
+-- analysis of percent if denominator differs among treatment
+## lack of straight line due to not normal OR model misspecification,
+-- especially clustered data. But also factorial with interaction but only looking at one factor.
+## outliers
+- The heterogeneity is not do to outliers but to some systematic process. Outliers increase variance within a group *but* an outlier reflects data generating process not occurring in the other points.
+
+# Factorial chapter
+- Plot the model. "if interested in synergy plot the coefficients! this is what we want"
+- When would we want to plot all simple effects?
+- if we think that both levels of a factor should be same, then we should plot simple effects or additive effects
+- 2 genotype (wt, ko) by 2 treatment (cn, tr). expect different response only in ko-tr. compare wt/tr to wt/cn as one control. Compare ko/cn to wt/cn as 2nd control. compare ko/tr to wt/tr & ko/cn as test of tr. Necessary to also look at interaction?
+Simple effects are
+(wt/tr - wt/cn) - one comparison for control
+(ko/cn - wt/cn) - 2nd comparison for control
+(ko/tr - wt/tr) - test of tr
+(ko/tr - ko/cn) - test of tr
+interaction.
+
+# glm chapter
+- use gls to model heterogeneity and/or robust standard error instead of glm. This might work especially well with continous data (so no zero count problems)

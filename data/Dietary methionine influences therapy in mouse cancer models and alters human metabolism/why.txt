@@ -1,0 +1,7 @@
+why?
+1F Longitudinal data. Good use for regression to compare tumor vol vs. time
+CRC119 - very linear
+CRC240 more quadratic
+2B similar to 1F
+
+

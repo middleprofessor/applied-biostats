@@ -45,7 +45,7 @@ As $X$ variables are added to a model, the $R^2$ necessarily increases. Part of 
 To demonstrate overfitting, I fit completely random $X$ variables to the lifespans for the control voles. 
 
 ```{r sm-overfit, echo=FALSE}
-folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+folder <- "Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- paste(data_path, folder, filename, sep="/")
 vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))

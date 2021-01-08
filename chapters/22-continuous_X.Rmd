@@ -1,171 +1,1011 @@
-# A linear model with a single, continuous *X*
+# Linear models with a single, continuous *X*
 
-```{r setup-single-continuous-x, echo=FALSE}
-library(ggplot2)
-library(data.table)
-library(arm)
+```{r continuous-x-setup, echo=FALSE, message=FALSE}
+# import and wrangling packages
+library(here) # here() creates the absolute path to the file
+library(janitor) # clean_names to clean col labels of imported data
+library(readxl) # import excel
+library(data.table) # make data.frames data.tables
 
-data_path <- "../data" # notebook
-data_path <- "data" # bookdown
+# analysis packages
+library(emmeans) # get estimated marginal means and CIs, used for plot
+library(car) # qqplot
+library(Metrics) # rmse
 
+# plotting packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(ggpubfigs) # color palettes
+# execute this command only the first time you use ggpubfigs
+# devtools::install_github("JLSteenwyk/ggpubfigs")
+library(cowplot) # combine plots
+library(lazyWeave) # pretty pvalues
+
+here <- here::here # make sure ``here` uses `here::here`
+
+data_folder <- "data"
+
+# Okabe & Ito palette
+ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
+
+# unikn::seecol(ito_seven)
+# unikn::seecol(pal_okabe_ito)
 ```
+
+1. observation warming on phenology
+2. experiment warming on phenology
+3. using regression to compare longitudinal (dietary methionine)
 
 ## A linear model with a single, continuous *X* is classical "regression"
+### Analysis of "green-down" data
+To introduce some principles of modeling with a single continuous $X$ variable, I'll use a dataset from 
 
-To introduce modeling with a single continuous $X$ variable, I'll use data from 
+[Richardson, A.D., Hufkens, K., Milliman, T. et al. Ecosystem warming extends vegetation activity but heightens vulnerability to cold temperatures. Nature 560, 368–371 (2018).](https://doi.org/10.1038/s41586-018-0399-1){target="_blank"}
 
-1. Source: Dryad Digital Repository. https://doi.org/10.5061/dryad.b3h4q
-2. File: "FCM data dryad.csv"
+[Source data](https://www.nature.com/articles/s41586-018-0399-1#Sec15){target="_blank"}
 
-The data are from @Dantzer_xxx, who showed that North American red squirrel (*Tamiasciurus hudsonicus*) mothers from Yukon, Alaska produce faster growing pups in years with increased squirrel density. Remarkably, they even showed that perceived (but not actual) density results in faster growing pups. To begin to investigate how pregnant mothers control the future growth rate of pups, the researchers measured the relationship between local squirrel density and the amount of fecal cortisol metabolites from pregnant mothers. Cortisol is a hormone that is secreted as part of stress response. The researchers were interested in cortisol because it had previously been shownt that, in mammals, blood cortisol levels in pregnant mothers have numerous effects on offspring long past birth. If increased squirrel density causes increased blood cortisol levels then we would expect to find a positive relationship between $Density$ and  
+The data are from a [long-term experiment on the effects of warming and CO2 on a high-carbon northern temperate peatland](https://mnspruce.ornl.gov){target="_blank"} and is the focal dataset of the study. The experiment involves 10 large, temperature and CO2 controlled enclosures. CO2 is set to 400 ppm in five enclosures and 900 ppm in five enclosures. Temperature of the five enclosures within each CO2 level is set to 0, 2.25, 4.5, 6.75, or 9 °C above ambient temperature. The multiple temperature levels is a **regression design**, which allows a researcher to measure non-linear effects. Read more about the experimental design and the [beautiful implementation](https://mnspruce.ornl.gov/design){target="_blank"}.
 
-```{r squirrel, echo=FALSE, warning=FALSE, fig.cap="A scatterplot of Fecal cortisol matabolites and squirrel density."}
-# When using this data, please cite the original publication:
-# 
-# Dantzer B, Newman AEM, Boonstra R, Palme R, Boutin S, Humphries MM, McAdam AG (2013) Density triggers maternal hormones that increase adaptive offspring growth in a wild mammal. Science, online in advance of print. https://doi.org/10.1126/science.1235765
-# 
-# Additionally, please cite the Dryad data package:
-# 
-# Dantzer B, Newman AEM, Boonstra R, Palme R, Boutin S, Humphries MM, McAdam AG (2013) Data from: Density triggers maternal hormones that increase adaptive offspring growth in a wild mammal. Dryad Digital Repository. https://doi.org/10.5061/dryad.b3h4q
+The question pursued is in this study is, what is the causal effect of warming on the timing (or phenology) of the transition into photosynthetic activity ("green-up") in the spring and of the transition out of photosynthetic activity ("green-down") in the fall? The researchers measured these transition dates, or Day of Year (DOY), using foliage color. Here, we focus on the transition out of photosynthesis or "green-down" DOY.
 
-# data for Fig 3A/Table S4
-folder <- "Data from Density triggers maternal hormones that increase adaptive offspring growth in a wild mammal"
-filename <- "FCM data dryad.csv"
-file_path <- paste(data_path, folder, filename, sep="/")
-fcm <- fread(file_path, stringsAsFactors = TRUE)
-# change names of variables
-fcm[, Density:=Raw.Squirrel.Density]
-fcm[, FCM:=FCM.ng.g.dry]
-gg <- ggplot(data=fcm, aes(x=Density, y=FCM)) +
-  geom_point() +
-  geom_smooth(method='lm') +
-  theme_minimal() +
+**Import the data**
+
+```{r continuous-x-import, echo=FALSE}
+data_from <- "Ecosystem warming extends vegetation activity but heightens vulnerability to cold temperatures"
+file_name <- "41586_2018_399_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+fig2 <- read_excel(file_path) %>% # import
+  clean_names() %>% # clean the column names
+  data.table() # convert to data.table
+# View(fig2)
+
+fig2c <- fig2[panel == "2c",]
+# View(fig2c)
+```
+
+1. **Examine the data**
+
+```{r continuous-x-vet, message=FALSE}
+gg1 <- qplot(x = temperature,
+      y = transition_date,
+      data = fig2c) +
+  geom_smooth(method = "lm")
+gg2 <- qplot(x = temperature,
+      y = transition_date,
+      data = fig2c) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2))
+gg3 <- qplot(x = temperature,
+      y = transition_date,
+      data = fig2c) +
+  geom_smooth()
+plot_grid(gg1, gg2, gg3, ncol=3)
+```
+
+No plot shows any obvious outlier that might be due to measurement blunders or curation error. The linear regression in the left-most plot clearly shows that a linear response is sufficient to capture the effect of temperature on day of green-down.
+
+2. **choose a model**. Because the $X$ variable ($temperature$) was experimentally set to five levels, the data could reasonably be modeled using either a linear model with a categorical $X$ or a linear model with a continuous $X$. The advantage of modeling $temperature$ as a continuous variable is that there is only one effect, the slope of the regression line. If modeled as a categorical factor with five levels, there are, at a minimum, four interesting effects (the difference in means between each non-reference level and reference (temperature = 0) level). Also, for inference, modeling $temperature$ as a continuous variable increases power for hypothesis tests.
+
+3. **fit the model**
+
+```{r continuous-x-fit}
+# Step 1: fit the model
+m1 <- lm(transition_date ~ temperature, data = fig2c)
+```
+
+4. **check the model**
+
+```{r continuous-x-check-qq}
+# check normality assumption
+set.seed(1)
+qqPlot(m1, id=FALSE)
+```
+
+The Q-Q plot indicates the distribution of residuals is well within that expected for a normal sample and there is no cause for concern with inference.
+
+```{r continuous-x-check-spread}
+# check homogeneity assumption
+spreadLevelPlot(m1, id=FALSE)
+```
+
+The spread-location plot shows no conspicuous trend in how the spread changes with the conditonal mean. There is no cause for concern with inference.
+
+5. **inference from the model**
+
+```{r continuous-x-inference}
+m1_coeff <- summary(m1) %>%
+  coef()
+m1_confint <- confint(m1)
+m1_coeff <- cbind(m1_coeff, m1_confint)
+m1_coeff
+```
+The effect of added temperature on the day of green-down is `r round(m1_coeff["temperature", "Estimate"],2)` d per 1 °C (95% CI: `r round(m1_coeff["temperature", "2.5 %"],1)`, `r round(m1_coeff["temperature", "97.5 %"],1)`; p `r pvalString(m1_coeff["temperature", "Pr(>|t|)"])`).
+
+6. **plot the model**
+
+```{r continuous-x-plot-response, echo=FALSE}
+
+m1_b <- coef(m1)
+m1_ci <- confint(m1)
+m1_b0_text <- paste0("Intercept: ",
+                  round(m1_b[1],1),
+                  " (",
+                  round(m1_ci[1,1],1),
+                  ", ",
+                  round(m1_ci[1,2],1),
+                  ") d")
+m1_b1_text <- paste0("Slope: ",
+                  round(m1_b[2],2),
+                  " (",
+                  round(m1_ci[2,1],2),
+                  ", ",
+                  round(m1_ci[2,2],2),
+                  ") d per 1 °C")
+
+# regression line
+m1_x <- min(fig2c[, temperature])
+m1_xend <- max(fig2c[, temperature])
+m1_y <- m1_b[1] + m1_b[2]*m1_x
+m1_yend <- m1_b[1] + m1_b[2]*m1_xend
+
+fig2c_gg_response <- ggplot(data = fig2c,
+             aes(x = temperature,
+                y = transition_date)) +
+  
+  # regression line first, to not block point
+  geom_segment(x = m1_x,
+               y = m1_y,
+               xend = m1_xend,
+               yend = m1_yend) +
+  geom_point(size = 3,
+             color = pal_okabe_ito[1]) +
+
+  scale_x_continuous(breaks = c(0, 2.25, 4.5, 6.75, 9)) +
+  xlab("Plot temperature (ΔT, °C)") +
+  ylab("Autumn green-down (DOY)") +
+  theme_pubr() +
+  NULL
+# fig2c_gg_response
+
+```
+
+```{r  continuous-x-plot-effect, echo=FALSE}
+m1_coeff_dt <- data.table(term = row.names(m1_coeff),
+                          data.table(m1_coeff))[2,] %>%
+  clean_names()
+m1_coeff_dt[ , p_pretty := pvalString(pr_t)]
+
+min_bound <- min(m1_coeff_dt[, x2_5_percent])
+max_bound <- min(m1_coeff_dt[, x97_5_percent])
+
+y_lo <- min(min_bound+min_bound*0.2,
+            -max_bound)
+y_hi <- max(max_bound + max_bound*0.2,
+            -min_bound)
+y_lims <- c(y_lo, y_hi)
+
+fig2c_gg_effect <- ggplot(data=m1_coeff_dt, 
+                          aes(x = term,
+                              y = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(ymin=x2_5_percent, 
+                    ymax=x97_5_percent),
+                width=0, 
+                color="black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # zero effect
+  geom_hline(yintercept=0, linetype = 2) +
+  
+  # p-value
+  annotate(geom = "text",
+           label = m1_coeff_dt$p_pretty,
+           x = 1,
+           y = 7.5) +
+  
+  # aesthetics
+  scale_y_continuous(position="right") +
+  scale_x_discrete(labels = "Temperature\neffect") +
+  ylab("Effects (day/°C)") +
+  coord_flip(ylim = y_lims) + 
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  NULL
+
+#fig2c_gg_effect
+```
+
+```{r continuous-x-plot, echo=FALSE, warning=FALSE, fig.cap="Modification of the published Figure 2c showing the experimental effect of warming on the date of autumn green-down (the transition to fall foliage color) in a mixed shrub community. The bottom panel is a scatterplot. The regression line shows the expected value of Y (transition day of year) given a value of X (added temperature). The slope of the regression line is the estimate of the effect. The estimate and 95% confidence interval of the estimate are given in the top panel."}
+fig3d_fig <- plot_grid(fig2c_gg_effect,
+                       fig2c_gg_response,
+                       nrow=2,
+                       align = "v",
+                       axis = "lr",
+                       rel_heights = c(0.4,1))
+fig3d_fig
+```
+
+```{r continuous-x-save, echo=FALSE, warning=FALSE, message=FALSE}
+save_plot <- TRUE
+if(save_plot == TRUE){
+  b_0 <- coef(m1)[1]
+  b_1 <- coef(m1)[2]
+  fig_2c_explainer <- fig2c_gg_response +
+    # add slope text
+    geom_text(aes(label = m1_b1_text,
+                  x = 0.5,
+                  y = 335),
+              hjust = "left") +
+    
+    # vertical line
+    geom_segment(aes(x = 6,
+                 y = b_0 + b_1*5,
+                 xend = 6,
+                 yend = b_0 + b_1*6),
+               linetype = "dashed",
+               color = "black") +
+    annotate(geom = "text",
+             label = bquote(bar(y)[2] - bar(y)[1]),
+             x = 6.5,
+             y = b_0 + b_1*5.5) +
+
+        # horizontal line
+    geom_segment(aes(x = 5,
+                     y = b_0 + b_1*5,
+                     xend = 6,
+                     yend = b_0 + b_1*5),
+                 linetype = "dashed",
+                 color = "black") +
+    annotate(geom = "text",
+             label = "6 - 5 = 1",
+             x = 5.5,
+             y = b_0 + b_1*5 - 1.5) +
+    
+  NULL
+  fig_2c_explainer
+  
+  image_path <- here("output", "fig_2c_explainer.Rds")
+  saveRDS(fig_2c_explainer, image_path)
+  image_path <- here("output", "fig_2c_explainer.png")
+  ggsave(image_path)
+}
+```
+7. Report the results
+
+The modeled effect of added temperature is `r m1_b1_text` (\@ref(fig:continuous-x-plot)).
+
+### Learning from the green-down example
+
+Figure \@ref(fig:continuous-x-plot) is a **scatterplot** with the green-down DOY for the mixed-shrub community on the $Y$ axis and added temperature on the $X$ axis. The line through the data is a regression line, which is the expected value of *Y* (green-down DOY) given a specific value of *X* (added temperature). The slope of the line is the **effect** of added temperature on timing of green-down. The intercept of the regression line is the value of the response (day of green-down) when $X$ is equal to zero. Very often, this value is not of interest although the value should be reported to allow predictions from the model. Also very often, the value of the intercept is not meaningful because a value of $X = 0$ is far outside the range of measured $X$, or the value is absurd because it is impossible (for example, if investigating the effect of body weight on metabolic rate, the value $weight = 0$ is impossible).
+
+The intercept and slope are the coefficients of the model fit to the data, which is
+
+\begin{equation}
+day_i = b_0 + b_1 temperature_i + e_i
+(\#eq:continuous-x-fit)
+\end{equation}
+
+where *day* is the day of green-down, *temperature* is the added temperature, and *i* refers (or "indexes") the *i*th enclosure. This model completely reconstructs the day of green-down for all ten enclosures. For example, the day of green-down for enclosure 8 is
+
+\begin{equation}
+332 = 289.458750 + 4.982745 \times 6.73 + 9.00737
+\end{equation}
+
+The coefficients in the model are estimates of the parameters of the **generating model** fit to the data
+
+\begin{align}
+day &= \beta_0 + \beta_1 temperature + \varepsilon\\
+\varepsilon &\sim N(0, \sigma^2)
+(\#eq:continuous-x-m1)
+\end{align}
+
+A generating model of the data is used to make inference, for example, a measure of uncertainty in a prediction in the timing of green-down with future warming, or a measure of uncertainty about the effect of temperature on green-down.
+
+### Using a regression model for "explanation" -- causal models
+
+In this text, "explanatory" means "causal" and a goal of explanatory modeling is the estimate of causal effects using a **causal interpretation** of the linear model (=regression) coefficients. "What what? I learned in my stats 101 course that we cannot interpret regression coefficients causally".
+
+Statisticians (and statistics textbooks) have been quite rigid that a regression coefficient has a descriptive (or "observational", see below) interpretation but not a causal interpretation. At the same time, statisticians (and statistics textbooks) do not seem to have any issue with interpeting the modeled effects from an experiment causally, since this is how they are interpreted. But if the modeled effects are simply coefficients from a linear (= regression) model, then this historical practice is muddled.
+
+Part of this muddled history arises from the use of "regression" for models fit to observational data with one or more continuous $X$ variables and the use of "ANOVA" for models fit to experimental data with one or more categorical $X$. This separation seems to have blinded statisticians from working on the formal probabilistic statements underlying causal interpretations of effect estimates in ANOVA and the synthesis of these statements with the probabilistic statements in regression modeling. Two major approaches to developing formal, probabilistic statements of causal modeling in statistics are the **Rubin causal model** and the **do-operator** of Pearl. Despite the gigantic progress in these approaches, little to none of this has found its way into biostatistics textbooks. 
+
+#### What a regression coefficient means
+
+A linear ("regression") model coefficient, such as the coefficient for temperature, $\beta_1$, has two interpretations, an **observational** interpretation and a **causal interpretation**. To understand these interpretations, it's useful to remember that a predicted value from a regression model is a **conditional mean**
+
+\begin{equation}
+\textrm{E}[day|temperature] = \beta_0 + \beta_1 temperature
+(\#eq:continuous-x-conditional-mean)
+\end{equation}
+
+In words "the expected value of day conditional on temperature is beta-knot plus beta-one times temperature". An **expected value** is a long run average -- if we had an infinite number of enclosures with $temperature=x$ (where $x$ is a specific value of added temperature, say 2.5 °C), the average $day$ of these enclosures is $\beta_0 + \beta_1 x$.
+
+The parameter $\beta_1$ is a *difference* in conditional means.
+
+\begin{equation}
+\beta_1 = \textrm{E}[day|temperature = x+1] - \textrm{E}[day|temperature = x]
+(\#eq:beta)
+\end{equation}
+
+In words, "beta-one is the expected value of day of green-down when the temperature equals x + 1 minus the expected value of day of green-down when the temperature equals x." A very short way to state this is "beta-one is a difference in conditional means".
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+tl;dr. Note that the "+ 1" in this definition is mere convenience. Since the slope of a line is $\frac{y_2 - y_1}{x_2 - x_1}$, where ($x_1$, $y_1$) and ($x_2$, $y_2$) are the coordinates of any two points on the line, it is convenient to choose two points that differ in $X$ by one unit, which makes the fraction equal to the numerator only. The numerator is a difference in conditional means. It is also why the units of a regression coefficient are "per unit of $X$ even if defined as a difference in two $Y$ values.
+</div> 
+
+The difference between observational and causal interpretations of $\beta_1$ depends on the "event" conditioned on in $\textrm{E}[day|temperature]$. Let's start with the causal interpretation, which is how we should think about the regression coefficients in the green-down experiment.
+
+#### Causal interpretation -- conditional on "doing" X = x
+
+In the causal interpretation of regression, $\textrm{E}[day|temperature]$ is conditioned on "doing" a real or hypothetical intervention in the system where we set the value of $temperature$ to a specific value $x$ ("$temperature=x$), while keeping everything else about the system the same. This can be stated explicitly as $\textrm{E}[day|\;do\;temperature = x]$. Using the do-operator, we can interpret $\beta_1$ as an **effect coefficient**.
+
+\begin{equation}
+\beta_1 = \textrm{E}[day|\;do\;temperature = x+1] - \textrm{E}[day|\;do\;temperature = x]
+\end{equation}
+
+In words, "beta-one is the expected value of day of green-down were we to set the temperature to x + 1, minus the expected value of day of green-down were we to set the temperature to x."
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+tl;dr. In the green-down experiment, the researchers didn't set the temperature in the intervened enclosures to the ambient temperature + 1 but to ambient + 2.25, ambient + 4.5, ambient + 6.75, and ambient + 9.0. Again (see tl;dr above), the + 1 is mere convenience in the definition.
+</div> 
+
+#### Observational interpretation -- conditional on "seeing" X = x.
+
+In the observational interpretation of regression, $\textrm{E}[day|temperature]$ is conditioned on sampling data and "seeing" a value of $temperature$. We can state this explicitly as $\textrm{E}[day|\;see\;temperature]$. From this, we can interpret $\beta_1$ as an **observational coefficient**
+
+\begin{equation}
+\beta_1 = \textrm{E}[day|\;see\;temperature = x+1] - \textrm{E}[day|\;see \;temperature = x]
+\end{equation}
+
+In words, "beta-one is the expected value of day of green-down when see that temperature equals x + 1 minus the expected value of day of green-down when we see that temperature equals x." To understand what I mean by "observational", let's imagine that the green-down data do not come from an experiment in which the researchers intervened and set the added temperature to a specifc value but from ten sites that naturally vary in mean annual temperature. Or from a single site with 10 years of data, with some years warmer and some years colder. Data from this kind of study is **observational** -- the researcher didn't intervene and set the $X$ values but merely observed the $X$ values.
+
+If we sample (or "see") a site with a mean annual temperature that is 2.5 °C above a reference value, the expected day of green-down is $\textrm{E}[day|temperature = 2.5 °C]$. That is, values near $\textrm{E}[day|temperature = 2.5 °C]$ are more probable than values away from $\textrm{E}[day|temperature = 2.5 °C]$. Or, if the only information that we have about this site is a mean annual temperature that is 2.5 °C above some reference, then our best prediction of the day of green-down would be $\textrm{E}[day|temperature = 2.5 °C]$. We do not claim that the 4.98 day delay in green-down is caused by the warmer temperature, only that this is the expected delay relative to the reference having seen the data.
+
+The seeing interpretation of a regression coefficient is **descriptive**-- it is a description of a mathematical relationship. In this interpretation, the coefficient is not causal in the sense of what the expected **response** in $Y$ would be were we to intervene in the system and change $X$ from $x$ to $x+1$.
+
+#### Omitted variable bias
+
+What is the consequence of interpreting a regression coefficient causally instead of observationally?
+
+```{r continuous-x-dag, echo=FALSE, fig.cap = "a Directed Acyclic (or causal) Graph of a hypothetical world where the day of green-down is caused by two, correlated environmental variables, temperature and moisture, and to a noise factor (U) that represents an unspecified set of additional variables that are not correlated to either temperature or moisture."}
+dag_table <- data.table(node = c("X", "M", "Y", "U"),
+                        x = c(1, 2, 2, 2),
+                        y = c(1, 2, 1, 2))
+text_size <- 8
+gg <- ggplot(data = dag_table,
+             aes(x = x, y = y)) +
+  geom_point(color = "white") +
+  coord_cartesian(xlim = c(0, 3),
+                  ylim = c(0, 3)) +
+  geom_text(aes(label = "temperature",
+                x = 1,
+                y = 1,
+                hjust = "right"),
+            size = text_size) +
+  geom_text(aes(label = "moisture",
+                x = 1.5,
+                y = 2),
+            size = text_size) +
+  geom_text(aes(label = "green-down DOY",
+                x = 2,
+                y = 1,
+                hjust = "left"),
+            size = text_size) +
+  geom_text(aes(label = "U",
+                x = 2.5,
+                y = 2,
+                hjust = "center"),
+            size = text_size) +
+  geom_segment(aes(x = 1 + .05,
+                   y = 1,
+                   xend = 2 - .05,
+                   yend = 1),
+               arrow = arrow(length = unit(0.3,"cm"))) +
+  geom_segment(aes(x = 1.5 +.05,
+                   y = 2 - .15,
+                   xend = 2 - .0,
+                   yend = 1 + .1),
+               arrow = arrow(length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = 0.5,
+                 y = 1 + .1,
+                 xend = 1.5 -.3,
+                 yend = 2 - 0),
+             arrow = arrow(ends = "both",
+                           length = unit(0.3,"cm")),
+             curvature = -0.3) +
+  geom_segment(aes(x = 2.5,
+                   y = 1.85,
+                   xend = 2.5,
+                   yend = 1.15),
+               arrow = arrow(length = unit(0.3,"cm"))) +
+  annotate(geom = "text",
+           label = "rho",
+           parse = TRUE,
+           x = 0.8,
+           y = 1.85,
+           size = text_size) +
+  annotate(geom = "text", # temp-doy
+           label = "beta[1]",
+           parse = TRUE,
+           x = 1.5,
+           y = 0.85,
+           size = text_size) +
+  annotate(geom = "text", # moisture-doy
+           label = "beta[2]",
+           parse = TRUE,
+           x = 1.8,
+           y = 1.65,
+           size = text_size) +
+   theme_void() +
   NULL
 gg
-
 ```
 
-Figure \@ref(fig:squirrel) is a **scatterplot** of the data with the amount of cortisol metabolites in the feces on the $Y$ axis and local squirrel density on the $X$ axis. The line through the data is a graphical representation of a linear model fit to the data and the gray cloud around the line is a graphical representation of the uncertainty in the model. The researchers wanted to model the "effect" of squirrel density on the amount of cortisol metabolites in the feces of the pregnant mothers. Graphically, this effect is the slope of the line in Figure \@ref(fig:squirrel).
+Let's expand the thought experiment where we have an observational data set of green down dates. In this thought experiment, only two variables systematically affect green-down DOY. The first is the temperature that the plants experience; the effect of $temperature$ is $\beta_1$. The second is the soil moisture that the plants experience; the effect of $moisture$ is $\beta_2$. $temperature$ and $moisture$ are correlated with a value $\rho$. This causal model is graphically represented by the **causal graph** above.
 
-The model fit to the data is
+Lets fit two linear models.
 
-\begin{equation}
-FCM_i = \beta_0 + \beta_1 Density_i + \varepsilon_i
-(\#eq:fcm-model)
-\end{equation}
+\begin{align}
+(\mathcal{M}_1)\; day &= b_0 + b_1 \; temperature + b_2 \; moisture + \varepsilon\\
+(\mathcal{M}_2)\; day &= b_0 + b_1 \; temperature + \varepsilon
+\end{align}
 
-which contains both the linear predictor and the error. For inference, for example, computing standard errors of the coefficients, We need to model the error. Here, we use the simplest model of error which is "IID $N(0, \sigma)$". This means, the modeled error is 
-
-1. Independent -- individual error values are independent of other values.
-2. Identical -- individual error can be thought of as a sample from a single **random distribution** (the same for each individual value). For this model, this distribution is
-3. $N(0, \sigma)$ -- the modeled distribution is "Normal" or "Gaussian", with a mean of zero and a standard deviation of $\sigma$.
-
-The predictor part of the model is
+$\mathcal{M}_1$ the linear model including both $temperature$ and $moisture$ as $X$ variables and $\mathcal{M}_2$ the linear model including only $temperature$ as an $X$ variable. Given the true causal model above, $b_1$ is an **unbiased** estimate of the true causal effect of temperature $\beta_1$ in $\mathcal{M}_1$ because the expected value of $b_1$ is $\beta_1$. By contrast, $b_1$ is a **biased** estimate of the true causal effect of temperature $\beta_1$ in $\mathcal{M}_2$. The expected value of $b_1$ in $\mathcal{M}_2$ is the true, causal effect plus a bias term. 
 
 \begin{equation}
-\textrm{E}[FCM|Density] = \beta_0 + \beta_1 Density
-(\#eq:regression)
+\mathrm{E}(b_1|\mathcal{M}_1) = \beta + \rho \alpha \frac{\sigma_{moisture}}{\sigma_{temperature}}
 \end{equation}
 
-In words, model \@ref(eq:regression) reads "the expected value of $FCM$ conditional on density is beta-knot plus beta-one times density". An **expected value** is a long run average -- if we were to sample lots and lots of red squirrel populations with $Density=x$ (where $x$ is a specific value), we'd expect the average $FCM$ across these samples to be $\beta_0 + \beta_1 x$.
+This bias ($\rho \alpha \frac{\sigma_{moisture}}{\sigma_{temperature}}$) is **omitted variable bias**. The omitted variable $moisture$ is an unmeasured, **confounding variable**. A variable $X_2$ is a confounder for variable $X_1$ if $X_2$ has both a correlation with $X_1$ and a path to the response $Y$ that is not through $X_1$. With ommitted variable bias, as we sample more and more data, our estimate of the effect doesn't converge on the truth but the truth plus some bias.
 
->  Let's unpack this. $\textrm{E}[Y]$ is the **expectation** or **expected value** of $Y$. An expection is the long-run average of $Y$ if we were to run an experiment or re-sample a population many times. The sample mean of $Y$ is an estimate of $\textrm{E}[Y]$. $\textrm{E}[Y|X]$ is a conditional expectation of $Y$ -- it is the expectation given additional conditions. Using the red squirrel example, these conditions are a specific value of $Density$. If $FCM$ is linearly related to $Density$ (the right-hand side of equation \@ref(eq:regression)) then the expected value of $FCM$ given a local density of 2.8 squirrels differs from the expected value of $FCM$ given a local density of 1.4 squirrels (the units of $Density$ are squirrels per 150 meter radius of the individual female's midden).
+```{r echo = FALSE, eval = FALSE}
+# b = beta + r*alpha
+s_day <- sd(fig2[, transition_date]) # sigma_Y
+s_temp <- sd(fig2[, temperature]) # sigma_X
+s_moisture <- s_temp/3 # sigma_U
+beta_2 <- -6.3 # effect of moisture
+b1 <- m1_b[2]
+b1_prime <- b1*s_temp/s_day
+  
+rho <- -0.7
+sigma_u <- s_moisture
+sigma_x <- s_temp
+sigma_y <- s_day
+sigma_z <- 1
+zeta_u_prime <- sign(rho)*sqrt(abs(rho))
+zeta_x_prime <- sqrt(abs(rho))
+zeta_u <- zeta_u_prime*sigma_u/sigma_z
+zeta_x <- zeta_x_prime*sigma_x/sigma_z
 
-In model \@ref(eq:regression), there is a single $X$ variable ($FCM$). While the $X$ variables are often called the "dependent" variables, in this model $FCM$ does not "depend" on the independent variable $Density$ in any causal sense -- meaning if I were to intervene and set $Density$ to some value $x$, I would expect $FCM$ to equal $\beta_0 + \beta_1 x$. Rather, $FCM$ only "depends" on $Density$ in a probablistic sense -- if $Density = x$ then the most probable value of $FCM$ is $\beta_0 + \beta_1 x$. With some strong assumptions model \@ref(eq:regression) can be turned into a model of causal dependency, which is the focus of chapter xxx.
+alpha <- beta_2
+alpha_prime <- alpha*sigma_u/sigma_y
 
-$\beta_0$ and $\beta_1$ are the **parameters** of model \@ref(eq:regression). Specifically $\beta_0$ is the model **intercept** and $\beta_1$ is the modeled **effect** of $Density$. Again, the effect ($\beta_1$) has a probabilistic, and not causal, interpretation. This interpretation is
+beta_prime <- b1_prime - zeta_u_prime*zeta_x_prime*alpha_prime
+beta <- beta_prime*sigma_y/sigma_x
 
-\begin{equation}
-\beta_1 = \textrm{E}[FCM|Density=x+1] - \textrm{E}[FCM|Density=x] 
-(\#eq:beta1)
-\end{equation}
+n <- 10^5
+z <- rnorm(n)
+u <- zeta_u*z + sqrt(sigma_u^2 - zeta_u^2)*rnorm(n)
+x <- zeta_x*z + sqrt(sigma_x^2 - zeta_x^2)*rnorm(n)
 
-Or, in words, "beta-1 is the expected value of FCM when density equals x + 1 minus the expected value of FCM when the density equals x." $\beta_1$ is simply the difference in expected values given a one unit difference in $Density$. A very short way to state this is "$\beta_1$ is a difference in conditional means".
+# sigma_x
+# sd(x)
+# sigma_u
+# sd(u)
+# cor(u,x)
 
-### Using a linear model to estimate explanatory effects
+u_prime <- u/sigma_u
+x_prime <- x/sigma_x
+e <- rnorm(n)
 
-The goal of the statistical model here is to estimate $\beta_1$ -- the probabalistic effect of $Density$ on $FCM$. This estimate, and a measure of the uncertainty of this estimate, are in the table of coefficients of the fit model
+y <- (beta_prime*x_prime + alpha_prime*u_prime + sqrt(1 - (beta_prime^2 + alpha_prime^2 + 2*beta_prime*alpha_prime*rho))*e)*sigma_y
+sigma_y
+sd(y)
 
-```{r squirrel_lm, echo=FALSE}
+m1 <- lm(y ~ x + u)
+m2 <- lm(y ~ x)
 
-# table S4
-fit_fcm <- lm(FCM ~ Density, data=fcm)
-knitr::kable(coefficients(summary(fit_fcm)), digits=c(1,1,1,4))
+alpha
+beta
+coef(m1)
+beta + rho*alpha*sigma_u/sigma_x
+coef(m2)
+# b' = b*s_x/s_y = xyx/xxy
+# b' = beta' + rho*alpha'
+# b = b'*sd(y)/sd(x)
+# b = (beta' + rho*alpha')*sd(y)/sd(x)
+# alpha'=alpha*sd(u)/sd(y)
+# beta'=beta*sd(x)/sd(y)
+# b = (beta*sd(x)/sd(y) + rho*alpha*sd(u)/sd(y))*sd(y)/sd(x)
+# b = beta*sd(x)/sd(y)*sd(y)/sd(x) + rho*alpha*sd(u)/sd(y)*sd(y)/sd(x)
+# b = beta + rho*alpha*sd(u)/sd(x)
 ```
 
-where the entries in the column "Estimate" are estimates of the parameters $\beta_0$ and $\beta_1$ in model \@ref(eq:regression). The entries in the column "Std. Error" are the standard errors (SE) of the estimates, which are measures of the uncertainty of the estimates.
+#### Causal modeling with experimental versus observational data
 
-The parameter estimates in the table above are the coefficients of the fitted model
+Causal interpretation requires conditioning on "doing X=x". For the green-down data, "doing X=x" is achieved by the random treatment assignment of the enclosures. How does random treatment assignment achieve this? Look again at Figure \@ref(fig:continuous-x-dag). If the values of $treatment$ are randomly assigned, then, by definition, the expected value of the correlation between $treatment$ and $moisture$ is zero. In fact, the expected value of the correlation between $treatment$ and any measurable variable at the study site is zero. Given, this, the expected value of the regression coefficient for $temperature$ ($b_1$) is $\beta$ because $\rho=0$. That is, the estimate of the true effect is unbiased. It doesn't matter if $moisture$, or any other variable, is excluded from the model. (That said, we may want to include moisture or other variables in the model to increase precision of the causal effect. This is addressed in the chapter "Models with Covariates"). This is what an experiment does and why experiments are used to answer causal questions.
+
+Can we use observational data for causal modeling? Yes, but the methods for this are outside of the scope of this text. The mathematical foundation for this is known as **path analysis**, which was developed by geneticist and evolutionary biologist Sewell Wright (I include this because this work has inspired much of how I think about biology and because he is both my academic grandfather and great-grandfather). Causal analysis of observational data in biology is rare outside of ecology and epidemiology. Good starting points for the modern development of causal analysis are [Hernán MA and Robins JM (2020)](https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/){target="_blank"} and [Burgess et al. (2018)](https://www.annualreviews.org/doi/abs/10.1146/annurev-genom-083117-021731){target="_blank"}. A gentle introduction is [Pearl and Mackenzie (2018)](https://www.basicbooks.com/titles/judea-pearl/the-book-of-why/9780465097609/){target="_blank"}.
+
+### Using a regression model for prediction -- prediction models
+
+The researchers in the green-down study also presented estimates of the effect of temperature on green-down using two observational datasets. Let's use the one in Extended Data Figure 3d to explore using a regression model for prediction. The data are taken from measurements of the day of green-down over an 86 year period at a single site. The response variable is $green\_down\_anomaly$ (the difference between the day of green down for the year and the mean of these days over the 86 years). The predictor variable is $autumn\_temp\_anomaly$ (the difference between the mean temperature over the year and the mean of these means).
+
+```{r continuous-x-import-fig-s3d, echo=FALSE}
+data_from <- "Ecosystem warming extends vegetation activity but heightens vulnerability to cold temperatures"
+file_name <- "41586_2018_399_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+efig_3d <- read_excel(file_path,
+                   range = "J2:K87",
+                   col_names = FALSE) %>% # header causing issues
+  data.table() # convert to data.table
+setnames(efig_3d, old = colnames(efig_3d), new = c("autumn_temp_anomaly", "green_down_anomaly"))
+
+# View(efig_3d)
+```
+
+```{r continuous-x-pred-fig, echo=FALSE, message=FALSE}
+m1 <- lm(green_down_anomaly ~ autumn_temp_anomaly, data = efig_3d)
+
+# get x for drawing slope
+minx <- min(efig_3d[,autumn_temp_anomaly])
+maxx <- max(efig_3d[,autumn_temp_anomaly])
+new_x <- seq(minx, maxx, length.out = 20)
+new_data <- data.table(autumn_temp_anomaly = new_x)
+new_data[, yhat := predict(m1, newdata = new_data)]
+new_data[, conf_lwr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "confidence",
+                           newdata = new_data)$fit[, "lwr"]]
+new_data[, conf_upr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "confidence",
+                           newdata = new_data)$fit[, "upr"]]
+new_data[, pred_lwr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "lwr"]]
+new_data[, pred_upr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "upr"]]
+
+gg <- ggscatter(data = efig_3d,
+          x = "autumn_temp_anomaly",
+          y = "green_down_anomaly",
+          color = "black",
+          shape = 21,
+          size = 3,
+          add = "reg.line",
+          add.params = list(color = "steelblue",
+                            fill = "lightgray"),
+          xlab = "Temperature Anomaly (°C)",
+          ylab = "Day of Green-down Anomaly (DOY)") +
+
+  geom_ribbon(data = new_data,
+              aes(ymin = pred_lwr,
+                  ymax = pred_upr,
+                  y = yhat,
+                  fill = "band"),
+              fill = "gray",
+              alpha = 0.3) +
+  
+  geom_ribbon(data = new_data,
+              aes(ymin = conf_lwr,
+                  ymax = conf_upr,
+                  y = yhat,
+                  fill = "band"), alpha = 0.3) +
+  
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           size = 4,
+           label.y = 10) +
+  
+  scale_fill_manual(values = pal_okabe_ito) +
+
+  theme(legend.position="none") +
+
+  NULL  
+
+gg
+```
+
+The plot in figure \@ref(fig:continuous-x-pred-fig) shows the regression line of a linear model fit to the data. Two statistics are given in the plot.
+
+1. The *p*-value of the slope (the coefficient $b_1$ of $autumn\_temp\_anomaly$)
+2. The $R^2$ of the model fit.
+
+In addition, two intervals are shown.
+
+1. 95% **confidence interval** of the expected values in blue. The width of this band is a measure of the precision of the estimates of expected values. 
+2. 95% **prediction interval** of the predictions in gray. The width of this band is a measure of how well the model predicts.
+
+It is important that researchers knows what each of these statistics and bands are, when to compute them and when to ignore them them, and what to say about each when communicating the results.
+
+#### 95% CI and *p*-value
+
+Both the 95% confidence interval of the expected values and the *p*-value are a function of the standard error of the slope coefficient $b_1$ and so are complimentary statistics. The *p*-value is the probability of sampling the null that results in a $t$-value as or more extreme than the observed *t* for the coefficient $b_1$. This null includes the hypothesis $\beta_1 = 0$. The 95% confidence interval of the expected values is the band containing expected values (mean $green\_down\_anomaly$ conditional on $autumn\_temp\_anomaly$) that are compatible with the data. There are a couple of useful ways of thinking about this band.
+
+1. The band captures an infinite number of regression lines that are compatible with the data. Some are more steep and predict smaller expected values at the low end of $autumn\_temp\_anomaly$ and higher expected values at the high end of $autumn\_temp\_anomaly$. Others are less steep and predict higher expected values at the low end of $autumn\_temp\_anomaly$ and lower expected values at the high end of $autumn\_temp\_anomaly$.
+2. The band captures the 95% CI of the conditional mean at every value of $X$. Consider the 95% CI of the conditional mean at the mean value of $X$. As we move away from this mean value (lower to higher $X$), the 95% CI of the conditional mean increases.
+
+A 95% CI and *p*-value are useful statistics to report if the purpose is *causal modeling*, as in the example above using the experimental green-down data (where the 95% CI was not presented as a confidence band of the expected values but a CI of the estimate of the effect of added temperature). A 95% CI and *p*-value are also useful statistics to report if the purpose is *descriptive modeling*, simply wanting to know how the conditional mean of the response is related to an $X$ variable.
+
+#### 95% prediction interval and $R^2$
+
+Both the $R^2$ and the 95% prediction interval are a function of the *population* variability of $green\_down\_anomaly$ conditional on $autumn\_temp\_anomaly$ (the spread of points along a vertical axis about the regression line) and are complimentary statistics. Briefly,
+
+1. the $R^2$ is a measure of the fraction of the variance in the response that is accounted by the model (some sources say "explained by the model" but this is an odd use of "explain"). It is a number between 0 and 1 and is a measure of "predictability" if the goal is prediction modeling.
+2. The 95% prediction interval will contain a new observation 95% of the time. It provides bounds on a **prediction** -- given a new observation, there is a 95% probability that the interval at $x_{new}$ will contain $y_{new}$.
+
+To understand $R^2$ and the 95% prediction interval a bit better, let's back up.
 
 \begin{equation}
-FCM_i = b_0 + b_1 Density_i + e_i
-(\#eq:fcmi)
+green\_down\_anomaly_i = b_0 + b_1 autumn\_temp\_anomaly_i + e_i
+(\#eq:doy_fit)
 \end{equation}
 
-where the subscript *i* refers to the *i*th individual. The coefficients $b_0$ and $b_1$ are the y-intercept and the slope of the line in Figure \@ref(fig:squirrel). The coefficient for $Density$ ($b_1$) is `r round(coef(fit_fcm)["Density"],1)`, and (given the definition of the parameter $\beta_1$ in equation \@ref(eq:beta1)) we expect squirrel mothers with a local density of 2 squirrels within a 150 m radius of her midden to average 671.1 more units of FCM (ng of fecal cortical metabolites per gram dry food) than mother squirrels with a local density of only 1 squirrel within a 150 m radius of her midden.
-
-#### Probabilistic vs. causal conditioning
-
-Remember that this coefficient is estimating a probabilistic parameter. Consequently, the coefficient $b_1$ is simply a descriptor of a pattern of relationship between local density and fecal cortisol metabolites - no causal effect is implied. With the strong assumptions explained in chapter xxx, however, $b_1$ can estimate a causal effect.
-
-### Using a linear model for prediction
-
-Model \@ref(eq:fcmi) gives the measured value of *FCM* for each squirrel. The equation includes the linear predictor ($b_0 + b_1 Density_i$) and the **residual** from the predictor ($e_i$). The predictor part is called "predictor" because it is the equation for predicting the value of an individual's $FCM$ given that individual's value of $Density$:
+Model \@ref(eq:eq:doy_fit) recovers the measured value of $green\_down\_anomaly$ for any year, given the $autumn\_temp\_anomaly$ for the year. The equation includes the linear predictor ($b_0 + b_1 autumn\_temp\_anomaly_i$) and the **residual** from the predictor ($e_i$). The predictor part of \@ref(eq:doy_fit) is used to compute $\hat{y}$ ("y hat"). 
 
 \begin{equation}
-\widehat{FCM} = b_0 + b_1 Density
-(\#eq:fcmhat)
+\hat{y}_i = b_0 + b_1 autumn\_temp\_anomaly_i
+(\#eq:doy_hat)
 \end{equation}
 
-where $\widehat{FCM}$ is read as "FCM hat" and is the **predicted value** or simply "prediction". Very often, we use the predictor part (equation \@ref(eq:fcmhat)) to predict unknown or future values given different modeled inputs (the $X$).
+The $\hat{y}$ are **fitted values**, if the values are computed from the data that were used for the fit, or **predicted values** (or simply the **prediction**), if the values are computed from values of the predictor variables outside the set used to fit the model. For the purpose of plotting, generally, with models with categorical factors as $X$, I prefer either **modeled values** or **conditional means** to fitted values.
 
-### Reporting results
+#### $R^2$
 
-The authors of the squirrel fcm data published a figure and table similar to fig. xxx and table above but used a slightly more complex linear model. Here is how the author's reported the results:
+A good model accounts for a sizable fraction of the total variance in the response. This fraction is the $R^2$ value, which is given in `summary(m1)` and accessed directly with
 
->  Across 6 years (2006 to 2011), we found a positive relationship between local density and concentrations of fecal cortisol metabolites [FCM; t$_155$ = 3.63, P = 0.0002 (table S4 and Fig. 3A)].
+```{r }
+summary(m1)$r.squared
+```
+ 
+$R^2$ is the fraction of the total variance of $Y$ that is generated by the linear predictor.
 
-I would advocate reporting the estimate and a confidence interval instead of $t$ and $p$. For example "Across 6 years (2006 to 2011), the probabilistic effect of local density on fecal cortisol metabolites is `r round(coef(fit_fcm)["Density"],1)` (95% CI: `r round(confint(fit_fcm)["Density", "2.5 %"], 1)`, `r round(confint(fit_fcm)["Density", "97.5 %"], 1)`). If a $p$-value is report *in addition* to the effect and CI, always report the exact *p*-value, which emphasizes the continuous nature of evidence against the null, and not something like "$p < 0.05$", which artificially dichotomizes the evidence against the null.
+\begin{equation}
+R^2 = \frac{\mathrm{VAR}(\hat{y})}{\mathrm{VAR}(y)}
+\end{equation}
+
+```{r}
+yhat <- fitted(m1)
+y <- efig_3d[, green_down_anomaly]
+var(yhat)/var(y)
+```
+
+$R^2$ will vary from zero (the model accounts for nothing) to one (the model accounts for everything). $R^2$ is often described as the fraction of total variation *explained* by the model" but the usage of "explain" is observational and not causal. Because of the ambiguous usage of "explain" in statistics, I prefer to avoid the word.
+
+It can be useful sometimes to think of $R^2$ in terms of **residual error**, which is the variance of the residuals from the model. The larger the residual error, the smaller the $R^2$, or
+
+\begin{equation}
+R^2 = 1 - \frac{\mathrm{VAR}(e)}{\mathrm{VAR}(y)}
+\end{equation}
+
+```{r}
+e <- residuals(m1)
+y <- efig_3d[, green_down_anomaly]
+1 - var(e)/var(y)
+```
+
+The smaller the residuals, the higher the $R^2$ and the closer the predicted values are to the measured values. The sum of the model variance and residual variance equals the total variance and, consequently, $R^2$ is a signal to signal + noise ratio. The noise in $R^2$ is the sampling variance of the individual measures. The noise in a *t*-value is the sampling variance of the parameter (for m1, this is the sampling variance of $b_1$). This is an important distinction because it means that *t* and $R^2$ are not related 1:1. In a simple model with only a single $X$, one might expect $R^2$ to be big if the *p*-value for the slope is tiny, but this isn't necessarily true because of the different meaning of noise in each. A study with a very large sample size $n$ can have a tiny *p*-value *and* a small $R^2$. A *p*-value is not a good indicator of predictability. $R^2$ is. This is explored more below.
+
+#### Prediction interval
+A good prediction model has high predictability, meaning the range of predicted values is narrow. A 95% CI is a reasonable range to communicate. For any decision making using prediction, it is better to look at numbers than a band on a plot.
+
+```{r echo=FALSE}
+future_data <- data.table(autumn_temp_anomaly = seq(0.5, 2.5, by = 0.5))
+yhat <- predict(m1, 
+                se.fit = TRUE,
+                interval = "prediction",
+                newdata = future_data)$fit
+future_data <- cbind(future_data, yhat)
+pretty_names <- c("Autumn Temp Anomaly (°C)", "Expected (days)", "2.5% (days)", "97.5% (days)")
+setnames(future_data, old = colnames(future_data), new = pretty_names)
+knitr::kable(future_data, digits = c(1, 1, 1, 1))
+```
+
+Given these data and the fit model, if we see a 2 °C increase in mean fall temperature, we expect the autumn green-down to extend 3.2 days. This expectation is an average. We'd expect 95% of actual values to range between -6.4 days and 12.8 days. This is a lot of variability. Any prediction has a reasonable probability of being over a week early or late. This may seem surprising given the *p*-value of the fit, which is 0.0006. But the *p*-value is not a reliable indicator of predictability. It is a statistic related to the blue band, not the gray band.
+
+To understand this prediction interval a bit more, and why a *p*-value is not a good indicator of predictability, it's useful to understand what makes a prediction interval "wide". The width of the prediction interval is a function of two kinds of variability
+
+1. The variance of the expected value at a specific value of $X$. This is the square of the standard error of $b_1$. The blue band is communicating the CI based on this variance. The *p*-value is related to the wideth of this band.
+2. The variance of $Y$ at a specific value of $X$. This variance is $\sigma^2$. It is useful for learning to think about the equation for the estimate of this variance.
+
+\begin{equation}
+\hat\sigma^2 = \frac{\sum{e_i^2}}{N-2}
+\end{equation}
+
+Again, $e_i$ is the residual for the *i*th case. The denominator ($N-2$) is the degrees of freedom of the model. Computing $\hat\sigma^2$ manually helps to insure that we understand what is going on.
+
+```{r}
+summary(m1)$sigma # R's calculation of sigma hat
+df <- summary(m1)$df[2] # R's calculation of df. Check that this is n-2!
+sqrt(sum(e^2)/df)
+```
+
+Remember that an assumption of the linear models that we are working with at this point is, this variance is constant for all values of $X$, so we have a single $\sigma$. Later, we will cover linear models that model heterogeneity in this variance. $\sigma$ is a function of variability in the population -- it is the population standard deviation conditional on $X$.
+
+```{r excised-text-324583, echo=FALSE, eval=FALSE}
+# <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+# The denominator of the equation for the variance of $Y$ conditional on $X$ is the degrees of freedom of the model used to estimate the expected value of $Y$ conditional on $X$, or $\mathrom{E}[Y|X]$. What does degrees of freedom mean? The model fit to the data has two estimates, $b_0$ (the intercept) and $b_1$ (the slope). Consequently, once we fit the model, only $n - 2$ $Y$ variables can vary. If we fit the model using three cases we have one degree of freedom. Given $x_1$, $y_1$ can be any value. It is "free to vary".
+# 
+# sum y = mean
+# sum xtx_1 xty adds up
+# </div> 
+```
+
+Importantly, predictability is a function of both these components of variability. As a consequence, it is $R^2$, and not the *p*-value, that is the indicator of predictability. In the observational green-down data, even if we had thousands of years of data, we would still have a pretty low $R^2$ because of the population variability of $green\_down\_anomaly$ at a given $autumn\_temp\_anomaly$.
+
+#### Median Absolute Error and Root Mean Square Error are absolute measures of predictability
+
+A *p*-value is not *at all* a good guide to predictability. $R^2$ is proportional to predictability but is not really useful in any absolute sense. If we want to predict the effect of warming on the day of green-down, I would like to have a measure of predictability in the units of green-down, which is days. The prediction interval gives this for any value of $X$. But what about an overall measure of predictability?
+
+Three overall measures of predictability are
+
+1. $\hat{\sigma}$, the estimate of $\sigma$. This is the standard deviation of the sample conditional on $X$.
+2. $RMSE$, the root mean squared error. This is
+
+\begin{align}
+SSE &= \sum{(y_i - \hat{y}_i)^2}\\
+MSE &= \frac{SSE}{N}\\
+RMSE &= \sqrt{MSE}
+\end{align}
+
+$SSE$ ("sum of squared error") is the sum of the squared residuals ($y_i - \hat{y}_i$) of the model. $MSE$ ("mean squared error") is the mean of the squared errors. $RMSE$ is the square root of the mean squared error. $RMSE$ is almost equal to $\hat{\sigma}$. The difference is the denominator, which is $N$ in the computation of $RMSE$ and $df$ (the degrees of freedom of the model, which is $N$ minus the number of fit parameters) in the computation of $\hat{\sigma}$.
+
+3. $MAE$, the mean absolute error. This is
+
+\begin{equation}
+MAE = \frac{1}{N}\sum{|y_i - \hat{y}_i|}
+\end{equation}
+
+```{r continuous-x-average-error, echo=FALSE}
+sigma_hat <- summary(m1)$sigma
+y_observed <- efig_3d[, green_down_anomaly]
+y_predicted <- predict(m1)
+root_mean_square_error <- rmse(y_observed, y_predicted)
+mean_absolute_error <- mae(y_observed, y_predicted)
+error_table <- data.table(
+  sigma = sigma_hat,
+  RMSE = root_mean_square_error,
+  MAE = mean_absolute_error
+)
+knitr::kable(error_table, digits = 2)
+```
+If the goal of an analysis is prediction, one of these statistics should be reported. For the model fit to the observational green-down data in Extended Figure 3d, these three statistics are given in Table \@ref(table:continuous-x-average-error) above (to two decimal places simply to show numerical difference between $\hat{\sigma}$ and $RMSE$). All of these are measures of an "average" prediction error in the units of the response. The average error is either 4.7 or 3.6 days, depending on which statistic we report. Why the difference? Both $\hat{\sigma}$ and $RMSE$ are functions of squared error and so big differences between predicted and actual value are emphasized. If an error of 6 days is more than twice as bad than an error of 3 days, report $RMSE$. Why $RMSE$ and not $\hat{\sigma}$? Simply because researchers using prediction models are more familiar with $RMSE$. If an error of 6 days is *not* more than twice as bad than an error of 3 days, report $MAE$.
+
+#### Prediction modeling is more sophisticated than presented here
+
+For data where the response is a non-linear function of the predictor, or for data with many predictor variables, researchers will often build a model using a **model selection** method. Stepwise regression is a classical model selection method that is commonly taught in intro biostatistics and commonly used by researchers. Stepwise regression as a method of model selection has many well-known problems and should be avoided.
+
+Some *excellent* books that are useful for building models and model selection are
+
+1. [The Elements of Statistical Learning](https://web.stanford.edu/~hastie/ElemStatLearn/){target="_blank"}
+2. [Regression and Other Stories](https://avehtari.github.io/ROS-Examples/){target="_blank"}
+3. [Regression Modeling Strategies](http://hbiostat.org/doc/rms/4day.html){target="_blank"}
+
+### Using a regression model for creating a new response variable -- comparing slopes of longitudinal data
+
+In the study in this example, the researchers compared the growth rate of tumors in mice fed normal chow versus mice with a methionine restricted diet. Growth rate wasn't actually compared. Instead, the researchers used a *t*-test to compare the size of the tumor measured at six different days. A problem with multiple *t*-tests for this dataset is that the errors (residuals from the model) on one day are correlated with the errors from another day because of the repeated measures on each mouse. This correlation will inflate Type I error rate. 
+
+Instead of six *t*-tests, a better strategy for these data is to use a regression to calculate a tumor growth rate for each mouse. There are sixteen mice so this is sixteen fit models. Here I use a "for loop" to fit the model to the data from a single mouse and use the slope ($b_1$) as the estimate of the tumor growth rate for that mouse.
+
+```{r continuous-x-long-import, echo=FALSE}
+data_from <- "Dietary methionine influences therapy in mouse cancer models and alters human metabolism"
+file_name <- "41586_2019_1437_MOESM2_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig1f_wide <- read_excel(file_path,
+                    sheet = "f",
+                    range = "B7:R12",
+                    col_names = FALSE) %>%
+  data.table() # convert to data.table
+
+setnames(fig1f_wide,
+         old = colnames(fig1f_wide),
+         new = c("day",
+                 paste0("Cn_", 1:8),
+                 paste0("MR_", 1:8)))
+
+fig1f_wide <- transpose(fig1f_wide, make.names = 1, keep.names = "id")
+fig1f_wide[, treatment := factor(substr(id, 1, 2))]
+
+days <- c(21, 25, 28, 30, 34, 39)
+fig1f <- melt(fig1f_wide,
+              id.vars <- c("treatment", "id"),
+              measure.vars <- as.character(days),
+              variable.name = "day",
+              value.name = "volume")
+fig1f[, day := as.numeric(as.character(day))]
+# View(fig1f)
+# qplot(x = day, y = volume, color = treatment, data = fig1f) + geom_line(aes(group = id))
+```
+
+Use a for-loop to estimate growth rate for each mouse. In each pass through the loop
+
+1. the subset of fig1f (the data in long format) belonging to mouse *i* is created
+2. the linear model `volume ~ day` is fit to the subset
+3. the coefficient of day (the slope, $b_1$) is inserted in mouse *i*'s row in the column "growth" in the data.table "fig1f_wide".
+
+At the end of the loop, we have the data.table fig1f_wide which has one row for each mouse, a column for the treatment factor (diet) and a column called "growth" containing each mouse's growth rate. There are also columns of tumor volume for each mouse on each day but these are ignored.
+
+```{r continuous-x-long-get-slopes}
+N <- nrow(fig1f_wide)
+id_list <- fig1f_wide[, id]
+for(i in 1:N){
+  mouse_i_data <- fig1f[id == id_list[i]] # subset
+  fit <- lm(volume ~ day, data = mouse_i_data)
+  fig1f_wide[id == id_list[i], growth := coef(fit)[2]]
+}
+# View(fig1f_wide)
+# qplot(x = treatment, y = growth, data = fig1f_wide)
+# qplot(x = day, y = volume, color = treatment, data = fig1f) + geom_smooth(aes(group = id), method = "lm", se = FALSE)
+```
+
+Step 3. **fit the model**
+
+```{r continuous-x-long-fit}
+m1 <- lm(growth ~ treatment, data = fig1f_wide)
+```
+
+Step 5. **inference from the model**
+
+```{r continuous-x-long-inference}
+m1_coef <- summary(m1) %>%
+  coef
+m1_ci <- confint(m1)
+(m1_coef_table <- cbind(m1_coef, m1_ci))
+```
+
+Step 6. **plot the model**
+
+```{r continuous-x-long-plot-response, echo=FALSE, message=FALSE}
+fig1f_gg_response <- ggplot(data = fig1f,
+                      aes(x = day, y = volume, color = treatment)) +
+  geom_point() +
+  geom_smooth(aes(group = id),
+              method = "lm",
+              se = FALSE) +
+  xlab("Day") +
+  ylab(expression(Tumor~Volume~(mm^3))) +
+  scale_color_manual(values = pal_okabe_ito) +
+  theme_pubr() +
+  theme(
+    legend.position = c(.15, .98),
+    legend.justification = c("right", "top"),
+    legend.box.just = "right",
+    legend.margin = margin(6, 6, 6, 6),
+    legend.title = element_blank()
+    ) +
+
+  NULL
+
+# fig1f_gg_response
+```
+
+```{r continuous-x-long-plot-effect, echo=FALSE}
+m1_coeff_dt <- data.table(term = row.names(m1_coef_table),
+                          data.table(m1_coef_table))[2,] %>%
+  clean_names()
+m1_coeff_dt[ , p_pretty := pvalString(pr_t)]
+
+min_bound <- min(m1_coeff_dt[, x2_5_percent])
+max_bound <- min(m1_coeff_dt[, x97_5_percent])
+
+y_lo <- min(min_bound+min_bound*0.2,
+            -max_bound)
+y_hi <- max(max_bound + max_bound*0.2,
+            -min_bound)
+y_lims <- c(y_lo, y_hi)
+
+fig1f_gg_effect <- ggplot(data=m1_coeff_dt, 
+                          aes(x = term,
+                              y = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(ymin=x2_5_percent, 
+                    ymax=x97_5_percent),
+                width=0, 
+                color="black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # zero effect
+  geom_hline(yintercept=0, linetype = 2) +
+  
+  # p-value
+  annotate(geom = "text",
+           label = m1_coeff_dt$p_pretty,
+           x = 1,
+           y = 7.5) +
+  
+  # aesthetics
+  scale_y_continuous(position="right") +
+  scale_x_discrete(labels = "MR\neffect") +
+  ylab(expression(Growth~(mm^3/day))) +
+  coord_flip(ylim = y_lims) + 
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
+
+#fig1f_gg_effect
+```
+
+```{r continuous-x-long-plot, echo=FALSE, message=FALSE}
+fig1f_gg <- plot_grid(fig1f_gg_effect,
+                      fig1f_gg_response,
+                      nrow=2,
+                      align = "v",
+                      axis = "lr",
+                      rel_heights = c(0.4,1))
+fig1f_gg
+```
+
+### Using a regression model for for calibration
 
 ## Working in R
-### Exploring the bivariate relationship between *Y* and *X*
-
-Questions
-
-1. Import the "FCM data dryad.csv" data from the Dryad repository as the data.table `fcm`
-2. How are different words in the column labels demarcated? Is this good practice?
-
-Here we want to fit a model of `FCM.ng.g.dry` as a function of `Raw.Squirrel.Density`. The authors used prior knowledge to expect a positive relationship between these two variables. Use qplot to generate a scatterplot of $FCM$ against $Density$
-
-Questions
-
-3. Is there a trend? If so, does the trend look linear or non-linear?
-4. Does the residual variation (the deviation from the trend on the $Y$ axis) look homogenous along the $X$-axis?
-5. Are there any obvious outliers?
-
 ### Fitting the linear model
-We will fit a linear model to the data using the `lm` function, which is very general and will be our workhorse throughout the class. The minimal input to the function is a model formula and the name of the data.frame (remember, a data.table is a data.frame). A formula is of the form `Y ~ X`. All of the output we assign to the object `fit`.
 
-Let's fit the linear model to the data using density as the predictor
+A linear model is fit with the `lm` function, which is very flexible and will be a workhorse in much of this text.
 
-```{r fcm-fit}
-  fit <- lm(FCM.ng.g.dry ~ Raw.Squirrel.Density, data=fcm)
+```{r continuous-x-working-fit}
+m1 <- lm(transition_date ~ temperature, data = fig2c)
 ```
 
-R will look for the specified $Y$ and $X$ variables in the column names of `fcm`. If these are not found, R will return an error, for example 
+m1 is an lm model object that contains many different kinds information, such as the model coefficients.
 
-```{r lm-error, eval=FALSE}
-  fit <- lm(FCM_ng_g_dry ~ Raw_Squirrel_Density, data=fcm)
+```{r}
+coef(m1)
 ```
 
-will return the error "Error in eval(predvars, data, env) : object 'FCM_ng_g_dry' not found". This means your spelling and capitalization have to be exact!
+We'll return to others, but first, let's explore some of the flexibility of the `lm` function. Two arguments were sent to the function
+
+1. the model formula `transition_date ~ temperature` with the form `Y ~ X`, where Y and X are names of columns in the data.
+* The model formula itself be assinged to a variable, which is useful when building functions. An example
+
+```{r}
+coef_table <- function(x, y, data){
+  m1_form <- formula(paste(y, "~", x))
+  m1 <- lm(m1_form, data = data)
+  return(coef(summary(m1)))
+}
+
+coef_table(x = "temperature",
+           y = "transition_date",
+           data = fig2c)
+```
+
+* Both Y and X can also be column names embedded within a function, for example
+
+```{r}
+m2 <- lm(log(transition_date) ~ temperature, data = fig2c)
+coef(m2)
+```
+or
+
+```{r}
+m3 <- lm(scale(transition_date) ~ scale(temperature), data = fig2c)
+coef(m3)
+```
+
+2. The data frame (remember that a data.table is a data frame) containing the columns with the variable names in the model formula. A data argument is not necessary but it is usually the better way (an exception is when a researcher wants to create a matrix of Y variables or to construct their own model matrix)
+
+type `?lm` into the console to see other arguments of the `lm` function. 
+
+```{r}
+x <- fig2[, temperature]
+y <- fig2[, transition_date]
+m4 <- lm(y ~ x)
+coef(m4)
+```
 
 ### Getting to know the linear model: the `summary` function
 
-The `lm` function returns an `lm` object, which we've assigned to the name `fit`. `fit` contains lots of information about our fit of the linear model to the data. Most of the information that we want for most purposes can be retrieved with the `summary` function, which is a general-purpose R command the works with many R objects.
+The `lm` function returns an `lm` object, which we've assigned to the name `m1`. `m1` contains lots of information about our fit of the linear model to the data. Most of the information that we want for most purposes can be retrieved with the `summary` function, which is a general-purpose R command the works with many R objects.
 
-```{r fcm-summary}
-summary(fit)
+```{r}
+summary(m1)
 ```
 
 What is here:
@@ -176,113 +1016,681 @@ What is here:
 
 **Coefficients table**. This contains the linear model coefficients and their standard error and associated $t$ and $p$ values.
 
-1. The column of values under "Estimate" are the coefficients of the fitted model (equation \@ref(eq:fcmi)). Here, `r coef(fit)[1]` is the intercept ($b_0$) and `r coef(fit)[2]` is the effect of $Density$ ($b_1$).
+1. The column of values under "Estimate" are the coefficients of the fitted model (equation \@ref(eq:continuous-x-fit)). Here, `r coef(m1)[1]` is the intercept ($b_0$) and `r coef(m1)[2]` is the effect of $temperature$ ($b_1$).
 2. The column of values under "Std. Error" are the standard errors of the coefficients.
-3. The column of values under "t value" are the *t-statistics* for each coefficient. A $t$-value is a **signal to noise ratio**. The coefficient $b_1$ is the "signal" and the SE is the noise. Get used to thinking about this ratio. Any $t$ less than 2 is indicative of too much noise to say much about the signal. A $t$ between 2 and 3 means the noise is large enough to suggest an effect. A $t$ greater than 3 is pretty good evidence of an effect.
-4. The column of values under "Pr(>|t|)" is the $p$-value, which is the exact probability associated with a particular $t$. What is the $p$-value a test of? The $p$-value tests the hypothesis ``how probable are the data if the coefficient is zero?''. Formally $P = \mathrm{freq(t' \ge t|H_o)}$, where $t'$ is the hypothetical t-value, t is the observed $t$-value, and $H_o$ is the null hypothesis. We will return to $p$-values in Chapter xxx.
+3. The column of values under "t value" are the *t-statistics* for each coefficient. A *t*-value is a **signal to noise ratio**. The coefficient $b_1$ is the "signal" and the SE is the noise. Get used to thinking about this ratio. A *t*-value greater than about 3 indicates a "pretty good" signal relative to noise, while one much below than 2 is not.
+4. The column of values under "Pr(>|t|)" is the *p*-value, which is the t-test of the estimate. What is the *p*-value a test of? The *p*-value tests the hypothesis "how probable are the data, or more extreme than than the data, if the true parameter is zero?". Formally $p = \mathrm{freq(t' \ge t|H_o)}$, where $t'$ is the hypothetical *t*-value, *t* is the observed $t$-value, and $H_o$ is the null hypothesis. We will return to *p*-values in Chapter xxx.
 
-**Signif. codes**. I am surprised that base R returns this. These are useless because the concept of "levels of significance" is muddled, as will be discussed in Chapter xxx.
+**Signif. codes**. Significance codes are extremely common in the wet bench experimental biology literature but do not have much to recommend. I'll return to these in the *p*-values chapter.
 
 Beneath the Signif. codes are some model statistics which are useful
 
-**Residual standard error** This is $\sqrt{\sum{e_i^2}/(n-2)}$, where $e_i$ are the residuals in the fitted model. "degrees of freedom" is the number of $e_i$ that are "allowed to vary" after fitting the parameters, so is the total sample size ($n$) minus the number of parameters fit. The fit model has two fit parameters ($b_0$ and $b_1$ so the df is $n-2$. Note that this is the denominator in the residual standard error equation.
+**Residual standard error** This is $\sqrt{\sum{e_i^2}/(n-2)}$, where $e_i$ are the residuals in the fitted model. "degrees of freedom" is the number of $e_i$ that are "allowed to vary" after fitting the parameters, so is the total sample size ($n$) minus the number of parameters in the model. The fit model has two fit parameters ($b_0$ and $b_1$ so the df is $n-2$. Note that this is the denominator in the residual standard error equation.
 
-**Multiple R-squared**. This is an important but imperfect summary measure of the whole model that effectively measures how much of the total variance in the response variable "is explained by" the model. Its value lies between zero and 1. **It's a good measure to report in a manuscript**.
+**Multiple R-squared**. This is an important but imperfect summary measure of the whole model that effectively measures how much of the total variance in the response variable "is explained by" the model. Its value lies between zero and 1. **It's a good measure to report in a manuscript**, especially for observational data.
 
 **F-statistic and p-value**. These are statistics for the whole model (not the individual coefficients) and I just don't find these very useful.
 
-```{r fit-p, echo=FALSE}
-p_value <- summary(fit)$coefficients["Raw.Squirrel.Density", "Pr(>|t|)"]
+### Inference -- the coefficient table and Confidence intervals
+
+To get the coefficient table without the other statistics from `summary`, use `summary(m1) %>% coef()`.
+
+```{r }
+m1_coeff <- summary(m1) %>%
+  coef()
+m1_confint <- confint(m1)
+m1_coeff <- cbind(m1_coeff, m1_confint)
+m1_coeff
+
 ```
 
-Note that the $p$-value for the coefficient for Raw.Squirrel.Density is very small and we could conclude that the data are not consistant with a model of no slope. But did we need a formal hypothesis test for this? We haven't learned much if we have only learned that the slope is "not likely to be exactly zero". What we want to know is not *if* there is a relationship between $FCM$ and $Density$, which is imperfectly answered with a $p$-value, but *the sign and magnitude* of the relationship and the uncertainty in this estimate. For this, we don't need the $p$-value. Instead, we want to interpret the coefficient to its SE directly (for a quick-and-dirty interpretation) or the confidence interval of the effect (for a more formal interpretation). Please read this paragraph again. We will come back to it over and over.
+Note that the *p*-value for the coefficient for *temperature* is very small and we could conclude that the data are not compatible with a model of no temperature effect on day of green-down. But did we need a formal hypothesis test for this? We haven't learned much if we have only learned that the slope is "not likely to be exactly zero" (Temperature effects everything in biology). A far more important question is not *if* there is a relationship between *temperature* and *day* of green-down, but what is the sign and magnitude of the effect and what is the uncertainty in our estimate of this effect. For this, we we want the coefficient and its SE or confidence interval, both of which are in this table. Remember, our working definition of a confidence interval:
 
-
-### display: An alternative to summary
-
-Much of what we want to know about a model fit is returned by the `display` function from the `arm` package.
-
-```{r fcm-display}
-display(fit)
-```
-
-The `display` function does not give a $t$-value or a $p$-value of the coefficients because the authors of the arm package do not think $p$-values are very valuable. We don't need a $t$ because one can mentally compute the approximate ratio of the coefficient to its SE and get a sense of the signal to noise, and that's all the authors of the display function think we need.
-
-### Confidence intervals
-
-Confidence intervals for the coefficients of the model are obtained by
-
-```{r ci}
-confint(fit)
-```
-
-`confint` returns by default the 95% confidence interval (CI) of all parameters. The most useful way of thinking about the meaning of a CI is
-
-**A confidence interval contains the range of parameter values that are consistent with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval**
+**A confidence interval contains the range of parameter values that are compatible with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval**
 
 A more textbook way of defining a CI is: A 95% CI of a parameter has a 95% probability of including the true value of the parameter. It does not mean that there is a 95% probability that the true value lies in the interval. This is a subtle but important difference. Here is a way of thinking about the proper meaning of the textbook definition: we don't know the true value of $\beta_1$ but we can 1) repeat the experiment or sampling, 2) re-estimate $\beta_1$, and 3) re-compute a 95% CI. If we do 1-3 many times, 95% of the CIs will include $\beta_1$ within the interval.
 
 Confidence intervals are often interpreted like $p$-values. That is, the researcher looks to see if the CI overlaps with zero and if it does, concludes there is "no effect". First, this conclusion is not correct -- **the inability to find sufficient evidence for an effect does not mean there is no effect, it simply means there is insufficient evidence to conclude there is an effect**!
 
-Second, what we want to use the CI for is to guide us about how big or small the effect might reasonably be, given the data. Again, A CI is a measure of parameter values that are "consistent" with the data. If our biological interpretations at the small-end and at the big-end of the interval's range radically differ, then we don't have enough *precision* in our analysis to reach an unambiguous conclusion. Remember this.
+Second, what we want to use the CI for is to guide us about how big or small the effect might reasonably be, given the data. Again, A CI is a measure of parameter values that are "compatible" with the data. If our biological interpretations at the small-end and at the big-end of the interval's range radically differ, then we don't have enough *precision* in our analysis to reach an unambiguous conclusion.
 
-### How good is our model?
+### How good is our model? -- Model checking
 
-How well does variation in $Density$ "explain" variation in $FCM$? The answer to this is in the $R^2$ value, which is given in `display(fit)` and in `summary(fit)` and accessed directly with
+There are two, quite different senses of what is meant by a good model.
 
-```{r fit-r2}
-summary(fit)$r.squared
+1. How good is the model at predicting? Or, how much of the variance in the response (the stuff to be "explained") is accounted for by the model? This was described above.
+2. How well do the data look like a sample from the modeled distribution? If not well, we should consider alternative models. This is **model checking**.
+
+For inference, a good model generates data that look like the real data. If this is true, our fit model will have well-behaved residuals. There are several aspects of "well-behaved" and each is checked with a diagnostic plot. This **model checking** is covered in more detail in chapter xxx.
+
+Inference from model \@ref(eq:continuous-x-m1) assumes the data were sampled from a normal distribution. To check this, use a quantile-quantile or **Q-Q plot**. The `qqPlot` function from the car package generates a more useful plot than that from Base R.
+
+```{r}
+set.seed(1)
+qqPlot(m1, id=FALSE)
+
+```
+
+Approximately normal residuals will track the solid line and stay largely within the boundaries marked by the dashed lines. The residuals from m1 fit to the green-down data track the solid line and remain within the dashed lines, indicating adequate model fit.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Note that a formal test of normality is often recommended. Formal tests do not add value above a diagnostic check. Robustness of inference (for example, a *p*-value) is a function of the type and degree of "non-normalness", not of a p-value. For a small sample, there is not much power to test for normality, so samples from non-normal distributions pass the test ($p > 0.05$) and are deemed "normal". For large samples, samples from distributions that deviate slightly from normal fail the test ($p < 0.05$) and are deemed "not normal". Inference with many non-normal samples with large $n$ are very robust (meaning infernece is not likely to fool you with randomness).
+</div> 
+
+Inference from model \@ref(eq:continuous-x-m1) assumes homogeneity of the response conditional on $X$. For a continuous $X$, this means the residuals should have approximately equal variance at low, mid, and high values of $X$ (and everywhere in between). One can visually inspect the spread of points in the $Y$ direction across the groups for categorical $X$ or along the *X*-axis for continuous $X$. A useful method for checking how residual variance changes (usually increases) with the conditional mean of $Y$ is a **spread-location plot**. The `spreadLevelPlot(m1)` function from the car package is useful.
+
+```{r}
+spreadLevelPlot(m1)
+
+```
+
+The dashed blue line shows linear trends while the magenta line shows non-linear trends. For the green-down data, the dashed line is very flat while the magenta-line shows what looks like random fluctations. Taken together, the two lines indicate adequate model fit. 
+
+### Plotting models with continuous *X*
+#### Quick plot
+
+`qplot` from the ggplot package is useful for initial examinations of the data
+
+```{r, message=FALSE}
+qplot(x = temperature, y = transition_date, data = fig2c) + geom_smooth()
+```
+
+Some variations of this quick plot to explore include
+
+1. use `geom_smooth(method = "lm")`
+
+#### ggpubr plots
+
+ggpubr is a package with functions that automates the construction of publication-ready ggplots. `ggscatter` can generate a publishable plot with little effort.
+
+```{r message=FALSE}
+ggscatter(data = fig2c,
+          x = "temperature",
+          y = "transition_date",
+          add = "reg.line",
+          xlab = "Added Temperature (°C)",
+          ylab = "Day of Green-down (DOY)")
+
+```
+
+It take only a little more effort to add useful modifications.
+
+```{r message=FALSE}
+ggscatter(data = fig2c,
+          x = "temperature",
+          y = "transition_date",
+          color = "black",
+          fill = "red",
+          shape = 21,
+          size = 3,
+          add = "reg.line",
+          add.params = list(color = "steelblue",
+                            fill = "lightgray"),
+          conf.int = TRUE,
+          xlab = "Added Temperature (°C)",
+          ylab = "Day of Green-down (DOY)") +
+  
+  stat_regline_equation(size = 4,
+                        label.y = 340) +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           size = 4,
+           label.y = 335) +
+
+  NULL
+```
+
+Notes
+
+@. The interval shown is the 95% confidence interval of the expected values, which is what we want to communicate with the experimental green-down data. Were we to want to use this as a prediction model, we would want the 95% prediction interval. I'm not sure that ggpubr can plot a prediction interval. To see how I plotted the prediction interval in Figure \@ref(fig:continuous-x-pred-fig) above, see the Hidden Code section below.
+@. The arguments of the `ggscatter` function are typed in explicitly (`x = "temperarture"` and not just `"temperature"`). Each argument starts on a new line to increase readability.
+@. The `+` after the `ggscatter` function adds additional layers to the plot. Each additional component is started on a new line to increase readability.
+@. The first line of the `stat_cor` function (everything within `aes()`) plots the $R^2$ instead of the correlation coefficient $r$. Copy and pasting this whole line just works.
+@. Comment out the line of the ggplot script starting with `stat_cor` and re-run (comment out by inserting a `#` at the front of the line. A consistent way to do this is to triple-click the line to highlight the line and then type command-shift-c on Mac OS). The script runs without error because `NULL` has been added as the final plot component. Adding "NULL" is a useful trick.
+
+```{r}
+ggscatter(data = efig_3d,
+          x = "autumn_temp_anomaly",
+          y = "green_down_anomaly",
+          color = "black",
+          fill = "red",
+          shape = 21,
+          size = 3,
+          add = "reg.line",
+          add.params = list(color = "steelblue",
+                            fill = "lightgray"),
+          conf.int = TRUE,
+          xlab = "Added Temperature (°C)",
+          ylab = "Day of Green-down (DOY)")
+```
+
+#### ggplots
+
+Use `ggplot` from the ggplot2 package for full control of plots. See the Hidden Code below for how I generated the plots in Figure \@ref(fig:continuous-x-plot) above.
+
+### Creating a table of predicted values and 95% prediction intervals
+
+efig_3d is the data.table created from importing the data in Extended Data Figure 3d above. The fit model is
+
+```{r}
+efig3d_m1 <- lm(green_down_anomaly ~ autumn_temp_anomaly, data = efig_3d)
+```
+
+The `predict(efig3d_m1)` function is used to compute either fitted or predicted values, and either the confidence or prediction interval of these values.
+
+Unless specified by `newdata`, the default x-values used to generate the y in `predict(efig3d_m1)` are the x-values in the data used to fit the model. The returned values are the expected value for each $x_i$ in the data. The argument `newdata` passes a data.frame (remember a data.table is a data.frame!) with new x-values. Since these x-values were not in the data used to fit the model, the returned $y_{hat}$ are predicted values.
+
+The range of x-values in the data is
+
+```{r}
+range(efig_3d[,autumn_temp_anomaly])
+```
+
+Let's get predicted values for a value of $autumn\_temp\_anomaly = 2$.
+
+```{r}
+predict(efig3d_m1, newdata = data.table(autumn_temp_anomaly = 2))
+```
+
+And predicted values across the range of measured values
+
+```{r}
+new_dt <- data.table(autumn_temp_anomaly = c(-2, -1, 1, 2))
+predict(efig3d_m1, newdata = new_dt)
+```
+Add 95% confidence intervals (this could be used to create the band for plotting)
+
+```{r}
+predict(efig3d_m1, 
+        newdata = new_dt,
+        interval = "confidence",
+        se.fit = TRUE)$fit
+
+```
+Change to the 95% prediction intervals
+
+```{r}
+predict(efig3d_m1, 
+        newdata = new_dt,
+        interval = "prediction",
+        se.fit = TRUE)$fit
+```
+Put this all together in a pretty table. I've used knitr's `kable` function but there are table packages in R that allow extensive control of the output.
+
+```{r}
+efig3d_m1 <- lm(green_down_anomaly ~ autumn_temp_anomaly, data = efig_3d)
+new_dt <- data.table(autumn_temp_anomaly = c(-2, -1, 1, 2))
+prediction_table <- predict(efig3d_m1, 
+                            newdata = new_dt,
+                            interval = "prediction",
+                            se.fit = TRUE)$fit
+prediction_table <- data.table(new_dt, prediction_table)
+pretty_names <- c("Autumn Temp Anomaly", "Estimate", "2.5%", "97.5%")
+setnames(prediction_table, old = colnames(prediction_table), new = pretty_names)
+knitr::kable(prediction_table, digits = c(1, 1, 1, 1))
 ```
 
 
-$R^2$ is the fraction of the total variance of $Y$ explained by the model, or more specifically, the linear predictor. It will vary from zero (the model explains nothing) to one (the model explains everything). If $R^2=0$ the response is completely unpredictable by the predictors. We can think of the values of the response as white noise or all error. This doesn't mean that the values are "not caused" or "random" or not predicted by some other variable. It only means the values are random with respect to the $X$ variable(s) in the model. If $R^2=1$ we can *exactly* predict the response from the $X$ variables in the model. So the bigger the $R^2$, the better the model in the sense that the response is more predicatable. **Super importantly**, "explains" is in a probabilistic and not causal sense. We will explore this concept much more in future worksheets.
+## Hidden code
 
-\subsection{Model checking}
+### Import and plot of fig2c (ecosystem warming experimental) data
 
-`plot` is a very useful base R function for "model checking" or "model diagnostics" to see if our model fit is acceptable.
+Import
 
-```{r fit-diagnostics}
-plot(fit)
+```{r continuous-x-import-2, echo=TRUE, eval=FALSE}
+data_from <- "Ecosystem warming extends vegetation activity but heightens vulnerability to cold temperatures"
+file_name <- "41586_2018_399_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+fig2 <- read_excel(file_path) %>% # import
+  clean_names() %>% # clean the column names
+  data.table() # convert to data.table
+# View(fig2)
+
+fig2c <- fig2[panel == "2c",]
+# View(fig2c)
 ```
 
-Compare the four diagnostic plots using the guidelines from here
-http://data.library.virginia.edu/diagnostic-plots/
+Creating the response plot (the bottom component)
 
-Questions
+```{r continuous-x-plot-response-2, echo=TRUE, eval=FALSE}
+m1_b <- coef(m1)
+m1_ci <- confint(m1)
+m1_b0_text <- paste0("Intercept: ",
+                  round(m1_b[1],1),
+                  " (",
+                  round(m1_ci[1,1],1),
+                  ", ",
+                  round(m1_ci[1,2],1),
+                  ") d")
+m1_b1_text <- paste0("Slope: ",
+                  round(m1_b[2],2),
+                  " (",
+                  round(m1_ci[2,1],2),
+                  ", ",
+                  round(m1_ci[2,2],2),
+                  ") d per 1 °C")
 
-6. Look at the plots you just made. What is a residual? What is a fitted value?
+# regression line
+m1_x <- min(fig2c[, temperature])
+m1_xend <- max(fig2c[, temperature])
+m1_y <- m1_b[1] + m1_b[2]*m1_x
+m1_yend <- m1_b[1] + m1_b[2]*m1_xend
 
-### exploring a lm object
+fig2c_gg_response <- ggplot(data = fig2c,
+             aes(x = temperature,
+                y = transition_date)) +
+  
+  # regression line first, to not block point
+  geom_segment(x = m1_x,
+               y = m1_y,
+               xend = m1_xend,
+               yend = m1_yend) +
+  # create black edge to points
+  # geom_point(size = 4,
+  #            color = "black") +
+  geom_point(size = 3,
+             color = pal_okabe_ito[1]) +
+   scale_x_continuous(breaks = c(0, 2.25, 4.5, 6.75, 9)) +
+  xlab("Plot temperature (ΔT, °C)") +
+  ylab("Autumn green-down (DOY)") +
+  theme_pubr() +
+  
+  NULL
 
-`fit` contains much information but simply typing `fit` into the console gives us only the model and the coefficients. `names` is a super important R function. It gives us the names of all the parts of some R object. `fit` is an lm object. `names(fit)` gives us all the parts contained in an lm object.
-
-```{r fit-names}
-names(fit)
+# fig2c_gg_response
 ```
 
-You can see any of these parts using the dollar sign
+Creating the effects plot (the top component)
 
-Questions
+```{r  continuous-x-plot-effect-2, echo=TRUE, eval=FALSE}
+m1_coeff_dt <- data.table(term = row.names(m1_coeff),
+                          data.table(m1_coeff))[2,] %>%
+  clean_names()
+m1_coeff_dt[ , p_pretty := pvalString(pr_t)]
 
-7. What does `fit$residuals` return? Answer using equation \@ref(eq:fcmi)
+min_bound <- min(m1_coeff_dt[, x2_5_percent])
+max_bound <- min(m1_coeff_dt[, x97_5_percent])
 
-8. What does `fit$fitted.values` return? Answer using equation \@ref(eq:fcmi
+y_lo <- min(min_bound+min_bound*0.2,
+            -max_bound)
+y_hi <- max(max_bound + max_bound*0.2,
+            -min_bound)
+y_lims <- c(y_lo, y_hi)
 
-You can use qplot to make a plot similar to the first plot of `plot(fit)`
+fig2c_gg_effect <- ggplot(data=m1_coeff_dt, 
+                          aes(x = term,
+                              y = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(ymin=x2_5_percent, 
+                    ymax=x97_5_percent),
+                width=0, 
+                color="black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # zero effect
+  geom_hline(yintercept=0, linetype = 2) +
+  
+  # p-value
+  annotate(geom = "text",
+           label = m1_coeff_dt$p_pretty,
+           x = 1,
+           y = 7.5) +
+  
+  # aesthetics
+  scale_y_continuous(position="right") +
+  scale_x_discrete(labels = "Temperature\neffect") +
+  ylab("Effects (day/°C)") +
+  coord_flip(ylim = y_lims) + 
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
 
-```{r fit-fitted}
-qplot(fit$fitted.values, fit$residuals, geom=c('point', 'smooth'))
+#fig2c_gg_effect
 ```
 
+Combining the response and effects plots into single plot
 
-## Problems
-1. Using the chick data from Chapter 3. Compare the effects of nest_temperature_above_ambient on day13_mass by fitting two separate linear models 1) one using only the control group and one using the treated group. The grouping variable is playback_treatment. These models were plotted in Chapter 3 so `lm` will return the linear model behind these plots.
+```{r continuous-x-plot-2, echo=TRUE, eval=FALSE}
+fig3d_fig <- plot_grid(fig2c_gg_effect,
+                       fig2c_gg_response,
+                       nrow=2,
+                       align = "v",
+                       axis = "lr",
+                       rel_heights = c(0.4,1))
+fig3d_fig
+```
 
-Report the results using the two effect estimates and a 95% confidence interval (we will learn in a later chapter a more sophisticated way of comparing the effects between the groups)
+### Import and plot efig_3d (Ecosysem warming observational) data
 
-**file name**: "allDatasetsMarietteBuchanan2016.xls"
+Import
 
-**source**: https://datadryad.org//handle/10255/dryad.122315
+```{r , echo=TRUE, eval=FALSE}
+data_from <- "Ecosystem warming extends vegetation activity but heightens vulnerability to cold temperatures"
+file_name <- "41586_2018_399_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+efig_3d <- read_excel(file_path,
+                   range = "J2:K87",
+                   col_names = FALSE) %>% # header causing issues
+  data.table() # convert to data.table
+setnames(efig_3d, old = colnames(efig_3d), new = c("autumn_temp_anomaly", "green_down_anomaly"))
 
-2. (Grad students only) -- find a dataset using Dryad that has data that can be fit by a simple linear model with a single continuous $X$ (its okay if the authors fit the data with a more complex model). Fit the data and report the results with a plot and text.
+# View(efig_3d)
+```
+
+Plot
+
+```{r , echo=TRUE, eval=FALSE}
+m1 <- lm(green_down_anomaly ~ autumn_temp_anomaly, data = efig_3d)
+
+# get x for drawing slope
+minx <- min(efig_3d[,autumn_temp_anomaly])
+maxx <- max(efig_3d[,autumn_temp_anomaly])
+new_x <- seq(minx, maxx, length.out = 20)
+new_data <- data.table(autumn_temp_anomaly = new_x)
+new_data[, yhat := predict(m1, newdata = new_data)]
+new_data[, conf_lwr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "confidence",
+                           newdata = new_data)$fit[, "lwr"]]
+new_data[, conf_upr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "confidence",
+                           newdata = new_data)$fit[, "upr"]]
+new_data[, pred_lwr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "lwr"]]
+new_data[, pred_upr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "upr"]]
+
+gg <- ggscatter(data = efig_3d,
+          x = "autumn_temp_anomaly",
+          y = "green_down_anomaly",
+          color = "black",
+          shape = 21,
+          size = 3,
+          add = "reg.line",
+          add.params = list(color = "steelblue",
+                            fill = "lightgray"),
+          xlab = "Temperature Anomaly (°C)",
+          ylab = "Day of Green-down Anomaly (DOY)") +
+
+  geom_ribbon(data = new_data,
+              aes(ymin = pred_lwr,
+                  ymax = pred_upr,
+                  y = yhat,
+                  fill = "band"),
+              fill = "gray",
+              alpha = 0.3) +
+  
+  geom_ribbon(data = new_data,
+              aes(ymin = conf_lwr,
+                  ymax = conf_upr,
+                  y = yhat,
+                  fill = "band"), alpha = 0.3) +
+  
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           size = 4,
+           label.y = 10) +
+  
+  scale_fill_manual(values = pal_okabe_ito) +
+
+  theme(legend.position="none") +
+
+  NULL  
+
+gg
+```
+
+### Import and plot of fig1f (methionine restriction) data
+
+Import
+
+```{r continuous-x-long-import-2, echo=TRUE, eval=FALSE}
+data_from <- "Dietary methionine influences therapy in mouse cancer models and alters human metabolism"
+file_name <- "41586_2019_1437_MOESM2_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig1f_wide <- read_excel(file_path,
+                    sheet = "f",
+                    range = "B7:R12",
+                    col_names = FALSE) %>%
+  data.table() # convert to data.table
+
+setnames(fig1f_wide,
+         old = colnames(fig1f_wide),
+         new = c("day",
+                 paste0("Cn_", 1:8),
+                 paste0("MR_", 1:8)))
+
+fig1f_wide <- transpose(fig1f_wide, make.names = 1, keep.names = "id")
+fig1f_wide[, treatment := factor(substr(id, 1, 2))]
+
+days <- c(21, 25, 28, 30, 34, 39)
+fig1f <- melt(fig1f_wide,
+              id.vars <- c("treatment", "id"),
+              measure.vars <- as.character(days),
+              variable.name = "day",
+              value.name = "volume")
+fig1f[, day := as.numeric(as.character(day))]
+# View(fig1f)
+# qplot(x = day, y = volume, color = treatment, data = fig1f) + geom_line(aes(group = id))
+```
+
+Creating the response plot (the bottom component)
+
+```{r continuous-x-long-plot-response-2, echo=TRUE, eval=FALSE}
+fig1f_gg_response <- ggplot(data = fig1f,
+                      aes(x = day, y = volume, color = treatment)) +
+  geom_point() +
+  geom_smooth(aes(group = id), method = "lm", se = FALSE) +
+  xlab("Day") +
+  ylab(expression(Tumor~Volume~(mm^3))) +
+  scale_color_manual(values = pal_okabe_ito) +
+  theme_pubr() +
+  theme(
+    legend.position = c(.15, .98),
+    legend.justification = c("right", "top"),
+    legend.box.just = "right",
+    legend.margin = margin(6, 6, 6, 6),
+    legend.title = element_blank()
+    ) +
+
+  NULL
+
+# fig1f_gg_response
+```
+
+Creating the effects plot (the top component)
+
+```{r continuous-x-long-plot-effect-2, echo=TRUE, eval=FALSE}
+m1_coeff_dt <- data.table(term = row.names(m1_coef_table),
+                          data.table(m1_coef_table))[2,] %>%
+  clean_names()
+m1_coeff_dt[ , p_pretty := pvalString(pr_t)]
+
+min_bound <- min(m1_coeff_dt[, x2_5_percent])
+max_bound <- min(m1_coeff_dt[, x97_5_percent])
+
+y_lo <- min(min_bound+min_bound*0.2,
+            -max_bound)
+y_hi <- max(max_bound + max_bound*0.2,
+            -min_bound)
+y_lims <- c(y_lo, y_hi)
+
+fig1f_gg_effect <- ggplot(data=m1_coeff_dt, 
+                          aes(x = term,
+                              y = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(ymin=x2_5_percent, 
+                    ymax=x97_5_percent),
+                width=0, 
+                color="black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # zero effect
+  geom_hline(yintercept=0, linetype = 2) +
+  
+  # p-value
+  annotate(geom = "text",
+           label = m1_coeff_dt$p_pretty,
+           x = 1,
+           y = 7.5) +
+  
+  # aesthetics
+  scale_y_continuous(position="right") +
+  scale_x_discrete(labels = "MR\neffect") +
+  ylab(expression(Growth~(mm^3/day))) +
+  coord_flip(ylim = y_lims) + 
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
+
+#fig1f_gg_effect
+```
+
+Combining the response and effects plots into single plot
+
+```{r continuous-x-long-plot-2, echo=TRUE, eval=FALSE, message=FALSE}
+fig1f_gg <- plot_grid(fig1f_gg_effect,
+                      fig1f_gg_response,
+                      nrow=2,
+                      align = "v",
+                      axis = "lr",
+                      rel_heights = c(0.4,1))
+fig1f_gg
+```
+
+## Try it
+### A prediction model from the literature
+
+The data come from the top, middle plot of Figure 1e of
+
+[Parker, B.L., Calkin, A.C., Seldin, M.M., Keating, M.F., Tarling, E.J., Yang, P., Moody, S.C., Liu, Y., Zerenturk, E.J., Needham, E.J. and Miller, M.L., 2019. An integrative systems genetic analysis of mammalian lipid metabolism. Nature, 567(7747), pp.187-193.](https://idp.nature.com/authorize/casa?redirect_uri=https://www.nature.com/articles/s41586-019-0984-y&casa_token=9rpBLACc40cAAAAA:BzRKQHYdU9DOrzBS0f0lwrbp07MlfVqqL4yuyedE5b_xZ8geHuUCPFIDE3yQUBO-ibQLCrCI4t84aO8){target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6656374/){target="_blank"}
+
+[Source data](https://www.nature.com/articles/s41586-019-0984-y#Sec35){target="_blank"}
+
+The researchers built prediction models from a hybrid mouse diversity panel (HMDP) to predict liver lipid levels from measured plasma lipid levels in mice *and* in humans. The value of the predictor ($X$) variable for an individual is not a measured value of a single plasma lipid but the predicted value, or **score**, from the prediction model based on an entire panel of lipid measurements in that individual. The $Y$ variable for the individual is the total measured level across a family of lipids (ceramides, triacylglycerols, diacylglycerols) in the liver of the individual. The question is, how well does the prediction score predict the actual liver level?
+
+1. Use the data for TG (triacylglycerols) (the top, middle plot of Figure 1e). The column D is the "score" from the prediction model using plasma lipid levels. This is the $X$ variable (the column header is "fitted.total.Cer"). The column E is the total measured liver TG, so is the $Y$ variable.
+2. Fit the linear model y ~ x.
+3. Create a publication-quality plot of liver TG (*Y*-axis) against score (*X*-axis) -- what the researchers labeled "fitted.total.Cer". Include $R^2$ on the plot.
+4. Advanced -- add a 95% prediction interval to the plot (the template code for this is in the Hidden Code section for efig3d)
+5. Create a table of expected liver TG and 95% prediction interval of liver TG of the score values (13.5, 14, 14.5, 15, 15.5, 16).
+6. Comment on the predictability of liver TG using the plasma scores.
+
+```{r continuous-x-import-prediction, echo=FALSE, eval=FALSE}
+#1
+data_from <- "An integrative systems genetic analysis of mammalian lipid metabolism"
+file_name <- "41586_2019_984_MOESM4_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+fig1e <- read_excel(file_path,
+                    sheet = "1e") %>% # import
+  clean_names() %>% # clean the column names
+  data.table() # convert to data.table
+
+# View(fig1e)
+
+m1 <- lm(total_tg ~ fitted_total_cer_4, data = fig1e)
+
+#2
+summary(m1)$r.squared
+
+#3
+gg3 <- ggscatter(data = fig1e,
+          x = "fitted_total_cer_4",
+          y = "total_tg",
+          # color = "black",
+          # fill = "red",
+          shape = 21,
+          size = 3,
+          add = "reg.line",
+          add.params = list(color = "steelblue",
+                            fill = "lightgray"),
+          conf.int = FALSE,
+          xlab = "Predicted",
+          ylab = "Liver Total TG") +
+  
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           size = 4,
+           label.y = 17) +
+  NULL
+gg3
+
+#4
+# get x for drawing slope
+minx <- min(fig1e[,fitted_total_cer_4])
+maxx <- max(fig1e[,fitted_total_cer_4])
+new_x <- seq(minx, maxx, length.out = 20)
+new_data <- data.table(fitted_total_cer_4 = new_x)
+new_data[, yhat := predict(m1, newdata = new_data)]
+new_data[, pred_lwr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "lwr"]]
+new_data[, pred_upr := predict(m1, 
+                           se.fit = TRUE,
+                           interval = "prediction",
+                           newdata = new_data)$fit[, "upr"]]
+
+gg4 <- gg3 +
+  geom_ribbon(data = new_data,
+              aes(ymin = pred_lwr,
+                  ymax = pred_upr,
+                  y = yhat,
+                  fill = "band"),
+              fill = "gray",
+              alpha = 0.3)
+gg4
+
+#5
+tg_predictions <- data.table(
+  fitted_total_cer_4 = c(13.5, 14, 14.5, 15, 15.5, 16))
+tg_predictions <- cbind(
+  tg_predictions,
+  predict(m1,
+          newdata = tg_predictions,
+          interval = "prediction"))
+
+median_fitted <- median(fig1e$fitted_total_cer_4)
+predict(m1,
+        newdata = data.frame(fitted_total_cer_4 = median_fitted),
+        interval = "prediction")
+range(fig1e$total_tg)
+
+# The model is not going to be very useful for predicting true liver TG. This is evidenced by the wide prediction interval. For example, at the low end of the fitted ceramide level, at a predicted score of 14.5, which is near the middle of the predicted range, 95% of actual values should fall within the range 12.8 - 16.2, which nearly covers the entire range of true liver TG values.
+```
+`
+
+## Intuition pumps
+
+### Correlation and $R^2
+
+In the code below
+
+1. change the value of `n` to explore effect on the variability of the estimate. Look at this variability, and the magnitude of the SE, and the magnitude of the p-value.
+2. change the value of `beta_1` to explore effect on what different slopes and correlations look like. Notice that if the variance is fixed (as in this simulation) the expected slope and expected correlation are equal. (Because I've fixed the variance in this simple simulation, this code will fail if abs(beta_1) >= 1).
+
+```{r, message=FALSE}
+n <- 100 # choose between 3 and 10^5
+beta_1 <- 0.6 # choose a value between -0.99 and 0.99
+x <- rnorm(n)
+y <- beta_1*x + sqrt(1-beta_1^2)*rnorm(n)
+m1 <- lm(y ~ x)
+slope <- paste("b_1: ", round(coef(m1)[2], 3))
+se <- paste("SE: ", round(coef(summary(m1))[2,2], 3))
+r <- paste("r: ", round(cor(x,y), 3))
+r2 <- paste("R^2: ", round(summary(m1)$r.squared, 3))
+ggscatter(data = data.table(x=x, y=y), x = "x", y = "y",
+          add = "reg.line") +
+  ggtitle(label = paste(slope,se,r,r2,sep=";  "))
+
+```
 

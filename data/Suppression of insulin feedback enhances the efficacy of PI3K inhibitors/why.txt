@@ -1,0 +1,4 @@
+Suppression of insulin feedback enhances the efficacy of PI3K inhibitors
+
+1A, B -- longitudinal analysis in same strain so no strain effect at baseline. Excellent. Used 2-way ANOVA
+3A -- as in 1A -- used RMANOVA -- hmm. Why RM here but 2-way in 1?

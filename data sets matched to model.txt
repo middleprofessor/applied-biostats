@@ -1,0 +1,15 @@
+categorical x - 2 x 1
+	Tirosh-proprionate
+categorical x - 3 x 1
+categorical x - 2 x 2
+ * adipisin, nature medicine, fig1j, fig3e
+welch t
+paired t
+ * Externalized histone H4, Nature
+change score/ancova
+non-parametric (count or gamma dis)
+multiple response - non longitudinal
+multiple response - longitudinal
+ * adipsin, nature medicine, fig1i, 2 x 1
+ * Innervation of thermogenic, Nature, fig 3d - good to address "when do they become different"
+multiple response - gtt

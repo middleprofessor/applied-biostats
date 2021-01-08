@@ -18,6 +18,9 @@ Uncertainty emerges because of variability. In any introductory statistics class
 When a research biologist uses the term "standard deviation," they are probably referring to the sample standard deviation which is a measure of the variability of a sample. When a research biologist uses the term "standard error," they are probably referring to the standard error of a mean, but it could be the standard error of another statistics, such as a difference between means or a regression slope. An important point to remember and understand is that all standard errors *are* standard deviations. This will make more sense soon.
 
 ## The sample standard deviation vs. the standard error of the mean
+
+A standard deviation is the square root of the sampling variance.
+
 ### Sample standard deviation
 
 The sample standard deviation is a measure of the variability of a sample. For example, were we to look at a histological section of skeletal muscle we would see that the diameter of the fibers (the muscle cells) is variable. We could use imaging software to measure the diameter of a sample of 100 cells and get a **distribution** like this
@@ -264,7 +267,7 @@ Let's use the vole data to explore the bootstrap and "resampling". The data are 
 The data are the measured lifespans of the short-tailed field vole (*Microtus agrestis*) under three different experimental treatments: vitamin E supplementation, vitamin C supplementation, and control (no vitamin supplementation). Vitamins C and E are antioxidants, which are thought to be protective of basic cell function since they bind to the cell-damaging reactive oxygen species that result from cell metabolism.
 
 ```{r import_voles_10, echo=FALSE, warning=FALSE, message=FALSE}
-folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+folder <- "Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- here(data_path, folder, filename)
 vole <- read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98") %>%
@@ -350,6 +353,14 @@ confint(lm(control_voles ~ 1))
 Okay, so what *is* a confidence interval? A confidence interval of the mean is a measure of the uncertainty in the estimate of the mean. A 95% confidence interval has a 95\% probability (in the sense of long-run frequency) of containing the true mean. It is not correct to state that "there is a 95% probability that the true mean lies within the interval". These sound the same but they are two different probabilities. The first (correct interpretation) is a probability of a procedure -- if we re-do this procedure (sample data, compute the mean, and compute a 95% CI), 95% of these CIs will contain the true mean. The second (incorrect interpretation) is a probability that a parameter ($\mu$, the true mean) lies within some range. The second (incorrect) interepretation of the CI is correct only if we also assume that *any* value of the mean is equally probable (Greenland xxx), an assumption that is absurd for almost any data. 
 
 Perhaps a more useful interpretation of a confidence interval is, a confidence interval contains the range of true means that are compatible with the data, in the sense that a $t$-test would not reject the null hypothesis of a difference between the estimate and any value within the interval (this interpretation does not imply anything about the true value) (Greenland xxx). The "compatibility" interpretation is very useful because it implies that values outside of the interval are less compatible with the data.
+
+```{r echo = FALSE}
+# @richarddmorey: Saying that there is evidence against true hypotheses, in the frequentist sense. Building simple models of the world and asking “if this were true, would I often find strong evidence against it?”
+
+# @richarddmorey: But I think of frequentist stats more as a collection of thought experiments, and I know of few scientists that view freq. *probability* useless as a model.
+
+# consider all possible values of statistic relative to observed value. As we move away, there is stronger evidence that that value is not true, or less compatability. The CI is the range of possible values of the statistic that we the data isn't very strong evidence against the value, and so that value is "compatabile" with the data. Compatability is a continuous concept but a CI is a trichotomy. A better representation of this concept is a p-curve.
+```
 
 Let's look at the confidence intervals of all three vole groups in light of the "compatibility" interpretation.
 

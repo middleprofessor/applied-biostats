@@ -1,6 +1,7 @@
 # ANOVA Tables
 
 ```{r anova-setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(here)
 library(reshape2)
 library(readxl)
 library(ggplot2)
@@ -12,11 +13,10 @@ library(car)
 library(broom)
 library(cowplot)
 
-data_path <- "../data" # notebook
 data_path <- "data" # bookdown
 
-#source("../R/gg_interaction.R")
-source("R/gg_interaction.R") # bookdown
+source_path <- here::here("R", "gg_interaction.R")
+source(source_path)
 
 options(knitr.kable.NA = '')
 
@@ -49,7 +49,7 @@ The vole data has a single factor ("treatment") with three levels ("control", "v
 Here is an ANOVA table of the vole data:
 
 ```{r anova-vole, echo=FALSE}
-folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
+folder <- "Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
 file_path <- paste(data_path, folder, filename, sep="/")
 vole_wide <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))

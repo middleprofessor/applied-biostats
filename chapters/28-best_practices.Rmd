@@ -1,4 +1,4 @@
-# Best Practices -- Issues in Inference
+# Best practices -- issues in inference
 
 ```{r best-setup, warning=FALSE, message=FALSE, echo=FALSE}
 library(readxl)
@@ -15,11 +15,8 @@ library(here)
 here <- here::here
 data_path <- "data"
 ```
-## Power
-### "Types" of Error
-I, II, S, M
 
-## multiple testing
+## Multiple testing
 
 **Multiple testing** is the practice of adjusting *p*-values (and less commonly confidence intervals) to account for the expected increase in the frequency of Type I error when there are multiple tests (typically Null Hypothesis Significance Tests). Multiple testing tends to arise in two types of situations:
 
@@ -133,7 +130,7 @@ The `adjust` argument in `emmeans::contrast()` controls the method for *p*-value
 The data are those from Fig. 2D of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with four treatment levels. The response is neutrophil count.
 
 ```{r best-import-enteric, echo=FALSE}
-folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
+folder <- "The enteric nervous system promotes intestinal health by constraining microbiota composition"
 filename <- "journal.pbio.2000689.s008.xlsx"
 
 # figure 2D data
@@ -192,7 +189,7 @@ On this last point, do not use the *p*-value from a "test for normality" (such a
 The data for demonstrating different strategies are from Fig. 4A of "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition". There is a single factor with two treatment levels. The response is neutrophil count.
 
 ```{r best-import-non-normal-counts, echo=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of the counts in the wildtype (WT) and sox10 knockout (sox10-) groups. Both groups show a strong right skew, which is common with count data."}
-folder <- "Data from The enteric nervous system promotes intestinal health by constraining microbiota composition"
+folder <- "The enteric nervous system promotes intestinal health by constraining microbiota composition"
 filename <- "journal.pbio.2000689.s008.xlsx"
 
 # figure 2D data
@@ -493,6 +490,3 @@ apply(res_matrix, 2, function(x) sum(x < 0.05)/n_sets)
 
 As above, Power is computed for the linear model, linear model with a log-transformed response, Mann-Whitney-Wilcoxan, and permutation, by simulating a "low power" experiment. The effect is huge (twice as many cells) but the power is low because the sample size is small ($n = 5$). At this sample size, and for this model of fake data, all tests have low power. The power of the log-transformed response is the largest. A problem is, this is not a test of the means but of the log transformed mean plus 1. The power of the permutation test is about 25% larger than that of the linear model and Mann-Whitney-Wilcoxan test. An advantage of this test is that it is a p-value of the mean. A good complement to this p-value would be bootstraped confidence intervals. Repeat this simulation using $n=40$ do see how the relative power among the three change in a simulation of an experiment with more power.
 
-## max vs. mean
-
-## pre-post, normalization

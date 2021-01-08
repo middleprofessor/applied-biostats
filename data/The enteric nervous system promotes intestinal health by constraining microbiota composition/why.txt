@@ -1,0 +1,3 @@
+why downloaded?
+- many t-test like experiments (fig 5)
+- gtt/auc

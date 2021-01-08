@@ -1,0 +1,88 @@
+---
+title: "Useful R functions"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(learnr)
+library(data.table)
+
+```
+
+```{r}
+
+```
+
+## Topic 1
+
+
+
+### Exercise 
+
+Fake data has many purposes in statistics including pumping statistical intuition, model checking after, and evaluating the performance of method if the performance cannot be solved analytically. Generating fake data is easy, we simply use the (the-"error-draw"-specification) or the (the-"conditional-draw"-specification) of a linear model to create fake data that look like real data. To start, then, we need to decide what we want to simulate, because this will inform the distribution that we use to draw from. If we want to generate fake data that looks like body weight of mice, then we might use the normal distribution. If we want to generate fake data that look like parasite counts, then we might use a negative binomial distribution. And if we want to generate fake data that look like the presence or absence of parasites, then we might use a binomial distribution.
+
+In addition to the distribution, to make fake data look like real data, we need to set reasonable values of the parameters of the distribution. The parameters of a distribution specify the location, the shape, and the spread of a specific case. Wikipedia is a good source for learning about the parameters of a distribution. The parameters of the Normal distribution, for example, are $\mu$ and $\sigma^2$. Conveniently, the mean of a Normal distribution is $\mu$ and the variance is $\sigma^2$ I say conveniently because the mean and variance of a distribution are always some combination of the parameters but typically not such a simple combination.
+
+Let's start with fake data that look like the liver triacylglycerol (TG) data from the Fig. 2i ASK1 experiment in Chapter \@ref(analyzing-experimental-data-with-a-linear-model) ([Analyzing experimental data with a linear model]) and use the Normal distribution. To generate fake data that look like the mouse data we need to set the parameters $\mu$ and $\sigma^2$ to the observed values. This raises the question, which observed value because we have two sets, one for the control (ASK1F/F) and one for the knockout (ASK1ASK1Δadipo). I 
+
+
+
+
+```{r two-plus-two, exercise=TRUE}
+
+```
+
+### Exercise with Code
+
+*Here's an exercise with some prepopulated code as well as `exercise.lines = 5` to provide a bit more initial room to work.*
+
+Now write a function that adds any two numbers and then call it:
+
+```{r add-function, exercise=TRUE, exercise.lines = 5}
+add <- function() {
+  
+}
+```
+
+## Topic 2
+
+### Exercise with Hint
+
+*Here's an exercise where the chunk is pre-evaulated via the `exercise.eval` option (so the user can see the default output we'd like them to customize). We also add a "hint" to the correct solution via the chunk immediate below labeled `print-limit-hint`.*
+
+Modify the following code to limit the number of rows printed to 5:
+
+```{r print-limit, exercise=TRUE, exercise.eval=TRUE}
+mtcars
+```
+
+```{r print-limit-hint}
+head(mtcars)
+```
+
+### Quiz
+
+*You can include any number of single or multiple choice questions as a quiz. Use the `question` function to define a question and the `quiz` function for grouping multiple questions together.*
+
+Some questions to verify that you understand the purposes of various base and recommended R packages:
+
+```{r quiz}
+quiz(
+  question("Which package contains functions for installing other R packages?",
+    answer("base"),
+    answer("tools"),
+    answer("utils", correct = TRUE),
+    answer("codetools")
+  ),
+  question("Which of the R packages listed below are used to create plots?",
+    answer("lattice", correct = TRUE),
+    answer("tools"),
+    answer("stats"),
+    answer("grid", correct = TRUE)
+  )
+)
+```
+

@@ -1,0 +1,822 @@
+---
+title: "Models for longitudinal experiments -- I. pre-post designs"
+author: "Jeffrey A. Walker"
+date: "11/22/2020"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
+    theme: lumen
+    code_folding: hide
+    fig_caption: true
+---
+#  Models for longitudinal experiments -- I. pre-post designs
+
+```{r pre-post-setup, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+
+# analysis packages
+library(nlme) #gls
+library(lmerTest)
+library(emmeans)
+library(car) #qqPlot, SpreadLevelPlot
+library(afex) # ANOVA
+
+# graphing packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(ggforce) # jitter
+library(ggsci) # color palettes
+library(ggpubfigs) # color palettes
+library(ggthemes) # themes and palettes including colorblind
+# execute this command only the first time you use ggpubfigs
+# devtools::install_github("JLSteenwyk/ggpubfigs")
+library(cowplot) # combine plots
+library(lazyWeave) # pretty pvalues
+library(broom)
+library(kableExtra) #tables
+
+
+here <- here::here
+data_folder <- "data"
+
+# Okabe & Ito palette
+pal_ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- colorblind_pal()(8)[2:8] # ggthemes
+```
+
+In a Longitudinal experiment, the response is measured in the same set of individuals over multiple time points. For example, in a glucose tolerance test (GTT), plasma glucose levels are measured at 0, 15, 30, 60, and 120 minutes (or some variation of this) after glucose has been given to the individual. The initial measure (time 0) is the **baseline** measure and subsequent measures are post-baseline measures. In a pre-post experiment, there is a single post-baseline measure. This chapter is focuses on pre-post designs. The next chapter generalizes this information to longitudinal experiments with more than one post-baseline measure. For this chapter, I'll use $pre_i$ and $post_i$ for the baseline and post-baseline measures of the response variable of indiviual $i$. The change from baseline for individual $i$ is $change_i = post_i - pre_i$. The change from baseline is often called a **change score**.
+
+Imagine two versions of an experiment where researchers are interested in the effect of different intestinal microbiomes on body weight.
+
+1. In the intial experiment of the study, the researchers harvest intestinal microbiomes from five mice fed on chow and from five mice fed on a high-fat diet (HFD) and transplant these into ten, male C57bl/6 mouse randomly assigned to donor (this is done by fecal transplant). We have five replicates of the non-obese microbiome and five of the obese microbiome. Weight is measured at baseline (the day of the transplant) and four weeks later. The expected difference at baseline is zero, because the mice are sampled from the same population and the treatment was randomly assigned.
+2. Additional experiments identified the potential role of inflammation-induced obesity in response to microbiome-derived lipopolysaccharide (LPS). In the second experiment, the researchers transplant intestinal microbiota from ten HFD mice into five male, wild-type C57bl/6 mice and five male, C57bl/6 mice in which the LPS receptor (CD14) has been knocked-out. Weight is measured at baseline (the day of the transplant) and four weeks later. The expected difference at baseline is not zero. It is not zero because the mice in each treatment are sampled from different populations (different genotypes). Even if we *think* that genotype shouldn't have an effect on weight at baseline, the expected difference is not zero because the treatment is not randomized at baseline but prior to baseline.
+
+This distinction is important because the best practice linear model depends on it.
+
+## Best practice models
+
+**If the treatment is randomized at baseline to individuals sampled from the same population**
+
+1. Model $\mathcal{M}_1$ -- "ANCOVA model"
+* model formula: `post ~ pre + treatment`
+* a linear model that estimates the effect as the coefficient of treatment adjusted for the baseline measure, with $post$ as the response.
+* The response variable can either be the post-baseline measure or the change-score -- the estimate of the treatment effect is the same.
+* **This is the best practice model if the expected difference at baseline is zero**.
+
+**If the treatment is randomized prior to baseline (the groups are not composed of individuals sampled from the same population at baseline)**
+
+2. Model $\mathcal{M}_2$ -- "change-score model"
+* model formula: `change ~ treatment`
+* a linear model that estimates the effect as the coefficient of $treatment$, with the change score as the response. This is not the same as Model $\mathcal{M}_1$ as there is no covariate in the model.
+* **This is the best practice model if the expected difference at baseline is not zero**.
+
+These two models present vary different ways of thinking about what the treatment effect is. In the ANCOVA model, we think of the treatment effect as the difference between treated and control means at the post-baseline time. Because the post-baseline measure of individual *i* is partly determined by it's value at baseline, variation in baseline values partly masks the effect of treatment. By adding baseline value as a covariate in the model, this masking effect of initial variation is eliminated.
+
+In the change-score model, we think of the treatment effect as the mean difference in the change from baseline. The response changes from baseline to post-baseline in all individuals and we can compute the mean change for both treated ($\overline{post_{tr} - pre_{tr}}$) and control ($\overline{post_{cn} - pre_{cn}}$) levels. The treatment effect is the difference in these means.
+
+\begin{align}
+\mathrm{effect} &= \overline{change}_{tr} - \overline{change}_{cn}\\
+&= (\overline{post_{tr} - pre_{tr}}) - (\overline{post_{cn} - pre_{cn}})
+\end{align}
+
+In the change-score model, the treatment effect is a difference of differences. Differences of differences are interactions and an alternative way to estimate the same effect is with the interaction coefficient ($\beta_3$) of the factorial linear model
+
+\begin{equation}
+weight = \beta_0 + \beta_1 treatment + \beta_2 time + \beta_3 treatment:time + \varepsilon
+\end{equation}
+
+## Common alternatives that are not recommended
+
+3. $\mathcal{M}_3$ -- "post model"
+* model formula: `post ~ treatment`
+* a linear model that estimates the effect as the coefficient of treatment, with $post$ as the response.
+* this model is valid but is not taking advantage of the increased precision of $\mathcal{M}_1$
+4. $\mathcal{M}_4$ -- "interaction model"
+* model formula: `y ~ treatment*time`
+* a factorial fixed-effects model that estimates the effect as the coefficient of the interaction $treatment:time$. The response is the pre and post values stacked into a single column $y$.
+* this will give the same estimate as Model $\mathcal{M}_2$ but the standard error of the effect will incorrect because of the unmodeled correlated error due to multiple (pre and post) measures taken from the same individual. **Never use this for pre-post or longitudinal models**.
+5. $\mathcal{M}_4$ -- "repeated measures model"
+* doesn't estimate the fixed effect but does compute a *p*-value of this effect as the $treatment \times time$ interaction term of the ANOVA table. This is effectively equivalent to change-score model $\mathcal{M}_2$.
+* makes highly contstraining assumptions 
+* A repeated measures model is more common when there are multiple post-baseline measures 
+
+## Advanced models
+6. $\mathcal{M}_6$ -- "linear mixed model"
+* model formula: `y ~ treatment*time + (1|id)`
+* a factorial linear mixed model that estimates the effect as the coefficient of the interaction $treatment:time$. The response is the pre and post values stacked into a single column $y$.
+* the correlated error is implicitly modeled using the random factor $id$.
+* This will give the same estimate as Model $\mathcal{M}_2$ and the same confidence interval and p-value *if* the Satterthwaite degrees of freedom are used.
+7. $\mathcal{M}_7$ -- "fixed effects with correlated error model"
+* model formula: `y ~ treatment*time`
+* linear model with fixed effects and correlated error due to repeated measures within individuals.
+* This looks like the fixed effect model but the error is explicitly modeled to allow 1) correlation due to id and 2) heterogeneity due to time. The advantage of explicitly modeling the correlated error is the flexibility in the model of the error.
+* estimates the effect as the coefficient of the interaction $treatment:time$. The response is the pre and post values stacked into a single column $y$.
+* This is an alternative to the change-score model, but, as in the change-score model, **use this only if the expected difference at baseline is not zero**.
+8. $\mathcal{M}_8$ -- "constrained LDA"
+* model formula: `y ~ time + treatment:time`
+* As in a $\mathcal{M}_7$, this is linear model with fixed effects and correlated error due to repeated measures within individuals. Unlike $\mathcal{M}_7$, the treatment levels are constrained to have the same baseline mean, which is why there is no coefficient for $treatment$. This model is known as Constrained Longitudinal Data Analysis (cLDA). The estimated treatment effect is effectively equal to that of the ANCOVA model ($\mathcal{M}_1$) but, compared to inference from the ANCOVA model, the SE is smaller, the CIs are narrower, and the p-value is smaller. This increased precision and power, however, comes at a cost to increased Type I error.
+* This is an interesting alternative to the ANCOVA model.
+
+## Understanding the alternative models
+
+The data used to explore the alternative models for analyzing pre-post data are from Figure 3F of Reed et al. 2020.
+
+[Source article: Reed, M.D., Yim, Y.S., Wimmer, R.D. et al. IL-17a promotes sociability in mouse models of neurodevelopmental disorders. Nature 577, 249–253 (2020). https://doi.org/10.1038/s41586-019-1843-6](https://www.nature.com/articles/s41586-019-1843-6)
+
+[Source data](https://www.nature.com/articles/s41586-019-1843-6#Sec37)
+
+```{r pre-post-eg1-import, echo=FALSE, message=FALSE}
+data_from <- "IL-17a promotes sociability in mouse models of neurodevelopmental disorders"
+file_name <- "41586_2019_1843_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# response - fmr1
+# vehicle
+fig3f_vehicle <- read_excel(file_path,
+                     sheet = "Fig 3f",
+                     range = "DA2:DI3", # 1 blank column
+                     col_names = FALSE) %>%
+  data.table() %>%
+  transpose() %>%
+  setnames(old = c("V1", "V2"), new = c("pre", "post"))
+
+fig3f_il17 <- read_excel(file_path,
+                     sheet = "Fig 3f",
+                     range = "DL2:DV3", # 1 blank column
+                     col_names = FALSE) %>%
+  data.table() %>%
+  transpose() %>%
+  setnames(old = c("V1", "V2"), new = c("pre", "post"))
+
+treatment_levels <- c("Vehicle", "IL-17")
+fig3f <- rbind(data.table(treatment = treatment_levels[1], fig3f_vehicle),
+               data.table(treatment = treatment_levels[2], fig3f_il17))
+
+fig3f[, treatment := factor(treatment, levels = treatment_levels)]
+fig3f[, id := paste0("mouse_", .I)]
+fig3f[, background := "fmr1"] # which mouse group?
+fig3f[, change := post - pre]
+
+```
+
+The data is from an experiment estimating the effect of xxx on a sociability in mice. For some of the models, we need a wide version of the data.table and for other models, we need a long version. In the wide version, values of $pre$ and $post$ are in separate columns and the data.table includes the column $change$. In the long version, values of $pre$ and $post$ are stacked into a single column, and the column $time$ (with values "pre" and "post") is added to identify the time period of the measurement. There is no $change$ column because it is not needed in the analyses using the data in long format.
+
+```{r pre-post-eg1-data-wide, echo=FALSE}
+fig3f[1:4, .SD, , .SDcols = c("treatment", "id", "pre", "post", "change")] %>%
+  knitr::kable(digits = c(1,2,2,1),
+             caption = "First four rows of sociability data in wide format") %>%
+  kable_styling()
+```
+
+
+```{r pre-post-eg1-melt, echo=FALSE}
+fig3f_long <- melt(fig3f,
+                   id.vars = c("treatment", "id", "change"),
+                   measure.vars = c("pre", "post"),
+                   variable.name = "time",
+                   value.name = "sociability")
+fig3f_long[, time := factor(time,
+                            levels = c("pre", "post"))]
+fig3f_long[, id := factor(id)]
+
+fig3f_long[1:4, .SD, , .SDcols = c("treatment", "time", "id", "sociability")] %>%
+  knitr::kable(digits = c(1,2,2,1),
+             caption = "First four rows of sociability data in long format.") %>%
+  kable_styling()
+```
+
+### (M1) Linear model with the baseline measure as the covariate (ANCOVA model)
+
+Model $mathcal{M}_1$ is a linear model with the baseline variable added as a covariate. This is almost universally referred to as the "ANCOVA model".
+
+\begin{equation}
+\mathcal{M}_1\;\;\;post = \beta_0 + \beta_1 pre + \beta_2 treatment + \varepsilon
+\end{equation}
+
+The model formula is 
+
+`post ~ pre + treatment`
+
+```{r pre-post-ancova, echo=FALSE}
+m1 <- lm(post ~ pre + treatment, data = fig3f)
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+knitr::kable(m1_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of Model M1") %>%
+  kable_styling()
+```
+
+The third row (`treatmentIL-17`) of coefficient table \@ref(tab:longitudinal-ancova) of Model $\mathcal{M}_1$ contains the statistics of interest. The estimate is the treatment effect adjusted for the baseline value, or "what the treatment effect would be if all the baseline values were equal". Adding the covariate increases precision, which is why the ANCOVA model is preferred to a simple analysis of the post-baseline values (the "post model").
+
+```{r pre-post-longitudinal-ancova, echo=FALSE}
+# lmeModel = lmer(dep ~ cv + group*trial + trial:cv + (1|subj), data=long_sas)
+```
+
+### (M2) Linear model of the change score (change-score model)
+
+Model $\mathcal{M}_2$ is a linear model with the change score used as the response and treatment factor as the only $X$ variable. This is equivalent to a Student's *t*-test of the change scores.
+
+\begin{equation}
+\mathcal{M}_2\;\;\;change = \beta_0 + \beta_1 treatment + \varepsilon
+\end{equation}
+
+The model formula is 
+
+`change ~ treatment`
+
+```{r pre-post-change-score, echo=FALSE}
+m2 <- lm(change ~ treatment, data = fig3f)
+m2_coef <- cbind(coef(summary(m2)),
+                 confint(m2))
+knitr::kable(m2_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of Model M2") %>%
+  kable_styling()
+```
+
+The second row (`treatmentIL-17`) of coefficient table \@ref(tab:longitudinal-change-score) of Model $\mathcal{M}_2$ contains the treatment effect, which is the simple difference between the mean "IL-17" and "Vehicle" change scores.
+
+### (M3) Linear model of post-baseline values without the baseline as a covariate (post model)
+
+Model $\mathcal{M}_3$ is a linear model with the post-baseline measure only. This is equivalent to a Student's *t*-test of the post-baseline measures.
+
+\begin{equation}
+\mathcal{M}_3\;\;\;post = \beta_0 + \beta_1 treatment + \varepsilon
+\end{equation}
+
+The model formula is 
+
+`post ~ treatment`
+
+```{r pre-post-post, echo=FALSE}
+m3 <- lm(post ~ treatment, data = fig3f)
+m3_coef <- cbind(coef(summary(m3)),
+                 confint(m3))
+knitr::kable(m3_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of Model M3") %>%
+  kable_styling()
+```
+
+* The second row (`treatmentIL-17`) of coefficient table \@ref(tab:longitudinal-post) of Model $\mathcal{M}_3$ contains the treatment effect, which is the simple difference between the "IL-17" and "Vehicle" means.
+* If the experiment includes baseline measures **and** the expected difference at baseline is zero, the ANCOVA model ($\mathcal{M}_1$) should be used because the addition of the baseline measure as a covariate increases precision.
+*  If the experiment includes baseline measures **and** the expected difference at baseline is not zero, the change-score model ($\mathcal{M}_2$) should be used.
+
+### (M4) Linear model with factorial fixed effects (fixed-effects model)
+
+Model $\mathcal{M}_4$ is a linear model with $treatment$ and $time$ crossed.
+
+\begin{equation}
+\mathcal{M}_4\;\;\;sociability = \beta_0 + \beta_1 treatment + \beta_2 time + \beta_3 treatment:time + \varepsilon
+\end{equation}
+
+The model formula is 
+
+`post ~ treatment*time`
+
+```{r pre-post-fixed-effects, echo=FALSE}
+m4 <- lm(sociability ~ treatment*time,
+          data = fig3f_long)
+m4_coef <- cbind(coef(summary(m4)),
+                 confint(m4))
+m4_coef %>%
+  knitr::kable(digits = c(1,2,1,1,3,1),
+               caption = "Coefficient table of Model M4") %>%
+  kable_styling()
+```
+
+### (M5) Repeated measures ANOVA
+
+```{r pre-post-rmanova, message=FALSE, echo = FALSE}
+m5 <- aov_4(sociability ~ treatment*time + (time|id), data = fig3f_long)
+m5$anova_table %>%
+  knitr::kable(digits = c(1,1,1,2,2,3),
+             caption = "ANOVA table of Model M5.") %>%
+  kable_styling()
+```
+
+### (M6) Linear mixed model
+
+Model $\mathcal{M}_6$ is the linear mixed model
+
+\begin{equation}
+\mathcal{M}_6\;\;\;sociability = (\beta_0 + \beta_{0j}) + \beta_1 treatment + \beta_2 time + \beta_3 treatment:time + \varepsilon
+\end{equation}
+
+where $\beta_{0j}$ is the random intercept for mouse $j$. The model formula is 
+
+`sociability ~ treatment*time + (1|id)`
+
+
+```{r pre-post-lmm, echo=FALSE, message=FALSE}
+m6 <- lmer(sociability ~ treatment*time + (1|id), data = fig3f_long)
+m6_coef <- cbind(coef(summary(m6)),
+                  confint(m6)[3:6,])
+m6_coef %>%
+  knitr::kable(digits = c(1,2,1,1,3,1),
+             caption = "Coefficient table of Model M6") %>%
+  kable_styling()
+
+```
+
+The estimate of the treatment effect is not the 2nd row (`treatmentIL-17`) but the interaction row (`treatmentIL-17:timepost`) of coefficient table \@ref(tab:longitudinal-lmm) of Model $\mathcal{M}_6$. The coefficient of `treatmentIL-17` ($b_1$) is an estimate of the effect of treatment at baseline. The coefficient of `timepost` ($b_2$) is the "slope" of the model -- it is the estimate of the effect of the treatment on the reference ("Vehicle") group. The coefficient of the interaction ($b_3$) is an estimate of the difference in slope between the Vehicle and IL-17 groups, that is, the difference in the response to treatment. This is the treatment effect.
+
+The inferential statistics for the treatment effect (the interaction effect!) for the LMM ($\mathcal{M}_6$) are the same as those for the change-score model ($\mathcal{M}_3) *except* for the confidence intervals, which are too narrow in the coefficient table of the LMM. A better method for computing the confidence limit of the treatment effect for the LMM is to compute the interaction contrast of the model. The confidence interval of the contrast computed with the Satterthwaite degrees of freedom are identicle to the confidence intervals from the change-score model.
+
+```{r pre-post-lmm-contrast, echo=FALSE}
+m6_emm <- emmeans(m6,
+                    specs = c("treatment", "time"),
+                    lmer.df = "Satterthwaite")
+m6_pairs <- contrast(m6_emm, interaction = c("trt.vs.ctrl"), by = NULL) %>%
+  summary(infer = TRUE)
+# do not use profile or Wald intervals of coefficients, which are 
+# similar/equal to lmer.df = "asymptotic"
+knitr::kable(m6_pairs,
+             digits = c(1,1,1,2,0,1,1,1,3),
+             caption = "Contrasts table of Model M6.") %>%
+  kable_styling()
+```
+
+```{r compare-m6-ci, echo=FALSE, eval=FALSE}
+confint(m6, method = "profile")[6,]
+confint(m6, method = "Wald")[6,]
+confint(m6, method = "boot")[6,]
+m6_pairs
+```
+
+### (M7) Linear model with correlated error
+
+```{r pre-post-lmCorErr, echo=FALSE}
+m7 <- gls(sociability ~ treatment*time,
+          data = fig3f_long,
+          weights = varIdent(form= ~ 1 | time),
+          correlation= corSymm(form=~ 1| id))
+m7_coef <- cbind(coef(summary(m7)),
+                 confint(m7))
+m7_coef %>%
+  knitr::kable(digits = c(1,2,1,1,3,1),
+               caption = "Coefficient table of Model M7") %>%
+  kable_styling()
+```
+
+```{r pre-post-lmCorErr-contrast, echo=FALSE, message=FALSE}
+m7_emm <- emmeans(m7,
+                  specs = c("treatment", "time"),
+                  mode = "satterthwaite")
+m7_pairs <- contrast(m7_emm, interaction = c("trt.vs.ctrl"), by = NULL) %>%
+  summary(infer = TRUE)
+# do not use profile or Wald intervals of coefficients, which are 
+# similar/equal to lmer.df = "asymptotic"
+knitr::kable(m7_pairs,
+             digits = c(1,1,1,2,0,1,1,1,3),
+             caption = "Contrasts table of Model M7.") %>%
+  kable_styling()
+```
+
+### (M8) Constrained fixed effects model with correlated error (cLDA model)
+
+Model $mathcal{M}_7$, the Constrained Longitudinal Data Analysis (cLDA) is a linear model with correlated error. This is similar to a linear mixed model
+
+\begin{align}
+\mathcal{M}_7\;\;\;sociability &= \beta_0 + \beta_1 time + \beta_2 treatment:time + \varepsilon_j\\
+$\varepsilon_j \sim N(0, \sigma^2R)$
+\end{align}
+
+The model formula is
+
+`sociability ~ time + treatment*time`
+
+```{r pre-post-clda-functions, echo=FALSE, eval=TRUE}
+clda1 <- function(y,
+                  dt_long){
+  model_matrix <- model.matrix(~ treatment*time,
+                          data = dt_long)
+  # remove intercept column and effect of treatment at baseline
+  X <- model_matrix[, 3:4] # only for 2 levels
+  X <- clean_names(data.table(X))
+  dt_long_x <- cbind(dt_long, X)
+  form <- formula(paste0(y, " ~ ", paste(colnames(X), collapse = " + ")))
+  fit <- gls(form,
+            data = dt_long_x,
+            weights = varIdent(form= ~ 1 | time),
+            correlation= corSymm(form=~ 1| id))
+  return(fit)
+}
+
+clda2 <- function(y,
+                  dt_long){
+  dt_clda <- copy(dt_long)
+  time0 <- levels(dt_clda$time)[1]
+  tr <- levels(dt_clda$treatment)[2] # again only 2 levels
+  
+  dt_clda[, time.treatment := ifelse(time != time0 &
+                                       treatment==tr,
+                                     "interaction",
+                                     "control")]
+  dt_clda[, time.treatment := factor(time.treatment,
+                                     c("control","interaction"))]
+  
+  form <- formula(paste0(y, " ~ time + time.treatment"))
+  fit2 <- gls(form,
+            data = dt_clda,
+            weights = varIdent(form= ~ 1 | time),
+            correlation= corSymm(form=~ 1| id))
+  
+  return(fit)
+}
+
+m8 <- clda1(y = "sociability",
+            fig3f_long)
+m8_coef <- cbind(coef(summary(m8)),
+                 confint(m8))
+m8_coef %>%
+  knitr::kable(digits = c(1,2,1,4,1,1),
+             caption = "Coefficient table of Model M8") %>%
+  kable_styling()
+
+```
+
+### Comparison table
+
+```{r comparison-table, echo=FALSE}
+m1_row <- cbind(Model = "ANCOVA", data.table(m1_coef)[3])
+setnames(m1_row, old = c("Std. Error", "t value"), new = c("SE", "t"))
+
+m2_row <- cbind(Model = "change-score", data.table(m2_coef)[2])
+setnames(m2_row, old = c("Std. Error", "t value"), new = c("SE", "t"))
+
+m3_row <- cbind(Model = "post", data.table(m3_coef)[2])
+setnames(m3_row, old = c("Std. Error", "t value"), new = c("SE", "t"))
+
+m4_row <- cbind(Model = "factorial", data.table(m4_coef)[4])
+setnames(m4_row, old = c("Std. Error", "t value"), new = c("SE", "t"))
+
+m5_row <- data.table(Model = "RM-ANOVA",
+                     Estimate = as.numeric(NA),
+                     SE = as.numeric(NA),
+                     t = as.numeric(NA),
+                     "Pr(>|t|)" = anova(m5)[3, "Pr(>F)"],
+                     "2.5 %" = as.numeric(NA),
+                     "97.5 %" = as.numeric(NA))
+
+m6_row <- cbind(Model = "LMM-coef", data.table(m6_coef[,-3])[4])
+setnames(m6_row, old = c("Std. Error", "t value"), new = c("SE", "t"))
+m6_row2 <- cbind(Model = "LMM-contrast", data.table(m6_pairs))
+m6_row2 <- m6_row2[, .SD, .SDcols = c("Model", "estimate", "SE", "t.ratio", "p.value", "lower.CL", "upper.CL")]
+setnames(m6_row2, 
+         old = c("estimate", "t.ratio", "p.value", "lower.CL", "upper.CL"),
+         new = c("Estimate", "t", "Pr(>|t|)", "2.5 %", "97.5 %"))
+
+m7_row <- cbind(Model = "CorErr-coef", data.table(m7_coef)[4])
+setnames(m7_row, 
+         old = c("Value", "Std.Error", "t-value", "p-value"),
+         new = c("Estimate", "SE", "t", "Pr(>|t|)"))
+m7_row2 <- cbind(Model = "CorErr-contrast", data.table(m7_pairs))
+m7_row2 <- m7_row2[, .SD, .SDcols = c("Model", "estimate", "SE", "t.ratio", "p.value", "lower.CL", "upper.CL")]
+setnames(m7_row2, 
+         old = c("estimate", "t.ratio", "p.value", "lower.CL", "upper.CL"),
+         new = c("Estimate", "t", "Pr(>|t|)", "2.5 %", "97.5 %"))
+
+m8_row <- cbind(Model = "cLDA", data.table(m8_coef)[3])
+setnames(m8_row,
+         old = c("Value", "Std.Error", "t-value", "p-value"),
+         new = c("Estimate", "SE", "t", "Pr(>|t|)"))
+
+model_comparison <- rbind(m1_row, m2_row, m3_row, m4_row, m5_row, m6_row, m6_row2, m7_row, m7_row2, m8_row)
+model_comparison %>%
+  knitr::kable(caption = "Estimated treatment effects from Models 1-8") %>%
+  kable_styling()
+```
+## Example 1 -- a single post-baseline measure (pre-post design)
+#### Fit the model
+
+```{r pre-post-eg1-m1, echo=TRUE}
+m1 <- lm(post ~ pre + treatment, data = fig3f)
+```
+
+#### Model checking
+
+```{r pre-post-eg1-qq, echo=TRUE}
+set.seed(1)
+qqPlot(m1, id = FALSE)
+```
+
+The residuals are within the bounds reasonably expected of a sample from a normal distribution
+
+```{r pre-post-eg1-spreadlevel, echo=TRUE}
+spreadLevelPlot(m1)
+```
+
+The residuals do not show conspicuous heterogeneity.
+
+#### Inference from the model
+
+```{r pre-post-eg1-inference, echo=TRUE}
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+knitr::kable(m1_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of model m1") %>%
+  kable_styling()
+```
+Sociability in IL-17 treated *fmr1* mice is 12.7 (95% CI: 3.5, 21.9, $p = 0.01$) percentage points higher than that in Control mice.
+
+#### Plot the model
+
+```{r pre-post-eg1-adjust, echo=FALSE}
+# adjusted response
+new_dt <- copy(fig3f)
+new_dt[, pre := mean(pre)]
+fig3f[, post_adj := predict(m1, newdata = new_dt) +
+         residuals(m1)]
+# check against emmeans
+check_it <- FALSE
+if(check_it == TRUE){
+  fig3f[, .(mean = mean(post_adj)), by = treatment] # check!
+}
+```
+
+```{r pre-post-eg1-prep-gg, echo=FALSE}
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm, method = "revpairwise") %>%
+  summary(infer = TRUE) # this is no more info than in coef table
+
+m1_emm_dt <- summary(m1_emm) %>%
+  data.table()
+m1_pairs_dt <- data.table(m1_pairs)
+```
+
+```{r pre-post-eg1-response, echo=FALSE}
+gg_response <- ggplot(data = fig3f,
+                      aes(y = treatment,
+                          x = post_adj,
+                          color = treatment)) +
+  geom_jitter(height = 0.25) +
+  
+  geom_point(data = m1_emm_dt,
+             aes(x = emmean),
+             size = 3) +
+  
+  geom_errorbar(data = m1_emm_dt,
+                aes(x = emmean,
+                    xmin = lower.CL,
+                    xmax = upper.CL),
+                width = 0.1) +
+  xlab("Adjusted sociability (%)") +
+  theme_pubr() +
+  scale_color_manual(values=pal_okabe_ito) +
+  theme(axis.title.y=element_blank()) +
+  theme(legend.position="none") +
+
+  
+  NULL
+# gg_response
+```
+
+```{r pre-post-eg1-effect, echo=FALSE}
+gg_effect <- ggplot(data = m1_pairs_dt,
+                      aes(y = contrast,
+                          x = estimate)) +
+
+  geom_point(size = 3) +
+  
+  geom_errorbar(aes(xmin = lower.CL,
+                    xmax = upper.CL),
+                width = 0.1) +
+  
+  xlab("Difference in adjusted sociability (%)") +
+
+  # draw a line at effect = 0
+  geom_vline(xintercept=0, linetype = 2) +
+  coord_cartesian(xlim = c(-8,28)) +
+
+  theme_pubr() +
+  theme(axis.title.y=element_blank()) +
+  scale_x_continuous(position = "top") + # move to top
+  
+  NULL
+#gg_effect
+```
+
+```{r pre-post-eg1-plot, echo=FALSE}
+plot_grid(gg_effect,
+          gg_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.5,1))
+
+```
+
+## Working in R
+
+**(M1) Linear model with the baseline measure as the covariate (ANCOVA model)**
+
+```{r pre-post-ancova-show, echo=TRUE}
+m1 <- lm(post ~ pre + treatment, data = fig3f)
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+knitr::kable(m1_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of Model M1") %>%
+  kable_styling()
+```
+
+
+**(M2) Linear model of the change score (change-score model)**
+
+```{r pre-post-change-score-show, echo=TRUE}
+m2 <- lm(change ~ treatment, data = fig3f)
+m2_coef <- cbind(coef(summary(m2)),
+                 confint(m2))
+knitr::kable(m2_coef,
+             digits = c(1,2,1,3,1,1),
+             caption = "Coefficient table of Model M2") %>%
+  kable_styling()
+```
+
+**(M5) Repeated measures ANOVA**
+
+use `aov_4` from the afex package, which allos input of a `lmer` model formula. Note that `time` is coded here as a random slope. This model would fail in `lmer` because there is only one time:id measure.
+
+```{r pre-post-rmanova-show, message=FALSE, echo = FALSE}
+m5 <- aov_4(sociability ~ treatment*time + (time|id), data = fig3f_long)
+m5$anova_table %>%
+  knitr::kable(digits = c(1,1,1,2,2,3),
+             caption = "ANOVA table of Model M5.") %>%
+  kable_styling()
+```
+
+**(M6) Linear mixed model**
+
+```{r pre-post-lmm-show, echo=TRUE, message=FALSE}
+m6 <- lmer(sociability ~ treatment*time + (1|id), data = fig3f_long)
+m6_coef <- cbind(coef(summary(m6)),
+                  confint(m6)[3:6,])
+m6_coef %>%
+  knitr::kable(digits = c(1,2,1,1,3,1),
+             caption = "Coefficient table of Model M6") %>%
+  kable_styling()
+
+```
+
+Use `lmer.df = "Satterthwaite"` as an argument in `emmeans` (not `contrast`!) to get the satterthwaite df for the interaction contrast.
+
+```{r pre-post-lmm-contrast-show, echo=TRUE}
+m6_emm <- emmeans(m6,
+                    specs = c("treatment", "time"),
+                    lmer.df = "Satterthwaite")
+m6_pairs <- contrast(m6_emm, interaction = c("trt.vs.ctrl"), by = NULL) %>%
+  summary(infer = TRUE)
+# do not use profile or Wald intervals of coefficients, which are 
+# similar/equal to lmer.df = "asymptotic"
+knitr::kable(m6_pairs,
+             digits = c(1,1,1,2,0,1,1,1,3),
+             caption = "Contrasts table of Model M6.") %>%
+  kable_styling()
+```
+
+**(M7) Linear model with correlated error**
+
+```{r pre-post-lmCorErr-show, echo=TRUE}
+m7 <- gls(sociability ~ treatment*time,
+          data = fig3f_long,
+          weights = varIdent(form= ~ 1 | time),
+          correlation= corSymm(form=~ 1| id))
+m7_coef <- cbind(coef(summary(m7)),
+                 confint(m7))
+m7_coef %>%
+  knitr::kable(digits = c(1,2,1,1,3,1),
+               caption = "Coefficient table of Model M7") %>%
+  kable_styling()
+```
+
+Use `mode = "satterthwaite"` as an argument in `emmeans` (not `contrast`!) to get the satterthwaite df for the interaction contrast.
+
+```{r pre-post-lmCorErr-contrast-show, echo=TRUE, message = FALSE}
+m7_emm <- emmeans(m7,
+                  specs = c("treatment", "time"),
+                  mode = "satterthwaite")
+m7_pairs <- contrast(m7_emm, interaction = c("trt.vs.ctrl"), by = NULL) %>%
+  summary(infer = TRUE)
+knitr::kable(m7_pairs,
+             digits = c(1,1,1,2,0,1,1,1,3),
+             caption = "Contrasts table of Model M7.") %>%
+  kable_styling()
+```
+
+**(M8) Constrained fixed effects model with correlated error (cLDA model)**
+
+**cLDA function**
+
+```{r pre-post-clda-functions-show, echo=TRUE}
+
+clda <- function(data,
+                  y_col,
+                  treatment_col = "treatment",
+                  time_col = "time",
+                  id_col = "id"){
+# warning - not debugged for missing
+  
+  dt <- setDT(data)
+  n_groups <- length(unique(dt[, get(treatment_col)]))
+  n_times <- length(unique(dt[, get(time_col)]))
+  
+  # create model matrix with no treatment effect at baseline
+  # part 1 - get the model matrix
+  form <- formula(paste0(" ~ ", treatment_col," * ", time_col))
+  model_matrix <- model.matrix(form, data = dt)
+  
+  # part 2 - exclude columns
+  treat_cols <- 2:n_groups
+  exc <- c(1, treat_cols)
+  
+  # constrained model matrix
+  X <- model_matrix[, -exc] %>%
+    data.table() %>%
+    clean_names()
+  dt <- cbind(dt, X)
+  rhs <- paste0(names(X), collapse = " + ")
+  
+  model_form <- formula(paste0(y_col, " ~ ", rhs))
+  weight_form <- formula(paste0("~ 1 | ", time_col))
+  cor_form <- formula(paste0("~ 1 | ", id_col))
+  fit <- gls(model_form,
+             data = dt,
+             weights = varIdent(form = weight_form),
+             correlation= corSymm(form = cor_form))
+  return(fit)
+}
+```
+
+```{r pre-post-clda-show, echo=TRUE}
+m8 <- clda(fig3f_long,
+           y_col = "sociability",
+           treatment_col = "treatment",
+           time_col = "time",
+           id_col = "id")
+m8_coef <- cbind(coef(summary(m8)),
+                 confint(m8))
+m8_coef %>%
+  knitr::kable(digits = c(1,2,1,4,1,1),
+             caption = "Coefficient table of Model M8") %>%
+  kable_styling()
+```
+
+## Hidden code
+### Import and wrangle mouse sociability data
+
+```{r pre-post-eg1-import-show, echo=TRUE, eval=FALSE, message=FALSE}
+data_from <- "IL-17a promotes sociability in mouse models of neurodevelopmental disorders"
+file_name <- "41586_2019_1843_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# response - fmr1
+# vehicle
+fig3f_vehicle <- read_excel(file_path,
+                     sheet = "Fig 3f",
+                     range = "DA2:DI3", # 1 blank column
+                     col_names = FALSE) %>%
+  data.table() %>%
+  transpose() %>%
+  setnames(old = c("V1", "V2"), new = c("pre", "post"))
+
+fig3f_il17 <- read_excel(file_path,
+                     sheet = "Fig 3f",
+                     range = "DL2:DV3", # 1 blank column
+                     col_names = FALSE) %>%
+  data.table() %>%
+  transpose() %>%
+  setnames(old = c("V1", "V2"), new = c("pre", "post"))
+
+treatment_levels <- c("Vehicle", "IL-17")
+fig3f <- rbind(data.table(treatment = treatment_levels[1], fig3f_vehicle),
+               data.table(treatment = treatment_levels[2], fig3f_il17))
+
+fig3f[, treatment := factor(treatment, levels = treatment_levels)]
+fig3f[, id := paste0("mouse_", .I)] # add id for each mouse
+fig3f[, background := "fmr1"] # which mouse group?
+fig3f[, change := post - pre] # change score
+
+# melt to long
+fig3f_long <- melt(fig3f,
+                   id.vars = c("treatment", "id", "change"),
+                   measure.vars = c("pre", "post"),
+                   variable.name = "time",
+                   value.name = "sociability")
+fig3f_long[, time := factor(time,
+                            levels = c("pre", "post"))]
+fig3f_long[, id := factor(id)]
+```
+
+
+

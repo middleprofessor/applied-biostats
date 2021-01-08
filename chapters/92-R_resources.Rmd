@@ -1,61 +1,52 @@
 # Appendix 1: Getting Started with R {-}
 ## Get your computer ready
-### Install R
-R is the core software
 
-[Download R for your OS](https://cran.r-project.org)
+### Start here
+
+Watch this video. The links for installing R and R studio are in the next sections.
+
+[Andy Field's Installing R and RStudio](https://www.youtube.com/watch?v=ZvPFKfNHBNQ){target="_blank"}
+
+### Install R
+R is the core software. It runs under the hood. You never see it. To use R, you need another piece of software that provides a **user interface**. The software we will use for this is R Studio.
+
+[Download R for your OS](https://cran.r-project.org){target="_blank"}
 
 ### Install R Studio
-R Studio is a slick (very slick) GUI interface for developing R projects
+R Studio is a slick (very slick) **graphical user interface** (GUI) for developing R projects.
 
-[Download R Studio Desktop](https://www.rstudio.com/products/rstudio/download/)
+[Download R Studio Desktop](https://www.rstudio.com/products/rstudio/download/){target="_blank"}
 
-### Resources for installing R and R Studio
-[On Windows](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-windows-5f503f708027)
+#### Additional resources for installing R and R Studio**
 
-[On a Mac](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-mac-e911606ce4f4)
+[On Windows](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-windows-5f503f708027){target="_blank"}
 
-### Install LaTeX
-LaTeX ("la-tek") is necessary to use the pdf output of R Markdown.
+[On a Mac](https://medium.com/@GalarnykMichael/install-r-and-rstudio-on-mac-e911606ce4f4){target="_blank"}
 
-[On Windows](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-windows-10-952b0c48bfa9)
+### Install R Markdown
 
-[On a Mac](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-macos-high-sierra-e7b5705c9fd)
+In this class, we will write code to analyze data using R Markdown. R markdown is a version of Markdown. Markdown is tool for creating a document containing text (like microsoft Word), images, tables, and code that can be output to the three modern output formats: html (web pages), pdf (reports and documents), and microsoft word (okay, this isn't modern but it is widely used).
 
-## Start learning
-### Start with Data Camp Introduction to R
-[Data Camp: Introduction to R (free online course)](https://www.datacamp.com/courses/free-introduction-to-r)
+R Markdown can output pdf files. The mechanism for this is to first create a LaTeX ("la-tek") file. LaTeX is an amazing tool for creating professional pdf documents. You do not need PDF output for BIO 414/513. The directions for installing R Markdown include directions for installing LaTeX. This is optional, for this class, but I encourage you to do it.
 
-### Then Move to Introduction to R Studio
-[R Studio Essentials, Programming Part 1 (Writing code in RStudio)](https://www.rstudio.com/resources/webinars/rstudio-essentials-webinar-series-part-1/)
+[Directions for installing R Markdown](https://bookdown.org/yihui/rmarkdown/installation.html#installation
+){target="_blank"}
 
-### Develop your project with an R Studio Notebook
-[Getting Started with R Markdown](https://www.rstudio.com/resources/webinars/getting-started-with-r-markdown/)
+### (optional) Alternative LaTeX installations
 
-[Introducing Notebooks with R Markdown](https://www.rstudio.com/resources/webinars/introducing-notebooks-with-r-markdown/)
+[On Windows](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-windows-10-952b0c48bfa9){target="_blank"}
 
-## Getting Data into R
-[Getting your data into R](https://www.rstudio.com/resources/webinars/getting-your-data-into-r/)
+[On a Mac](https://medium.com/@sorenlind/create-pdf-reports-using-r-r-markdown-latex-and-knitr-on-macos-high-sierra-e7b5705c9fd){target="_blank"}
 
-## Additional R learning resources
-[Getting used to R, RStudio, and R Markdown](https://bookdown.org/chesterismay/rbasics/)
+## Start learning R Studio
 
-[Link to list of R Studio webinars](https://www.rstudio.com/resources/webinars/)
+[R Studio Essentials, Programming Part 1 (Writing code in RStudio)](https://rstudio.com/resources/webinars/programming-part-1-writing-code-in-rstudio/){target="_blank"}
 
-[Link to set of R package cheat sheets (amazing!)](https://www.rstudio.com/resources/cheatsheets/)
+[Getting Started with R Markdown](https://www.rstudio.com/resources/webinars/getting-started-with-r-markdown/){target="_blank"}
 
-[Bookdown online books](https://bookdown.org)
+Andy Field's [RStudio basics of R Markdown](https://www.youtube.com/watch?v=u4ZdvYXjsIo){target="_blank"}
 
-## Packages used extensively in this text
 
-1. ggplot2
-2. data.table
-3. mvtnorm
-4. lme4
-5. nlme
-6. emmeans
-7. readxl
-8. reshape2
 
 [Data Visualisation chapter from *R for Data Science*](http://r4ds.had.co.nz/data-visualisation.html)
 

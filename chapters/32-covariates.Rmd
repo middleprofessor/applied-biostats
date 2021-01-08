@@ -1,427 +1,1137 @@
 # Adding covariates to a linear model
 
 ```{r setup-ancova, echo=FALSE, warnng=FALSE, message=FALSE}
-library(ggplot2)
-library(viridis) # color blind palette
-library(ggpubr)
-library(emmeans)
+library(here)
+library(janitor)
+library(readxl)
 library(data.table)
+library(stringr)
+
+# analysis packages
+library(nlme) # gls
+library(lmerTest) # lmm
+library(emmeans)
+library(car) # qqplot, spreadlevel
+library(lmPerm)
+
+# graphing packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(ggforce) # jitter
+library(ggsci) # color palettes
+library(ggpubfigs) # color palettes
+library(ggthemes) # pander is okabe ito
+# execute this command only the first time you use ggpubfigs
+# devtools::install_github("JLSteenwyk/ggpubfigs")
+library(cowplot) # combine plots
+library(lazyWeave) # pretty pvalues
+library(broom)
+
 library(mvtnorm)
 library(harrellplot)
 
-colorblind <- function(n){
-  # http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/#a-colorblind-friendly-palette
-  return(c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")[1:n])
-}
+here <- here::here
+data_folder <- "data"
 
+# Okabe & Ito palette
+pal_ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- pal_ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
+pal_okabe_ito_2 <- colorblind_pal()(8)[2:8] # ggthemes
 ```
 
-In its most general sense, **Covariates** are simply the $X$ variables in a statistical model. With data from experiments, "covariates" more typically refers to $X$ variables that are added to a model to increase precision of the treatment effects. In observational designs, covariates might be added to a model to 1) increase predictive ability, 2) because the researcher is interested in specific conditional effects, or 3) to eliminate confounding. These are discussed in later chapters.
+In its most general sense, **Covariates** are simply the $X$ variables in a statistical model. With data from experiments, "covariates" more typically refers to $X$ variables that are added to a model to increase precision of the treatment effects. In observational designs, covariates might be added to a model to 1) increase predictive ability, 2) because the researcher is interested in specific conditional effects, or 3) to eliminate confounding. These are discussed in later chapters. In this chapter, the covariate added to a linear model is a continous variable. Nothing is fundamentally different if the covariate added is categorical ($Sex$ is a common categorical covariate).
 
 ## Adding covariates can increases the precision of the effect of interest
 
 I use fake data to introduce the concept of **statistical elimination** of a **covariate** in a statistical model. Here I am modeling the effect of a new drug on blood LDL-C levels. LDL is a kind of lipoprotein, which are particles in the blood that transport fats and cholesterol to and from different tissues. LDL-C is cholesterol associated with LDL particles. LDL-C is considered "bad cholesterol" because LDL is believed to transport cholesterol and other lipids to arterial walls, which is the basis for atherosclerosis.
 
-Twenty applied biostats students are recruited and are randomly assigned to either the "placebo" treatment level or "drug" treatment level. The response is blood LDL-C concentration. The drug manufacturer wants a measure of the effect of the new drug on ldlc.
+Thirty applied biostats students are recruited and are randomly assigned to either the "placebo" treatment level or "drug" treatment level. The response is blood LDL-C concentration. The drug manufacturer wants a measure of the effect of the new drug on ldlc.
 
-```{r ancova-ldlc, echo=FALSE}
-set.seed(7)
-n <- 10 # replicates per grop
-fd <- data.table(treatment=rep(c("placebo", "drug"), each=n),
-                 age=rnorm(n*2, mean=28, sd=3))
-fd[, treatment := factor(treatment, c("placebo", "drug"))]
-X <- model.matrix(formula(~ age + treatment), data=fd) # the model matrix
+```{r ancova-ldlc, echo=FALSE, eval=TRUE}
+n_iter <- 100
+# seed_i <- 69 # good
+# seed_i <- 48 # best
+p1 <- numeric(n_iter)
+p2 <- numeric(n_iter)
+start_i <- 46
+end_i <- 46
+seed_i <- start_i
+for(i in start_i:end_i){
+  set.seed(seed_i)
+  sigma <- 2.5
+  n <- 15 # replicates per grop
+  fd <- data.table(treatment = rep(c("placebo", "drug"), each=n),
+                   age = rnorm(n*2, mean = 25, sd = 3))
+  fd[, age := runif(n*2, min = 20, max = 30)]
+  fd[, treatment := factor(treatment, c("placebo", "drug"))]
+  X <- model.matrix(formula(~ age + treatment), data = fd) # the model matrix
+  
+  b0 <- 70 # LDL-C for the reference group and zero years old
+  b1 <- 1.5 # the effect of age. Increasing fat by 20 years adds
+  # 20*1.5 = 30 mg LDL-C/dL blood to their blood
+  b2 <- -5 # the effect of the new drug -- lowers LDL-C by 5 mg/dL blood
+  b <- c(b0, b1, b2) # but the parameters into a vector
+  fd[, ldlc := X%*%b + rnorm(n, sd = sigma)] # add ldlc to the fake data.table
+  m1 <- coef(summary(lm(ldlc ~ treatment, data = fd)))
+  m2 <- coef(summary(lm(ldlc ~ age + treatment, data = fd)))
+  p1[i] <- m1[2, "Pr(>|t|)"]
+  p2[i] <- m2[3, "Pr(>|t|)"]
+  seed_i <- seed_i + 1
+}
+max_i <- which(p1 > 0.2)
+# m1
+# m2
+# qplot(x = age, y = ldlc, color = treatment, data = fd)
 
-b0 <- 70 # LDL-C for the reference group and zero years old
-b1 <- 1.5 # the effect of age. Increasing fat by 20 years adds
-# 20*1.5 = 30 mg LDL-C/dL blood to their blood
-b2 <- -5 # the effect of the new drug -- lowers LDL-C by 5 mg/dL blood
-b <- c(b0, b1, b2) # but the parameters into a vector
-ldlc <- X%*%b + rnorm(n, sd=2) # matrix algebra
-fd[, ldlc:=ldlc] # add ldlc to the fake data.table
 
 ```
 
-The plot below shows the LDL-C response in the placebo and drug groups, including the group means and 95% confidence intervals.
+```{r covariate-fd-plot-no-cov, echo = FALSE, fig.cap="Effect of drug therapy on plasma LDL-C."}
+m1 <- lm(ldlc ~ treatment, data = fd)
+
+m1_emm <- emmeans(m1, specs = "treatment") %>%
+  summary() %>%
+  data.table()
+m1_pairs <- contrast(emmeans(m1, specs = "treatment"),
+                     method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
+  data.table()
+# pvalString is from package lazyWeave
+m1_pairs[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m1_pairs[ , pval_pretty := paste("p-val:", p_pretty)]
+
+range_ldlc <- range(fd[, ldlc])
+gg_response <- ggplot(data = fd,
+                            aes(x = treatment,
+                                y = ldlc,
+                                color = treatment)) +
+  # points
+  geom_sina(alpha = 0.5) + # ggforce package
+  
+  # plot means and CI
+  geom_errorbar(data = m1_emm,
+                aes(y = emmean,
+                    ymin = lower.CL,
+                    ymax = upper.CL,
+                    color = treatment),
+                width = 0
+  ) +
+  
+  geom_point(data = m1_emm,
+             aes(y = emmean,
+                 color = treatment),
+             size = 3
+  ) +
+
+  # aesthetics
+  # coord_cartesian(ylim = c(round(range_ldlc[1] - 5, 0),
+  #                          round(range_ldlc[2] + 5, 0))) +
+  ylab("Plasma LDL-C (mg/dL blood)") +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  theme_pubr() +
+  theme(legend.position="none") +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
+
+gg_effect <- ggplot(data = m1_pairs, 
+                          aes(x = estimate,
+                              y = contrast)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin = lower.CL, 
+                    xmax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m1_pairs$p_pretty,
+           y = 1,
+           x = 5) +
+  
+  # x-axis label and aesthetics
+  xlab("Effect (mg/dL blood)") +
+  ylab("Contrast") +
+#  coord_cartesian(xlim = c(-10,30)) +
+  
+  scale_x_continuous(breaks = c(-5, -2.5, 0, 2.5, 5),
+                     labels = c("-5", "-2.5", "0", "2.5", "p-value"),
+                     position = "top") + # move to top
+  scale_y_discrete(labels = "drug -\nplacebo") +
+
+  # use ggpubr theme
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
+# gg_effect
+
+gg_response <- gg_response +
+  coord_flip(ylim = c(95, 115))
+
+gg1 <- plot_grid(gg_effect,
+                 gg_response,
+                 nrow=2,
+                 align = "v",
+                 axis = "lr",
+                 rel_heights = c(0.5,1))
+gg1
+```
+
+The linear model fit to the simulated LDL-C data is
 
 \begin{equation}
-ldlc = \beta_0 + \beta_1 treatment + \varepsilon
+ldlc = \beta_0 + \beta_1 treatment_{drug} + \varepsilon
 (\#eq:cov-no-cov)
 \end{equation}
 
-where $treatment$ is the dummy variable with $placebo=0$ and $drug=1$.
-
-```{r cov-harrelplot, eval=TRUE, echo=FALSE, message=FALSE, fig.cap="The fake LDL-C experiment."}
-m1 <- lm(ldlc~treatment, data=fd)
-m1.contrasts <- contrast(emmeans(m1, specs="treatment"), method="revpairwise")
-
-harrellplot(x="treatment", y="ldlc", data=fd)$gg
-
-```
-
-```{r ancova-plot1, eval=FALSE, echo=FALSE, message=FALSE, fig.cap="The fake LDL-C experiment."}
-group_contrasts = c("placebo", drug)
-ggerrorplot(x="treatment",
-          y="ldlc",
-          color="treatment",
-          desc_stat = "mean_ci",
-          data=fd, 
-          add="jitter",
-          add.params = list(color = "darkgray")) +
-  stat_compare_means(method="t.test",
-                     label.x = 1.4,
-                     label.y = 125,
-                     label="p.format"
-                    ) +
-  NULL
-
-```
+where $treatment_{drug}$ is the dummy variable, which is set to 0 when $treatment = \mathrm{''placebo''}$ and to 1 when $treatment = \mathrm{''drug''}$.
 
 The coefficient table is
 
 ```{r, echo=FALSE}
-m0 <- lm(ldlc~treatment, data=fd)
-round(coef(summary(m0)), 3)
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+round(m1_coef, 3)
 ```
 
-The plot shows large overlap in LDL-C. There "is no effect of the drug ($p = .478$)" is an incorrect interpretation of the hypothesis test of the estimate of $\beta_1$. A correct interpretation is, the estimated effect is -1.9 but everything from large, negative effects to moderate positive effects are consistent with the data. 
+The response-effect plot shows large overlap in the LDL-C response and treatment effect that is small relative to the noise. "No effect of the drug ($p = .31$)" is an incorrect interpretation of the *p*-value of the significance test of the estimate of $\beta_1$. A better interpretation is, the estimated effect is -1.6 but everything from large, negative effects to moderate positive effects are consistent with the data. 
 
-LDL-C is strongly correlated with age and there is a large range in age among the Applied Bistats students. Consequently, age will contribute to a large fraction of the variance in LDL-C. If so, this age-related variance *might* be masking the effect of the drug. Here is a plot of LDL-C vs. age, with treatment assignment color coded. Remember, these are the exact same values of LDL-C as in figure \@ref(fig:cov-harrelplot) above.
+As expert biologists, we know that LDL-C is strongly correlated with age and there is a large range in age among the Applied Bistats students. If age contributes to a large fraction of the variance in LDL-C among applied biostats students, then age-related variance *might* mask the effect of the drug. Here is a plot of LDL-C vs. age, with treatment assignment color coded. Remember, these are the exact same values of LDL-C as in figure \@ref(fig:cov-harrelplot) above.
 
-```{r ancova-plot2, message=FALSE, echo=FALSE, fig.cap="Linear regression of $ldlc$ on dietary $fat$ fit to the fake LDL-C data. The points are color coded by treatment."}
-qplot(x=age, y=ldlc, data=fd) + geom_smooth(method="lm", se=FALSE) + geom_point(aes(color=treatment))
+```{r ancova-plot2, message=FALSE, echo=FALSE, fig.cap="Linear regression of $ldlc$ on age fit to the fake LDL-C data. The points are color coded by treatment."}
+
+gg_cov <- qplot(x=age, y=ldlc, data=fd) +
+  geom_smooth(method="lm", se=FALSE) +
+  geom_point(aes(color = treatment)) +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  
+  ylab("LDL-C (mg/dL blood)") +
+  xlab("Age (years)") +
+  theme_pubr() +
+  theme(legend.position = "right")
+
+gg_cov
 ```
 
-The line is the bivariate regression fit to the data ignoring treatment level.
+The regression line is the fit of the linear model
 
 \begin{equation}
 ldlc = \beta_0 + \beta_1 age + \varepsilon
 (\#eq:cov-age)
 \end{equation}
 
-While the points are color-coded by treatment level, $treatment$ is not in model \@ref(eq:cov-age). The color-coding makes it clear that most of the "placebo" data points are above the line, or have positive residuals from the model, while the "drug" data points are below the line, or have negative residuals from the model. A better way to think about this pattern is that **at any specific level of age, the LDL-C for drug is lower than the LDL-C for placebo**.
+The points are color-coded by treatment level but $treatment$ is not in model \@ref(eq:cov-age). The color-coding makes it clear that most of the "placebo" data points are above the line, or have positive residuals from the model, while the "drug" data points are below the line, or have negative residuals from the model. That is, **at any specific value of age, there is very small overlap of LDL-C values for drug and for placebo**.
 
-What is happening? Age is contributing to the variance of LDL-C, and the noise in $\varepsilon$ in model \@ref(eq:cov-no-cov), and this added noise makes it harder to measure the effect of the new drug relative to placebo. Age is masking the effect. If we could somehow measure the effect of the drug at a specific age, then we could get a more precise estimate of the effect. But how to do this? Here are three possible methods. The third is *the only* one you should use but the second is useful for understanding the third.
+What is happening? Age is contributing to the variance of LDL-C, and the noise in $\varepsilon$ in model \@ref(eq:cov-no-cov), and this added noise makes decreases the precision in our estimate of the effect of the new drug relative to placebo. When we view the data as in Figure \@ref(covariate-fd-plot-no-cov), age is masking the effect. If we could somehow measure the effect of the drug at a specific age, then we could get a more precise estimate of the effect. But how to do this? Here are three possible methods. The third is *the only* one you should use but the second is useful for understanding the third.
 
 1. We could just analyze a subset of the data, that is, only the cases in which the value of age is nearly equal. This throws away perfectly good data and, consequently, greatly reduces the sample size and thus precision to estimate the effect.
 
-2. We could use the residuals of the fitted model \@ref(eq:ancova-2) to estimate the effect of drug treatment (this is what we did by eye in figure \@ref(fig:ancova-plot2)). Here is the new model
+2. We could first fit model \@ref(eq:cov-age) and then use the *residuals* of this fit as a new response variable to estimate the effect of drug treatment (this is what we did by eye in figure \@ref(fig:ancova-plot2)).
+
+step 1:
 
 \begin{equation}
-ldlc.r = \beta_0 + \beta_1 treatment + \varepsilon
+ldlc = \beta_0 + \beta_1 age + \varepsilon
+\end{equation}
+
+step 2:
+
+\begin{equation}
+ldlc\_residual = \beta_0 + \beta_1 treatment_{drug} + \varepsilon
 (\#eq:ancova-3)
 \end{equation}
 
-where $ldlc.r$ is the set of residuals.
+Here, I use this two-stage method because it is useful to introduce the concept of  **adjusting for a covariate** in a linear model, where the covariate here is $age$. But, in general, don't do this -- the method usually "works" pretty well if the mean of the **covariate** (the step 1 $X$ variable) is nearly the same in both treatment levels but artifacts that lead to wrong inference are introduced if the mean of the covariate is far apart. 
 
-```{r echo=FALSE}
-m1.1 <- lm(ldlc ~ age, data=fd) # stage 1
-fd[, ldlc.r :=residuals(m1.1)]
-m1.2 <- lm(ldlc.r ~ treatment, data=fd)
-group_contrasts = c("placebo", "drug")
-gg <- ggerrorplot(x="treatment",
-          y="ldlc.r",
-          color="treatment",
-          desc_stat = "mean_ci",
-          data=fd, 
-          add="jitter",
-          add.params = list(color = "darkgray")) +
-  stat_compare_means(method="t.test",
-                     label.x = 1.4,
-                     label.y = 4,
-                     label="p.format"
-                    ) +
+```{r covariate-fd-plot-cov, echo = FALSE, fig.cap="Effect of drug therapy on plasma LDL-C using residuals. Don't do this!"}
+m2_step1 <- lm(ldlc ~ age, data = fd)
+fd[, residuals := residuals(m2_step1)]
+m2 <- lm(residuals ~ treatment, data = fd)
+
+m2_emm <- emmeans(m2, specs = "treatment") %>%
+  summary() %>%
+  data.table()
+m2_pairs <- contrast(emmeans(m2, specs = "treatment"),
+                     method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
+  data.table()
+# pvalString is from package lazyWeave
+m2_pairs[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m2_pairs[ , pval_pretty := paste("p-val:", p_pretty)]
+gg_response <- ggplot(data = fd,
+                            aes(x = treatment,
+                                y = residuals,
+                                color = treatment)) +
+  # points
+  geom_sina(alpha = 0.5) + # ggforce package
+  
+  # plot means and CI
+  geom_errorbar(data = m2_emm,
+                aes(y = emmean,
+                    ymin = lower.CL,
+                    ymax = upper.CL,
+                    color = treatment),
+                width = 0
+  ) +
+  
+  geom_point(data = m2_emm,
+             aes(y = emmean,
+                 color = treatment),
+             size = 3
+  ) +
+
+  # aesthetics
+  ylab("Residual LDL-c (mg/dL blood)") +
+  scale_color_manual(values = pal_okabe_ito,
+                     name = NULL) +
+  theme_pubr() +
+  theme(legend.position = "none") +
+  theme(axis.title.y = element_blank()) +
+  
   NULL
 
-harrellplot(x="treatment",
-            y="ldlc.r", 
-            data=fd,
-            y_label = "LDL-C residuals")$gg
+
+gg_effect <- ggplot(data = m2_pairs, 
+                          aes(x = estimate,
+                              y = contrast)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin = lower.CL, 
+                    xmax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m2_pairs$p_pretty,
+           y = 1,
+           x = 5) +
+  
+  # x-axis label and aesthetics
+  xlab("Effect (mg/dL blood)") +
+  ylab("Contrast") +
+#  coord_cartesian(xlim = c(-10,30)) +
+  
+  scale_x_continuous(breaks = c(-5, -2.5, 0, 2.5, 5),
+                     labels = c("-5", "-2.5", "0", "2.5", "p-value"),
+                     position = "top") + # move to top
+  scale_y_discrete(labels = "drug -\nplacebo") +
+
+  # use ggpubr theme
+  theme_pubr() +
+  theme(axis.title.y = element_blank()) +
+  
+  NULL
+
+gg_response <- gg_response +
+  coord_flip(ylim = c(-10, 10))
+
+
+gg2 <- plot_grid(gg_effect,
+          gg_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.5,1))
+
+# gg2
+plot_grid(gg2, gg1, ncol = 2, labels = "AUTO")
 ```
 
-Now the estimate of the effect is `r round(coef(summary(m1.2))["treatmentdrug", "Estimate"], 1)` mg/dL blood and the SE is only `r round(coef(summary(m1.2))["treatmentdrug", "Std. Error"], 2)`. In this two-stage analysis (stage 1: fit ldlc ~ age to get residuals, stage 2: fit residuals ~ treatment), we have *eliminated the effect of age* on the variance of the response and, as a consequence, the estimate of the effect of the drug is much more precise -- the effect of $treatment$ has a smaller standard error.
+Figure \@ref(covariate-fd-plot-cov)A is an effect-response plot of the effect of treatment on the LDL-C **adjusted for age** using the two-step method. Figure \@ref(covariate-fd-plot-cov)B is the original (not adjust) effect-response plot. The **scale** of both plots are the same. This means that the response axis has the same length in both plots and the effects axis has the same length in both plots. This makes comparing the two easy. Two patterns are conspicuous
 
-3. A better method for this two-stage procedure that increases the precision of the estmate of the treatment effect by eliminating variance of a covariate ($age$) is to simply add the covariate to the original linear model.
+1. The **age-adjusted means** in Figure \@ref(covariate-fd-plot-cov)A are further apart (the difference is bigger) then the unadjusted means in Figure \@ref(covariate-fd-plot-cov)B. This is seen in both the response and the effects components of the plot.
+2. The spread of the residual LDL-C measures within each treatment level in Figure \@ref(covariate-fd-plot-cov)A is less than the spread of the raw LDL-C measures in Figure \@ref(covariate-fd-plot-cov)B.
+3. The confidence interval of the effect (difference in means) is smaller using the adjusted model (Figure \@ref(covariate-fd-plot-cov)A) than in the unadjusted model (Figure \@ref(covariate-fd-plot-cov)B)
+4. The *p*-value of the effect (difference in means) is smaller using the adjusted model (Figure \@ref(covariate-fd-plot-cov)A) than in the unadjusted model (Figure \@ref(covariate-fd-plot-cov)B)
+
+These patterns are quantified by the Estimates and SEs of the coefficient table. Again, I show both for comparison. Can you match comparisons 1-4 above with the statistic in the coefficient table?
+
+Coefficient table of two-step, "adjusted" model (adjusting for $age$):
+
+```{r, echo = FALSE}
+m2_coef <- cbind(coef(summary(m2)),
+                 confint(m2))
+round(m2_coef, 3)
+```
+
+Coefficient table of unadjusted model (adjusting for $age$):
+
+```{r echo=FALSE}
+round(m1_coef, 3)
+```
+
+It is clear from the plots and the tables that this two-stage adjustment increases the precision of the estimates of the means and the differences in means by *eliminating the contribution of Age to the variance in LDL-C*.
+
+3. The best practice for **adjusting for a covariate** (or the *statistical elimination of a covariate*) is to simply add the covariate to the linear model.
 
 \begin{equation}
-ldlc = \beta_0 + \beta_1 age + \beta_2 treatment + \varepsilon
+ldlc = \beta_0 + \beta_1 age + \beta_2 treatment_{drug} + \varepsilon
 (\#eq:cov-cov)
 \end{equation}
 
-which results in the Harrell Plot
-
-```{r, echo=FALSE}
-harrellplot(x="treatment", 
-            y="ldlc", 
-            covcols = "age", 
-            data=fd,
-            display.treatment="ci",
-            mean_intervals.method="lm")$gg
+```{r echo=FALSE}
+m3 <- lm(ldlc ~ age + treatment, data=fd)
+m3_coef <- cbind(coef(summary(m3)),
+                 confint(m3))
+signif(m3_coef, 3)
 ```
 
-and the coefficient table
+Again, compare the coefficient table from the model fit without the covariate.
 
 ```{r echo=FALSE}
-m2 <- lm(ldlc ~ age + treatment, data=fd)
-m2.coef <- coef(summary(m2))
-knitr::kable(m2.coef, digits=c(1,2,1,6), caption="Coefficients of the model that includes the covariate age.")
-
+signif(m1_coef, 3)
 ```
 
-In the linear model that includes the covariate $age$ (model \@ref(eq:cov-cov)), the SE of the treatment effect is `r round(coef(summary(m2))["treatmentdrug", "Std. Error"], 2)`. Compare this to SE of the treatment effect in the model without the covariate (model \@ref(eq:cov-no-cov)), which is `r round(coef(summary(m0))["treatmentdrug", "Std. Error"]/coef(summary(m2))["treatmentdrug", "Std. Error"],1)`X larger.
+1. The adjusted effect is larger (-4.5 vs. -1.6)
+2. The adjusted SE of the difference is smaller (0.8 vs. 1.5)
+3. The adjusted CIs are narrower (-6.1, -2.8 vs. -4.7, 1.6)
+4. The p-value of the adjusted difference is smaller (0.000007 vs. 0.31)
 
-## Adding covariates can decrease prediction error in predictive models
+A plot of the model is
 
-## Adding covariates can reduce bias due to confounding in explanatory models
+```{r covariate-plot-the-model, echo=FALSE, fig.cap="Effect of drug therapy, adjusted for age, on plasma LDL-C."}
+groups <- levels(fd$treatment)
+age_range <- fd[, .(min_age = min(age),
+                    max_age = max(age),
+                    dummy = as.integer(treatment)-1), by = treatment]
+line_data <- data.table(age_range)
+b <- coef(m3)
+line_data[, ldlc_min := b[1] + b[2]*min_age + b[3]*dummy]
+line_data[, ldlc_max := b[1] + b[2]*max_age + b[3]*dummy]
 
-## Best practices 1: A pre-treatment measure of the response should be a covariate and not subtracted from the post-treatment measure (regression to the mean)
-
-It is common to measure the outcome variable ($Y$) both before and after the experimental treatments are applied and then compare the pre-post *change* in $Y$ in response to the treatment using a $t$-test or ANOVA using this linear model
-
-\begin{equation}
-Y_{post}-Y_{pre} = \beta_0 + \beta_1 Treatment + \varepsilon
-(\#eq:cov-change-score)
-\end{equation}
-
-**Don't do this**. Instead, add the pre-treatment measure into the model as a covariate.
-
-\begin{equation}
-Y_{post} = \beta_0 + \beta_1 Y_{pre} + \beta_2 Treatment + \varepsilon
-(\#eq:ancova-4)
-\end{equation}
-
-where $Treatment$ is a dummy variable for a two-level factor. A pre-treatment measure ($Y_{pre}$) is often called the *baseline* measure. The change in $Y$ ($\Delta Y = Y{post} - Y_{pre}$) is sometimes called a change score or gain score. If you really want to estimate the treatment effect on the change from pre-treatment value to post-treatment value, then use model \@ref(eq:ancova-4) with $\Delta Y$ as the response -- the $p$-value will be precisely the same (the estimate and SE will differ of course because the response variable is different).
-
-The reason why a researcher should not model a change score ($\Delta Y$) as a function of $Treatment$ without $Y_{pre}$ as a covariate is a phenomenon called **regression to the mean**. To explain regression to the mean, I use fake data simulated to model the results from an important study on gut microbiomes. In this study, the authors (Turnbaugh et al. xxx) showed that mice with feces from obese (genotype *ob/ob*) donors had higher weight gain than mice with feces from lean (genotype *+/+*) donors, presumably because of the differences in microbial communities between the donor types (shown elsewhere in their paper). To support the inference of a large difference in weight change, they illustrated the percent change in each treatment level in their Fig 3C, which is replicated here using simulated data generated to match the original summary statistics (Figure \@ref(fig:ancova-mouseplot1)). 
-
-```{r ancova-mouse, echo=FALSE}
-# create fake data using available summary statistics from paper. Use a while
-# loop to generate a new data set each loop and check how close the summary
-# statistics of the fake data are to those of the Turnbaugh data. If all stats
-# are within tolerance, keep and plot
-
-# create data.table of Turnbaugh mouse body fat data. Numbers are from paper.
-mouse <- data.table(treatment = c('+/+', 'ob/ob'),
-                    n = c(10, 9),
-                    percent = c(.27, .47),
-                    change = c(.86, 1.3),
-                    se_percent = c(0.036, 0.083),
-                    se_change = c(0.1, 0.2)
-                    )
-mouse[, init:=change/percent]
-mouse[, final:=init+change]
-mouse[, sd:=sqrt(se_change^2*n/2)] # sample sd, assume homogenous pre/post
-# reorder columns
-mouse <- mouse[, .SD, .SDcols=c('treatment', 'n', 'init', 'final', 'sd', 'change', 'percent', 'se_change', 'se_percent')]
-
-# compute some statistics for later use
-init_diff <- (mouse[2, init] - mouse[1, init])/sqrt(mean(mouse[,sd^2]))
-final_diff <- (mouse[2, final] - mouse[1, final])/sqrt(mean(mouse[,sd^2]))
-# generate replica fake data
-
-percent.lean <- mouse[treatment=='+/+', percent]
-percent.obese <- mouse[treatment=='ob/ob', percent]
-percent.lean.se <- mouse[treatment=='+/+', se_percent]
-percent.obese.se <- mouse[treatment=='ob/ob', se_percent]
-
-# parameters for model
-Sigma_ii <- mean(mouse[, sd^2]) # variances for both init and final
-sigma <- sqrt(Sigma_ii) # standard deviations
-rho <- 0.4 # pre-post correlation. I have no idea what the actual value is.
-mu <- mean(mouse[, init]) # initial weight
-delta <- mean(mouse[, change]) # delta is the post - pre effect for control
-tau <- 0 # tau is the treatment effect (on top of delta)
-Sigma <- matrix(c(c(Sigma_ii, rho*Sigma_ii), c(rho*Sigma_ii, Sigma_ii)), nrow=2)
-N <- sum(mouse[, n])
-
-seed <- 1673 # recovers stats
-done <- FALSE
-while(done==FALSE){
-  set.seed(seed)
+gg_response <- ggplot(data = fd,
+                aes(x = age,
+                    y = ldlc,
+                    color = treatment)) +
+  geom_point() +
   
-  # create pre-post mouse weights that are correlated
-  treatment <- rep(c('+/+','ob/ob'), mouse[,n])
-  weights <- rmvnorm(n=N, mean=c(mu, mu+delta), sigma=Sigma)
-  weights[treatment=='ob/ob', 2] <- weights[treatment=='ob/ob', 2] + tau
-  fake_mouse <- data.table(ID=factor(1:N),
-                   treatment=factor(treatment, c('+/+','ob/ob')),
-                   init=weights[,1],
-                   final=weights[,2])
-  fake_mouse[, change:=final-init]
-  fake_mouse[, percent:=change/init]
-  fake_mouse_sum <- fake_mouse[, .(final=mean(final),
-                   percent_change=mean(percent), 
-                   se=sd(percent)/sqrt(.N), 
-                   cs=mean(change), 
-                   se.change=sd(change)/sqrt(.N)), 
-               by=treatment]
-  fake_mouse_sum
-  if(abs(fake_mouse_sum[treatment=='ob/ob', final] - fake_mouse_sum[treatment=='+/+', final]) < 0.04 &
-     abs(fake_mouse_sum[treatment=='ob/ob', percent_change] - percent.obese) < 0.02 &
-     abs(fake_mouse_sum[treatment=='+/+', percent_change] - percent.lean) < 0.02 &
-     abs(fake_mouse_sum[treatment=='ob/ob', se] - percent.obese.se) < 0.02 &
-     abs(fake_mouse_sum[treatment=='+/+', se] - percent.lean.se) < 0.01 ){
-    done <- TRUE
-  }else{
-  seed <- seed+1
-  }
-}
+  # draw regression lines for each group
+  geom_segment(data = line_data,
+               aes(x = min_age,
+                   y = ldlc_min,
+                   xend = max_age,
+                   yend = ldlc_max)) +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  ylab("LDL-C (mg/dL blood)") +
+  xlab("Age (years)") +
+  theme_pubr() +
+  theme(legend.position="top") +
 
-fake_mouse_sum[, percent_change:=percent_change*100]
-fake_mouse_sum[, se:=se*100]
-fake_mouse[, percent:=percent*100]
-```
+  NULL
 
-```{r ancova-mouseplot1, echo=FALSE, fig.cap="Figure 3c of Turnbaugh *et al* 2006. This figure was generated with simulated data matching the summary statistics given in Turnbaugh *et al* 2006", fig.small = TRUE}
-# plot it
-gg <- ggplot(data=fake_mouse_sum, aes(x=treatment, y=percent_change, fill=treatment)) +
-  geom_errorbar(aes(ymin=(percent_change-se), ymax=(percent_change+se)), width=.2) +
-  geom_col(fill=c('white', 'black'), color='black') +
-  ylab("Increase in Body Fat (%)") +
-  xlab("Donor") +
-  scale_y_continuous(limits=c(0,60)) +
-  theme_minimal(base_size=18) +
-  theme(legend.position='none')
+# gg_response
+
+m3_emm <- emmeans(m3, specs = "treatment")
+m3_pairs <- contrast(m3_emm, method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
+  data.table()
+# pvalString is from package lazyWeave
+m3_pairs[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m3_pairs[ , pval_pretty := paste("p-val:", p_pretty)]
+
+gg_effect <- ggplot(data = m3_pairs, 
+                          aes(x = contrast,
+                              y = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(ymin = lower.CL, 
+                    ymax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_hline(yintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m3_pairs$pval_pretty,
+           x = 1,
+           y = -2) +
+  
+  # x-axis label and aesthetics
+  ylab("Effect (mg/dL blood)") +
+  xlab("Contrast") +
+  coord_cartesian(ylim = c(-6,2)) +
+  scale_y_continuous(position="left") +
+  
+  theme_pubr() +
+  # theme(axis.title.x = element_blank()) +
+  
+  NULL
+# gg_effect
+
+gg <- plot_grid(gg_response,
+                gg_effect,
+                 ncol=2,
+                 align = "h",
+                 axis = "tb",
+                 rel_widths = c(1,0.35))
 gg
+```
+
+## Understanding a linear model with an added covariate -- heart necrosis data
+
+[1-Deoxydihydroceramide causes anoxic death by impairing chaperonin-mediated protein folding](https://www.nature.com/articles/s42255-019-0123-y)
+
+[Source data](https://www.nature.com/articles/s42255-019-0123-y#Sec38)
+
+In this article, the researchers are investigating the effects of specific sphingolipids on hypoxia (low O2) in the heart. This hypoxia results in necrosis (death) of heart tissue. The researchers are specifically looking at the sphingolipid 1-deoxydihydroceramide (DoxDHCer), which is derived from 1-deoxysphinganine6 (DoxSa).
+
+In the experiment for Figure 4h, the researchers measured the effect of three treatments on necrosis.
+
+1. Vehicle -- there is no "cardioprotection" from the hypoxia-producing sphingolipids. This is the "control". We expect more necrotic area in this group.
+2 Myriocin -- a drug that inhibits the enzyme that iniates sphingolipid production. This drug should provide protection from the hypoxia-producing sphingolipids. We expect less necrotic area (or, cardioprotection) in this group.
+3. Myriocin + DoxSa -- DoxSa is the specific sphingolipid that the researchers believe cause the hypoxia/necrosis. The drug should inhibit the production of sphingolipids but the added DoxSa should reverses the protective effect of the drug. If there is a reversal of the protection, then this supports the hypothesis that DoxSa is the sphingolipid causing the hypoxia/necrosis.
+
+The response ($Y$) variable is $area\_of\_necrosis$ -- the measured "area" of the necrotic tissue (area is used here in the sense of "region" and not in the sense of length times width). The covariate is $area\_at\_risk$ -- the area of heart tissue that is susceptible to necrosis.
+
+```{r covariate-fig4h-import, echo = FALSE}
+data_from <- "1-Deoxydihydroceramide causes anoxic death by impairing chaperonin-mediated protein folding"
+file_name <- "42255_2019_123_MOESM7_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+  
+sheet_i <- "Figure 4h"
+fig4h_1 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "A5:B19",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+fig4h_2 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "D5:E17",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+fig4h_3 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "G5:H15",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+
+fig4h <- rbind(data.table(treatment = "Vehicle", fig4h_1),
+                    data.table(treatment = "Myriocin", fig4h_2),
+                    data.table(treatment = "Myriocin + DoxSa", fig4h_3))
+
+treatment_levels <- c("Vehicle", "Myriocin", "Myriocin + DoxSa")
+fig4h[, treatment := factor(treatment, levels = treatment_levels)]
 
 ```
 
-That looks like a big difference, with the mice from the obese-donor treatment level gaining much more fat than the mice from the lean-donor treatment level. Turnbaugh et al. used a simple t-test of this percent change to test the effect of the *ob/ob* treatment. The linear model underneath this $t$-test is
+### Fit the model
+
+The verbal model with added covariate is
+
+$area\_of\_necrosis \sim area\_at\_risk + treatment\;\;\;(\mathcal{M}_1)$.
+
+which I'll name model $\mathcal{M}_1$. To understand the model coefficients, it helps to expand model $\mathcal{M}_1$ into the full linear model.
 
 \begin{equation}
-percent\_change\_fat = \beta_0 + \beta_1 obese + \varepsilon
+area\_of\_necrosis = \beta_0 + \beta_1 area\_at\_risk + \beta_2 treatment_{myriosin} + \beta_3 treatment_{Myriocin\;+\;DoxSa} + \varepsilon
+(\#eq:cov-fig4h-additive)
 \end{equation}
 
-where $percent\_change\_fat$ is the percent change in fat from baseline and $obese$ is a dummy variable with *ob/ob* $= 1$. The percent change in fat is $\frac{fat_{post} - fat_{pre}}{fat_{pre}} \times 100$, so is a function of the change score $\Delta_{fat} = fat_{post} - fat_{pre}$.
+The model includes parameters for the effects of area at risk ($\beta_1$), the myriosin treatment ($\beta_2$) and the myriosin + DoxSa treatment ($\beta_3$). I explain the interpretation of these effects in "Interpretation of the model coefficients" below.
 
-The model coefficients are
-
-```{r ancova-mouse-model1, echo=FALSE}
-fit1 <- lm(percent ~ treatment, data=fake_mouse)
-coef(summary(fit1))
-confint(fit1)
+```{r covariate-fig4h-m1, echo=TRUE}
+fig4h_m1 <- lm(area_of_necrosis ~ area_at_risk + treatment,
+               data = fig4h)
 ```
 
-Or, the increase in fat in the obese-treated mice was 21.9% (95%CI: 4.7, 39.2%, $p=0.016$) greater than the increase in lean-treated mice. This result, if generally verified with replication and rigorous probing, would have spectacular implications for human health.
+### Plot the model
 
-### Regression to the mean in words
+```{r fig4h-m1-plot-model, warning = TRUE, echo = FALSE, fig.cap = "The effect of treatment on area of necrosis, adjusted for area of risk."}
 
-Regression to the mean is the phenomenon that if an extreme value is sampled, the next sample will likely be less extreme. This makes sense, if you randomly sample a single human male and that individual is 6'10" (about 4 standard deviations above the mean), the next human you randomly sample will almost certainly be closer to the mean human male. Or, if you randomly sample five human males and the mean height in the group is 5'1" (about 3 standard deviations below the mean), the next sample of five human males that you measure will almost certainly be closer to the mean human male.
+m1 <- lm(area_of_necrosis ~ area_at_risk + treatment, data = fig4h)
+b <- coef(m1)
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     adjust = "none") %>%
+  summary(infer = TRUE) %>%
+  data.table()
+# pvalString is from package lazyWeave
+m1_pairs[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m1_pairs[ , pval_pretty := paste("p = ", p_pretty)]
 
-How does regression to the mean apply to the analysis of change scores in a pre-post experiment, like the mouse fecal transplant study? In a pre-post experiment, subjects are randomized to treatment group. The response is measured at baseline and again at the conclusion of the experiment. Despite random treatment assignment, the mean fat weight of the *ob/ob* group at baseline was 1.2 standard deviations smaller than that of the *+/+* group. If there is no treatment effect, what is the expected difference at the end?
+groups <- levels(fig4h$treatment)
+line_data <- fig4h[, .(min_x = min(area_at_risk),
+                       max_x = max(area_at_risk)), by = treatment]
+line_data[, dummy1 := ifelse(treatment == "Myriocin", 1, 0)]
+line_data[, dummy2 := ifelse(treatment == "Myriocin + DoxSa", 1, 0)]
 
-To answer this, we need to know how an individual's fat weight at the end is related to its fat weight at baseline. An individual's final fat is dependent on its initial fat if factors that contribute to the measurement of fat are the same at baseline and the end. For example, if an individual has relatively high metabolism both at baseline and at the end, then that individual might have relatively low fat at baseline and at the end. This dependence of final value on baseline value is quantified by the correlation between the two measures. This correlation is $\rho$ (the greek letter rho). Factors that change over the duration of the experiment, including random measurement error, cause the correlation to be less than one. The two extremes of this correlatioun, and the expected difference in fat weight at the end are:
+line_data[, y_min := b[1] + b[2]*min_x + b[3]*dummy1 + b[4]*dummy2]
+line_data[, y_max := b[1] + b[2]*max_x + b[3]*dummy1 + b[4]*dummy2]
 
-1. $\rho=0$ -- if an individual's final fat is independent of its initial fat then we expect the difference at end to be zero.
-2. $\rho=1$ -- if an individuals's final fat is entirely dependent on its initial fat, then we'd expect the mean fat weight of the *ob/ob* group to be 1.2 standard deviations smaller than that of the *+/+* group, exactly as it was at baseline.
+gg_response <- ggplot(data = fig4h,
+                      aes(x = area_at_risk,
+                          y = area_of_necrosis,
+                          color = treatment)) +
+  # points
+  geom_point(size = 2) +
+  
+  geom_segment(data = line_data,
+               aes(x = min_x,
+                   y = y_min,
+                   xend = max_x,
+                   yend = y_max)) +
+  scale_color_manual(values = pal_okabe_ito,
+                     name = NULL) +
+  ylab("Area of necrosis (mg)") +
+  xlab("Area at risk (mg)") +
+  theme_pubr() +
+  theme(legend.position = "left") +
 
-Regression to the mean happens when $\rho < 1$ and its consequences increase as $\rho$ goes to zero. What is meant by "consequences"?
+  NULL
+#gg_response
 
-The fat weight of the *ob/ob* group at baseline is 1.2 standard deviations smaller than that of the *+/+* group. If $\rho=0$, then we'd expect the difference between mean fat weight at the end of the experiment to be zero. *Given the starting differences in mean weight*, to get to zero difference at the end, the *ob/ob* mice would have to gain more fat weight than the *+/+* mice. Since the expectation of the mean difference at the end is zero the expectation of the change score *must be bigger for the ob/ob mice than for the +/+ mice*. That is the expectation of the *difference* in change score is conditional on (or "a function of") the difference in fat weight at baseline.
+contrast_order <- m1_pairs[, contrast]
+m1_pairs[, contrast := factor(contrast, contrast_order)]
 
-### Regression to the mean in pictures
+gg_effect <- ggplot(data = m1_pairs, 
+                    aes(y = contrast,
+                        x = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin = lower.CL, 
+                    xmax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m1_pairs$pval_pretty,
+           y = 1:3,
+           x = 4.5) +
+  
+  # x-axis label and aesthetics
+  xlab("Effect (mg)") +
+  ylab("Contrast") +
+  coord_cartesian(xlim = c(-8,5.5)) +
+  scale_x_continuous(position="top") +
+  
+  theme_pubr() +
+  # theme(axis.title.x = element_blank()) +
+  
+  NULL
+# gg_effect
 
-Let's simulate this to pump our intuition about regression to the mean and its consequences on pre-post experiments. 
+# there is a bug causing "Arial" postscript font error. I can suppress this but it fails to compile into book
+#set_null_device("png")
+gg <- plot_grid(gg_effect,
+                gg_response,
+                nrow=2,
+                align = "v",
+                axis = "rl",
+                rel_heights = c(0.35, 1))
+gg
+```
 
-1. randomly sample a normal distribution as the "initial weight" and randomly assign to treatment class
-2. let the final weight have some correlation ($\rho$) with the initial weight. Some correlation should make sense -- we expect a mouse that has more fat than average at the start of the experiment to also have more fat than average at the end of the experiment. Run the experiment at different values of this correlation to see how it effects regression to the mean.
-3. Do not add a treatment effect. We want to explore the behavior of the nill null hypothesis.
+### Interpretation of the model coefficients 
 
-```{r ancova-sim1, echo=FALSE, fig.cap="Effect of initial difference in weight on the difference in change score. Increased initial difference in weight results in an increased differences in change score between treatment and control. Four different values of *rho* (the correlation between initial and final weights) were simulated. Only when *rho*=1 is there no influence of initial difference, because whatever differences occur at baseline will be perfectly preserved in the final measure. The X gives the values in the original Turnbaugh data"}
-niter <- 1000
-n <- 10
-N <- n*2
-# parameters from code block "originalPlot"
-d_obs.init <- mouse[treatment=='ob/ob', init] - mouse[treatment=='+/+', init]
-d_obs.change <- mouse[treatment=='ob/ob', change] - mouse[treatment=='+/+', change]
-d_obs.percent <- mouse[treatment=='ob/ob', percent] - mouse[treatment=='+/+', percent]
+```{r covariate-fig4h-m1-coef, echo=TRUE}
+fig4h_m1_coef <- cbind(coef(summary(fig4h_m1)),
+      confint(fig4h_m1))
+signif(fig4h_m1_coef, digits = 3)
+```
 
-init_diff <- numeric(niter)
-cs_diff <- numeric(niter)
-percent_diff <- numeric(niter)
-res_mat <- data.table(NULL)
-for(rho in c(0, 0.33, 0.66, 1)){
-  Sigma <- matrix(c(c(sigma^2, rho*sigma^2), c(rho*sigma^2, sigma^2)), nrow=2)
-  for(iter in 1:niter){
-    # col 1 is initial weights, col 2 is final weights
-    weights <- rmvnorm(n=N, mean=c(mu, mu+delta), sigma=Sigma)
-    init <- weights[,1]
-    final <- weights[,2]
-    change <- final - init
-    percent <- change/init
-    init_diff[iter] <- mean(init[1:n]) - mean(init[(n+1):(n*2)]) 
-    cs_diff[iter] <- mean(change[1:n]) - mean(change[(n+1):(n*2)]) 
-    percent_diff[iter] <- mean(percent[1:n]) - mean(percent[(n+1):(n*2)]) 
-  }
-  res_mat <- rbind(res_mat, data.table(rho=rho, init=init_diff, cs=cs_diff, percent=percent_diff))
-}
+1. The estimate in the "(Intercept)" row ($b_0$) is the expected value of the reference (here, this is the Vehicle group) when $area\_at\_risk=0$. Using Figure \@ref(fig:fig4h-m1-plot-model), this can be visualized as the value of $Y$ where the Vehicle line (the regression line for the reference group) crosses the *y*-axis (at $X = 0$). This is not a meaningful estimate since the area at risk in all hearts is above zero.
+2. The estimate in the "area_at_risk" row ($b_1$) is a common slope for all three regression lines. Some might refer to this slope as the "effect" of $area\_at\_risk$ on $area\_of\_necrosis$ but I recommend against using this causal language because the $area\_at\_risk$ is not randomly assigned -- its purpose in *this* model (but not necessarily all linear models with an added covariate) is not for interpretation but for improving inference in the expimental treatment factor.
+3. The estimate in the "treatmentMyriocin" row ($b_2$) is the effect of $Myriocin$ on $area\_of\_necrosis$ **conditional on** (or **adjusted for**) $area\_at\_risk$. A frequent phrase is "the estimate controlling for area at risk" but avoid this because "control" implies experimenter intervention and this is not true for $area\_at\_risk$. The value is the difference in the elevation of the regression line for the reference group and that for the Myriocin group. This difference is equal to the difference in conditional expectations at a specific value of the covariate.
 
-# plot it
-res_mat[, rho:=factor(rho)]
-labs <- levels(res_mat[, rho])
-#cols <- colorblind_brewer(length(labs))
-cols <- colorblind(length(labs))
-#cols <- viridis(4)[1:4]
-gg <- ggplot(data=res_mat, aes(x=init, y=cs, color=rho)) +
-  geom_point() +
-  geom_point(aes(x=d_obs.init, y=d_obs.change), color='black', shape='X', size=5) +
-  ylab("Difference in change score") +
-  xlab("Initial difference") +
-#  scale_color_viridis(discrete=TRUE) +
-  scale_colour_manual(values=cols, labels = labs) +
-  theme_minimal(base_size=14) +
+\begin{equation}
+b_2 = \mathrm{E}(area\_of\_necrosis|treatment = "Myriocin", X = x) - \mathrm{E}(area\_of\_necrosis|treatment = "Vehicle", X = x)
+\end{equation}
+
+4. The estimate in the "treatmentMyriocin + DoxSa" row ($b_3$) is the effect of $Myriocin + DoxSa$ on $area\_of\_necrosis$ **conditional on** (or **adjusted for**) $area\_at\_risk$. It's interpretation is similar to that for $b_2$.
+
+How do we summarize these interpretations given the motivating hypothesis? The results do not support the hypothesis. If DoxSa is one of the sphingolipids inducing hypoxia/necrosis, then we'd expect the Myriocin + DoxSa line to be elevated above the Myriocin line. But the coefficient table "tests" this prediction only indirectly. The explicit statistic for this prediction is the (Myriocin + DoxSa) - Myriocin contrast in the contrast table below.
+
+### Everything adds up
+
+Remember that everything adds up in a linear model. A regression line is a line of expected values (the expectation of $Y$ conditional on $X$). The point on the Vehicle line at $area\_of\_risk = 30$ is $b_0 + b_1 \cdot 30$. The point on the "Myriocin" line at $area\_of\_risk = 30$ is $b_0 + b_1 \cdot 30 + b_2$. And, the point on the "Myriocin + DoxSa" line at $area\_of\_risk = 30$ is $b_0 + b_1 \cdot 30 + b_3$. Understanding how the components of the linear model add up gives you phenomenonal cosmic power in statistical analysis.
+
+### Interpretation of the estimated marginal means
+
+```{r}
+fig4h_m1_emm <- emmeans(fig4h_m1, specs = "treatment")
+fig4h_m1_emm
+```
+The values in the column "emmean" are the expected values of each group when ("conditional on") $area\_at\_risk$ is equal to the mean $area\_at\_risk$.
+
+```{r echo=FALSE, eval=FALSE}
+new_dat <- data.table(treatment = levels(fig4h[, treatment]),
+                      area_at_risk = mean(fig4h[, area_at_risk]))
+predict(fig4h_m1,
+        new_dat,
+        se.fit = TRUE,
+        interval = "confidence")$fit
+```
+
+### Interpretation of the contrasts
+
+```{r}
+fig4h_m1_pairs <- contrast(fig4h_m1_emm,
+                           method = "revpairwise",
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+fig4h_m1_pairs
+```
+
+The values in the column "estimate" are the differences between the estimated marginal means in the estimated marginal means table. The first two contrasts are equal to the coefficients $b_2$ and $b_3$ in the coefficient table.
+
+### Adding the covariate improves inference
+
+Compare the effects in Model $\mathcal{M}_1$ (with the added covariate) to the effects in a linear model without the added covariate.
+
+```{r, echo = FALSE}
+
+fig4h_m0 <- lm(area_of_necrosis ~ treatment, data = fig4h)
+fig4h_m0_coeff <- cbind(coef(summary(fig4h_m0)),
+                        confint(fig4h_m0))
+signif(fig4h_m0_coeff, 3)
+```
+
+Inference from these two models is very different. From the model adjusting for area at risk (Model $\mathcal{M}_1$), we would conclude "Unexpectedly, the estimated Myriocin + DoxSa effect (-3.2 mg, 95% CI: -5.9, -0.4) is effectively as big as the Myriocin alone effect." By contrast, using the model without the covariate, we would conclude "Relative to the Myriocin effect, the estimated Myriocin + DoxSa effect is small (.29 mg), and there is large uncertainty in its direction and magnitude (95% CI: -4.1, 4.7)." (Note that the authors published a different conclusion to either of these. I cannot recover the results leading to their conclusion using the methods published by the authors.)
+
+## Understanding interaction effects with covariates
+### Fit the model
+
+When we add a continuous covariate to a model we sometimes want to model the **interaction** with the categorical factor variable. An interaction effect represents how the effect of one variable changes given the level of a second variable. The verbal model with an added interaction effect is
+
+$area\_of\_necrosis \sim area\_at\_risk + treatment + area\_at\_risk \times treatment\;\;\;(\mathcal{M}_2)$
+
+which I'll refer to as Model $\mathcal{M}_2$. To understand the model coefficients, it helps to expand this into the full linear model.
+
+\begin{align}
+area\_of\_necrosis = \beta_0 &+ \beta_1 area\_at\_risk + \beta_2 treatment_{myriosin} + \beta_3 treatment_{Myriocin\;+\;DoxSa}\\
+&+ \beta_4 area\_at\_risk \cdot treatment_{myriosin}\\
+&+ \beta_5 area\_at\_risk \cdot treatment_{Myriocin\;+\;DoxSa}\\
+&+ \varepsilon
+(\#eq:cov-fig4h-interaction)
+\end{align}
+
+In addition to the effects of the myriosin ($\beta_2$) and the myriosin + DoxSa ($\beta_3$) treatments of Model $\mathcal{M}_1$, Model $\mathcal{M}_2$ includes coefficients for two **interaction effects**, the interaction between myriosin and area at risk ($\beta_4$) and the interaction between myriosin + DoxSa and area at risk ($\beta_4$). The parameters $\beta_1$ and $\beta_2$ are **additive effects** because they are linear (additive) "in the $X$" variables. The parameters $\beta_3$ and $\beta_4$ are **non-additive effects** because they are not linear "in the $X$" variables -- these effects are coefficients of an $X$ that is the product of two variables. You can see this in the model equation but I explain this further below.
+
+For the goals of the researchers in the heart necrosis study, we specifically would not want to model the interaction. Nevertheless, we would want to plot the interaction effect during the "Step 2: examine the data" phase of analysis to be sure that an additive model is a reasonable model given the data.
+
+```{r}
+# see working in R to understand this model formula
+fig4h_m2 <- lm(area_of_necrosis ~ area_at_risk*treatment,
+               data = fig4h)
+```
+
+```{r echo=FALSE, eval=FALSE}
+# what model is rstatix::emmeans_test evaluating?
+# answer the additive model but the output states non-additive.
+
+emmeans_test(data = fig4h,
+    area_of_necrosis ~ treatment, covariate = area_at_risk,
+    p.adjust.method = "none"
+    )
+
+contrast(emmeans(fig4h_m1, specs="treatment"),
+         method = "revpairwise",
+         adjust = "none")
+contrast(emmeans(fig4h_m2, specs="treatment"),
+         method = "revpairwise",
+         adjust = "none")
+
+```
+
+### Plot the model with interaction effect
+
+```{r fig4h-m2-plot-model, warning = TRUE, echo = FALSE, fig.cap = "The effect of treatment on area of necrosis, adjusted for area of risk."}
+m2 <- lm(area_of_necrosis ~ area_at_risk*treatment, data = fig4h)
+b <- coef(m2)
+
+m2_coef <- cbind(coef(summary(m2)),
+                 confint(m2))
+m2_coef <- data.table(coefficient = row.names(m2_coef),
+                      m2_coef)
+setnames(m2_coef,
+         old = c("Estimate", "Pr(>|t|)", "2.5 %", "97.5 %"),
+         new = c("estimate", "p_value", "lower.CL", "upper.CL"))
+# pvalString is from package lazyWeave
+m2_coef[ , p_pretty := pvalString(p_value)]
+# also create a column with "p-val: "
+m2_coef[ , pval_pretty := paste("p = ", p_pretty)]
+
+groups <- levels(fig4h$treatment)
+line_data <- fig4h[, .(min_x = min(area_at_risk),
+                       max_x = max(area_at_risk)), by = treatment]
+line_data[, dummy1 := ifelse(treatment == "Myriocin", 1, 0)]
+line_data[, dummy2 := ifelse(treatment == "Myriocin + DoxSa", 1, 0)]
+
+line_data[, y_min := b[1] + b[2]*min_x + b[3]*dummy1 + b[4]*dummy2 +
+            b[5]*dummy1*min_x + b[6]*dummy2*min_x]
+line_data[, y_max := b[1] + b[2]*max_x + b[3]*dummy1 + b[4]*dummy2 +
+            b[5]*dummy1*max_x + b[6]*dummy2*max_x]
+
+gg_response <- ggplot(data = fig4h,
+                      aes(x = area_at_risk,
+                          y = area_of_necrosis,
+                          color = treatment)) +
+  # points
+  geom_point(size = 2) +
+  
+  geom_segment(data = line_data,
+               aes(x = min_x,
+                   y = y_min,
+                   xend = max_x,
+                   yend = y_max)) +
+  scale_color_manual(values = pal_ito_seven) +
+  ylab("Area of necrosis (mg)") +
+  xlab("Area at risk (mg)") +
+  theme_pubr() +
+  theme(legend.position="bottom") +
+  
+  NULL
+#gg_response
+
+contrast_order <- m2_coef[, coefficient]
+m2_coef[, term := factor(coefficient, contrast_order)]
+
+gg_effect <- ggplot(data = m2_coef, 
+                    aes(y = coefficient,
+                        x = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin = lower.CL, 
+                    xmax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m2_coef$pval_pretty,
+           y = 1:6,
+           x = 4.5) +
+  
+  # x-axis label and aesthetics
+  xlab("value") +
+  ylab("Coefficient") +
+#  coord_cartesian(xlim = c(-8,5.5)) +
+  scale_x_continuous(position="top") +
+  
+  theme_pubr() +
+  # theme(axis.title.x = element_blank()) +
+  
+  NULL
+# gg_effect
+
+gg <- plot_grid(gg_effect,
+                gg_response,
+                nrow=2,
+                align = "v",
+                axis = "rl",
+                rel_heights = c(0.6, 1)
+                )
+gg_response
+```
+
+### Interpretation of the model coefficients 
+
+```{r covariate-fig4h-m2-coef, echo=TRUE}
+fig4h_m2_coef <- cbind(coef(summary(fig4h_m2)),
+      confint(fig4h_m2))
+round(fig4h_m2_coef[,c(1,2)], digits = 2)
+```
+1. The estimate in the "(Intercept)" row ($b_0$) is the expected value of the reference (here, this is the Vehicle group) when $area\_at\_risk=0$. This is the same interpretation of the intercept in the additive model (Model $\mathcal{M}_1$) but the value is different. This is because the slope coefficient ($b_1$) estimated in Model $\mathcal{M}_1$ is a common slope (to all three groups) estimated by pooling data from all three groups. The slope coefficient in the non-additive model (Model $\mathcal{M}_2$) is computed from just the reference data. Because the slope differs between Model $\mathcal{M}_1$ and Model $\mathcal{M}_2$, the intercept differs (think about why they are necessarily related). As in Model $\mathcal{M}_1$, the value and inferential statistics are meaningful for this parameterization but there are slight modifications of the model that can make this meaningful.
+2. The estimate in the "area_at_risk" row ($b_1$) is the slope of the regression line for the reference (Vehicle) group, that is, the slope conditional on $treatment = \mathrm{''Vehicle''}$
+3. The estimate in the "treatmentMyriocin" row ($b_2$) is the effect of $Myriocin$ on $area\_of\_necrosis$ **conditional on** $area\_at\_risk = 0$. Note the difference in interpretation with $b_2$ in Model $\mathcal{M}_1$. The difference is because of the interaction. The effect of $Myriocin$ on $area\_of\_necrosis$ is no longer constant for all values of $area\_at\_risk$. This is easily seen in Figure \@ref(fig:fig4h-m2-plot-model), where the effect of Myriocin (the vertical distance between the Vehicle and Myriocin line) is very small at small values of area at risk but very large at large areas at risk.
+4. The estimate in the "treatmentMyriocin + DoxSa" row ($b_3$) is the effect of $Myriocin + DoxSa$ on $area\_of\_necrosis$ **conditional on** $area\_at\_risk = 0$. It's interpretation is similar to that for $b_2$.
+5. The estimate in the "area_at_risk:treatmentMyriocin" row ($b_4$) is the **interaction effect** between area at risk and Myriocin. It's value is the difference between the slope of the regression line through the Myriocin points in Figure \@ref(fig:fig4h-m2-plot-model) and the slope of the regression line through the reference (Vehicle) points in Figure \@ref(fig:fig4h-m2-plot-model). Consequently, the slope of the regression line through the Myriocin points is $b_1 + b_4$.
+6. The estimate in the "area_at_risk:treatmentMyriocin + DoxSa" row ($b_5$) is the **interaction effect** between area at risk and Myriocin + DoxSa It's value is the difference between the slope of the regression line through the Myriocin + DoxSa points in Figure \@ref(fig:fig4h-m2-plot-model) and the slope of the regression line through the reference (Vehicle) data in Figure \@ref(fig:fig4h-m2-plot-model). Consequently, the slope of the regression line through the Myriocin + DoxSa points is $b_1 + b_5$.
+
+Interaction effects are *differences in slopes* (this is also true with interactions between two factor variables, even though we usually describe this as "differences in differences") and these difference are easily seen by inspection of a plot similar to that in Figure \@ref(fig:fig4h-m2-plot-model). The bigger the interaction, the less parallel the regression line.
+
+### What is the effect of a treatment, if interactions are modeled? -- it depends.
+
+A very useful way to remember what an interaction *is* is "it depends". What is the effect of Myriocin on area at risk? With an interaction term in the linear model, the answer is "it depends". It depends on the level of $area\_at\_risk$. At small values of area at risk, the effect of Myriocin is very small. At large values of area at risk, the effect of Myriocin is large. Likewise, what is the effect of area at risk on necrosis? It depends (if interactions are modeled). It depends on the level of treatment, for example the effect in the Myriocin group is smaller (a smaller slope) than the effect in the Vehicle group. "It depends" is the hallmark of interactions -- the effect of one variable on the outcome depends on the level of a second variable.
+
+### Which model do we use, $\mathcal{M}_1$ or $\mathcal{M}_2$?
+
+The answer to this question depends partly on our goals. If we are explicitly interested in measuring an interaction effect (perhaps some theory predicts an positive interaction) then we would necesarily add interaction effects to the model. But if we are interested in estimating a treatment effect conditional on a covariate, then we don't include the interaction. Remember that a purpose of initial explorations of data ("Step 2 -- examine the data") is to help decide which model to specify in the model formula. If an initial plot shows large interactions between treatment levels and the covariate, then adjusting for the covariate won't work, or at least won't work without additional complexity to the interpretation. "Large interactions" of course raises the question, how large is too larege to ignore interactions? Many textbooks in biostatistics recommend using an interaction *p*-value to make this decision. I disagree. There is no objective answer to the question. We lose information with all models -- that is what we do in science. It is up to the researcher to be transparent with all decisions. If an additive (no interactions) model is used to condition on (adjust for) a covariate, the researcher should use the supplement to plot the model with interactions as evidence of why this decision is reasonable.
+
+## Understanding ANCOVA tables
+
+
+## Working in R
+### Importing the heart necrosis data
+
+```{r, echo = TRUE}
+data_folder <- "data"
+data_from <- "1-Deoxydihydroceramide causes anoxic death by impairing chaperonin-mediated protein folding"
+file_name <- "42255_2019_123_MOESM7_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+  
+sheet_i <- "Figure 4h"
+fig4h_1 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "A5:B19",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+fig4h_2 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "D5:E17",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+fig4h_3 <- read_excel(file_path,
+                         sheet = sheet_i,
+                         range = "G5:H15",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  data.table()
+
+fig4h <- rbind(data.table(treatment = "Vehicle", fig4h_1),
+                    data.table(treatment = "Myriocin", fig4h_2),
+                    data.table(treatment = "Myriocin + DoxSa", fig4h_3))
+
+treatment_levels <- c("Vehicle", "Myriocin", "Myriocin + DoxSa")
+fig4h[, treatment := factor(treatment, levels = treatment_levels)]
+
+```
+
+### Fitting the model
+For an additive model, add the covariate to the model formula using the `+` operator. The order of the variables doesn't matter (the right-hand-side of the model formula could be `treatment + area_at_risk`).
+
+```{r}
+m1 <- lm(area_of_necrosis ~ area_at_risk + treatment, data = fig4h)
+```
+
+For an nonadditive model with interactions, add the covariate to the model formula using the `*` operator.  `~ area_at_risk * treatment` is a shortcut to the full model formula, which is `1 + area_at_risk + treatment + area_at_risk * treatment`. R expands the short formula to the full formula automatically. Again, the order of the variables doesn't matter (the right-hand-side of the model formula could be `treatment * area_at_risk`).
+
+```{r}
+m2 <- lm(area_of_necrosis ~ area_at_risk * treatment, data = fig4h)
+```
+
+### ANCOVA tables
+
+If you are going to report statistics from an ANCOVA table, be sure that what you report is what you think you are reporting -- it is very easy to get this wrong in R. One way to easily get a table using Type II or III sums of squares is to set the contrast option of the factor variable to `contr.sum` (this tells R to use deviation coding to form the model matrix for the linear model) and then use the function `Anova` from the car package (not base R `anova`).
+
+1. It is safest to set this with the `lm` function itself.
+2. The coefficients of the linear model will have a different interpretation than that given above. Either understand the new interpretation (not given here) or fit two models, one without the reset contrasts and one with the reset contrasts.
+3. The estimated marginal mean table and the contrast table are the same, regardless of how contrasts are set in the linear model.
+4. Many websites show code that changes the default coding in the R session. I strongly caution against this. If you don't change it back, then you are likely to misinterpret coefficients in later analyses (see point 2).
+
+For additive models, use Type II sum of squares (Type III will give same results), 
+
+```{r echo = FALSE}
+# for coefficients
+m1 <- lm(area_of_necrosis ~ treatment + area_at_risk,
+         data = fig4h)
+# for anova
+m1_aov <- lm(area_of_necrosis ~ treatment + area_at_risk,
+         data = fig4h,
+         contrasts = list(treatment = contr.sum))
+```
+
+```{r}
+Anova(m1_aov, type = 2) # be sure to use the correct model!
+```
+For non-additive models with interactions
+
+1. The statistics for the interaction effect are the same, regardless of the sum of squares used.
+2. The interpretation of the main effects is problematic, at best. This is discussed more in the ANOVA chapter.
+3. Some statisticians recommend using Type III sums of squares. The effect of $treatment* has a very specific interpretation with Type III -- it is the effect when the covariate = 0. This can be biologically relevant if the covariate data is re-centered.
+
+```{r}
+# for coefficients
+m2 <- lm(area_of_necrosis ~ treatment * area_at_risk,
+         data = fig4h)
+# for anova
+m2_aov <- lm(area_of_necrosis ~ treatment * area_at_risk,
+         data = fig4h,
+         contrasts = list(treatment = contr.sum))
+```
+
+```{r}
+Anova(m2_aov, type = 2) # be sure to use the correct model!
+```
+```{r}
+Anova(m2_aov, type = 3) # be sure to use the correct model!
+
+```
+
+### Plotting the model
+#### Using ggpubr
+
+ggpubr will only plot the model with interactions.
+
+```{r message=FALSE}
+ggscatter(data = fig4h,
+          x = "area_at_risk",
+          y = "area_of_necrosis",
+          color = "treatment",
+          add = "reg.line",
+          ylab = "Area of necrosis (mg)",
+          xlab = "Area at risk (mg)",
+          palette = pal_okabe_ito
+)
+
+
+```
+
+#### ggplot2
+
+```{r, message = FALSE}
+# pal_batlow <- scico(n, alpha = NULL, begin = 0, end = 1, direction = 1, palette = "batlow")
+
+m1 <- lm(area_of_necrosis ~ area_at_risk + treatment,
+         data = fig4h)
+
+gg <- ggplot(fig4h, 
+             aes(x = area_at_risk,
+                 y = area_of_necrosis,
+                 color = treatment)) +
+  geom_point(aes(color=treatment)) +
+  geom_smooth(method = "lm",
+              mapping = aes(y = predict(m1, fig4h))) +
+  scale_color_manual(values = pal_okabe_ito,
+                     name = NULL) +
+  # scale_color_manual(values = pal_batlow,
+  #   name = NULL) +
+  ylab("Area of necrosis (mg)") +
+  xlab("Area at risk (mg)") +
+  theme_pander() +
+  theme(legend.position="bottom") +
   NULL
 gg
-
-# modeled p-value
-p.value <- sum(abs(res_mat$cs >= d_obs.change))/(niter*4) # 
-
-# conditional p if rho=0.33
-res_mat <- rbind(res_mat, data.table(rho=0.33, init=d_obs.init, cs=d_obs.change, percent=d_obs.percent))
-pfit <- lm(cs~init, data=res_mat[rho==0.33])
-res <- residuals(pfit)
-p.cond1 <- sum(abs(res) >= abs(res[1001]))/1001
-
-# conditional p if rho=0.66
-res_mat <- rbind(res_mat, data.table(rho=0.66, init=d_obs.init, cs=d_obs.change, percent=d_obs.percent))
-pfit <- lm(cs~init, data=res_mat[rho==0.66])
-res <- residuals(pfit)
-p.cond2 <- sum(abs(res) >= abs(res[1001]))/1001
-
 ```
 
-What's happening in Figure \@ref(fig:ancova-sim1)? Each point is a result for a single, simulated experiment. In total, there are 1000 simulated experiments for each of four values of $\rho$. The *x*-axis is the difference between the means of the two treatment levels at baseline (*Initial difference*). The *y*-axis is the difference in mean change score between the two treatment levels -- that is the difference in the means of $\Delta Y$ from equation \@ref(eq:ancova-5). This difference in $\Delta Y$ is the effect of the treatment the researchers are interested in. The *unconditional* expectation of this difference is zero
 
-\begin{equation}
-\mathrm{E}(\Delta Y_{ob/ob} - \Delta Y_{+/+}) = 0
-\end{equation}
+#### A response-effects plot using ggplot2
 
-but the change conditional on baseline is not zero
+```{r}
+m1 <- lm(area_of_necrosis ~ area_at_risk + treatment, data = fig4h)
+b <- coef(m1)
 
-\begin{equation}
-\mathrm{E}(\Delta Y_{ob/ob} - \Delta Y_{+/+}) \ne 0
-\end{equation}
+groups <- levels(fig4h$treatment)
+line_data <- fig4h[, .(min_x = min(area_at_risk),
+                       max_x = max(area_at_risk)), by = treatment]
+line_data[, dummy1 := ifelse(treatment == "Myriocin", 1, 0)]
+line_data[, dummy2 := ifelse(treatment == "Myriocin + DoxSa", 1, 0)]
 
-Instead, the conditional expectation is a function of the difference at baseline. If the initial difference in weight happens to be unusually large and negative, the expected difference in change score is unusually positive. This non-zero expectation means that the estimate of the treatment effect is **conditionally biased** for any model that does not include the baseline fat weight as a covariate. And, from a frequentist perspective, the Type I error for a test of a difference in $\Delta Y$ is strongly dependent on the initial difference in weight.
+line_data[, y_min := b[1] + b[2]*min_x + b[3]*dummy1 + b[4]*dummy2]
+line_data[, y_max := b[1] + b[2]*max_x + b[3]*dummy1 + b[4]*dummy2]
 
-The big X in the plot indicates the difference at baseline and difference in $\Delta Y$ for the original fecal transplant study. The difference in $Delta Y$ is unusually positive (about .6% of the $|\delta Y|$ are larger) but very close to the expected value given the unusually large, negative difference at baseline. In other words, the probability of the data, or more extreme than the data, is not 0.006 but something larger and perhaps, much larger (the computed value depends on the observed $\rho$. From, the plot, the X is very unusual if $\rho=1$, pretty unusual if $\rho=0.66$, but pretty common if $\rho=0.33$ or if $\rho=0$).
+gg_response <- ggplot(data = fig4h,
+                      aes(x = area_at_risk,
+                          y = area_of_necrosis,
+                          color = treatment)) +
+  # points
+  geom_point(size = 2) +
+  
+  geom_segment(data = line_data,
+               aes(x = min_x,
+                   y = y_min,
+                   xend = max_x,
+                   yend = y_max)) +
+  scale_color_manual(values = pal_okabe_ito,
+                     name = NULL) +
+  ylab("Area of necrosis (mg)") +
+  xlab("Area at risk (mg)") +
+  theme_pubr() +
+  theme(legend.position="bottom") +
 
-### Do not use percent change, believing that percents account for effects of initial weights
-
-Some researchers mistakenly believe that a $t$-test of percent change automatically adjusts for effects in initial weight, since this initial weight is in the denominator of the percent. This is wrong. The dependency of the difference in change between treatments on the initial difference between treatments is more severe if change is measured as a percent, because the numerator (the change score) is expected to be larger if the denominator is smaller (initial measure). Using the simulated data from above, here is this dependency.
-
-```{r ancova-sim2, echo=FALSE, fig.cap="Effect of initial difference in weight on the difference in percent change. Increased initial difference in weight results in an increased differences in Percent change between treatment and control. Four different values of *rho* (the correlation between initial and final weights) were simulated. Note there is no value of *rho* where the difference in percent change is independent of the initial difference. The X gives the values in the original Turnbaugh data."}
-gg <- ggplot(data=res_mat, aes(x=init, y=percent, color=rho)) +
-  geom_point() +
-  geom_point(aes(x=d_obs.init, y=d_obs.percent), color='black', shape='X', size=5) +
-  ylab("Difference in percent change") +
-  xlab("Initial difference") +
-  scale_colour_manual(values=cols, labels = labs) +
-  theme_minimal(base_size=14) +
   NULL
-gg
-
+#gg_response
 ```
+
+```{r, warning=FALSE, message=FALSE}
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     adjust = "none") %>%
+  summary(infer = TRUE) %>%
+  data.table()
+# pvalString is from package lazyWeave
+m1_pairs[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m1_pairs[ , pval_pretty := paste("p = ", p_pretty)]
+
+contrast_order <- m1_pairs[, contrast]
+m1_pairs[, contrast := factor(contrast, contrast_order)]
+
+gg_effect <- ggplot(data = m1_pairs, 
+                    aes(y = contrast,
+                        x = estimate)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin = lower.CL, 
+                    xmax = upper.CL),
+                width = 0, 
+                color = "black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept = 0, linetype = 2) +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m1_pairs$pval_pretty,
+           y = 1:3,
+           x = 4.5) +
+  
+  # x-axis label and aesthetics
+  xlab("Effect (mg)") +
+  ylab("Contrast") +
+  coord_cartesian(xlim = c(-8,5.5)) +
+  scale_x_continuous(position="top") +
+  
+  theme_pubr() +
+  # theme(axis.title.x = element_blank()) +
+  
+  NULL
+# gg_effect
+```
+
+
+```{r, warning=TRUE, message=FALSE}
+gg <- plot_grid(gg_effect,
+                gg_response,
+                nrow=2,
+                align = "v",
+                axis = "rl",
+                rel_heights = c(0.35, 1)
+                )
+gg
+```
+
+## Best practices
+### Do not use a ratio of part:whole as a response variable -- instead add the denominator as a covariate
+### Do not use change from baseline as a response variable -- instead add the baseline measure as a covariate
 
 ### Do not "test for balance" of baseline measures
 

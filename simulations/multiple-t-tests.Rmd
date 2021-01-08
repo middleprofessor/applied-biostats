@@ -1,0 +1,228 @@
+# Linear models have more power than multiple t-tests -- a simulation
+
+Simulation of an experiment with greater than two treatment levels to compare performance of significance tests from a linear model vs. a series of independent, pairwise signficiance tests.
+
+Performance measures:
+
+1. type I error rate
+2. power
+3. p-value distribution
+
+The simulation compares these performance measures for
+
+1. experiments at very low, low, moderate, and high power
+2. balanced (equal sample size in all groups) vs. unbalanced (n = 8 in control, n = 6 in tested group)
+3. three or five groups (treatment levels)
+
+
+```{r, echo = FALSE, message = FALSE}
+library(here)
+library(doBy)
+library(data.table)
+library(magrittr)
+
+library(emmeans)
+
+library(ggplot2)
+library(ggpubr)
+library(ggpubfigs)
+library(cowplot)
+
+here <- here::here
+
+# Okabe & Ito palette
+ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
+
+out_folder <- "sim_data"
+```
+
+```{r, echo=FALSE}
+
+  file_name <- "sim_multiple_t_test.Rds"
+  file_path <- here(out_folder, file_name)
+  big_table <- readRDS(file_path)
+
+big_summary <- big_table[, .(lm_rate = mean(lm < 0.05),
+                             tt_rate = mean(tt < 0.05),
+                             lm_median = median(lm),
+                             tt_median = median(tt),
+                             lm_10 = quantile(lm, 0.10),
+                             tt_10 = quantile(tt, 0.10),
+                             lm_25 = quantile(lm, 0.25),
+                             tt_25 = quantile(tt, 0.25),
+                             lm_75 = quantile(lm, 0.75),
+                             tt_75 = quantile(tt, 0.75),
+                             lm_90 = quantile(lm, 0.90),
+                             tt_90 = quantile(tt, 0.90)),
+                         by = .(n, n_groups, missing, beta)]
+big_summary_long <- melt(big_summary,
+                         id.vars = c("n", "n_groups", "missing", "beta"),
+                         measure.vars = list(c("lm_rate", "tt_rate"),
+                                             c("lm_median", "tt_median"),
+                                             c("lm_10", "tt_10"),
+                                             c("lm_25", "tt_25"),
+                                             c("lm_75", "tt_75"),
+                                             c("lm_90", "tt_90")),
+                         variable.name = "model",
+                         value.name = c("rate", "median", "10%", "25%", "75%", "90%")
+                         )
+big_summary_long[, method := ifelse(model==1, "lm", "tt")]
+big_summary_long[, missing_text := ifelse(missing==0, "no missing", "missing")]
+big_summary_long[, missing_text := factor(missing_text,
+                                          c("no missing", "missing"))]
+big_summary_long[, model_exp := paste(method, n_groups, sep=", ")]
+```
+
+```{r}
+big_summary_long <- orderBy(~n_groups + missing_text + beta + method,
+                            data = big_summary_long)
+ycols <- c("missing_text",
+           "n_groups",
+           "beta",
+           "method",
+           "10%",
+           "25%",
+           "median",
+           "75%",
+           "90%")
+knitr::kable(big_summary_long[beta == 1.5 & n_groups == 5, .SD, .SDcols = ycols],
+             digits = c(1, 1, 1, 1, 5, 4, 4, 3, 2))
+```
+
+
+```{r, echo=FALSE}
+gg1 <- ggplot(data = big_summary_long,
+             aes(x = beta, y = rate, color = model_exp)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(.~missing_text) +
+  theme_grid() +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  NULL
+gg1
+```
+
+
+```{r, echo=FALSE}
+big_summary_longer <- melt(big_summary_long,
+                           id.vars = c("n",
+                                       "n_groups",
+                                       "method",
+                                       "missing",
+                                       "beta",
+                                       "missing_text",
+                                       "model_exp"),
+                           measure.vars = c("10%",
+                                            "25%",
+                                            "median",
+                                            "75%",
+                                            "90%"),
+                           variable.name = "percentile",
+                           value.name = "p")
+
+big_summary_longer[, group := paste(model_exp, percentile, sep=", ")]
+big_summary_longer[, s := -log2(p)]
+
+gg2 <- ggplot(data = big_summary_longer[n_groups == 5 & missing == 2],
+             aes(x = beta, y = s, color = method, shape = percentile)) +
+  geom_point() +
+  geom_line() +
+  theme_grid() +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  NULL
+ gg2
+```
+
+```{r}
+multi_t_test_sim <- function(
+  n = 6, # sample size of groups
+  n_groups = 3, # number of groups
+  missing = 0, # number missing in last group
+  beta = 0, # 0 for type I, not 0 for power
+  n_iter = 1000 # number of simulated datasets
+){
+  n_list <- rep(n, n_groups)
+  n_list[2] <- n - missing
+  N <- sum(n_list)
+  inc_1 <- 1:n # index values of control group
+  inc_2 <- (n+1):(2*n-missing) # index values of tested group
+
+  treatment_levels <- c("Control",
+                        paste0("treat_", letters[1:(n_groups-1)]))
+  treatment <- factor(rep(treatment_levels, n_list), 
+                      treatment_levels)
+  
+  mu <- rep(c(0, rep(beta, n_groups-1)), n_list)
+  
+  p_wide <- matrix(-9999, nrow=n_iter, ncol = 2)
+  colnames(p_wide) <- c("lm", "tt")
+  p_wide <- data.table(p_wide)
+  
+  for(iter in 1:n_iter){
+    y <- rnorm(N, mean = mu, sd = 1)
+    fit <- lm(y ~ treatment)
+    contrast_table <- emmeans(fit, specs="treatment") %>%
+      contrast(method = "revpairwise",
+               adjust = "none") %>%
+      summary()
+    p_wide[iter, lm := contrast_table[1, "p.value"]]
+    p_wide[iter, tt := t.test(y[inc_1], y[inc_2],
+                                 var.equal = TRUE)$p.value]
+  }
+  
+  p_wide[, n_groups := n_groups]
+  p_wide[, n := n]
+  p_wide[, missing := missing]
+  p_wide[, beta := beta]
+
+  return(p_wide)
+  
+}
+```
+
+
+```{r}
+do_it <- FALSE
+if(do_it == TRUE){
+  big_table <- data.table(NULL)
+  n_iter_exp <- 5000
+  n_list <- c(8)
+  n_group_list <- c(3, 5)
+  missing_list <- c(0, 2)
+  beta_list <- c(0, 0.25, 0.5, 1, 1.5)
+  exp_combis <- expand.grid(n = n_list,
+                            n_group = n_group_list,
+                            missing = missing_list,
+                            beta = beta_list)
+  for(exp_i in 1:nrow(exp_combis)){
+    set.seed(1)
+    p_table <- multi_t_test_sim(
+      n = exp_combis[exp_i, "n"],
+      n_groups = exp_combis[exp_i, "n_group"], 
+      missing = exp_combis[exp_i, "missing"],
+      beta = exp_combis[exp_i, "beta"],
+      n_iter = n_iter_exp
+    )
+    big_table <- rbind(big_table,
+                       data.table(n=exp_combis[exp_i, "n"],
+                                  n_groups = exp_combis[exp_i, "n_group"], 
+                                  missing = exp_combis[exp_i, "missing"],
+                                  beta = exp_combis[exp_i, "beta"],
+                                  p_table))
+  }
+  
+  file_name <- "sim_multiple_t_test.Rds"
+  file_path <- here(out_folder, file_name)
+  saveRDS(big_table, file_path)
+}else{
+  file_name <- "sim_multiple_t_test.Rds"
+  file_path <- here(out_folder, file_name)
+  big_table <- readRDS(file_path)
+}
+
+```
+
+

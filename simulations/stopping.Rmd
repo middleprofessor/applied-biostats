@@ -1,0 +1,77 @@
+---
+title: "stopping"
+author: "Jeffrey A. Walker"
+date: "10/1/2020"
+output: html_document
+---
+
+```{r echo=FALSE}
+library(data.table)
+```
+
+Stopping in research. If data is collected over a period of time, researchers have to make a decision on when to stop collecting data. This decision should be made prior the start of the experiment and it should be made based on something other than looking at the data. If collection is stopped *because of* looking at the data, then this biases published *p*-values and inflates Type I error rates. It is a form of "multiple tests". Here is how this might effect publication bias in a bench biology lab.
+
+We are investigating the effect of [adipsin on the population of beta cells in the pancreas](https://www.nature.com/articles/s41591-019-0610-4). Our hypothesis is adipsin augments beta growth (beta cells secrete insulin). We randomly assign mice to control or adipsin using adeno-associated virus to express GFP (in the control mice) or adipsin (in the adipsin mice). We plan to run the experiment for 10 weeks and then measure the mass of the artificial "islet" containing the beta cells. Four different labs do this but each has a different "stopping behavior". These are not formal protocols. The researchers in all four labs are ignorant of the concept that stopping in response to data inflates type I error. I don't want to call any of these behaviors a "strategy" because the behavior results from ignorance and not some rational protocol.
+
+1. The researchers in the lab are patient and disciplined. They stop at 10 weeks and analyze the data.
+2. The researchers in the lab are impatient and keep peaking at the data as it comes in. Starting at 5 weeks, they are so impatient, that if they see p < 0.05, they stop, write the paper, and report that it was a 7 (or 6 or 9) week experiment.
+3. The researchers in the lab are patient, so patient that if they see a p-value that isn't quite signficant -- something between 0.05 and 0.1 -- they extend the experiment another week, and keep extending until either 20 weeks or they find p < 0.05 (finally!).
+4. The researchers start peaking at week 5 AND extend the experiment (if week 10 0.05 < p < 0.1)
+
+Here is a simulation of the four different behaviors and the inflation of Type I error. I am simulating tumor growth. There is no true effect (this is how we simulate Type I error). The simulation generates 10,000 versions of each lab, in order to compute a true rate of type I error (where the nominal rate, alpha, is 0.05). Behavior 1 should not inflate Type I error since there is only 1 peak at the data. 
+
+```{r}
+set.seed(1)
+n_iter <- 10000
+n <- 10
+n_weeks <- 10 # target is n_weeks
+max_weeks <- n_weeks*2
+min_weeks <- n_weeks/2
+
+inc_1 <- 1:n
+inc_2 <- (n+1):(n*2)
+
+stop_early <- numeric(n_iter)
+stop_on_time <- numeric(n_iter)
+stop_late <- numeric(n_iter)
+stop_whenev <- numeric(n_iter)
+stop_date <- numeric(n_iter)
+
+p <- numeric(max_weeks)
+
+for(iter in 1:n_iter){
+  y <- rnorm(n*2, 10, 1)
+  for(week in 1:max_weeks){
+    y <- y + rnorm(n*2, 1, 0.2)
+    p[week] <- t.test(y[inc_1], y[inc_2])$p.value
+  }
+  if(min(p[min_weeks:n_weeks]) < 0.05){stop_early[iter] <- 1}
+  if(min(p[n_weeks]) < 0.05){stop_on_time[iter] <- 1}
+  if(p[n_weeks] < 0.1 & min(p[n_weeks:max_weeks]) < 0.05){stop_late[iter] <- 1}
+  if(stop_early[iter] == 1 |
+     stop_on_time[iter] == 1 |
+     stop_late[iter] == 1){
+    stop_whenev[iter] <- 1
+    }
+  if(min(p) < 0.05){stop_date[iter] <- min(which(p < 0.05))}
+}
+
+type_1_early <- sum(stop_early)/n_iter
+type_1_on_time <- sum(stop_on_time)/n_iter
+type_1_late <- sum(stop_late)/n_iter
+type_1_whenev <- sum(stop_whenev)/n_iter
+
+type_1_table <- data.table(Behavior = c("Stop on time",
+                                     "Stop early",
+                                     "Stop late",
+                                     "Stop whenev"),
+                        "Type I error rate" = c(type_1_on_time,
+                                              type_1_early,
+                                              type_1_late,
+                                              type_1_whenev))
+knitr::kable(type_1_table)
+```
+
+So the stop early and stop late behaviors inflate Type I about 44%. The stop whenev behavior inflates Type I about 84%.
+
+

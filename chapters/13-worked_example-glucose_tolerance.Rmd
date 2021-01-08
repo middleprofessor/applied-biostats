@@ -1,0 +1,234 @@
+# A worked example -- glucose tolerance
+
+```{r setup-worked-example, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+# wrangling packages
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+
+# analysis packages
+library(emmeans)
+
+# graphics packages
+library(ggsci)
+library(ggpubr)
+library(cowplot)
+
+here <- here::here()
+data_path <- "data"
+
+# how to added a gray info box:
+# <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+# blah, blah, blah
+# </div>
+```
+
+
+```{r worked-example-functions}
+auc <- function(x, y, method="auc"){
+  # method = "auc", auc computed using trapezoidal calc
+  # method = "iauc" is an incremental AUC of Le Floch
+  # method = "pos.iauc" is a "positive" incremental AUC of Le Floch but not Wolever
+  # method = "pb.auc" is AUC of post-time0 values
+  if(method=="iauc"){y <- y - y[1]}
+  if(method=="pos.iauc"){y[y < 0] <- 0}
+  if(method=="pb.auc"){
+    x <- x[-1]
+    y <- y[-1]
+  }
+  n <- length(x)
+  area <- 0
+  for(i in 2:n){
+    area <- area + (x[i] - x[i-1])*(y[i-1] + y[i])
+  }
+  area/2
+}
+
+```
+
+```{r worked-example-import-bdnf, message=FALSE}
+folder <- "Novel metabolic role for BDNF in pancreatic β-cell insulin secretion"
+filename <- "41467_2020_15833_MOESM3_ESM 8A.xlsx"
+file_path <- here(data_path, folder, filename)
+times <- c(0, 15, 30, 60, 120)
+time_cols <- paste0("glucose", times)
+treatment_levels <- c("Contr", "BDNF-/-")
+
+bdnf_wide <- data.table(treatment = treatment_levels[1],
+                        read_excel(file_path,
+                                   col_names = FALSE,
+                                   sheet = "Figure 8A",
+                                   range = "B5:G20"))
+bdnf_wide <- rbind(bdnf_wide,
+                   data.table(treatment = treatment_levels[2],
+                              read_excel(file_path,
+                                         col_names = FALSE,
+                                         sheet = "Figure 8A",
+                                         range = "B29:G44")))
+
+setnames(bdnf_wide, old="...1", new="id")
+setnames(bdnf_wide, old=paste0("...", seq_along(times)+1), new=time_cols)
+bdnf_wide[, id := factor(id)]
+bdnf_wide[, treatment := factor(treatment,
+                                treatment_levels)]
+
+Y <- bdnf_wide[, .SD, .SDcols = time_cols]
+bdnf_wide[, auc := apply(Y, 1, auc, x=times)] #check
+bdnf_wide[, iauc := apply(Y, 1, auc, x=times, method="iauc")]
+bdnf_wide[, pos.iauc := apply(Y, 1, auc, x=times, method="pos.iauc")]
+bdnf_wide[, pb.auc := apply(Y, 1, auc, x=times, method="pb.auc")]
+bdnf_wide[, glucose_mean := apply(Y, 1, mean)]
+bdnf_wide[, glucose_change := glucose_mean - glucose0]
+bdnf_wide[, glucose_mean_area := pb.auc/(120-15)]
+
+bdnf_long <- melt(bdnf_wide, 
+                    id.vars = c("treatment", "id"),
+                    measure.vars = time_cols,
+                    variable.name = "time",
+                    value.name = "glucose")
+bdnf_long[, minutes := as.numeric(substr(time, 8, nchar(as.character(time))))]
+bdnf_long[, time := factor(time)]
+
+```
+
+Brain Derived Neurotrophic Factor (BDNF) is most well-known as a signaling molecule that regulates neuron growth in the brain but it can be secreted by and have activity in other tissues. Fulgenzi et al. (xxx) show that muscle-derived BDNF increases insulin secretion from pancreatic beta cells. As part of the series of experiments to show this, Fulgenzi et al. (xxx) knocked out the BDNF gene in the skeletal muscle of mice and measured the consequence of this on blood glucose levels using an oral glucose tolerance test^[in a glucose tolerance test, a standardized quantity of glucose is given to a subject. The subject's blood glucose level is then measured at multiple time points as an indirect assessment of the insulin signaling system. A functional insulin signaling system is necessary for skeletal muscle and adipose cells to take-up glucose from the blood. Maximum blood glucose typically occurs between 15 and 30 minutes after glucose delivery. Return to fasting blood glucose levels typically occurs after two hours. Higher than normal blood glucose levels anywhere over the range of 15-120 minutes after glucose delivery indicates some kind of glucose intolerance]. The resulting glucose levels at five time points (0, 15, 30, 60, and 120 minutes) for the 16 mice in each treatment are shown in Fig. \@ref(fig:worked-example-all-curves). The two treatment levels are 1) Contr, which is the control and 2) BDNF -/-, which is the muscle-specific knockout.
+
+```{r worked-example-all-curves, fig.cap="Blood glucose levels for all mice"}
+t30 <- t.test(glucose30 ~ treatment, data = bdnf_wide)
+t60 <- t.test(glucose60 ~ treatment, data = bdnf_wide)
+
+
+bdnf_long[ , minutes_group := ifelse(treatment=="Contr", minutes-2, minutes+2)]
+gg <- ggscatter(data = bdnf_long,
+                x = "minutes_group",
+                y = "glucose",
+                color = "treatment",
+                palette = "jco") +
+  geom_line(aes(group = id,
+            color = treatment)) +
+  scale_x_continuous(breaks=c(0, 15, 30, 60, 120)) +
+  ylab("Blood Glucose (mg/dL)") +
+  xlab("Time (min)") +
+  
+  NULL
+
+gg
+
+```
+
+Even though a glucose tolerance test like this is extremely common in biological research, there is no standard procedure for analzing data like this. Part of the reason for this is that any analysis of these data is complicated by the fact that there are multiple responses -- that is there are five measures of glucose level (five dependent or *Y* variables) for each mouse. Many different methods have been used to analyze the results of glucose tolerance (and similar) tests. A common approach is to analyze a summary measure such as the area-under-the-curve (AUC). Sometimes this area is baseline-corrected by subtracting the value at baseline (time 0) from each of the post-baseline values for each mouse prior to computing the area (this effectively forces all baseline values to zero and post-baseline values to **change-scores** or change from baseline). Sometimes, the post-baseline values are set to zero if the corrected baseline value is negative (to avoid adding "negative area" to the total area).
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+One important point to raise here is that sometimes biologists *invent* transformations of the raw response variables in order to solve an apparent problem of analysis. Very often, these invented transformation create statistical problems that are fairly well known among applied statisticians but largely unknown among biologists. I explore some of these novel transformations in appendix xxx.
+</div>
+
+## Null-hypothesis testing strategy
+
+Let's use the AUC corrected by the baseline value (known as the "incremental" AUC) as the response and treatment as the categorical independent variable. When we use a look-up table on the "correct" statistical test, we find that we should use a independent-sample *t*-test, or a Welch *t*-test, or a Mann-Whitney-Wilcoxan test, depending on our assumptions (these assumptions are discsussed in the context of regression models in chapter xxx). We'll use the Welch *t*-test.
+
+```{r worked-example-t-test}
+m1 <- t.test(iauc ~ treatment, data = bdnf_wide)
+m1_p <- m1$p.value
+```
+
+Somewhere in the results, we write "Mice with muscle-specific loss of BDNF had significantly higher blood glucose in the GTT ($p=$ `r round(m1_p, 3)`, Figure \@ref(worked-example-t-test))".
+
+```{r worked-example-t-test-plot, message=FALSE}
+compare_list <- list(treatment_levels)
+
+gg_response <- ggdotplot(data=bdnf_wide,
+                         x = "treatment", 
+                         y = "iauc",
+                         fill = "treatment",
+                         palette = "jco",
+                         alpha = 0.6,
+                         add=c("mean_se")) +
+  ylab("AUC (mg/dL min)") +
+  stat_compare_means(method = "t.test", comparisons=compare_list) +
+NULL
+  
+gg_response
+```
+
+## Regression modeling strategy
+
+```{r worked-example-regession-model}
+m2 <- lm(glucose_mean_area ~ glucose0 + treatment, data = bdnf_wide)
+m2_emm <- emmeans(m2, specs="treatment")
+m2_pairs <- summary(contrast(m2_emm, method="revpairwise"), infer=c(TRUE, TRUE))
+```
+
+```{r worked-example-regression-response-plot}
+gg_response <- ggdotplot(data=bdnf_wide,
+                         x = "treatment", 
+                         y = "glucose_mean_area",
+                         fill = "treatment",
+                         palette = "jco",
+                         alpha = 0.6,
+                         add=c("mean_se")) +
+  theme(legend.position="none") +
+  ylab("Mean glucose (mg/dL)") +
+  NULL
+```
+
+```{r worked-example-regression-effects-plot}
+jco_pal <- pal_jco()(6)
+gg_effects <- ggdotplot(data = m2_pairs,
+                        x="contrast", 
+                        y="estimate", 
+                        color = "black",
+                        fill = "black",
+                        size=0.5) +
+  
+  geom_errorbar(aes(x=contrast, 
+                    ymin=lower.CL, 
+                    ymax=upper.CL),
+                width=0.15, 
+                color=jco_pal[2]) +
+  geom_point(aes(x=contrast, # replotting estimate to plot over errorbar
+                 y=estimate),
+             size = 1) +
+  ylab("Effect (mg/dL)") +
+  geom_hline(yintercept=0, linetype = 2) +
+  coord_flip(ylim = c(-50, 100)) + 
+  scale_x_discrete(labels=c(treatment_levels[2])) +
+  scale_y_continuous(position="right") +
+  NULL
+#gg_effects
+```
+
+For the regression modeling strategy, we'll use a slightly different response -- mean glucose level from 15 to 120 minutes **adjusted for**^[Do not use the phrase "controlled for" here since the baseline value wasn't controlled but obsereved] the baseline glucose level. This average is not the simple average across the four time points but is the area under the curve from 15 to 120 minutes divided by the time difference, or 105 minutes (if we had fit a function to the curve, this value would be the definite integral of the function from 15 to 120 minutes).
+
+```{r worked-example-regression-effects-text}
+effect <- round(m2_pairs[1, "estimate"], 1)
+lower <- round(m2_pairs[1, "lower.CL"], 1)
+upper <- round(m2_pairs[1, "upper.CL"], 1)
+p_value <- round(m2_pairs[1, "p.value"], 3)
+
+ci <- paste0(lower, ", ", upper)
+
+# percent diff
+
+multiple <- round(data.table(summary(m2_emm))[treatment == "BDNF-/-", "emmean"]/data.table(summary(m2_emm))[treatment == "Contr", "emmean"], 2)
+  
+```
+
+Using the regression modeling results, we might write "Mice with muscle-specific loss of BDNF had a mean blood glucose level `r multiple` $\times$ that of the control (mean difference: `r effect`; 95% CI: `r ci`; *p = * `r p_value`, Figure \@ref(worked-example-regression-plot))".
+
+
+```{r worked-example-regression-plot, message=FALSE}
+plot_grid(gg_effects, gg_response, nrow=2, align = "v", rel_heights = c(1, 2))
+```
+
+What are the advantages of using a regression model to analyze the data and report the estimated effect and uncertainty instead of using a hypothesis test and reporting the *p*-value?
+
+@. The regression model gives us an effect size, which encourages the researcher, and the reader, to think about the *biologial consequences* of the experimental results.
+@. the regression model encourages us to think about the response variable. This text advocates an estimation strategy using regression model to specifically estimate effects sizes that can be meaningfully interpreted. This requires that we have a measure of the response that is meaningful. The AUC is not very meaningful -- it has weird units (mg dL$^{-1} min).
+@. the regression model encourages the researcher to think about how to present the results
+@. The regression model is more flexible. An independent sample *t*-test is limited to the comparison of two groups. If we want to adjust for covariates, add more groups, add additional experimental treatments, or change our assumption about the distribution of the data, we have to go back to the look-up-table of hypothesis tests and find another test. By contrast, in regression modeling, we simply make slight modifications to the regression model (this is called model specification).
+@. the regression model gives us CIs in addition to a p-value.
+
+.

@@ -1,0 +1,3 @@
+Fast and sensitive flow-injection mass spectrometry metabolomics by analyzing sample-specific ion distributions
+
+calibration, standardized curve, regression
