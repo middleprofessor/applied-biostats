@@ -1,13 +1,33 @@
 # Model Checking
 
-```{r model-check-library, echo=FALSE, warning=FALSE, message=FALSE}
+```{r model-check-setup, echo=FALSE, warning=FALSE, message=FALSE}
+# import an messaging
+library(here)
+library(janitor)
+library(readxl)
 library(data.table)
-# library(SpiecEasi) # rzipois
+
+# analysis
+library(car)
+library(MASS) # rnegbin
+
+# graphics and output
 library(ggpubr) # qq plot functions
+library(ggpubfigs) # palette
 library(qqplotr) ## qq plot functions
+library(ggforce)
+library(cowplot)
+
+here <- here::here
+data_folder <- "data"
+
+# Okabe & Ito palette
+ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
+
 ```
 
-```{r model-check-quantilize}
+```{r model-check-quantilize, echo=FALSE}
 # a function to transform a vector into quantiles
 # not if the data are 1:n then the output is "rankits"
 quantilize_1 <- function(x){
@@ -20,55 +40,60 @@ quantilize_1 <- function(x){
 }
 ```
 
-## Do coefficients make numeric sense?
-
 ## All statistical analyses should be followed by model checking 
 
-We us a linear model (or statistical model more generally) to infer effects or predict future outcomes. Our inference is uncertain. Given some modeling assumptions, we can quantify this uncertainty with standard errors, and from these standard errors we can compute confidence intervals and *p*-values. It is good practice to use a series of **diagnostic plots**, diagnostic statistics, and simulation to check how well the data approximate the fit model and model assumptions. **Model checking** is used to both check our subjective confidence in the modeled estimates and uncertainty and to provide empirical evidence for subjective decision making in the analysis workflow.
+We us a linear model to infer effects or predict future outcomes. Our inference is uncertain. Given the model assumptions, we can quantify this uncertainty with standard errors, and from these standard errors we can compute confidence intervals and *p*-values. It is good practice to use a series of **diagnostic plots**, diagnostic statistics, and simulation to check how well the data approximate the fit model and model assumptions. **Model checking** is used to both check our subjective confidence in the modeled estimates and uncertainty and to provide empirical evidence for subjective decision making in the analysis workflow.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 **NHST blues** -- Researchers are often encouraged by textbooks, colleagues, or the literature to test the assumptions of a *t*-test or ANOVA with formal hypothesis tests of distributions such as a Shaprio-Wilks test of normality or a Levine test of homogeneity. In this strategy, an alternative to the *t*-test/ANOVA is used if the distribution test's p-value is less than some cut-off (such as 0.05). Common alternatives include 1) transformations of the response to either make it more normal or the variances more homogenous, 2) implementation of alternative tests such as a Mann-Whitney-Wilcoxon (MWW) test for non-normal data or a Welch *t*-test/ANOVA for heterogenous variances. The logic of a test of normality or homogeneity before a *t*-test/ANOVA isn't consistent with frequentist thinking because the failure to reject a null hypothesis does not mean the null hypothesis is true. We shouldn't conclude that a sample is "normal" or that the variances are "homogenous" because a distributional test's *p*-value > 0.05. But, maybe we should of the distributional pre-test as an "objective" model check? The logic of this objective decision rule suffers from several issues. **First**, the subsequent *p*-value of the *t*test/ANOVA test is not valid because this *p*-value is the long-run frequency of a test-statistic as large or larger than the observed statistic conditional on the null -- not conditional on the subset of nulls with $p > 0.05$ in the distribution test. **Second**, real data are only approximately normal; with small $n$, it will be hard to reject the null of a normal distribution because of low power, but, as $n$ increses, a normality test will reject any real dataset. **Third**, and most importantly, our analysis should follow the logic of our goals. If our goal is the estimation of effects, we cannot get meaningful estimates from a non-parametric test (with a few exceptions) or a transformed response, as these methods are entirely about computing a "correct" *p*-value. Good alternatives to classic non-parametric tests and transformations are bootstrap estimates of confidence limits, permutation tests, and generalized linear models. 
 </div> 
 
 ## Linear model assumptions
-Assumptions of a linear model concern the distribution of the "random draw" in the underlying statistical model. Again, in the random error specification of a linear model
 
+To faciliate explanation of assumptions of the linear model and extensions of the linear model, I will use both the error-draw and conditional-draw specifications of a linear model with a single $X$ variable.
+
+error draw:
 \begin{align}
-Y &= \beta_0 + \beta_1 X + \varepsilon\\
-\varepsilon &\sim N(0, \sigma)
+y &= \beta_0 + \beta_1 x_i + \varepsilon_i\\
+\varepsilon_i &\sim N(0, \sigma^2)
 (\#eq:model-checking-spec1)
 \end{align}
 
-the random draw (the "error") is from a normal distribution with mean zero and standard deviation $\sigma$. In the random conditional response specification
-
+conditional draw:
 \begin{align}
-y_i &\sim N(\mu_i, \sigma)\\
-\mathrm{E}(Y|X) &= \mu\\
+y_i &\sim N(\mu_i, \sigma^2)\\
+\mathrm{E}(Y|X=x_i) &= \mu_i\\
 \mu_i &= \beta_0 + \beta_1 x_i
 (\#eq:model-checking-spec2)
 \end{align}
 
-the random draw is a value drawn from a normal distribution with mean $\mu_i = \beta_0 + \beta_1 x_i$ and variance $\sigma^2$. Any inference about the parameter $\beta_1$ (such as confidence intervals or hypothesis tests) assumes that the these distributions are IID Normal where IID is **independent and identically distributed** and Normal refers to the Normal (or Gaussian) distribution.
+This model generates random data using the set of rules specified in the model equations. To quantify uncertainty in our estimated parameters, including standard errors, confidence intervals, and *p*-values, we make the assumption that the data from the experiment is a random sample generated using these rules. 
 
-1. Independent means that the error for one case cannot be predicted from the error of any other case. This lack of independence creates *correlated error*. There are lots or reasons that errors might be correlated. If individuals are measured both within and among cages, or tanks, or plots, or field sites, then we'd expect the measures within the same unit (cage, tank, plot, site) to err from the model in the same direction because of environmental features shared by individuals within the unit but not by individuals in other units. Multiple measures within experimental units create "clusters" of error. Lack of independence or clustered error can be modeled using models with **random effects**. These models go by many names including linear mixed models (common in Ecology), hierarchical models, multilevel models, and random effects models. A linear mixed model is a variation of model \@ref(eq:model-checking-spec1).
+The two rules specified in the model above (Model \@ref(eq:model-checking-spec)) are
+
+1. The systematic component of data generation is $\beta_0 + \beta_1 X$.
+* More generally, all linear models in this text specify systematic components that are *linear in the parameters*. Perhaps a better name for this is "additive in the parameters". Additive (or linear) simply means that we can add up the products of a parameter and an $X$ variable to get the conditional expectation $\mathrm{E}(Y|X)$.
+* For observational inference, the rule $\mathrm{E}(Y| see\;X=x_i) = \mu_i$ is sufficient. For causal inference with data from an experiment, or with observational data and a well defined causal diagram, we would need to modify this to $\mathrm{E}(Y|do\; X=x_i) = \mu_i$.
+2. The stochastic component of data generation is "IID Normal", where IID is **independent and identically distributed** and Normal refers to the Normal (or Gaussian) distribution. The IID assumption is common to all linear models. Again, for the purpose of this text, I define a "linear model" very broadly as a model that is linear in the parameters. This includes many extensions of the classical linear model including generalized least squares linear models, linear mixed models, generalized additive models, and generalized linear models. **Parametric** inference form all linear models requires the specification of a distribution family to sample. Families that we will use in this book include Normal, gamma, binomial, poisson, and negative binomial. This text will also cover **distribution free** methods of quantifying uncertainty using the bootstrap and permutation, which do not specify a sampling distribution family.
+
+### A bit about IID
+1. **Independent** means that the random draw for one case cannot be predicted from the random draw of any other case. A lack of independence creates *correlated error*. There are lots or reasons that errors might be correlated. If individuals are measured both within and among cages, or tanks, or plots, or field sites, then we'd expect the measures within the same unit (cage, tank, plot, site) to err from the model in the same direction because of environmental features shared by individuals within the unit but not by individuals in other units. Multiple measures within experimental units create "clusters" of error. Lack of independence or clustered error can be modeled using **generalized least squares (GLS)** models that directly model the structure of the error and with **random effects** models. Random effects models go by many names including linear mixed models (common in Ecology), hierarchical models, and multilevel models. Both GLS and random effects models are variations of linear models.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-**tl;dr** -- Measures taken within the same individual over time (*repeated measures*) are correlated and are common in all areas of biology. In ecology and evolutionary studies, measures that are taken from sites that are closer together or measures taken closer in time or measures from more closely related biological species will tend to have more similar error than measures taken from sites that are further apart or from times that are further apart or from species that are less closely related. Space and time and phylogeny create **spatial, temporal, and phylogenetic autocorrelation**. Correlated error due to space or time or phylogeny can be modeled with **Generalized Least Squares** (GLS) models. A GLS model is a variation of model \@ref(eq:model-checking-spec1).
+**tl;dr** -- Measures taken within the same individual over time (*repeated measures*) are correlated and are common in all areas of biology. In ecology and evolutionary studies, measures that are taken from sites that are closer together or measures taken closer in time or measures from more closely related biological species will tend to have more similar error than measures taken from sites that are further apart or from times that are further apart or from species that are less closely related. Space and time and phylogeny create **spatial, temporal, and phylogenetic autocorrelation**.
 </div> 
 
-2. Identical means that the errors are "drawn" from the same distribution. Since the model is a linear model, this distribution is a Normal distribution with mean zero and variance $\sigma^2$. A consequence of "identical" is that the error variance is **homoskedastic**, or constant, or independent of $X$. If the error variance differs among the $X$ then the errors are **heteroskedastic**. Many biological processes generate data in which the error is a function of the mean. For example, measures of biological variables that grow, such as lengths of body parts or population size, have variances that "grow" with the mean. Or, measures of counts, such as the number of cells damaged by toxin, the number of eggs in a nest, or the number of mRNA transcripts per cell have variances that are a function of the mean. Both growth and count measures can sometimes be reasonably modeled using a linear model but more often, they are better modeled using a **generalized linear model** (GLM), which is an extension of a linear model. Heteroskedasitc error arising for other reasons, both biological and experimental, can be modeled with Generalized Least Squares (GLS) or with linear mixed models..
-
-3. Normal (Gaussian) error means that 1) the response is continuous and 2) the probability of sampling an individual measuring 0.5 units below the population mean is the same as the probability of sampling an individual measuring 0.5 units above the population mean. Counts (number of cells, number of eggs, number of mRNA transcripts) and binary responses (sucessful escape or sucessful infestation of host) are not continous and often often have asymmetric probablity distributions that are skewed to the right and while sometimes both can be reasonably modeled using a linear model they are more often modeled using a **generalized linear model** (GLM), which, again, is an extension of the linear model in equation \@ref(eq:model-checking-spec1).
+2. **Identical** means that all random draws at a given value of $X$ are from the same distribution. Using the error-draw specification of the model above, this can be restated as, the error-draw ($\varepsilon_i$) for every $i$ is from the same distribution $N(0, \sigma^2$). Using the conditional-draw specification, this can be restated as, the random-draw $y_i$ for every $i$ with the same expected value $\mu = \mu_i$ is from the same distribution $N(\mu_i, \sigma^2$). Understand the importance of this. Parametric inference using this model assumes that the sampling variance of $\mu$ *at a single value of $X$* is the same for *all values of $X$*. If $X$ is continuous, this means the spread of the points around the regression line is the same at all values of $X$ in the data. If $X$ is categorical, this means the spread of the points around the mean of a group is the same for all groups. A consequence of "identical", then, for all classical linear models, is the assumption of homogeneity (or **homoskedasticity**) of variance. If the sampling variance differs among the $X$, then the variances are heterogenous or **heteroskedastic**. Experimental treatments can affect the variance of the response in addition to the mean of the response. Heterogenous variance can be modeled using **Generalized Least Squares (GLS)** linear models. Many natural biological processes generate data in which the error is a function of the mean. For example, measures of biological variables that grow, such as size of body parts, have variances that "grow" with the mean. Or, measures of counts, such as the number of cells damaged by toxin, the number of eggs in a nest, or the number of mRNA transcripts per cell have variances that are a function of the mean. Both growth and count measures can sometimes be reasonably modeled using a linear model but more often, they are better modeled using a **Generalized Linear Model** (GLM).
 
 ## Diagnostic plots use the residuals from the model fit
 ### Residuals
-A residual of a statistical model is $y_i - \hat{y}_i$. Remember that $\hat{y}_i$ is the predicted value of $Y$ when $X$ has the value $x_i$ (compaactly written as $X=x_i$). And remember that $\hat{y}_i$ is the estimate of $\mu_i$. For linear models (but not generalized linear models), the residuals of the fit model are estimates of the $\varepsilon$ in equation \@ref(eq:model-checking-spec1). This *is not* true for generalized linear models because GLMs are not specified using \@ref(eq:model-checking-spec1).
+A residual of a statistical model is $y_i - \hat{y}_i$. Remember that $\hat{y}_i$ is the predicted value of $Y$ when $X$ has the value $x_i$ (compactly written as $X=x_i$). And remember that $\hat{y}_i$ is the estimate of $\mu_i$. For linear models (but not generalized linear models), the residuals of the fit model are estimates of the $\varepsilon$ in equation \@ref(eq:model-checking-spec1). This *is not* true for generalized linear models because GLMs are not specified using \@ref(eq:model-checking-spec1).
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 **Alert** A common misconception is that inference from a linear model assumes that the *response* (the measured $Y$) is IID Normal. This is wrong. Either specification of the linear model shows precisely why this conception is wrong. Model \@ref(eq:model-checking-spec1) explicitly shows that it is the error that has the normal distribution -- the distribution of $Y$ is a mix of the distribution of $X$ and that of the error. A more general way of thinking about the assumed distribution uses the specification in model \@ref(eq:model-checking-spec2), which shows that it is the *conditional* response that is assumed to be IID normal. Remember, a conditional response ($y_i$) is a random draw from the infinite set of responses at a given value of $X$.
 </div> 
 
-Let's look at the distribution of residuals versus the response for a hypothetical experiment with a single, categorical $X$ variable (the experimental factor) with two levels ("Cn" for control and "Tr" for treatment). The true parameters are $\beta_0 = 10$ (the true mean for the control group, or $\mu_{0}$), $\beta_1=4$ (the difference between the true mean for the treatment minus the true mean for the control, or $\mu_1 - \mu_0$), and $\sigma = 2$ (the error standard deviation). 
+Let's look at the distribution of residuals versus the distribution of responses for a hypothetical experiment with a single, categorical $X$ variable (the experimental factor) with two levels ("Cn" for control and "Tr" for treatment). The true parameters are $\beta_0 = 10$ (the true mean for the control group, or $\mu_{0}$), $\beta_1=4$ (the difference between the true mean for the treatment minus the true mean for the control, or $\mu_1 - \mu_0$), and $\sigma = 2$ (the error standard deviation). 
 
 ```{r model-check-histogram, model-check-residuals1, echo=FALSE, fig.cap="Histogram of the (A) response, showing with modes near the true means of each group and (B) residuals, with a mode for both groups at zero."}
 
@@ -78,26 +103,33 @@ mu <- 10
 sigma <- 2
 beta <- sigma*2
 fd <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(rnorm(n, mean=mu, sd=sigma), rnorm(n, mean=mu+beta, sd=sigma))
+  Treatment = rep(c("Cn", "Tr"), each=n),
+  Response = c(rnorm(n, mean = mu, sd = sigma),
+               rnorm(n, mean = mu + beta, sd = sigma))
 )
 
 m1 <- lm(Response ~ Treatment, data=fd)
-fd[, Residual:=residuals(m1)]
+fd[, Residual := residuals(m1)]
 
 bw <- 1
-gg1 <- gghistogram(data=fd, x = "Response",
-   color="Treatment", fill="Treatment",
-   add = "mean", rug = FALSE,
-   #bins=9,
-   binwidth = bw,
-   palette = c("#00AFBB", "#E7B800"))
-gg2 <- gghistogram(data=fd, x = "Residual",
-   color="Treatment", fill="Treatment",
-   add = "mean", rug = FALSE,
-   #bins=9,
-   binwidth = bw,
-   palette = c("#00AFBB", "#E7B800"))
+gg1 <- gghistogram(data=fd,
+                   x = "Response",
+                   color="Treatment",
+                   fill="Treatment",
+                   add = "mean",
+                   rug = FALSE,
+                   #bins=9,
+                   binwidth = bw,
+                   palette = pal_okabe_ito)
+gg2 <- gghistogram(data=fd,
+                   x = "Residual",
+                   color="Treatment",
+                   fill="Treatment",
+                   add = "mean",
+                   rug = FALSE,
+                   #bins=9,
+                   binwidth = bw,
+                   palette = pal_okabe_ito)
 plot_grid(gg1, gg2, labels="AUTO")
 
 ```
@@ -110,12 +142,19 @@ The two plots suggest two different approaches for model checking. First, we cou
 **Alert** Some textbooks that recommend formal hypothesis tests of normality recommend the inefficient, multiple testing on each group separately. This isn't wrong, it's just more work than it needs to be and also suffers from "multiple testing".
 </div> 
 
-### A Normal Q-Q plot is used to check normality
+### A Normal Q-Q plot is used to check for characteristic departures from Normality 
+A Normal Q-Q plot is a scatterplot of
 
-A Normal Q-Q plot of the residuals can be used to check how closely the residuals approximate a normal distribution. A Normal Q-Q plot is a scatterplot of
+1. **sample quantiles** on the *y* axis. The sample quantiles is the vector of $N$ residuals in rank order, from smallest (most negative) to largest (most positive). Sometimes this vector is standardized by dividing the residual by the standard deviation of the residuals (doing this makes no difference to the interpretation of the Q-Q plot).
+2. **standard normal quantiles** on the *x* axis. This is the vector of standard, Normal quantiles given $N$ elements in the vector. "Standard Normal" means a normal distribution with mean zero and standard deviation ($\sigma$) one. A Normal quantile is the expected deviation given a probability. For example, if the probability is 0.025, the Normal quantile is `r qnorm(0.025)`. Check your understanding: 2.5% of the values in a Normal distribution with mean 0 and standard deviation one are more negative than `r qnorm(0.025)`. The Normal quantiles of a Normal Q-Q plot are computed for the set of $N$ values that evenly split the probability span from 0 to 1. For $N=20$, this would be
 
-1. **sample quantiles** on the *y* axis. The sample quantiles is the vector of $N$ residuals in rank order, from smallest (most negative) to largest (most positive). Sometimes this vector is standardized (doing this makes not difference to the interpretation of the Q-Q plot).
-2. **standard normal quantiles** on the *x* axis. This is the vector of standard normal quantiles given $N$ elements in the vector.
+```{r}
+p <- data.frame(quantile = qnorm(ppoints(1:20)))
+row.names(p) <- ppoints(1:20)
+p
+```
+
+A Normal Q-Q plot is not a test if the data are Normal. Instead, a Normal Q-Q plot is used to check for characteristic departures from Normality that are signatures of certain well-known distribution families. A researcher can look at a QQ-plot and reason that a departure is small and choose to fit a classic linear model using the Normal distribution. Or, a researcher can look at a QQ-plot and reason that the departure is large enough to fit a generalized linear model with a specific distribution family.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 **Stats 101** A quantile is the value of a distribution that is greater than $p$ percent of the values in the distribution. The 2.5% quantile of a uniform distribution from 0 to 1 is 0.025. The 2.5% quantile of a standard normal distribution is -1.96 (remember that 95% of the values in a standard normal distribution are between -1.96 and 1.96). The 50% quantile of a uniform distribution is 0.5 and the 50% quantile of a standard normal distribution is 0.0 (this is the median of the distribtion -- 50% of the values are smaller and 50% of the values are larger).
@@ -125,251 +164,704 @@ A Normal Q-Q plot of the residuals can be used to check how closely the residual
 **Stats 201** A Q-Q plot more generally is a scatter plot of two vectors of quantiles either of which can come from a sample or a theoretical distribution. In the GLM chapter, the text will introduce Q-Q plots of residual quantiles transformed to have an expected uniform distribution. These are plotted against theoretical uniform quantiles from 0 to 1.
 </div> 
 
-If the sampled distribution closely approximates a normal distribution, the scatter should fall along a line from the bottom, left to the top, right of the plot. The interpretation of a normal Q-Q plot is enhanced with a line of "expected values" of the sample quantiles if the sample residuals are drawn from a normal distribution. The closer the sample quantiles are to the line, the more closely the residuals approximate a normal distribution. Because of sampling, the sampled values always deviate from the line, especially at the ends. If the sample was drawn from a normal distribution, these deviations should be small if the sample size is big, but can be more pronounced with a small sample size. This makes it hard to have much confidence in the "normality" of a small sample.
+#### Normal QQ-plot of the fake data generated above
 
-Let's have a look at a Normal Q-Q plot of the residuals of the fake data generated above.
+```{r model-check-qq, echo=FALSE}
+# fake data created above
+# histogram
+gg1_treatment <- gghistogram(data = fd,
+                          x = "Response",
+                          color="Treatment",
+                          fill="Treatment",
+                          add = "mean",
+                          rug = FALSE,
+                          bins=30,
+                          palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+#  theme(legend.position = "none") +
+  NULL
 
-```{r model-check-normal-qq, echo=FALSE}
-gg3 <- ggqqplot(data=fd, x = "Residual", title="Normal Q-Q")
-gg3
-# fd[,sd_residual:=scale(Residual)]
-# gg4 <- ggqqplot(data=fd, x = "sd_residual", title="Normal Q-Q") +
-# #  scale_x_continuous(limits=c(-3,3)) +
-# #  scale_y_continuous(limits=c(-4,4)) +
-#   geom_abline(intercept=0, slope=1) +
-#   # no the line needs to go through 1st and 3rd quantile
-#   NULL
-# gg4
+gg2_treatment <- ggstripchart(data = fd,
+                           x = "Treatment",
+                           y = "Response",
+                           color = "Treatment",
+                           add = "boxplot",
+                           alpha = 0.2,
+                           palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+#  theme(legend.position = "none") +
+  NULL
 
-#plot(m1,2)
+fd[, Residual := residuals(lm(Response ~ Treatment))]
+gg3_treatment <- ggqqplot(data = fd,
+                          x = "Residual",
+                          title="Normal") +
+  theme_pubr(base_size = 8)
+
+gg3_treatment
+```
+
+If the sampled distribution approximates a sample from a normal distribution, the scatter should fall along a line from the bottom, left to the top, right of the plot. The interpretation of a normal Q-Q plot is enhanced with a line of "expected values" of the sample quantiles if the sample residuals are drawn from a normal distribution. The closer the sample quantiles are to the line, the more closely the residuals approximate the expectation from a normal distribution. Because of sampling, the sampled values always deviate from the line, especially at the ends. The shaded gray area in the Q-Q plot in Figure \@ref(fig:model-check-qq) are the 95% confidence bands of the quantiles. A pattern of observed quantiles with some individual points outside of these boundaries indicates a sample that would be unusual if sampled from a Normal distribution.
+
+Biological datasets frequently have departures on a Normal Q-Q plot that are characteristic of specific distribution families, including lognormal, binomial, poisson, negative binomial, gamma, and beta. It is useful to learn how to read a Normal Q-Q plot to help guide how to model your data.
+
+What about the intepretation of the Q-Q plot in Figure \@ref(fig:model-check-qq)? At the small end of the distribution (bottom-left), the sample values are a bit more negative than expected, which means the left tail is a bit extended. At the large end (upper-right), the sample values are, a bit less positive than expected, which means the right tail is a bit shortened. This is a departure in the direction of a left skewed distribution. Should we fit a different model given these deviations? To guide us, we compare the quantiles to the 95% confidence band of the quantiles. Clearly the observed quantiles are within the range of quantiles that we'd expect if sampling from a Normal distribution.
+
+### Mapping QQ-plot departures from Normality
+
+Let's look at simulated samples drawn from non-normal distributions to identify their characteristic deviations. Each set of plots below shows
+
+1. (left panel) A histogram of 10,000 random draws from the non-Normal distribution (blue). This histogram is superimposed over that of 10,000 random draws from a Normal distribution (orange) with the same mean and variance as that of the non-normal distribution.
+2. (middle panel) Box plots and strip chart of a random subset ($N=1000$) of data in the left panel.
+3. (right panel) Normal Q-Q plot of the non_Normal data only.
+
+```{r model-check-normal, echo=FALSE}
+# normal
+n <- 10^4
+mu <- 10
+sigma <- 2
+
+set.seed(1)
+
+x_levels <- c("normal", "normal-2")
+
+fd_normal <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma),
+               rnorm(n, mean = mu, sd = sigma))
+)
+check_variance <- FALSE
+if(check_variance == TRUE){
+  fd_normal[, .(mean = mean(response),
+               sd = sd(response),
+               min = min(response)),
+           by = distribution]
+}
+
+# histogram
+gg1_normal <- gghistogram(data = fd_normal,
+                          x = "response",
+                          color="distribution",
+                          fill="distribution",
+                          add = "mean",
+                          rug = FALSE,
+                          bins=30,
+                          palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_normal[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_normal <- ggstripchart(data = fd_subset,
+                           x = "distribution",
+                           y = "response",
+                           color = "distribution",
+                           add = "boxplot",
+                           alpha = 0.2,
+                           palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_normal[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_normal <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Normal") +
+  theme_pubr(base_size = 8)
 
 ```
 
-Rules of a Q-Q plot
+```{r model-check-lognormal, echo=FALSE, eval=FALSE}
+n <- 10^4
+mu <- 10
+sigma <- 2
+beta <- sigma*2
 
-At the small end of the distribution (bottom-left), the sample values are a bit more negative than expected, which means the left tail is a bit extended. At the large end (upper-right), the sample values are, a bit less positive than expected, which means the right tail is a bit shortened. Should we fit a different model given these deviations? To answer this, we look look at the shaded area, which represents the range of expected deviations from expectation (the line) given the sample size. Clearly the deviations are within this range.
-
-Now let's look at simulated samples drawn from non-normal distributions to identify their characteristic deviations.
-
-#### Right skewed
-
-Many biological measures are from a distribution with long, right tails (right skewed). Examples include many count variables (number of eggs in a clutch, number of cells colonized by a parasite), and measures of time, weight, or length. What is common to all of these is unconstrained upper bounday but a constrained lower boundary at or above zero (A nest might have zero but eggs. The weight of a fat depot must be greater than zero but the weight of a specific species of fish in a trawl catch might be zero). 
-
-A long right tail of conditional responses creates a characteristic positive deviation of the largest quantiles in a Normal Q-Q plot of the residuals from a linear model. Positive deviations at the upper end indicate larger values than expected given a normal distribution. This is the signature of the residuals of a linear model fit to right skewed data.
-
-```{r model-check-lognormal, echo=FALSE}
 # lognormal
 set.seed(1)
 # see wikipedia for parameterization given expected mean and variance
-location <- log(mu^2/sqrt(sigma^2 + mu^2))
-shape <- sqrt(log(1 + sigma^2/mu^2))
+location_cn <- log(mu^2/sqrt(sigma^2 + mu^2))
+shape_cn <- sqrt(log(1 + sigma^2/mu^2))
+
+# for effect using lognormal
 # cv is constant in lognormal
-cv <- sqrt(exp(shape^2) - 1)
-sigma.tr <- cv*(mu+beta)
-location.tr <- log((mu+beta)^2/sqrt(sigma.tr^2 + (mu+beta)^2))
-shape.tr <- sqrt(log(1 + sigma.tr^2/(mu+beta)^2))
+cv <- sqrt(exp(shape_cn^2) - 1)
+sigma_tr <- cv*(mu + beta)
+location_tr <- log((mu + beta)^2/sqrt(sigma_tr^2 + (mu + beta)^2))
+shape_tr <- sqrt(log(1 + sigma_tr^2/(mu + beta)^2))
 
-fd.lognorm <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(rlnorm(n, meanlog=location, sdlog=shape), rlnorm(n, meanlog=location.tr, sdlog=shape.tr))
-)
-# fd.lognorm[, .(mean=mean(Response),
-#                sd=sd(Response),
-#                cv=sd(Response)/mean(Response)), by=.(Treatment)]
+x_levels <- c("normal", "lognormal")
 
-m1 <- lm(Response ~ Treatment, data=fd.lognorm)
-fd.lognorm[, Residual:=residuals(m1)]
-gg1.lognormal <- gghistogram(data=fd.lognorm, x = "Response",
-   color="Treatment", fill="Treatment",
-   add = "mean", rug = FALSE,
-   bins=9,
-   palette = c("#00AFBB", "#E7B800"))
-gg3.lognormal <- ggqqplot(data=fd.lognorm, x = "Residual", title="Lognormal")
+fd_lognorm <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma),
+               rlnorm(n, 
+                      meanlog = location_cn,
+                      sdlog = shape_cn)))
+fd_lognorm[, .(mean = mean(response),
+             var = sd(response)^2), by = distribution]
 
-gg3.lognormal
+# histogram
+gg1_lognormal <- gghistogram(data = fd_lognorm,
+                             x = "response",
+                             color="distribution",
+                             fill="distribution",
+                             add = "mean",
+                             rug = FALSE,
+                             bins=30,
+                             palette = pal_okabe_ito) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_lognorm[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_lognormal <- ggstripchart(data = fd_subset,
+                              x = "distribution",
+                              y = "response",
+                              color = "distribution",
+                              add = "boxplot",
+                              alpha = 0.2,
+                              palette = pal_okabe_ito) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_lognorm[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_lognormal <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Lognormal")
 ```
 
-A continous response with a right skewed distribution can be modeled with a generalized linear model using a lognormal or gamma distribution. A count response can be modeled with a generalized linear model using a Poisson, quasi-Poisson, or negative binomial distribution (Chapter xxx).
-
-```{r model-check-gamma, echo=FALSE, eval=FALSE}
+```{r model-check-gamma, echo=FALSE, eval=TRUE}
 # gamma
-n <- 50
-set.seed(3)
-# theta = kappa
-kappa <- sqrt(mu)
-theta <- kappa
-# theta <- sigma^2/mu # scale
-# kappa <- mu/theta # shape
-#sigma.tr <- cv*(mu+beta)
-theta.tr <- sigma.tr^2/(mu+beta)
-kappa.tr <- (mu+beta)/theta.tr
-kappa <- sqrt(mu+beta)
-theta <- kappa
-fd.gamma <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(rgamma(n, shape=kappa, scale=theta), rgamma(n, shape=kappa.tr, scale=theta.tr))
-)
-check_it <- FALSE
-if(check_it==TRUE){
-  fd.gamma[, .(mean=mean(Response),
-               sd=sd(Response),
-               cv=sd(Response)/mean(Response)), by=.(Treatment)]
-}
-
-m1 <- lm(Response ~ Treatment, data=fd.gamma)
-fd.gamma[, Residual:=residuals(m1)]
-gg1.gamma <- gghistogram(data=fd.gamma, x = "Response",
-                         color="Treatment", fill="Treatment",
-                         add = "mean", rug = FALSE,
-                         bins=9,
-                         palette = c("#00AFBB", "#E7B800")
-)
-
-gg3.gamma <- ggqqplot(data=fd.gamma, x = "Residual", title="gamma")
-gg3.gamma
-```
-
-```{r, model-check-heavy-tails, echo=FALSE, eval=FALSE}
-
-# left skew
-fd <- data.table(
-  y=rgamma(10^4, shape=kappa, scale=theta)
-)
-fd[, invy:=1/y]
-fd[, pmax:=y/max(y)]
-fd[, ny:=max(y) - y]
-qplot(y, data=fd)
-qplot(invy, data=fd)
-qplot(pmax, data=fd)
-qplot(ny, data=fd)
-
-(gg1.gamma <- gghistogram(data=fd.gamma, x = "Performance",
-                         color="Treatment", fill="Treatment",
-                         add = "mean", rug = FALSE,
-                         bins=9,
-                         palette = c("#00AFBB", "#E7B800")
-))
-
-# t (heavy tails)
-# more data pushed out toward tails then expected. This makes the most extreme data more negative (on left side) or more positive (right side) than expected. Or, with more data in the tails, there is higher probability of more extreme values (probability of sampling extreme value a function of n but this p increases with heavy tails)
-n <- 50
-set.seed(8) # 4, 7
-fd.t <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(rt(n, df=6), rt(n, df=6))
-)
-m1 <- lm(Response ~ Treatment, data=fd.t)
-fd.t[, Residual:=residuals(m1)]
-gg1.t <- gghistogram(data=fd.t, x = "Response",
-   color="Treatment", fill="Treatment",
-   add = "mean", rug = FALSE,
-   bins=9,
-   palette = c("#00AFBB", "#E7B800"))
-
-gg3.t <- ggqqplot(data=fd.t, x = "Residual", title="heavy tails")
-gg3.t
-
-# cauchy (heavy tails)
-# more data pushed toward center. This makes the most extreme data more positive (on left side) or more negative (right side) than expected
-n <- 50
+n <- 10^4
+mu <- 10
 set.seed(1)
-scale_cn <- 0.1
-fd.cauchy <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(rcauchy(n, scale=scale_cn), rcauchy(n, scale=scale_cn))
+
+# parameters shape = a and scale = s
+# mean and variance are E(X) = a*s and Var(X) = a*s^2
+scale_cn <- 0.8
+shape_cn <- mu/scale_cn
+
+sigma <- sqrt(shape_cn*scale_cn^2)
+
+x_levels <- c("normal", "gamma")
+
+fd_gamma <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma),
+               rgamma(n, 
+                      shape = shape_cn,
+                      scale = scale_cn))
 )
-m1 <- lm(Response ~ Treatment, data=fd.cauchy)
-fd.cauchy[, Residual:=residuals(m1)]
-gg3.cauchy <- ggqqplot(data=fd.cauchy, x = "Residual", title="heavy tails")
-gg3.cauchy
-
-
-
-```
-
-#### Excess zeroes
-
-Count data often have an excess of zeroes (for example a lake with no nests or a host with no parasites), resulting in positive deviations (closer to zero) at the lower end of the quantile range.
-
-```{r}
-
-# zero inflated
-mu_pois <- 2.7
-beta_pois <- 2
-p_zero <- 0.3
-
-fd.zipois <- data.table(
-  Treatment=rep(c("Cn", "Tr"), each=n),
-  Response=c(SpiecEasi::rzipois(n, lambda = mu_pois, pstr0 = p_zero), SpiecEasi::rzipois(n, lambda = (mu_pois+beta_pois), pstr0 = p_zero))
-)
-m1 <- lm(Response ~ Treatment, data=fd.zipois)
-fd.zipois[, Residual:=residuals(m1)]
-gg1.zipois <- gghistogram(data=fd.zipois, x = "Response",
-                          color="Treatment", fill="Treatment",
-                          add = "mean", rug = FALSE,
-                          bins=9,
-                          palette = c("#00AFBB", "#E7B800")
-)
-
-gg3.zipois <- ggqqplot(data=fd.zipois, x = "Residual", title="zero-inflated poisson")
-
-gg3.zipois
-
-```
-
-#### Constrained lower and upper bounds
-Proportions are constrained to values between zero and one. A proportion can have a distribution that approximates a normal distribution if the mean is near 0.5 and the standard deviation is small. But, more generally, proportions can have distributions with diverse shapes.
-
-```{r model-check-proportions, echo=FALSE}
-set.seed(8) #4, 8
-n <- 50
-a = c(10,50,100,1000) #80
-b = a/2 #40
-mu <- a/(a+b)
-sigma = sqrt((a*b)/((a+b)^2*(a+b+1))) # decreases with increasing a and b
-
-fake_beta <- function(n, a, b){
-  fd <- data.table(
-    Treatment=rep(c("Cn", "Tr"), each=n),
-    Response=c(rbeta(n, shape1=a, shape2=b), rbeta(n, shape1=a, shape2=b))
-  )
-  return(fd)
+check_variance <- FALSE
+if(check_variance == TRUE){
+  fd_gamma[, .(mean = mean(response),
+               sd = sd(response),
+               min = min(response)),
+           by = distribution]
 }
 
-fd.beta.1 <- fake_beta(n, 80, 40) # mean = 0.67
-fd.beta.2 <- fake_beta(n, 1, 12) # mean = 0.14
-fd.beta.3 <- fake_beta(n, 3, 2) # mean = 0.14
+# histogram
+gg1_gamma <- gghistogram(data = fd_gamma,
+                         x = "response",
+                         color="distribution",
+                         fill="distribution",
+                         add = "mean",
+                         rug = FALSE,
+                         bins=30,
+                         palette = pal_okabe_ito) +
+  theme(legend.position = "none")
 
-gg1.beta.1 <- gghistogram(data=fd.beta.1, x = "Response",
-                          color="Treatment", fill="Treatment",
-                          add = "mean", rug = FALSE,
-                          bins=9,
-                          palette = c("#00AFBB", "#E7B800")
+fd_subset <- fd_gamma[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_gamma <- ggstripchart(data = fd_subset,
+                          x = "distribution",
+                          y = "response",
+                          color = "distribution",
+                          add = "boxplot",
+                          alpha = 0.2,
+                          palette = pal_okabe_ito) +
+  theme(legend.position = "none")
+
+
+fd_subset <- fd_gamma[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_gamma <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Gamma")
+
+```
+
+```{r model-check-negbinom, echo=FALSE, eval=TRUE}
+# neg binomial
+n <- 10^4
+mu <- 10
+set.seed(1)
+
+# mean mu and variance mu + mu^2/theta
+theta = 4
+sigma <- sqrt(mu + mu^2/theta)
+
+x_levels <- c("normal", "right skew")
+
+fd_negbin <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma),
+               rnegbin(n, mu, theta = 2))
 )
-m1 <- lm(Response ~ Treatment, data=fd.beta.1)
-fd.beta.1[, Residual:=residuals(m1)]
-gg3.beta.1 <- ggqqplot(data=fd.beta.1, x = "Residual", title="Normal Q-Q")
+check_variance <- FALSE
+if(check_variance == TRUE){
+  fd_negbin[, .(mean = mean(response),
+               sd = sd(response),
+               min = min(response)),
+           by = distribution]
+}
 
-gg1.beta.2 <- gghistogram(data=fd.beta.2, x = "Response",
-                          color="Treatment", fill="Treatment",
-                          add = "mean", rug = FALSE,
-                          bins=9,
-                          palette = c("#00AFBB", "#E7B800")
-)
-m1 <- lm(Response ~ Treatment, data=fd.beta.2)
-fd.beta.2[, Residual:=residuals(m1)]
-gg3.beta.2 <- ggqqplot(data=fd.beta.2, x = "Residual", title="Normal Q-Q")
+# histogram
+gg1_negbin <- gghistogram(data = fd_negbin,
+                          x = "response",
+                          color="distribution",
+                          fill="distribution",
+                          add = "mean",
+                          rug = FALSE,
+                          bins=30,
+                          palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
 
-plot_grid(gg1.beta.1, gg3.beta.1, gg1.beta.2, gg3.beta.2, nrow=2)
+fd_subset <- fd_negbin[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_negbin <- ggstripchart(data = fd_subset,
+                           x = "distribution",
+                           y = "response",
+                           color = "distribution",
+                           add = "boxplot",
+                           alpha = 0.2,
+                           palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_negbin[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_negbin <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Right skew") +
+  theme_pubr(base_size = 8)
+
 ```
 
 
-#### Binary responses
+```{r model-check-t, echo=FALSE, eval=TRUE}
+# t (heavy tail)
+n <- 10^4
+mu <- 10
+set.seed(2)
 
-### Outliers - an outlier is a point that is highly unexpected given the modeled distribution.
+# mean 0 (for n > 1) and variance n/(n-2) (for n > 2)
+n_cn <- 6
+df_cn <- n_cn - 2
+sigma <- sqrt(n_cn/df_cn)
 
-## Model checking homoskedasticity
+x_levels <- c("normal", "heavy tail")
 
-## Model checking independence - hapiness adverse example.
+fd_t <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma*2),
+               rt(n, df = n_cn)*2 + mu)
+)
+check_variance <- FALSE
+if(check_variance == TRUE){
+  fd_t[, .(mean = mean(response),
+               sd = sd(response),
+               min = min(response)),
+           by = distribution]
+}
+
+# histogram
+gg1_t <- gghistogram(data = fd_t,
+                     x = "response",
+                     color="distribution",
+                     fill="distribution",
+                     add = "mean",
+                     rug = FALSE,
+                     bins=30,
+                     palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_t[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_t <- ggstripchart(data = fd_subset,
+                      x = "distribution",
+                      y = "response",
+                      color = "distribution",
+                      add = "boxplot",
+                      alpha = 0.2,
+                      palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_t[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_t <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Heavy Tail") +
+  theme_pubr(base_size = 8)
+
+```
+
+
+```{r model-check-beta-left, echo=FALSE, eval=TRUE}
+# t (heavy tail)
+n <- 10^4
+mu <- 0.8
+set.seed(1)
+
+#shape1 = a and shape2 = b
+# The mean is a/(a+b) and the variance is ab/((a+b)^2 (a+b+1)).
+# b = a/mu - a
+a <- 10
+b <- a/mu - a
+sigma <- sqrt(a*b/((a+b)^2 * (a+b+1)))
+# a/(a+b)
+x_levels <- c("normal", "left skew")
+
+fd_beta <- data.table(
+  distribution = factor(rep(x_levels, each = n), x_levels),
+  response = c(rnorm(n, mean = mu, sd = sigma),
+               rbeta(n, shape1 = a, shape2 = b))
+)
+check_variance <- FALSE
+if(check_variance == TRUE){
+  fd_beta[, .(mean = mean(response),
+               sd = sd(response),
+               min = min(response)),
+           by = distribution]
+}
+
+# histogram
+gg1_beta <- gghistogram(data = fd_beta,
+                        x = "response",
+                        color="distribution",
+                        fill="distribution",
+                        add = "mean",
+                        rug = FALSE,
+                        bins=30,
+                        palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_beta[, .SD[sample(.N,  10^3)],
+                       by = distribution]
+gg2_beta <- ggstripchart(data = fd_subset,
+                         x = "distribution",
+                         y = "response",
+                         color = "distribution",
+                         add = "boxplot",
+                         alpha = 0.2,
+                         palette = pal_okabe_ito) +
+  theme_pubr(base_size = 8) +
+  theme(legend.position = "none")
+
+fd_subset <- fd_beta[distribution == x_levels[2],
+                       .SD[sample(.N,  10^3)],
+                       by = distribution]
+
+fd_subset[, residual := residuals(lm(response ~ 1))]
+gg3_beta <- ggqqplot(data = fd_subset,
+                          x = "residual",
+                          title="Left skew") +
+  theme_pubr(base_size = 8)
+
+# gg1_beta
+# gg2_beta
+# gg3_beta
+```
+
+```{r model-check-plot-plot-normal, echo = FALSE}
+gg_normal <- plot_grid(gg1_normal, gg2_normal, gg3_normal,
+                       nrow = 1)
+gg_right <- plot_grid(gg1_negbin, gg2_negbin, gg3_negbin,
+                       nrow = 1)
+gg_left <- plot_grid(gg1_beta, gg2_beta, gg3_beta,
+                       nrow = 1)
+gg_heavy <- plot_grid(gg1_t, gg2_t, gg3_t,
+                       nrow = 1)
+```
+
+**Skewed-Right Q-Q**
+
+```{r, echo = FALSE, out.width="90%", fig.asp = .4}
+gg_right
+```
+
+The Normal Q-Q plot of a sample from a right-skewed distribution is characterized by sample quantiles at the high (right) end being more positive than the expected Normal quantiles. Often, the quantiles at the low (left) end are also less negative than the expected normal quantiles. The consequence is a concave up pattern.
+
+The histograms in the left panel explain this pattern. The right tail of the skewed-right distribution extends further than the right tail of the Normal. It is easy to see from this that, if we rank the values of each distribution from small to large (these are the quantiles), the upper quantiles of the skewed-right distribution will be larger than the matching quantile of the Normal distribution. For example, the 99,990th quantile for the skewed-right distribution will be much more positive than the 99,990th quantile for the Normal distribution. The opposite occurs at the left tail, which extends further in the negative direction in the Normal than the skewed-right distribution.
+
+The middle panel compares a boxplot and stripchart of samples from the two distributions to show what researchers should look for in their own publication-ready plots as well as the published plots of colleagues. The skewed-right plot exhibits several hallmarks of a skewed-right distribution including 1) a median line (the horizontal line within the box) that is closer to the 25th percentile line (the lower end of the box) than to the 75th percentile line (the upper end of the box), 2) a longer upper than lower whisker (the vertical lines extending out of the box), 3) more outliers above the upper whisker than below the lower whisker, and 4) a lengthened, upward smear of the scatter of points at the high end of the values, relative to the more compact smear at the low end of the values.
+
+**Skewed-Left Q-Q**
+
+```{r, echo = FALSE, out.width="90%", fig.asp = .4}
+gg_left
+```
+
+The Normal Q-Q plot of a sample from a left-skewed distribution is characterized by sample quantiles at the low (left) end being more negative than the expected Normal quantiles. Often, the quantiles at the high (right) end are also less positive than the expected normal quantiles. The consequence is a concave down pattern.
+
+The histograms in the left panel explain this pattern. The left tail of the skewed-left distribution extends further than the left tail of the Normal. It is easy to see from this that, if we rank the values of each distribution from small to large (these are the quantiles), the lower quantiles of the skewed-left distribution will be more negative than the matching quantile of the Normal distribution. For example, the 10th quantile for the skewed-left distribution will be much more negative than the 10th quantile for the Normal distribution. The opposite occurs at the right tail, which extends further in the positive direction in the Normal than the skewed-left distribution.
+
+The skewed-left plot in the middle panel highlights several hallmarks of a skewed-left distribution including 1) a median line (the horizontal line within the box) that is closer to the 75th percentile line (the lower end of the box) than to the 25th percentile line (the upper end of the box), 2) a longer lower than upper whisker (the vertical lines extending out of the box), 3) more outliers below the lower whisker than above the upper whisker, and 4) a lengthened, downward smear of the scatter of points at the low end of the values, relative to the more compact smear at the upper end of the values.
+
+**Heavy Tail Q-Q**
+
+```{r, echo = FALSE, out.width="90%", fig.asp = .4}
+gg_heavy
+```
+
+The Normal Q-Q plot of a sample from a heavy-tail distribution is characterized by sample quantiles at the low (left) end being more negative than the expected Normal quantiles and quantiles at the high (right) end that are more positive than the expected normal quantiles.
+
+The histograms in the left panel explain this pattern. At each tail, the heavy-tail distribution has more **density** -- there are more values far from the mean -- compared to the Normal distribution. This is the origin of "heavy tail". It is easy to see from this that, if we rank the values of each distribution from small to large (these are the quantiles), the lower quantiles of the heavy tail distribution will be more negative than the matching quantile of the Normal distribution. For example, the 10th quantile for the heavy-tail distribution will be much more negative than the 10th quantile for the Normal distribution. Likewise, the upper quantiles of the heavy tail distribution will be more positive than the matching quantile of the Normal distribution. For example, the 99,990th quantile for the heavy-tail distribution will be much more positive than the 99,990th quantile for the Normal distribution.
+
+The heavy-tail plot in the middle panel shows more boxplot outliers than in the Normal plot. This would be hard to recognize in a plot of real data.
+
+#### Mapping characteristic departures on a Q-Q plot to specific distributions
+
+1. Continuous response variables of length, area, weight, or duration will often look like samples from a continous probability distribution that is right-skewed, such as the **lognormal** or **gamma** distributions.
+2. Count response variables will frequently look like samples from a discrete probability distribution that is right-skewed, such as the **poisson**, **quasi-poisson**, or **negative binomial** distributions.
+3. Proportion (fraction of a whole) response variables will frequently look like samples from a continuous probability distribution bounded by 0 and 1, such as the **beta** distribution. Samples from a beta distribution can be left skewed, if the mean is near 1, right-skewed, if the mean is near zero, or symmetrical, if the mean is near 0.5.
+
+#### Pump your intuition -- confidence bands of a Q-Q plot
+
+In introducing the confidence bands of the Q-Q plot above, I stated "A pattern of observed quantiles with some individual points outside of these boundaries indicates a sample that would be unusual if sampled from a Normal distribution." Let's use a parametric bootstrap to explore this.
+
+1. Sample $n$ values from a Normal distribution
+2. Compute the sample quantiles by re-ordering the residuals of the sampled values from the sampled mean, from most negative to most positive.
+3. Plot the quantiles against Normal quantiles for $n$ points.
+4. Repeat steps 1-3 $n\_iter$ times, superimposing the new sample quantiles over all previous sample quantiles. This creates a band of all sample quantiles over $n\_iter$ iterations of sampling $n$ values from a Normal distribution.
+5. At each value of the Normal quantile, compute the 95 percentile range of the sampled quantiles. Draw a ribbon inside these boundaries.
+
+```{r model-check-pump-intuition, eval=FALSE}
+n_iter <- 1000
+n <- 20
+normal_qq <- ppoints(n) %>%
+  qnorm()
+sample_qq <- numeric(n_iter*n)
+inc <- 1:n
+for(iter in 1:n_iter){
+  y <- rnorm(n)
+  y_res <- y - mean(y)
+  sample_qq[inc] <- y_res[order(y_res)]
+  inc <- inc + n
+}
+
+qq_data <- data.table(normal_qq = normal_qq,
+                      sample_qq = sample_qq)
+
+qq_ci <- qq_data[, .(median = median(sample_qq),
+                     lower = quantile(sample_qq, 0.025),
+                     upper = quantile(sample_qq, 0.975)),
+                 by = normal_qq]
+
+ggplot(data = qq_data,
+       aes(x = normal_qq,
+           y = sample_qq)) +
+  geom_point(alpha = 0.2) +
+  geom_ribbon(data = qq_ci,
+              aes(ymin = lower,
+                  ymax = upper,
+                  y = median,
+                  fill = "band"),
+              fill = pal_okabe_ito[1],
+              alpha = 0.3) +
+  xlab("Normal Quantile") +
+  ylab("Sample Quantile") +
+  theme_grid() +
+  
+  NULL
+```
+
+### Model checking homoskedasticity
 
 ## Using R
+
+Source: [Wellenstein, M.D., Coffelt, S.B., Duits, D.E., van Miltenburg, M.H., Slagter, M., de Rink, I., Henneman, L., Kas, S.M., Prekovic, S., Hau, C.S. and Vrijland, K., 2019. Loss of p53 triggers WNT-dependent systemic inflammation to drive breast cancer metastasis. Nature, 572(7770), pp.538-542.](https://www.nature.com/articles/s41586-019-1450-6){target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6707815/){target="_blank"}
+
+[Data source](https://www.nature.com/articles/s41586-019-1450-6#Sec22){target="_blank"}
+
+```{r echo=TRUE}
+data_from <- "Loss of p53 triggers WNT-dependent systemic inflammation to drive breast cancer metastasis"
+file_name <- "41586_2019_1450_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+  
+treatment_levels <- c("Trp53+/+", "Trp53-/-")
+fig1f <- read_excel(file_path,
+                     sheet = "Fig. 1f",
+                     range = "A2:B23") %>%
+  data.table() %>%
+  melt(measure.vars = treatment_levels,
+       variable.name = "treatment",
+       value.name = "il1beta")
+fig1f[, treatment := factor(treatment, treatment_levels)]
+
+# be careful of the missing data. This can create mismatch between id and residual unless specified in lm
+
+# head(fig1f)
+```
+
+Fit a linear model
+
+```{r}
+m1 <- lm(il1beta ~ treatment,
+         data = fig1f)
+```
+
+```{r echo=FALSE, eval=FALSE}
+m1 <- lm(il1beta ~ treatment,
+         data = fig1f)
+m1_res <- residuals(m1)
+sigma_m1_res <- sd(m1_res)
+m1_res_st <- m1_res/sigma_m1_res
+n <- length(m1_res)
+
+normal_qq <- ppoints(n) %>%
+  qnorm()
+sample_qq <- m1_res[order(m1_res)]
+
+# mean + sd
+parametric_slope <- sd(sample_qq)
+parametric_intercept <- mean(sample_qq)
+
+# quantile
+m1_quantiles <- quantile(m1_res, c(.25, .75))
+qnorm_quantiles <- qnorm( c(.25, .75))
+m1_diff <- m1_quantiles[2] - m1_quantiles[1]
+qnorm_diff <- qnorm_quantiles[2] - qnorm_quantiles[1] # = 1.349
+quantile_slope <- m1_diff/qnorm_diff
+quantile_intercept <- median(sample_qq)
+
+# robust
+qq_observed <- data.table(normal_qq = normal_qq,
+                    sample_qq = sample_qq)
+m2 <- rlm(sample_qq ~ normal_qq, data = qq_observed)
+robust_intercept <- coef(m2)[1]
+robust_slope <- coef(m2)[2]
+
+# re-sample ribbon
+resample_qq <- numeric(n_iter*n)
+inc <- 1:n
+for(iter in 1:n_iter){
+  y <- rnorm(n, sd = sigma_m1_res)
+  y_res <- y - mean(y)
+  resample_qq[inc] <- y_res[order(y_res)]
+  inc <- inc + n
+}
+
+qq_sim <- data.table(normal_qq = normal_qq,
+                     resample_qq = resample_qq)
+
+qq_ci <- qq_sim[, .(median = median(resample_qq),
+                     lower = quantile(resample_qq, 0.025),
+                     upper = quantile(resample_qq, 0.975)),
+                 by = normal_qq]
+
+ggplot(data = qq_observed,
+       aes(x = normal_qq, y = sample_qq)) +
+  geom_point() +
+  
+  # ribbon
+  geom_ribbon(data = qq_ci,
+              aes(ymin = lower,
+                  ymax = upper,
+                  y = median,
+                  fill = "band"),
+              fill = pal_okabe_ito[1],
+              alpha = 0.3) +
+  # auto
+  geom_qq_line(aes(sample = sample_qq),
+               color = "black",
+               size = 2,
+               alpha = 0.3) +
+  # parametric
+  geom_abline(aes(intercept = parametric_intercept,
+                  slope = parametric_slope),
+              color = "blue") +
+  # quantile
+  geom_abline(aes(intercept = quantile_intercept,
+                  slope = quantile_slope),
+              color = "red") +
+  # robust
+  geom_abline(aes(intercept = robust_intercept,
+                  slope = robust_slope),
+              color = "green") +
+  NULL
+
+# car plot
+qqPlot(m1, id = FALSE)
+
+# base R plot
+qqnorm(m1_res)
+qqline(m1_res)
+
+# ggpubr plot
+ggqqplot(data = data.table(m1_res=m1_res),
+         x = "m1_res")
+
+
+```
+
+### Normal Q-Q plots
+
+`car::qqPlot` has several important arguments to control the type of Q-Q plot. The function uses base graphics instead of ggplot2. Typically, these plots would not be published other than possibly a supplement. [Q-Q Plots and Worm Plots from Scratch](https://www.tjmahr.com/quantile-quantile-plots-from-scratch/){target="_blank"} is a good source of some of the arguments in `qqPlot`. Three important arguments are:
+
+1. simulate. If passing a `lm` object, then the default confidence band is generated by a parametric bootstrap (`simulate = TRUE`). This band will differ somewhat each time you replot unless you set the seed with `set.seed`. Setting the argument `simulate = FALSE` returns the parametric band.
+2. line. If passing a `lm` object, then the default line is a fit from a robust regression (`line = "robust"`). Setting the argument `line = "quartiles"` fits a line throught the 25th and 75th percentile (or "quartiles") quantiles.
+3. id. The default identifies the index of the two points with the most extreme quartiles. Set to FALSE to hide.
+
+The robust line is more sensitive to departures from Normality than the quartiles line.
+
+```{r}
+# defaults: robust line with bootstrap CI
+set.seed(1)
+qqPlot(m1, id = FALSE)
+```
+
+```{r, eval=FALSE}
+# classic: standard line with parametric CI
+qqPlot(m1,
+       line = "quartiles",
+       simulate = FALSE,
+       id = FALSE)
+```
+
+`ggpubr::ggqqplot` generates a pretty, ggplot2 based Normal Q-Q plot, using the standard method for computing the line and confidence band.
+
+```{r}
+m1_residuals <- data.table(m1_residuals = residuals(m1))
+m1_residuals[, studentized := m1_residuals/sd(m1_residuals)]
+ggqqplot(data = m1_residuals,
+                          x = "studentized")
+```
+
+
+
+
+
+
+
+

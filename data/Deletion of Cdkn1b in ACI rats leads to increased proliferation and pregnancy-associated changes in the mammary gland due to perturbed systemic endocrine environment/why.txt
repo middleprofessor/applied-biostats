@@ -1,0 +1,7 @@
+Deletion of Cdkn1b in ACI rats leads to increased proliferation and pregnancy- associated changes in the mammary gland due to perturbed systemic endocrine environment
+
+Fig 2B 2 x 2 frequency data with good example of CI going below zero
+Fig 2F t-test with count data CI going below zero?
+Fig 2F - look at % milk protein. This could be good example of problems with percents
+
+Fig FigS1 -- excellent example of confounding of body weight and organ (mammary gland) weight

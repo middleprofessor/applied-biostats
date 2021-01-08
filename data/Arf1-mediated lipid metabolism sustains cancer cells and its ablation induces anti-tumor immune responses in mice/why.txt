@@ -1,0 +1,5 @@
+why downloaded?
+- many factorial analyses
+- many analysis with n > 2 levels
+- authors conclude synergy but doesn't look it
+Fig 7h - conclude synergy base on one ns and one p < 0.05

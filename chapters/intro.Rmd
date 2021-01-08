@@ -1,0 +1,132 @@
+---
+title: "Untitled"
+author: "Jeffrey A. Walker"
+date: "9/8/2020"
+output: html_document
+---
+
+# Analyzing experimental data with a linear model
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+library(stringr)
+
+# analysis packages
+library(emmeans)
+library(car) # qqplot, spreadlevel
+library(DHARMa)
+
+# graphing packages
+library(ggsci)
+library(ggpubr)
+library(ggforce)
+library(cowplot)
+library(lazyWeave) #pvalstring
+
+here <- here::here
+data_path <- "data"
+
+ggplotsci_path <- here::here("R", "ggplotsci.R")
+source(ggplotsci_path)
+```
+
+```{r}
+data_folder <- "ASK1 inhibits browning of white adipose tissue in obesity"
+file_name <- "41467_2020_15483_MOESM4_ESM.xlsx"
+file_path <- here::here(data_path, data_folder, file_name)
+  
+fig_2_sheet <- "Source Date_Figure 2"
+```
+
+```{r}
+range_2i <- "A265:G266"
+treatment_levels <- c("ASK1F/F", "ASK1Δadipo")
+fig_2i <- read_excel(file_path,
+                     sheet = fig_2_sheet,
+                     range = range_2i,
+                     col_names = FALSE) %>%
+  transpose(make.names=1) %>%
+  data.table() %>%
+  melt(measure.vars = treatment_levels,
+       variable.name = "treatment",
+       value.name = "liver_tg") %>%
+  na.omit()
+
+fig_2i[, treatment := factor(treatment, treatment_levels)]
+
+# View(fig_2i)
+```
+
+```{r}
+fig_2i_m1 <- lm(liver_tg ~ treatment, data = fig_2i)
+```
+
+```{r}
+fig_2i_m1_coef <- summary(fig_2i_m1) %>%
+  coef()
+fig_2i_m1_emm <- emmeans(fig_2i_m1, specs = "treatment")
+fig_2i_m1_pairs <- contrast(fig_2i_m1_emm,
+                            method = "revpairwise") %>%
+  summary(infer = TRUE)
+```
+
+```{r}
+fig_2i_m1_emm_dt <- summary(fig_2i_m1_emm) %>%
+  data.table
+fig_2i_m1_pairs_dt <- data.table(fig_2i_m1_pairs)
+fig_2i_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
+fig_2i_m1_pairs_dt[, group1 := 1]
+fig_2i_m1_pairs_dt[, group2 := 2]
+
+
+fig_2i_gg <- ggplot(data = fig_2i,
+                    aes(x = treatment,
+                        y = liver_tg,
+                        color = treatment)) +
+  
+  # points
+  geom_sina(alpha = 0.5) +
+  
+  # plot means and CI
+  geom_errorbar(data = fig_2i_m1_emm_dt,
+                aes(y = emmean,
+                    ymin = lower.CL,
+                    ymax = upper.CL,
+                    color = treatment),
+                width = 0,
+#                position = pd,
+                color = "black"
+  ) +
+  
+  geom_point(data = fig_2i_m1_emm_dt,
+             aes(y = emmean,
+                 color = treatment),
+             size = 3,
+#             position = pd,
+             color = "black"
+  ) +
+  
+ # plot p-values (y positions are adjusted by eye)
+  stat_pvalue_manual(fig_2i_m1_pairs_dt,
+                     label = "p_pretty",
+                     y.position=c(95),
+                     tip.length = 0.01) +
+  
+  # aesthetics
+  ylab("Liver TG") +
+  scale_color_manual(values=pal_nature_mod,
+                     name = NULL) +
+  theme_pubr() +
+  theme(legend.position="none") +
+  theme(axis.title.x=element_blank()) +
+  
+  NULL
+
+fig_2i_gg
+```
+

@@ -1,0 +1,13 @@
+Adipsin preserves beta cells in diabetic mice and associates with protection from type 2 diabetes in humans
+
+Nature Medicine
+
+fig1 a,b longitudinal 2 x 2
+fig1 h - t-test of ratio, data includes both numerator and denominator
+fig1 i - longitudinal 2 x 1
+fig1 j - 2 x 2
+fig1 k - t-test
+
+fig3e - 2x2,
+fig3f -multiple responses (expression levels)
+fig3m,n -  t-test on change score, no data on start

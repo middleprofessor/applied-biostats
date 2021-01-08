@@ -1,0 +1,16 @@
+The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue
+
+nature medicine
+highly cited
+Fig 3 is a good candidate for a target analysis
+
+Fig 1b very nice paired t-test
+Fig 2a 3 x 1 control, cold, E (control vs two stimulators of effect)
+Fig 2b a difference in significance is not necessarily signifcant
+Fig 3a - nice longitudinal (body T v time) with E(baseline diff) = 0
+fig 3b,c,d -  t-tests
+fig 3e 2 x 1 multiple response
+fig 3f 3 x 1 multiple response - good example of multiple testing - adjusting within each 3 x 1 vs. adjusting for multiple tests
+fig 3h longitudinal
+fig 3i t-test of fig 3h
+Fig 4F,G - 3 x 1 with both treatments similar

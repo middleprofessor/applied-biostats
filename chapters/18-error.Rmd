@@ -1,0 +1,231 @@
+# Errors in inference
+
+```{r error-setup, echo=FALSE, message=FALSE}
+# wrangling packages
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+library(stringr)
+
+# analysis packages
+library(emmeans)
+library(mvtnorm)
+library(lmPerm)
+library(MASS)
+
+# graphing packages
+library(ggsci)
+library(ggpubr)
+library(ggforce)
+library(cowplot)
+library(lazyWeave) #pvalstring
+
+here <- here::here
+data_path <- "data"
+
+source_path <- here("R", "ggplotsci.R")
+source(source_path)
+```
+
+## Classical NHST concepts of wrong
+
+As described in chapter (p-values), two types of error occur in classical Neyman-Pearson hypothesis testing, and in the NHST version that dominates modern practice. **Type I** error occurs when the null hypothesis is true but the *p*-value of the test is less than $\alpha$. This is a *false positive*, where a *positive* is a test that rejects the null. **Type II** error occurs when the null hypothesis is false but the *p*-value of the test is greater than $\alpha$. This is a *false negative*, where a *negative* is a test that accepts (or fails to reject) the null. **Power** is not an error but the frequency of true, positive tests (or the frequency of avoiding Type II error). $\alpha$ is not an error but the rate of Type I error that a researcher is willing to accept. Ideally, a researcher sets $\alpha$ based on an evaluation of the pros and cons of Type I and Type II error for the specific experiment. In practice, researchers follow the completely arbitary practice of setting $\alpha = 0.05$.
+
+Why should a researcher care about $\alpha$ and power? Typically, most researchers don't give $\alpha$ much thought. And power is considered only in the context of calculating a sample size for an experiment for a grant proposal. But researchers should care about rates of Type I error and power because these (and similar concepts) can help guide decisions about which model to fit to a specific dataset. 
+
+### Type I error
+
+In classical Neyman-Pearson hypothesis testing, an important property of a hypothesis test is the **size of a test**, which may include an entire procedure that culminates in a hypothesis test. "Size" is a weird name for the probability of rejecting the null when the null is true. Size is not $\alpha$. $\alpha$ is the *nominal value* -- it's what a researcher wants. Size is the *actual value* -- it's what a researcher gets.
+
+It would probably come as a surpise to most researches to learn that the size of some common tests used with data that look like the researcher's data is not 0.05. "used with data that look like the researcher's data" is important here -- a *t*-test doesn't have one size. With data that conform to the assumptions (independence, homogeneity, normality), the size of a *t*-test is $\alpha$. But with any violation, especially when the sample size differs between groups, the size of the *t*-test can move away from $\alpha$. A test that has a size that is less than $\alpha$ is "conservative" (fewer nulls are rejected than we think, so the *status quo* is more often maintained). A test that has a size that is greater than $\alpha$ is "liberal" (more nulls are rejected than we think, so the *status quo* is less often maintained). More conservative tests reduce power. More liberal tests *artificially* increase power and increase our rate of false rejection, which can mean "false discovery" if *p*-values are used as the arbiter of discovery.
+
+#### Size example 1: the size of a *t*-test vs. a permutation test, when the data meet the assumptions
+
+```{r, message=FALSE}
+set.seed(1)
+n <- 10
+n_iter <- 10000
+p_t <- numeric(n_iter)
+p_perm <- numeric(n_iter)
+
+treatment <- rep(c("cn", "tr"), each = n)
+for(iter in 1:n_iter){
+  sample_1 <- rnorm(n, mean = 10, sd = 1)
+  sample_2 <- rnorm(n, mean = 10, sd = 1)
+  y <- c(sample_1, sample_2)
+  m1 <- lm(y ~ treatment) # no data statement necessary because both variables in workspace
+  p_t[iter] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  
+  m2 <- lmp(y ~ treatment,
+            perm = "Prob",
+            settings = FALSE)
+  p_perm[iter] <- coef(summary(m2))["treatment1", "Pr(Prob)"]
+}
+size_t <- sum(p_t < 0.05)/n_iter
+size_perm <- sum(p_perm < 0.05)/n_iter
+size_table <- data.table(Method = c("lm", "perm"),
+                         Size = c(size_t, size_perm))
+knitr::kable(size_table, digits = 4)
+```
+
+#### Size example 2: the size of a *t*-test vs. a permutation test, when the data have a right skewed distribution
+
+```{r}
+set.seed(1)
+n <- 10
+n_iter <- 10000
+p_t <- numeric(n_iter)
+p_perm <- numeric(n_iter)
+
+treatment <- rep(c("cn", "tr"), each = n)
+for(iter in 1:n_iter){
+  #  qplot(rnegbin(n = 10^4, mu = 100, theta = 1))
+  sample_1 <- rnegbin(n, mu = 100, theta = 1)
+  sample_2 <- rnegbin(n, mu = 100, theta = 1)
+  y <- c(sample_1, sample_2)
+  # qplot(x=treatment, y = y)
+  m1 <- lm(y ~ treatment) # no data statement necessary because both variables in workspace
+  p_t[iter] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  
+  m2 <- lmp(y ~ treatment,
+            perm = "Prob",
+            settings = FALSE)
+  p_perm[iter] <- coef(summary(m2))["treatment1", "Pr(Prob)"]
+}
+size_t <- sum(p_t < 0.05)/n_iter
+size_perm <- sum(p_perm < 0.05)/n_iter
+size_table <- data.table(Method = c("lm", "perm"),
+                         Size = c(size_t, size_perm))
+knitr::kable(size_table, digits = 4)
+```
+
+#### Size example 3: the size of a *t*-test vs. a permutation test, when the data have heterogenous variance and the sample size is unequal
+
+```{r}
+set.seed(1)
+n1 <- 10
+n2 <- n1/2
+n_iter <- 10000
+p_t <- numeric(n_iter)
+p_perm <- numeric(n_iter)
+
+treatment <- rep(c("cn", "tr"), times = c(n1, n2))
+for(iter in 1:n_iter){
+  #  qplot(rnegbin(n = 10^4, mu = 100, theta = 1))
+  sample_1 <- rnorm(n1, mean = 10, sd = 0.5)
+  sample_2 <- rnorm(n2, mean = 10, sd = 1)
+  y <- c(sample_1, sample_2)
+  # qplot(x=treatment, y = y)
+  m1 <- lm(y ~ treatment) # no data statement necessary because both variables in workspace
+  p_t[iter] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  
+  m2 <- lmp(y ~ treatment,
+            perm = "Prob",
+            settings = FALSE)
+  p_perm[iter] <- coef(summary(m2))["treatment1", "Pr(Prob)"]
+}
+size_t <- sum(p_t < 0.05)/n_iter
+size_perm <- sum(p_perm < 0.05)/n_iter
+size_table <- data.table(Method = c("lm", "perm"),
+                         Size = c(size_t, size_perm))
+knitr::kable(size_table, digits = 4)
+```
+
+### Power
+
+In classical Neyman-Pearson hypothesis testing, an important property of a hypothesis test is the **power of a test**. "Power" is the probability of rejecting the null when the null is false. A common way to think about power is, power is a test's ability to "detect" an effect if it exists. This makes sense using Neyman-Pearson but not Fisher (Using Fisher, a *p*-value is not a detector of an effect -- a reasoning brain is). Using Fisher, we could say that power is the sensitivity of a test (it takes less sample to provide the same signal).
+
+#### Power example 1: the power of a *t*-test vs. a permutation test, when the data meet the assumptions
+
+```{r, message=FALSE}
+set.seed(1)
+n <- 10
+n_iter <- 10000
+p_t <- numeric(n_iter)
+p_perm <- numeric(n_iter)
+
+treatment <- rep(c("cn", "tr"), each = n)
+for(iter in 1:n_iter){
+  sample_1 <- rnorm(n, mean = 10, sd = 1)
+  sample_2 <- rnorm(n, mean = 11, sd = 1)
+  y <- c(sample_1, sample_2)
+  m1 <- lm(y ~ treatment) # no data statement necessary because both variables in workspace
+  p_t[iter] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  
+  m2 <- lmp(y ~ treatment,
+            perm = "Prob",
+            settings = FALSE)
+  p_perm[iter] <- coef(summary(m2))["treatment1", "Pr(Prob)"]
+}
+power_t <- sum(p_t < 0.05)/n_iter
+power_perm <- sum(p_perm < 0.05)/n_iter
+power_table_normal <- data.table(Method = c("lm", "perm"),
+                         Power = c(power_t, power_perm))
+knitr::kable(power_table_normal, digits = 3)
+```
+
+#### Power example 2: the power of a *t*-test vs. a permutation test, when the data look like typical count data
+
+```{r}
+set.seed(1)
+n <- 10
+n_iter <- 10000
+p_t <- numeric(n_iter)
+p_perm <- numeric(n_iter)
+
+treatment <- rep(c("cn", "tr"), each = n)
+
+for(iter in 1:n_iter){
+  #  qplot(rnegbin(n = 10^4, mu = 100, theta = 1))
+  sample_1 <- rnegbin(n, mu = 100, theta = 1)
+  sample_2 <- rnegbin(n, mu = 300, theta = 1)
+  y <- c(sample_1, sample_2)
+  # qplot(x=treatment, y = y)
+  m1 <- lm(y ~ treatment) # no data statement necessary because both variables in workspace
+  p_t[iter] <- coef(summary(m1))["treatmenttr", "Pr(>|t|)"]
+  
+  m2 <- lmp(y ~ treatment,
+            perm = "Prob",
+            settings = FALSE)
+  p_perm[iter] <- coef(summary(m2))["treatment1", "Pr(Prob)"]
+}
+power_t <- sum(p_t < 0.05)/n_iter
+power_perm <- sum(p_perm < 0.05)/n_iter
+power_table_count <- data.table(Method = c("lm", "perm"),
+                         Power = c(power_t, power_perm))
+knitr::kable(power_table_count, digits = 3)
+```
+
+## A non-Neyman-Pearson concept of power
+
+Size and power are concepts specific to the Neyman-Pearson hypothesis testing framework. Size and power also have limited (or no) use in a research program in which the null hypothesis is never (or rarely) strictly true. That said, the concept of size and power are useful. For example, what if we framed power as the distribution of *p*-values instead of the frequency of *p*-values less than $\alpha$.
+
+Table \@ref(tab:error-power-dis) shows the *p*-value at the 10th, 25th, 50th, 75th, and 90th percentile of the set of *p*-values computed in Power Example 2 above (count data). The *n*th percentile is the value in an ordered set of numbers in which *n* % are less than the value and 100 - *n*% are greater than the value. The 50th percentile is the median. The table shows that at all percentiles except the 90th, the permutation *p*-value is smaller than the *t*-test *p*-value. And, importantly, the value at 75% for both is ~ 0.12. This means that for experiments that generate data something like the fake data generated in Power Example 2, the permutation test is more sensistive to the incompatibility between the null model and the data than the *t*-test, except in the random samples when both methods fail.
+
+```{r error-power-dis}
+quantile_list <- c(0.1, 0.25, 0.5, 0.75, 0.9)
+percentiles_t <- quantile(p_t, quantile_list)
+percentiles_perm <- quantile(p_perm, quantile_list)
+
+alt_power_table <- data.table(method = c("t-test", "permutation"),
+                              (rbind(percentiles_t,
+                                     percentiles_perm)))
+knitr::kable(alt_power_table, digits = c(1, 4, 3, 3, 2, 2))
+```
+
+### Estimation error
+### Coverage
+
+This text advocates reporting a confidence interval with each reported effect size. An important property of an **estimator** is **coverage probability**, often shortened to "coverage".
+
+### Type S error
+
+Instead of framing the "size" concept as the rate of Type I error, what if we framed this as the rate that an estimate is in the correct direction (meaning, the sign of an effect is the same as the true value). And, 
+
+
+
+### Type M error
+
+
+

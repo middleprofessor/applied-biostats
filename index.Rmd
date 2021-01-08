@@ -1,5 +1,5 @@
 --- 
-title: "Elementary Statistical Modeling for Applied Biostatistics"
+title: "Elements of Statistical Modeling for Experimental Biology"
 author: "Copyright 2018 Jeffrey A. Walker"
 date: "Draft: `r Sys.Date()`"
 site: bookdown::bookdown_site
@@ -9,7 +9,7 @@ bibliography: [book.bib, packages.bib]
 biblio-style: apalike
 link-citations: yes
 github-repo: 
-description: "A first course in statistical modeling for biology students"
+description: "A first course in statistical modeling for experimental biology researchers"
 ---
 
 ```{r bookdown, include=FALSE}
@@ -18,32 +18,69 @@ knitr::write_bib(c(
   .packages(), 'bookdown', 'knitr', 'rmarkdown'
 ), 'packages.bib')
 
-bookdown_it <- TRUE
+library(DiagrammeR)
+library(here)
+
 ```
 
 # Preface {-}
 *More cynically, one could also well ask "Why has medicine not adopted frequentist inference, even though everyone presents P-values and hypothesis tests?" My answer is: Because frequentist inference, like Bayesian inference, is not taught. Instead everyone gets taught a misleading pseudo-frequentism: a set of rituals and misinterpretations caricaturing frequentist inference, leading to all kinds of misunderstandings.* -- Sander Greenland
 
-We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student learns to use something like a look-up table or a dichotomous key to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a *p*-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude, incorrectly, they have "discovered" something or "shown" an effect if $p < 0.05$ but found "no effect" if $p > 0.05$.
+We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student learns to use a look-up table or flowchart to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a *p*-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude, incorrectly, they have "discovered" an effect if $p < 0.05$ but found "no effect" if $p > 0.05$.
 
-Researchers learn little from a hypothesis test -- that is, comparing *p* to 0.05. A *p*-value is a measure of compatibility between the data and the null hypothesis and, consequently, a pretty good, but imperfect tool to dampen the frequency that we are fooled by randomness. But if we are investigating the effects of an increasingly acidified ocean on coral growth, $p=0.002$ may be evidence of an effect of the experimental intervention, but, from everything we know about pH and cell biology, it would be absurd to conclude from any data that pH does not affect growth. To build useful models of how biological systems work, we want to know the magnitude of effects and our uncertainty in estimating these magnitudes. We can compare the magnitude to a prediction of the magnitude from a mechanistic model of growth. We can use a magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consequences of the effects of acidification on coral growth on fish production or carbon cycling.
+This book is an introduction to the statistical analysis of data from biological experiments with a focus on the estimation of treatment effects and measures of the uncertainty of theses estimates. Instead of a flowchart of "which statistical test", this book emphasizes a **regression modeling** approach using linear models and extensions of linear models.
 
-This book is an introduction to the estimation of effects of biological data, and measures of the uncertainty of theses estimates, using a statistical modeling approach. As an introduction, the focus will be linear models and extensions of the linear models including linear mixed models and generalized linear models. Linear models are the engine behind many hypothesis tests but the emphasis in statistical modeling is estimation and uncertainty instead of test statistics and $p$-values. All linear models, and their generalizations, are variations of
+"What what? In my previous class I learned that regression was for data with a continuous independent variable and that *t*-tests and ANOVA were for data with categorical independent variables." No! This misconception has roots in the history of regression vs. ANOVA and is reinforced by how introductory biostatistics textbooks, and their instructors, *choose* to teach statistics. In this class, you were probably taught to follow a flowchart strategy -- something like
 
-\begin{align}
-y_i &\sim N(\mu_i, \theta)\\
-\mathrm{E}(Y|X) &= \mu\\
-\mu_i &= f(\beta_0 + \beta_1 x_i)
-\end{align}
+```{r flowchart, echo=FALSE, fig.cap = "A small flow chart demo of the flowchart strategy of statistical analysis. This chart covers a very small subset of potential paths that could be built from an introductory biostatistics textbook."}
 
-Chapter 1 explains the meaning of this **model specification** but the point to make here is that because all linear models and their generalizations are variations of this specification, a modeling strategy of learning or doing statistics is more coherent than the NHST strategy using look-up tables or dichotomous keys of hypothesis tests. Generalizations of the basic linear model include linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is not a comprehensive source for any of these methods but, instead, *a path of the critical elements leading you to the doorway to the vast universe of each of these methods*.
+generate_it <- FALSE
+if(generate_it == TRUE){
+  mermaid("
+graph TB
+    a[I want to compare group means] --> b{How many groups?}
+    b --> c((only 2))
+    b --> d((more then 2))
+    c --> e{are my data normal?}
+    e --> f((yes))
+    e --> g((no))
+    f --> h{are samples in group 1<br>independent of those in<br>group 2?}
+    h --> i((yes))
+    h --> j((no))
+    i --> k[independent sample t-test]
+    j --> l[paired t-test]
+
+")
+}else{
+  image_path <- here::here("images","flowchart.png")
+  knitr::include_graphics(image_path)
+}
+
+```
+
+Compared to the flowchart stratgy, the advantages of the regression modeling strategy include
+
+1. A unified aproach in place of a collection of seemingly unrelated tests. The unified approach is the *regression model*.
+    
+It has long been appreciated that classical regression, *t*-tests, ANOVA, and other methods are all variations of the equation for a line $Y = mX + b$ using slightly different notation 
+
+\begin{equation}
+Y = \beta_0 + \beta_1 X + \varepsilon
+\end{equation}
+
+Chapter 1 explains the meaning of this notation but the point to make here is that because all regression models are variations of this equation, a modeling strategy of learning or doing statistics is more coherent than a flowchart strategy. Generalizations of this basic equation include general linear models, generalized least squares models, linear mixed models, generalized linear models, generalized additive models, causal graphical models, multivariate models, and machine learning. This book is not a comprehensive source for any of these methods but an introduction to the common foundations of all these methods.
+
+2. Estimates of effects and uncertainty are, ultimately, *far* more useful than *p*-values. For example, to build useful models on the effects of an increasingly acidified ocean on coral growth, we want to estimate the *direction* and *magnitude* of the effects at different levels of acidification and how these estimates change under different conditions. We can compare the magnitude to a prediction of the magnitude from a mechanistic model of growth. We can use a magnitude and uncertainty to make predictions about the future of coral reefs, under different scenarios of ocean acidification. We can use the estimated effects and uncertainty to model the consequences of the effects of acidification on coral growth on fish production or carbon cycling.
+
+By contrast, researchers learn little from a hypothesis test -- that is, comparing *p* to 0.05. A *p*-value is a measure of compatibility between the data and the null hypothesis and, consequently, a pretty good -- but imperfect -- tool to dampen the frequency that we are fooled by randomness. Importantly, a *p*-value **is not a measure of the size of an effect**. At most, a small *p*-value gives a researcher some confidence in the existence and direction of an effect. But if we are investigating the effects of acidified ocean water on coral growth, it would be absurd to conclude from a *p*-value that pH does or does not affect growth. pH affects *everything* about cell biology.
+
+*p*-values are neither necessary nor sufficient for good data analysis. Properly understood, a *p*-value is a useful tool in the data analysis toolkit. As stated above, the proper use of *p*-values dampens the frequency that we are fooled by randomness. Importantly, the estimation of effects and uncertainty and the computation of a *p*-value are not alternatives. Indeed, the *p*-value returned by many hypothesis tests are computed from the regression model used to estimate the effects. Throughout this text, statistical models are used to compute a *p*-value *in addition to* the estimates of effects and their uncertainty.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 **NHST Blues** -- The "discovery by p-value" strategy, or Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with much less emphasis on estimation and uncertainty. The NHST strategy of learning or doing statistics is easy in that it requires little understanding of the statistical model underneath the tests and its assumptions, limitations, and behavior. The NHST strategy in combination with point-and-click software enables "mindless statistics"^[Gegenrezer] and encourages the belief that statistics is a tool like a word processor is a tool, afterall, a rigorous analysis of one's data requires little more than getting p-values and creating bar plots. Indeed, many PhD programs in the biosciences require no statistics coursework and the only training available to students is from the other graduate students and postdocs in the lab. As a consequence, the biological sciences literature is filled with error bars that imply data with negative values and p-values that have little relationship to the probability of the data under the null. More importantly for science, the reported statistics are often not doing for the study what the researchers and journal editors think they are doing.
 </div> 
 
 ## Math
-
 
 ## R and programming
 

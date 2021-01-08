@@ -1,115 +1,157 @@
 # P-values
 
-```{r setup-inference, echo=FALSE, warning=FALSE, message=FALSE}
-library(ggplot2)
-library(ggpubr)
+*A general perception of a “replication crisis” may thus reflect failure to recognize that statistical tests not only test hypotheses, but countless assumptions and the entire environment in which research takes place. Because of all the uncertain and unknown assumptions that underpin statistical inferences, we should treat inferential statistics as highly unstable local descriptions of relations between assumptions and data, rather than as providing generalizable inferences about hypotheses or models. And that means we should treat statistical results as being much more incomplete and uncertain than is currently the norm.*^[Amrhein, V., Trafimow, D. and Greenland, S., 2019. Inferential statistics as descriptive statistics: There is no replication crisis if we don’t expect replication. The American Statistician, 73(sup1), pp.262-270.]
+
+```{r pvalue-setup, echo=FALSE, warning=FALSE, message=FALSE}
+
+# wrangling packages
+library(here)
+library(janitor)
 library(readxl)
-library(emmeans)
 library(data.table)
-library(harrellplot)
-# for harrellplot
-library(broom)
-library(cowplot)
-library(car)
-library(Hmisc)
+library(stringr)
+
+# analysis packages
+library(emmeans)
 library(mvtnorm)
-library(here) # here
-library(janitor) # clean_names
-library(broom) # glance
 
-data_path <- "data" # bookdown
+# graphing packages
+library(ggsci)
+library(ggpubr)
+library(ggforce)
+library(ggthemes)
+library(cowplot)
+library(lazyWeave) #pvalstring
+
+here <- here::here
+data_folder <- "data"
+
+source_path <- here("R", "ggplotsci.R")
+source(source_path)
+
+# Okabe & Ito palette
+pal_okabe_ito <- colorblind_pal()(8)[2:8] # ggthemes
 ```
 
-## $p$-values
+A *p*-value *is a measure of the compatibility between observed data and the null model*. Here, "compatibility" is a probability, specifically, the probability of sampling a test-statistic as or more extreme than the observed test statistic, if all the assumptions used to compute the *p*-value are true.
 
-Let's use the vole data to introduce the *p*-value. The archived format of these data requires some wrangling -- a method for this is in [Vole data].
+To deconstruct what this means, and the implications of the meaning, let's use the experiment from Figure 2i in the study on the browning of white adipose tissue in mice that was introduced in Chapter \@ref(analyzing-experimental-data-with-a-linear-model) ([Analyzing experimental data with a linear model]).
 
-```{r inference-vole, echo=FALSE, message=FALSE, warning=FALSE}
-folder <- "Data from Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
-filename <- "RSBL-2013-0432 vole data.xlsx"
-file_path <- here(data_path, folder, filename)
-vole <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
-vole <- clean_names(vole)
-vole[control==1, treatment:="control"]
-vole[vitamin_c==1, treatment:="vitamin_C"]
-vole[vitamin_e==1, treatment:="vitamin_E"]
-setnames(vole, old="lifespan_days", "lifespan")
+Data source: [ASK1 inhibits browning of white adipose tissue in obesity](https://www.nature.com/articles/s41467-020-15483-7)
+
+```{r p-value-fig_2i, echo=FALSE, message=FALSE, warning=FALSE}
+data_from <- "ASK1 inhibits browning of white adipose tissue in obesity"
+file_name <- "41467_2020_15483_MOESM4_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+  
+fig_2_sheet <- "Source Date_Figure 2"
+
+range_2i <- "A265:G266"
+treatment_levels <- c("ASK1F/F", "ASK1Δadipo")
+fig_2i <- read_excel(file_path,
+                     sheet = fig_2_sheet,
+                     range = range_2i,
+                     col_names = FALSE) %>%
+  transpose(make.names=1) %>%
+  data.table() %>%
+  melt(measure.vars = treatment_levels,
+       variable.name = "treatment",
+       value.name = "liver_tg") %>%
+  na.omit()
+
+fig_2i[, treatment := factor(treatment, treatment_levels)]
+
+# View(fig_2i)
+
 ```
 
-A typical analysis would compare the means of the two supplement treatment levels with the control treatment level and use a *p*-value as evidence of "an effect".
-
-```{r inference-vole-fit, echo=FALSE}
-# fit
-fit <- lm(lifespan ~ treatment, data=vole)
-fit.em <- emmeans(fit, spec="treatment")
-p.table <- data.table(summary(
-  contrast(fit.em, method="revpairwise", adjust="none"), infer=c(TRUE, TRUE)))
-knitr::kable(p.table, digits=c(1,1,0,1,1,1,1,3))
-
-# these are for writing up the report
-t.e <- p.table[contrast=="vitamin_E - control", "t.ratio"]
-p.e <- p.table[contrast=="vitamin_E - control", "p.value"]
-t.c <- p.table[contrast=="vitamin_C - control", "t.ratio"]
-p.c <- p.table[contrast=="vitamin_C - control", "p.value"]
+```{r p-value-fig_2i_m1, echo = FALSE}
+fig_2i_m1 <- lm(liver_tg ~ treatment, data = fig_2i)
 ```
 
-The table above gives the SE, $t$ and *p*-value for each pairwise contrast (difference in means) among the three treatment levels. A typical report (one with several misconceptions) might read
+A linear model with `liver_tg` as the response variable and `treatment` as the single $X$-varaiable was fit to the data. Figure \@ref(p-value-fig2i-fig) is the plot of the modeled means, 95% confidence intervals of the mean, and *p*-value of the significance test of the effect of treatment on liver triacylglycerol.
 
-"We found a significant effect of Vitamin C ($t=$ `r round(t.c, 1)`, $p=$ `r round(p.c, 3)`) on lifespan, but no effect of vitamin E ($t=$ `r round(t.e, 1)`, $p=$ `r round(p.e, 3)`) on lifespan."
+```{r p-value-fig2i-fig, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = "UCP1 expression, relative to the mean level in the control group. Mean (circle) and 95% confidence interval (line) are shown. Unadjusted p-values are from linear model with sh-RNA treatment and LPS treatment fully crossed."}
+fig_2i_m1_emm <- emmeans(fig_2i_m1, specs = "treatment")
+fig_2i_m1_pairs <- contrast(fig_2i_m1_emm,
+                            method = "revpairwise") %>%
+  summary(infer = TRUE)
 
-A $p$ value *is a continuous measure of evidence against the null*. As long as the data approximate the assumptions of the null hypothesis pretty well, a very small *p*-value, such as 0.0005, is pretty good evidence against the null hypothesis -- but does not mean "an effect exists". To show an effect exists, we should have small *p*-values in multiple replicates *and* we should rigorously probe the hypothesis with different experiments that challenge the hypothesis in different ways. A small $p$ is evidence for a research program to move forward with replication and probing. A big *p*-value, say 0.22 or 0.76, is pretty weak evidence against the null, but does not mean "there is no effect." If an experiment is well designed, a big $p$ could suggest abandoning any hypotheses that predict biologically consequential effects. Unfortunately, a big $p$ could also reflect a weak experimental design. Between small and big $p$ values, such as 0.009 or 0.11, problems arise. These intermediate *p*-values beg for replication. A major problem of inference using $p$ values is that there is no sharp boundaries in how to interpret p-values. Biologists, encouraged by both the literature and textbooks, typically use $p < 0.05$ as a sharp boundary to declare that an effect exists or not. This "dichotomania" is discussed below.
+gg1 <- ggplot_the_response(
+  fig_2i_m1,
+  fig_2i_m1_emm,
+  fig_2i_m1_pairs,
+  y_label = "Liver TG (µmol per g liver)",
+  contrast_rows = "all",
+  palette = pal_okabe_ito_4,
+)
 
-Okay. so what *is* a *p*-value? When we do a *t*-test, we get a *p*-value. There are several ways to think about this probability. The most compact way is $P(data | null)$, which is literally read as the probability of the data given the null (or "conditional" on the null), but is really short for *the probability of the data, or something more extreme than the data, given that the null hypothesis is true*. The "probability of the data" is kinda vague. More specifically, we mean the probability of some statistic about the data such as the difference in means between group A and group B or the *t*-value associated with this difference. So, a bit more formally, the probability returned in a *t*-test is $\mathrm{prob}(t \ge t_{obs} | H_0)$. This is the long run frequency of observing a *t*-value as big or bigger than the observed *t*-value (the one you actually got with your data) if the null is true. Let's parse this into "long run frequency of observing a *t*-value as big or bigger than the observed *t*-value" and "null is true".
+gg1
+```
 
-A thought experiment: You open a google sheet and insert 12 standard, normal random deviates (so the true mean is zero and the true variance is one) in Column A, rows 1-12. You arbitrarily assign the first six values (rows 1-6) to treatment A and the second six values (rows 7-12) to treatment B. You use the space immediately below these data to compute the mean of treatment A, the mean of treatment B, the difference in means (A - B), and a *t*-value. Unfortunately, google sheets doesn't have a *t*-value function so you'd have to compute this yourself. Or not, since this is a thought experiment. Now ``fill right'' or copy and paste these functions into 999 new columns. You now have 1000 *t*-tests. The expected value of the difference in means is zero (why?) but the actual values will form a normal distribution about zero. Most will be close to zero (either in the negative or positive direction) but some will be further from zero. The expected *t*-value will also be zero (why?) and the distribution of these 1000 $t$ values will look normal but the tails are a little fuller. This row of $t$ values is a null distribution, because in generating the data we used the exact same formula for the values assigned to A and the values assigned to B. Now think of a *t*-value in your head, say 0.72 (remember that $t$ values will largely range from about -3 to +3 although the theoretical range is $-\infty$ to $+\infty$. What is the probability of observing a $t$ of 0.72 *or bigger* if the null is true? Look at the row of *t*-values! Count the number of $t \ge 0.72$ and then divide by the total number of *t*-values in the row (1000) and you have a probability computed as a frequency. But remember the frequentist definition is the long run frequency, or the expected frequency at the limit (when you've generated not 1000 or even 1,000,000 but an infinite number of columns and *t*-values).
+```{r pvalue-fig_2i_m1_coef, echo=FALSE}
+fig_2i_m1_coef_p1 <- summary(fig_2i_m1) %>%
+  coef()
+fig_2i_m1_coef_p2  <- confint(fig_2i_m1)
+fig_2i_m1_coef <- cbind(fig_2i_m1_coef_p1,
+                        fig_2i_m1_coef_p2)
+```
 
-Some asides to the thought experiment: First, why "as big or bigger" and not just the probability of the value itself? The reason is that the probability of finding the exact $t$ is 1/infinity, which doesn't do us much good. So instead we compute the probability of finding $t$ as big, or bigger, than our observed $t$. Second, the *t*-test probability described above is a "one-tail probability". Because a difference can be both in the positive direction and the negative direction, we usually want to count all the $t \ge 0.72$ and the $t \le -0.72$ and then add these two counts to compute the frequency of *as extreme or more extreme* values. This is called a "two-tailed probability" because we find extremes at both tails of the distribution. Third, we don't really count $t \ge 0.72$ but take advantage of the beautiful mathematical properties of the theoretical $t$ distribution, which allows us to compute the frequentist probability (expected long range frequency) given the *t*-value and the degrees of freedom using the *t*-distribution.
+The coefficients of the model, and the standard error, 95% confidence interval, test-statistic, and *p*-value of each coefficient are shown in Table \@ref(tab:pvalue-coef-table) Recall from Chapter \@ref(analyzing-experimental-data-with-a-linear-model) that, with this model, the coefficient for the intercept term is the mean `liver_tg` for the control group, which is the estimate of the true mean for a mice with functional ASK1 protein. And the coefficient for the treatmentASK1Δadipo term is the difference in means between the knockout and control group, which is the estimate for the true effect of knocking out ASK1 in the adipose tissue. The *p*-value for this "effect" term is 0.012. How do we interpret this number?
 
-Now what do I mean with the phrase "null is true"? Most people equate "null is true" with ``no difference in means'' but the phrase entails much more than this. Effectively, the phrase means that the *p*-value is based on modeling the real data with a theoretical sample in which all the points were randomly sampled from the same distribution and that the assignment of the individual points to treatment was random. This model means the theoretical sample has three properties: First, random assignment to treatment after sampling from the same distribution means that the expected means are the same, or put differently, the expected difference in means between the assigned groups is zero. Second, random assignment to treatment after sampling from the same distribution *also* means that the expected variances of the two groups are equal. And third, random sampling means that the values of each point are independent -- we cannot predict the value of one point knowing information about any other point. **Here is what is super important about this**: if we get a really low *p*-value, any one of these consequences may be untrue about our data, for example it could be that the true means of the two treatment groups really are different, or it could mean it is the variances that differ between the two groups, or it could mean that the data (or technically, the errors) are not independent of each other. This is why we need certain assumptions to make a *p*-value meaningful for empirical data. By assuming independent error and homogenous (equal) variances in our two samples, a low $p$ value is evidence of unequal means.
+```{r pvalue-coef-table, echo=FALSE}
+#colnames(fig_2i_m1_coef) <- c("Estimate", "SE", "t", "p", "2.5 %", "97.5 %")
+knitr::kable(fig_2i_m1_coef, digits = c(1, 2, 1, 3, 1, 1))
+```
 
-## Creating a null distribution.
+## A *p*-value is the probability of sampling a value as or more extreme than the test statistic if sampling from a null distribution
 
-Let's repeat: A pretty good definition of a *p*-value is: the long-run frequency of observing a test-statistic as large or larger than the observed statistic, if the null were true. A more succinct way to state this is
+The test statistic in the table above is a *t*-value. For this specific model, this *t*-value is precisely the *t*-value one would get if they executed a classical Student *t*-test on the two groups of liver TG values. Importantly, this is not generally true. For many of the models in this text, a *t*-value is computed but this is *not* the *t*-value that would be computed in a classical *t*-test.
+
+When we do a *t*-test, we get a *p*-value. The probability returned in a *t*-test is $p = \mathrm{prob}(t \ge t_{obs} | H_0)$. Read this as "the p-value is the probability of observing a t-value that is greater than or equal to the observed t-value, given the null model is true." Probability, in this text, is a long run frequency of sampling. The specific probability associated with the effect of treatment on liver TG is the long-run frequency of observing a *t*-value as big or bigger than the observed *t*-value (the one you actually got with your data) if the null is true. Let's parse this into "long run frequency of observing a *t*-value as big or bigger than the observed *t*-value" and "null is true".
+
+A thought experiment: You open a google sheet and insert 12 standard, normal random deviates (so the true mean is zero and the true variance is one) in Column A, rows 1-12. You arbitrarily assign the first six values (rows 1-6) to treatment A and the second six values (rows 7-12) to treatment B. You use the space immediately below these data to compute the mean of treatment A, the mean of treatment B, the difference in means (A - B), and a *t*-value. Unfortunately, google sheets doesn't have a *t*-value function so you'd have to compute this yourself. Or not, since this is a thought experiment. Now "fill right" or copy and paste these functions into 999 new columns. You now have 1000 *t*-tests. The expected value of the difference in means is zero (why?) but the actual values will form a normal distribution about zero. Most will be close to zero (either in the negative or positive direction) but some will be further from zero. The expected *t*-value will also be zero (why?) and the distribution of these 1000 *t*-values will look normal but the tails are a little fuller. This row of *t*-values is a null distribution, because in generating the data we used the exact same formula for the values assigned to A and the values assigned to B. Now think of a *t*-value in your head, say 0.72 (remember that *t*-values will largely range from about -3 to +3 although the theoretical range is $-\infty$ to $+\infty$. What is the probability of observing a *t* of 0.72 *or bigger* if the null is true? Look at the row of *t*-values! Count the number of $t \ge 0.72$ and then divide by the total number of *t*-values in the row (1000) and you have a probability computed as a frequency. But remember the frequentist definition is the long run frequency, or the expected frequency at the limit (when you've generated not 1000 or even 1,000,000 but an infinite number of columns and *t*-values).
+
+Some asides to the thought experiment: First, why "as big or bigger" and not just the probability of the value itself? The reason is that the probability of finding the exact *t* is 1/infinity, which doesn't do us much good. So instead we compute the probability of finding *t* as big, or bigger, than our observed *t*. Second, the *t*-test probability described above is a "one-tail probability". Because a difference can be both in the positive direction and the negative direction, we usually want to count all the $t \ge 0.72$ and the $t \le -0.72$ and then add these two counts to compute the frequency of *as extreme or more extreme* values. This is called a "two-tailed probability" because we find extremes at both tails of the distribution. Third, we don't really count $t \ge 0.72$ but take advantage of the beautiful mathematical properties of the theoretical *t* distribution, which allows us to compute the frequentist probability (expected long range frequency) given the *t*-value and the degrees of freedom using the *t*-distribution.
+
+Now what do I mean with the phrase "null is true"? Most people equate "null is true" with "no difference in means" but the phrase entails much more than this. Effectively, the phrase is short for "all assumptions used to compute" the *p*-value (see the Sander Greenland quote at the start of this chapter). A *p*-value is based on modeling the real data with a theoretical sample in which all the values were randomly sampled from the same distribution and the assignment of the individual values to treatment was random. Random sampling from the same distribution has three important consequences. First, random assignment to treatment group means that the expected means of each group are the same, or put differently, the expected difference in means between the assigned groups is zero. Second, random assignment to treatment *also* means that the expected variances of the two groups are equal. And third, random sampling means that the values of each point are independent -- we cannot predict the value of one point knowing information about any other point. **Here is what is super important about this**: a low *p*-value is more likely if *any* one of these consequences is untrue about our data. A low *p*-value could arise from a difference in true means, or it could arise from a difference in true variances, or it could arise if the $Y$ values are not independent of each other. This is why we need certain assumptions to make a *p*-value meaningful for empirical data. By assuming independent error and homogenous (equal) variances in our two samples, a low *p*-value is evidence of unequal means.
+
+Let's summarize: A pretty good definition of a *p*-value is: the long-run frequency of observing a test-statistic as large or larger than the observed statistic, if the null were true. A more succinct way to state this is
 
 \begin{equation}
 p = \mathrm{prob}(t \ge t_o | H_o)
 \end{equation}
 
-where $t$ is a hypothetically sampled *t*-value from a null distribution, $t_o$ is the observed *t*-value, and $H_o$ is the null hypothesis. Part of the null hypothesis is the expected value of the parameter estimated is usually (but not always) zero -- this can be called the nil null. For example, if there is no vitamin E effect on lifespan, then the expected difference between the means of the control and vitamin E treatment levels is zero. Or, 
+where *t* is a hypothetically sampled *t*-value from a null distribution, $t_o$ is the observed *t*-value, and $H_o$ is the null hypothesis. Part of the null hypothesis is the expected value of the parameter estimated is usually (but not always) zero -- this can be called the nil null. For example, if there is no ASK1 deletion effect on liver TG levels, then the expected difference between the means of the control and knockout mice is zero. Or, 
 
 \begin{equation}
-\mathrm{E}(\bar{vitamin_E} - \bar{control} | H_o) = 0.0
+\mathrm{E}(\bar{Y}_{knockout} - \bar{Y}_{control} | H_o) = 0.0
 \end{equation}
 
-let's plot the data and look at the group means. Below is a strip chart of the vole data with superimposed treatment level means, using the function `ggstripchart` from the ggpubr package (can you make this?). I'm going to refer to this kind of chart as a "dot plot", which is what most biology researchers call this type of chart.
+## Pump your intuition -- Creating a null distribution
 
-```{r inference-strip-chart, echo=FALSE}
-ggstripchart(data=vole, x="treatment", y="lifespan", add = c("mean"), add.params=list(color="red"))
-```
+The mean `liver_tg` in the knockout treatment is `r round(abs(fig_2i_m1_coef["treatmentASK1Δadipo","Estimate"]), 1)` µmol less than the mean `liver_tg` in the control treatment. This is the measured effect, or the **observed differences in means**. How confident are we in this effect? Certainly, if the researchers did the experiment with *two* control (ASK1F/F) treatment groups, they would measure some difference in their means simply because of finite sampling (more specifically, the many, many random effects that contribute to liver TG levels will differ between the two control groups). So let's reframe the question: are the observed differences unusually large compared to a distribution of differences that would occur if there were no effect? That is, if the ``null were true''. To answer this, we compare our observed difference to this **null distribution**. This comparison gives the probability (a long-run frequency) of "sampling" a random difference from the null distribution of differences that is as large, or larger, than the observed difference.
 
-### the Null Distribution
+What is a null distribution? It is the distribution of a statistic (such as a difference in means, or better, a *t*-value) if the null were true. Here, I hope to pump your intuition by generating a null distribution that is relevant to the ASK1 liver TG data. See if you can understand the script before reading the explanation below.
 
-```{r inference-lm, echo=FALSE}
-b <- coef(fit)
-```
-
-The mean lifespan in the vitamin_E treatment is `r round(abs(b["treatmentvitamin_E"]), 1)` days shorter than the mean lifespan in the control treatment. And, the mean lifespan in the vitamin_E treatment is `r round(abs(b["treatmentvitamin_C"]), 1)` days shorter than the mean lifespan in the control treatment. These are the measured effects, or the **observed differences in means**. How confident are we in these effects? Certainly, if the researchers did the experiment with *two* control treatment groups, they would measure some difference in their means simply because of finite sampling (more specifically, the many, many random effects that contribute to lifespan will differ between the two control groups). So let's reframe the question: are the observed differences unusually large compared to a distribution of differences that would occur if there were no effect? That is, if the ``null were true''. To answer this, we compare our observed difference to this **null distribution**. This comparison gives the probability (a long-run frequency) of "sampling" a random difference from the null distribution of differences that is as large, or larger, than the observed difference.
-
-What is a null distribution? It is the distribution of a statistic (such as a difference in means, or better, a *t*-value) if the null were true. Here, I am generating a null distribution that is relevant to the cold vole data. See if you can understand the script before reading the explanation below.
-
-```{r null-distribution, message=FALSE, warning=FALSE, fig.cap="Null distribution for an infinitely large data set that looks curiously like the lifespans of the cold-rear voles from the control treatment."}
+```{r pvalue-d-null, message=FALSE, warning=FALSE, fig.cap="Null distribution for the difference in means of two samples from the same, inifinitely large population with a true mean and standard deviation equal to the observed mean and standard deviation of the ASK1 liver TG data."}
 seed <- 1
 n_iter <- 10^5 # number of iterations
-mu <- mean(vole[treatment=='control', lifespan]) 
-sigma <- sd(vole[treatment=='control', lifespan])
-n <- nrow((vole[treatment=='control',]))
+
+mu <- mean(fig_2i[treatment == "ASK1F/F", liver_tg]) 
+sigma <- sd(fig_2i[treatment == "ASK1F/F", liver_tg])
+
+n <- nrow((fig_2i[treatment == "ASK1F/F",]))
+
 sample1 <- matrix(rnorm(n*n_iter, mean=mu, sd=sigma), nrow=n) # 100,000 samples (each size n)
 sample2 <- matrix(rnorm(n*n_iter, mean=mu, sd=sigma), nrow=n) # 100,000 samples
-null_dis <- apply(sample2, 2, mean) - apply(sample1, 2, mean)
-qplot(null_dis)
+
+d_null <- apply(sample2, 2, mean) - apply(sample1, 2, mean)
+
+qplot(d_null)
 ```
 
-What have we done above? We've simulated an infinitely large population of voles that have a distribution of lifespans similar to that of the cold-reared voles assigned to the control group. The mean $\mu$ and standard deviation $\sigma$ of the simulated lifespan are equal to the observed mean and standard deviation of the lifespans of the control voles. Then, the script:
+What have we done above? We've simulated an infinitely large population of mice that have a distribution of liver TG levels similar to that of the mice assigned to the control (ASK1F/F) group. The true mean ($\mu$) and standard deviation ($\sigma$) of the simulated TG level are equal to the observed mean and standard deviation of the TG levels of the control mice Then, the script:
 
 1. randomly sample `r n` values from this population of simulated lifespans and assign to sample1. We sample `r n` values because that is the sample size of our control in the experiment.
 2. randomly sample `r n` values from this population of simulated lifespans and assign to sample2.
@@ -117,44 +159,54 @@ What have we done above? We've simulated an infinitely large population of voles
 4. repeat 1-3 100,000 times, each time saving the difference in means.
 5. plot the distribution of the 100,000 differences using a histogram
 
-The distribution of the differences is a null distribution. Notice that the mode of the null distribution is at zero, and the mean (`r round(mean(null_dis), 5)`) is close to zero (if we had set $n$ to infinity, the mean would be precisely zero). *The expected difference between the means of two random samples from the same population is, of course, zero*. Don't gloss over this statement if that is not obvious. The tails extend out to a little more than +100 and -100. What this means is that it would be rare to randomly sample two sets of data from the same population with mean $\mu$ and standard deviation $\sigma$ and find a difference of, say, -257. In fact, in the 100,000 runs, there were no difference as large as |-257| (the absolute value of -257). The minimum and maximum differences sampled over the 100,000 iterations was `r round(min(null_dis, 0))` days and `r round(max(null_dis, 0))` days.
+The distribution of the differences is a null distribution. Notice that the mode of the null distribution is at zero, and the mean (`r round(mean(d_null), 5)`) is close to zero (if we had set $n$ to infinity, the mean would be precisely zero). *The expected difference between the means of two random samples from the same population is, of course, zero*. Don't gloss over this statement if that is not obvious. The tails extend out to a little more than +20 and -20. What this means is that it would be uncommon to randomly sample a value from this distribution of differences *as or more extreme* than our observed difference, -21.6. By "more extreme", I mean any value more negative than -21.6 or more postive than 21.6. So it would be uncommon to sample a value from this distribution whose *absolute value* is as or more extreme than 21.6. How uncommon would this be?
 
-```{r inference-bootstrap-p, echo=FALSE}
-le_vitamin_E <- sum(null_dis<=-abs(b["treatmentvitamin_E"]))
-ge_vitamin_E <- sum(null_dis>=abs(b["treatmentvitamin_E"]))
-p_vitamin_E <- ((le_vitamin_E + ge_vitamin_E)+1)/(n_iter + 1)
+```{r pvalue-d-null-p}
+diff_obs <- fig_2i_m1_coef["treatmentASK1Δadipo", "Estimate"]
+null_diff_extreme <- which(abs(d_null) > abs(diff_obs))
+n_extreme <- length(null_diff_extreme)
+(p_d_null = n_extreme/n_iter)
 ```
 
-How do our observed differences compare? Let's focus on vitamin E. The vitamin_E effect is `r round(b["treatmentvitamin_E"], 1)` days. There are `r le_vitamin_E` sampled differences less than the observed value and `r ge_vitamin_E` greater than the absolute value of the observed value. Together this is `r ge_vitamin_E + le_vitamin_E` so the frequency of differences from the simulated null distribution that as larger or larger than the observed difference is `r round(p_vitamin_E, 3)` (this compuation includes the observed value in both the numerator and denominator).
+In the 100,000 runs, only `r n_extreme` generated data with an absolute difference as large or larger than 21.6 (an "absolute difference" is the absoute value of the difference). The frequency of differences as large or larger than our observed difference is `r p_d_null`. This frequency is the *probability* of sampling a difference as or more extreme than the observed difference "under the null". It is a *p*-value, but it is not the *p*-value in the coefficient table. This is because the *p*-value in the coefficient table is computed from a distribution of *t*-values, not raw differences. This raises the question, what is a *t*-distribution, and a *t*-value, more generally?
 
-### t-tests
+## A null distribution of *t*-values -- the *t* distribution
 A *t*-test is a test of differences between two values. These could be
 
 1. the difference between the means of two samples (a "two-sample" *t*-test)
 2. the difference between a mean of a sample and some pre-specified value (a "one-sample" *t*-test)
-3. the difference between a coefficient from a linear model and a value (often zero)
+3. the difference between a coefficient from a linear model and zero
 
-A *t*-test compares an observed *t*-value to a *t*-distribution. The null distribution introduced above was a distribution of mean differences. This isn't generally useful, since the distribution of expected mean differences under the null will be unique to every study. A *t*-distribution is a distribution of *t*-values under the null (statistical jargon for "given the null is true"), where a *t*-value is a difference standardized by its standard error. For a two-sample *t*-test, this is
+A *t*-test compares an observed *t*-value to a *t*-distribution. The null distribution introduced above was a distribution of mean differences under the null. A distribution of mean differences under the null is very specific to the mean and standard deviation of the population modeled and the sample size of the experiment. This isn't generally useful, since it will be unique to every study (at least it wasn't generally useful prior to the time of fast computers. One could, and some statisticians do, compute *p*-values using the algorithm above). A *t*-distribution is a way of transforming a null distribution of mean differences, which is unique to the study, into a distribution that is a function of sample size only. 
+
+A *t*-distribution is a distribution of *t*-values under the null, where a *t*-value is a difference *standardized by its standard error*. For a two-sample *t*-test, this is
 
 \begin{equation}
-t = \frac{\bar{X}_1 - \bar{X}_2}{SE_{\bar{X}_1 - \bar{X}_2}}
+t = \frac{\bar{y}_2 - \bar{y}_1}{SE_{\bar{y}_2 - \bar{y}_1}}
+(\#eq:t)
 \end{equation}
 
 The numerator is **the effect** while the denominator is the precision of the estimate. Like many test statistics, a *t*-value is a signal-to-noise ratio -- the effect is the signal and the SE of the difference is the noise.
 
-A *t* distribution looks like a standard, normal distribution, except the tails are heavy, meaning there are more large-ish values than the normal. Like the standard normal distribution, large *t*-values are unlikely under the null and, therefore, a large *t* has a low probability -- or *p*-value -- under the null. Looking at the equation for the two-sample *t*-test above, it is easy to see that three features of an experiment are associated with large *t* and small *p*-values: 1) big effect size (the numerator of the equation), 2) small sample standard deviations (which results in small standard errors of the difference, the denominator of eq xxx), and 3) large sample size (which results in small standard errors of the difference). As a quick-and-dirty generalization, absolute t-values greater than 2 are unlikely if the null is true.
+A *t* distribution looks like a standard, normal distribution, except the tails are heavy, meaning there are more large-ish values than the normal. Like the standard normal distribution, large *t*-values are unlikely under the null and, therefore, a large *t* has a low probability -- or *p*-value -- under the null.
 
-The difference between the mean of the vitamin_E treatment and the control treatment is `r round(b["treatmentvitamin_E"], 1)`. A two-sample *t*-test of this difference is `r t.test(x=vole[treatment=='vitamin_E', lifespan], y=vole[treatment=='control', lifespan], var.equal=TRUE)$p.value`
+Looking at the equation for the two-sample *t*-test above, it is easy to see that three features of an experiment are associated with large *t* and small *p*-values: 1) big effect size (the numerator of the equation), 2) small sample standard deviations (which results in small standard errors of the difference, the denominator of equation \@ref(eq:t), and 3) large sample size (which results in small standard errors of the difference). As a quick-and-dirty generalization, absolute t-values greater than 3 are uncommon if the null is true.
 
-The *p*-value comes from comparing the observed $t$ to a null $t$ distribution and "counting" the values that are bigger than the observed $t$. These are counted in both tails, because $p$ is the probability of a $t$ more extreme than the observed value, and $t$ can be more extreme in the negative direction and in the positive direction. We can simulate this with a finite, instead of infinite, null distribution using the t-distribution instead of the distribution of mean differences, as above. I show the script, but don't just cut and paste the code. Spend time thinking about what the each line does. Explore it by copying parts and pasting into console.
+The *p*-value for a *t*-test comes from comparing the observed *t* to a null *t* distribution and "counting" the values that are more extreme than the observed *t*. The *p*-value is the relative frequency of these more extreme values (relative to the total number of *t*-values in the distribution). I have "counting" in quotes because nothing is really counted -- there are an infinite number of *t*-values in the *t*-distribution. Instead, the t-distribution function is integrated to compute the fraction of the total area under the curve with *t*-values more extreme than the observed value. In a **two-tailed test**, this fraction includes both tails (positive *t*-values more positive than $|t|_{observed}$ and negative *t*-values more negative than $-|t|_{observed}$.
 
-```{r null-distribution-t, echo=TRUE, message=FALSE, warning=FALSE, fig.cap="Null distribution of t-values. The simulation generated 10,000 t-tests with a true null."}
-set.seed(1)
-n_iter <- 10^4 # number of iterations
-mu <- mean(vole[treatment=='control', lifespan]) 
-sigma <- sd(vole[treatment=='control', lifespan])
-n <- nrow((vole[treatment=='control',]))
-sample1 <- matrix(rnorm(n*n_iter, mean=mu, sd=sigma), nrow=n) # 100,000 samples
+Let's modify the simulation of a null distribution of mean differences to generate a null distribution of *t*-values. I show the script, but don't just cut and paste the code. Spend time thinking about what the each line does. Explore it by copying parts and pasting into console.
+
+```{r pvalue-t-null, echo=TRUE, message=FALSE, warning=FALSE, fig.cap="Null distribution of t-values. The simulation generated 10,000 t-tests with a true null."}
+
+seed <- 1
+n_iter <- 10^5 # number of iterations
+
+mu <- mean(fig_2i[treatment == "ASK1F/F", liver_tg]) 
+sigma <- sd(fig_2i[treatment == "ASK1F/F", liver_tg])
+
+n <- nrow((fig_2i[treatment == "ASK1F/F",]))
+
+sample1 <- matrix(rnorm(n*n_iter, mean=mu, sd=sigma), nrow=n) # 100,000 samples (each size n)
 sample2 <- matrix(rnorm(n*n_iter, mean=mu, sd=sigma), nrow=n) # 100,000 samples
 
 #way no. 1 - compute the t-tests manually
@@ -162,15 +214,25 @@ mean_diffs <- apply(sample2, 2, mean) - apply(sample1, 2, mean) # what is the ap
 se_mean_diffs <- sqrt(apply(sample2, 2, sd)^2/n + apply(sample1, 2, sd)^2/n)
 t_dis <- mean_diffs/se_mean_diffs
 
-#way no.2 - compute the t-tests using the base R function t.test
-# rbind stacks sample1 under sample2. I used this order to be consistent with
-# t.test function
-t_dis2 <- apply(rbind(sample2, sample1), 2, function(x) 
-  {t.test(x[1:n], x[(n+1):(2*n)], var.equal=TRUE)$statistic})
-# confirm that t_dis = t_dis2
+#way no.2 - compute the t-tests using the linear model
+fake_data <- rbind(sample1, sample2)
+treatment <- rep(c("control", "knockout"), each = n)
+t_dis2 <- numeric(n_iter)
+for(iter in 1:n_iter){
+  y <- fake_data[, iter]
+  fake_m1 <- lm(y ~ treatment)
+  t_dis2[iter] <- coef(summary(fake_m1))["treatmentknockout", "t value"]
+}
+
 
 # plot the null distribution of t-values
-qplot(t_dis)
+qplot(t_dis2)
+
+```
+
+Now let's use this null distribution of *t*-values to compute a *p*-value
+
+```{r pvalue-t-null-p}
 
 # what is the p-value?
 # the p-value is the number of t-values in t_dis that are as large
@@ -179,47 +241,74 @@ qplot(t_dis)
 # To account for this, we want to use absolute values in our counts
 # this is a "two-tail test"
 
-# first compute the observed t-value
-t_obs <- t.test(x=vole[treatment=='vitamin_E', lifespan],
-       y=vole[treatment=='control', lifespan],
-       var.equal=TRUE)$statistic
+# first assign the observed t-value
+t_obs <- fig_2i_m1_coef["treatmentASK1Δadipo", "t value"]
+
+
 # now count the number of t-values in t_dis as big or bigger than this
 # include the observed value as one of these (so add 1 to the count)
-count <- sum(abs(t_dis) >= abs(t_obs)) + 1
+count <- sum(abs(t_dis) >= abs(t_obs))
 
 # the p-value is the frequency of t_dis >= t_obs, so divide
 # count by the total number of t-values in the distribution.
 # Again add one since the observed value counts as a sample
-(p_vitamin_E <- count/(n_iter + 1))
+(p_ASK1Δadipo <- count/(n_iter))
 
 ```
 
-Hey that looks pretty good! A $p$ value can be computed by counting the number of simulated *t*-values, *including the observed value*, that are more extreme (in either the positive or negative direction) than the observed $t$. Including the observed $t$, there are `r as.integer(count)` values that are more extreme than that observed. An approximate measure of $p$ is this count divided by 100,001 (why is 1 added to the denominator?), which is `r p_vitamin_E`. This simulation-based *p*-value is very (very!) close to that computed from the observed *t*-test.
+Hey that looks pretty good! Compare this to the *p*-value in the coefficient table above.
 
-### P-values from the perspective of permutation
+A *p*-value can be computed by counting the number of simulated *t*-values, *including the observed value*, that are equal to or more extreme (in either the positive or negative direction) than the observed *t*. Including the observed *t*, there are `r as.integer(count)` values that are more extreme than that observed. An approximate measure of *p* is this count divided by 100,001 (why is 1 added to the denominator?), which is `r p_ASK1Δadipo`. This simulation-based *p*-value is very (very!) close to that computed from the observed *t*-test.
 
-A very intuitive way to think about *p*-values is with a permutation test. Consider two of the treatment levels in the vole data, say vitamin E and the vitamin C (I'm bored with the control!). Think about the structure of the dataset: there are two columns, "Treatment", which contains the assigned treatment, and "Lifespan". The values in the Treatment column were randomly assigned prior to the start of the experiment. If there is an effect of treatment on lifespan, then assginment matters -- the values in the lifespan column for the vitamin E rows will be more or less, on average, than the values in the lifepan column for the vitamin C rows. Or, the lifespan values are what they are *because* of the values in the treatment column.
+## P-values from the perspective of permutation
 
-Now let's leave the values in the treatment column be, and just randomly re-arrange or permute the lifespan values. What is the new expected diference in lifespan between the two treatments? Zero, of course! That is, because the lifespans were randomly re-arranged, they cannot be caused by treatment assignment!
+A very intuitive way to think about *p*-values as a frequency is **random permutation**. A permutation is a re-arrangement of items. If there is an effect of ASK1 deletion on liver TG, then the arrangement of the values in the `treatment` column matters. If there is no effect of ASK1 deletion on liver TG, then the arrangement of the values in the `treatment` column does not matter.
 
-A permutation is a random re-arrangement of values in a column. Consider the many thousands of permutations of the values in the lifespan column. A difference in means can be computed from each of these permuations and a distribution of differences can be generated. Is the observed difference extreme relative to the other values in this distribution? This is a permutation test -- it compares an observed statistic to a distributin of the statistic computed over many thousands of permutations.
+Think about the structure of the liver TG data: there are two columns, `treatment`, which contains the assigned treatment, and `liver_tg`. The values in the `treatment` column were randomly assigned prior to the start of the experiment. If there is a negative effect of ASK1 deletion on liver TG, then assginment matters -- the values in the `liver_tg` column for the ASK1Δadipo rows will be smaller than, on average, the values in the ASK1F/F rows. That is, a specific value of a`liver_tg` is what it is because of the value of `treatement` in the same row. Assignment to ASK1F/F or ASK1Δadipo changes the expected value of `liver_tg`. But, if there were no true effect, then assignment to ASK1F/F or ASK1Δadipo does not change the expected value of `liver_tg`. The expected value of every cell in the `liver_tg` column would be the same regardless of what is in the `treatment` column.
 
-## Statistical modeling instead of hypothesis testing
+In our thought experiment, let's leave the values in the `treatment` column be, and just randomly re-arrange or permute the values in the `liver_tg` column. What is the new expected diference in liver TG between the rows assigned to ASK1F/F and the rows assigned to ASK1Δadipo? The expected difference is Zero. Because the `liver_tg` values were randomly re-arranged, they *cannot* be caused by treatment assignment.
 
-This chapter is an introduction to a *p*-value by way of *t*-tests. I advocate that you analyze *t*-test like questions using statistical modeling instead of null hypothesis significance testing. The reason is that we learn much more from an estimate of the effect and a CI than from a $t$ and *p*-value. But, it is also good to know that a $t$ test is a special case of a linear model, and you can get that $t$ and $p$ using a statistical modeling approach should your boss want them (and you cannot convince them otherwise). Let's explore this.
+A permutation is a random re-arrangement of values in a column. Consider the many thousands of permutations of the values in the `liver_tg` column. A difference in means can be computed from each of these permuations and a distribution of differences can be generated. Is the observed difference extreme relative to the other values in this distribution? This is a permutation test -- it compares an observed statistic to a distribution of the statistic computed over many thousands of permutations.
 
-1. Using the emmeans package, compute the effects (differences in means) of vitamin E and vitamin C on lifespan, relative to the control, with their 95% CI and the $t$ and $p$ values for the cold-reared vole data.
-2. Compute a separate *t*-test of vitamin-E vs. control and vitamin C vs. control.
+Let's create a script for a permutation test
 
-Are the $t$ and $p$ values the same? No! The reason is that the statistical model had three groups and the SE of the difference was computed from the sample standard deviation of all three groups. Each t-test computes the SE of the difference from only the two groups being compared. In general, the SE computed from all three groups is better because it uses more information. This is one reason to prefer the linear model instead of the separate t-tests.
+```{r pvalue-d-dist-perm, warning=FALSE, message=FALSE}
 
-3. To convince yourself that a *t*-test is a special case as of a linear model, compute the effects of the vitamin E treatment (relative to control) **but exclude the vitamin C data from the model fit**. Now compare the $t$ and $p$ values with the *t*-test. These should be the same.
+set.seed(1)
+n_iter <- 5000 # number of random permutations
 
-4. Now use the default t.test function by deleting "var.equal=TRUE" from the function. Are $t$ and $p$ still equal to those from the statistical model? No! the reason is because the default t.test function uses a modification of the t-test called "Welsch's t-test". This test allows for heterogenity of variances. Several sources argue that one should always uses Welsch's test since it simplifies to the classical t-test when the sample variances are equal. This is true, but only relevant if you're into *t*-tests. And, we can model heterogenous variances using a statistical model. We'll do this in a later chapter.
+y <- fig_2i[, liver_tg]
+x <- fig_2i[, treatment]
 
-5. Use the function `pairwise.t.test` to compute all pairwise t.tests among the three treatment levels. Is the *p*-value for the vitamin_E - control contrast the same as that if using t.test (with var.equal=TRUE) or the statistical model with vitamin_C data excluded? No! The reason is that pairwise.t.test adjusts the p-values for multiple testing as a default.
+d_dist_perm <- numeric(n_iter)
 
-Pro tip: Before you use a new R function like t.test or pairwise.t.test, it is really advisable to read the help page and look at the defaults for the parameters! Researchers publish errors because they failed to look closely at what the R function was doing and they think the function is doing something else. Ooops!
+for(iter in 1:n_iter){
+  xbar1 <- mean(y[x == "ASK1F/F"])
+  xbar2 <- mean(y[x == "ASK1Δadipo"])
+  
+  d_dist_perm[iter] <- xbar2 - xbar1
+  
+  # permute y
+  y <- sample(y, replace=FALSE)
+  # note that, when i=1, the first "permutation" is the original arrangement
+}
+
+qplot(d_dist_perm)
+```
+
+From this distribution of distances generated by random permuation of the response, we can compute a permutation *p*-value.
+
+```{rpvalue-d-dist-perm-p }
+(p_permute <- sum(abs(d_dist_perm) >= abs(d_dist_perm[1]))/n_iter)
+```
+
+## Parametric vs. non-parametric statistics
+
+A statistic such as the difference in mean liver TG between ASK1Δadipo and ASK1F/F groups does not have "a" *p*-value. A *p*-value is the probability of observing an event *given a model of how the event was generated*. For the *p*-value in the coefficient table above, the event is sampling a *t*-value from a modeled *t* distribution that is as or more extreme than the observed *t*-value. The model generating the null distribution of *t*-values includes random sampling from a distribution that is defined by specific parameters (in this case, a mean and a variance), these parameters define the location and shape of the distribution of values that could be sampled. A *p*-value computed from a distribution that is defined by a set of parameters is a **parametric** *p*-value.
+
+For the *p*-value computed using the permutation test, the event is the probability of of computing a difference of means *from a randomly permuted set of $Y$* as or more extreme than the observed difference of means. The distribution of differences from the permutated $Y$ data sets was not generated by any of the known distributions (normal, Poisson, binomial, etc.) given a specific value of parameters. Consequently, the permutation *p*-value is **non-parametric**.
+
+The validity of all *p*-values depends on a set of model assumptions, which differ from model to model. The permutation *p*-value has fewer assumptions than a parametric *p*-value because no distribution is assumed (the permutation *p*-value is **distribution-free**).
 
 ## frequentist probability and the interpretation of p-values
 
@@ -230,17 +319,17 @@ There are at least three different meanings of **probability**.
 
 2. **classical probability** is simply one divided by the number of possible unique events. For example, with a six-sided die, there are six possible unique events. The probability of rolling a 2 is $\frac{1}{6}$ and the probability of rolling an odd number is $\frac{1}{2}$.
 
-3. **frequentist probability** is based on the concept of \textit{long run frequency}. If I roll a die 10 times, the frequency of rolling a 2 will be approximately $\frac{1}{6}$. If I roll the die 100 times, the frequency of rolling a two will be closer, but to $\frac{1}{6}$. If I roll the die 1000 times, the frequency of rolling the die will be even closer to $\frac{1}{6}$. So the frequentist definition is the expected frequency given an infinite number of rolls. For events with continous outcomes, a frequentist probability is the long run frquency of *observing the outcome or one more extreme*.
+3. **frequentist probability** is based on the concept of **long run frequency**. If I roll a die 10 times, the frequency of rolling a 2 will be approximately $\frac{1}{6}$. If I roll the die 100 times, the frequency of rolling a two will be closer to $\frac{1}{6}$. If I roll the die 1000 times, the frequency of rolling the die will be even closer to $\frac{1}{6}$. So the frequentist definition is the expected frequency given an infinite number of rolls. For events with continous outcomes, a frequentist probability is the long run frquency of *observing an outcome equal to or more extreme that that observed*.
 
 ### This book covers frequentist approaches to statistical modeling and when a probability arises, such as the *p*-value of a test statistic, this will be a frequentist probability.
 
 When we do a *t*-test, we get a *p*-value. There are several ways to think about this probability. The most compact way is $P(data | null)$, which is literally read as the probability of the data given the null (or "conditional" on the null), but is really short for *the probability of the data, or something more extreme than the data, given that the null hypothesis is true*. The "probability of the data" is kinda vague. More specifically, we mean the probability of some statistic about the data such as the difference in means between group A and group B or the *t*-value associated with this difference. So, a bit more formally, the probability returned in a *t*-test is $\mathrm{prob}(t \ge t_{obs} | H_0)$. This is the long run frequency of observing a *t*-value as big or bigger than the observed *t*-value (the one you actually got with your data) if the null is true. Let's parse this into "long run frequency of observing a *t*-value as big or bigger than the observed *t*-value" and "null is true".
 
-A thought experiment: You open a google sheet and insert 12 standard, normal random deviates (so the true mean is zero and the true variance is one) in Column A, rows 1-12. You arbitrarily assign the first six values (rows 1-6) to treatment A and the second six values (rows 7-12) to treatment B. You use the space immediately below these data to compute the mean of treatment A, the mean of treatment B, the difference in means (A - B), and a *t*-value. Unfortunately, google sheets doesn't have a *t*-value function so you'd have to compute this yourself. Or not, since this is a thought experiment. Now ``fill right'' or copy and paste these functions into 999 new columns. You now have 1000 $t$ tests. The expected value of the difference in means is zero (why?) but the actual values will form a normal distribution about zero. Most will be close to zero (either in the negative or positive direction) but some will be further from zero. The expected *t*-value will also be zero (why?) and the distribution of these 1000 $t$ values will look normal but the tails are a little fuller. This row of $t$ values is a null distribution, because in generating the data we used the exact same formula for the values assigned to A and the values assigned to B. Now think of a *t*-value in your head, say 0.72 (remember that $t$ values will largely range from about -3 to +3 although the theoretical range is $-\infty$ to $+\infty$. What is the probability of observing a $t$ of 0.72 *or bigger* if the null is true? Look at the row of *t*-values! Count the number of $t \ge 0.72$ and then divide by the total number of *t*-values in the row (1000) and you have a probability computed as a frequency. But remember the frequentist definition is the long run frequency, or the expected frequency at the limit (when you've generated not 1000 or even 1,000,000 but an infinite number of columns and *t*-values).
+A thought experiment: You open a google sheet and insert 12 standard, normal random deviates (so the true mean is zero and the true variance is one) in Column A, rows 1-12. You arbitrarily assign the first six values (rows 1-6) to treatment A and the second six values (rows 7-12) to treatment B. You use the space immediately below these data to compute the mean of treatment A, the mean of treatment B, the difference in means (A - B), and a *t*-value. Unfortunately, google sheets doesn't have a *t*-value function so you'd have to compute this yourself. Or not, since this is a thought experiment. Now ``fill right'' or copy and paste these functions into 999 new columns. You now have 1000 *t* tests. The expected value of the difference in means is zero (why?) but the actual values will form a normal distribution about zero. Most will be close to zero (either in the negative or positive direction) but some will be further from zero. The expected *t*-value will also be zero (why?) and the distribution of these 1000 *t*-values will look normal but the tails are a little fuller. This row of *t*-values is a null distribution, because in generating the data we used the exact same formula for the values assigned to A and the values assigned to B. Now think of a *t*-value in your head, say 0.72 (remember that *t*-values will largely range from about -3 to +3 although the theoretical range is $-\infty$ to $+\infty$. What is the probability of observing a *t* of 0.72 *or bigger* if the null is true? Look at the row of *t*-values! Count the number of $t \ge 0.72$ and then divide by the total number of *t*-values in the row (1000) and you have a probability computed as a frequency. But remember the frequentist definition is the long run frequency, or the expected frequency at the limit (when you've generated not 1000 or even 1,000,000 but an infinite number of columns and *t*-values).
 
-Some asides to the thought experiment: First, why "as big or bigger" and not just the probability of the value itself? The reason is that the probability of finding the exact $t$ is 1/infinity, which doesn't do us much good. So instead we compute the probability of finding $t$ as big, or bigger, than our observed $t$. Second, the *t*-test probability described above is a "one-tail probability". Because a difference can be both in the positive direction and the negative direction, we usually want to count all the $t \ge 0.72$ and the $t \le -0.72$ and then add these two counts to compute the frequency of *as extreme or more extreme* values. This is called a "two-tailed probability" because we find extremes at both tails of the distribution. Third, we don't really count $t \ge 0.72$ but take advantage of the beautiful mathematical properties of the theoretical $t$ distribution, which allows us to compute the frequentist probability (expected long range frequency) given the *t*-value and the degrees of freedom using the *t*-distribution.
+Some asides to the thought experiment: First, why "as big or bigger" and not just the probability of the value itself? The reason is that the probability of finding the exact *t* is 1/infinity, which doesn't do us much good. So instead we compute the probability of finding *t* as big, or bigger, than our observed *t*. Second, the *t*-test probability described above is a "one-tail probability". Because a difference can be both in the positive direction and the negative direction, we usually want to count all the $t \ge 0.72$ and the $t \le -0.72$ and then add these two counts to compute the frequency of *as extreme or more extreme* values. This is called a "two-tailed probability" because we find extremes at both tails of the distribution. Third, we don't really count $t \ge 0.72$ but take advantage of the beautiful mathematical properties of the theoretical *t* distribution, which allows us to compute the frequentist probability (expected long range frequency) given the *t*-value and the degrees of freedom using the *t*-distribution.
 
-Now what do I mean with the phrase "null is true"? Most people equate "null is true" with ``no difference in means'' but the phrase entails much more than this. Effectively, the phrase means that the *p*-value is based on modeling the real data with a theoretical sample in which all the points were randomly sampled from the same distribution and that the assignment of the individual points to treatment was random. This model means the theoretical sample has three properties: First, random assignment to treatment after sampling from the same distribution means that the expected means are the same, or put differently, the expected difference in means between the assigned groups is zero. Second, random assignment to treatment after sampling from the same distribution *also* means that the expected variances of the two groups are equal. And third, random sampling means that the values of each point are independent -- we cannot predict the value of one point knowing information about any other point. **Here is what is super important about this**: if we get a really low *p*-value, any one of these consequences may be untrue about our data, for example it could be that the true means of the two treatment groups really are different, or it could mean it is the variances that differ between the two groups, or it could mean that the data (or technically, the errors) are not independent of each other. This is why we need certain assumptions to make a *p*-value meaningful for empirical data. By assuming independent error and homogenous (equal) variances in our two samples, a low $p$ value is evidence of unequal means.
+Now what do I mean with the phrase "null is true"? Most people equate "null is true" with ``no difference in means'' but the phrase entails much more than this. Effectively, the phrase means that the *p*-value is based on modeling the real data with a theoretical sample in which all the points were randomly sampled from the same distribution and that the assignment of the individual points to treatment was random. This model means the theoretical sample has three properties: First, random assignment to treatment after sampling from the same distribution means that the expected means are the same, or put differently, the expected difference in means between the assigned groups is zero. Second, random assignment to treatment after sampling from the same distribution *also* means that the expected variances of the two groups are equal. And third, random sampling means that the values of each point are independent -- we cannot predict the value of one point knowing information about any other point. **Here is what is super important about this**: if we get a really low *p*-value, any one of these consequences may be untrue about our data, for example it could be that the true means of the two treatment groups really are different, or it could mean it is the variances that differ between the two groups, or it could mean that the data (or technically, the errors) are not independent of each other. This is why we need certain assumptions to make a *p*-value meaningful for empirical data. By assuming independent error and homogenous (equal) variances in our two samples, a low *p*-value is evidence of unequal means.
 
 ### Two interpretations of the *p*-value
 
@@ -248,25 +337,33 @@ Since we want to be working scientists who want to use *p*-values as a tool, we 
 
 #### Fisher's interpretation
 
-Fisher was working in the context of an agricultural field station, the goal of which is to discover better agricultural practices. Does this new fertilizer work better than our old fertilizer? This is the context of much of modern biosciences and clinical medicine. Fisher thought of $p$ as evidence against the null; the smaller the $p$ the better the evidence that the means differ, which, in an experimental context, implies a treatment effect. If an experiment results in a large *p*-value, we can move on and test other fertilizers. If an experiment results in a small *p*-value, we want to pursue this new fertilizer more. Do more experiments! Fisher never thought of a single experiment as definitive. The decision to move on or pursue is only partly informed by the *p*-value and Fisher offered no rule about what *p*-value lies on the threshold of this decision. When pressed, Fisher might say that $p=0.05$ is a reasonable threshold. 
+Fisher was working in the context of an agricultural experiments, the goal of which was to discover better agricultural practices. Does this new fertilizer work better than our old fertilizer? This is the context of much of modern biosciences and clinical medicine. Fisher thought of *p* as evidence against the null; the smaller the *p* the stronger the evidence that the two sampling distributions differ, which, in an experimental context, implies a treatment effect. If an experiment results in a large *p*-value, we can move on and test other fertilizers. If an experiment results in a small *p*-value, we want to pursue this new fertilizer more. Do more experiments! Fisher never thought of a single experiment as definitive. The decision to move on or pursue is only partly informed by the *p*-value and Fisher offered no rule about what *p*-value lies on the threshold of this decision. When pressed, Fisher might say that $p=0.05$ is a reasonable threshold. 
 
 #### Neyman-Pearson interpretation
 
-Neyman-Pearson thought of $p$ as the necessary and sufficient information to make a decision between accepting the null (or at least not rejecting the null) or rejecting the null and accepting an alternative hypothesis. This decision balances two sorts of errors: Type I (false positives), which they called $\alpha$, and Type II (false negatives), which they called $\beta$. A false positive means the null was rejected but there really is no effect. A false negative means that the null was not rejected but there actually is an effect. $\alpha$ is set by the experimenter and is the long-term frequency (or ``rate'') of false positives **when the null is true** that the experimenters are willing to accept. This is easily understood in the context of manufacturing. I've just made a batch of beer that I now need to ship. I sample 10 cans and test the quality against a norm. If $p < \alpha$, we reject the null in favor of the alternative -- something may be wrong with the batch, it differs from the norm. We throw the beer away. If $p > \alpha$, we do not reject the null, nor the beer! We ship it.
+Neyman-Pearson thought of *p* as the necessary and sufficient information *to make a decision* between accepting the null (or at least not rejecting the null) or rejecting the null and accepting an alternative hypothesis. This decision balances two sorts of errors: Type I (false positives), which they called $\alpha$, and Type II (false negatives), which they called $\beta$. A false positive means the null was rejected but there really is no effect. A false negative means that the null was not rejected but there actually is an effect. $\alpha$ is set by the experimenter and is the long-term frequency (or "rate") of false positives **when the null is true** that the experimenters are willing to accept. This is easily understood in the context of manufacturing. I've just made a batch of beer that I now need to ship. I sample 10 cans and test the quality against a norm. If $p < \alpha$, we reject the null in favor of the alternative -- something may be wrong with the batch, it differs from the norm. We throw the beer away. If $p > \alpha$, we do not reject the null, nor the beer! We ship it.
 
-After setting $\alpha$, the experimenter designs the experiment to achieve an acceptable rate of $\beta$. Since $\beta$ is the false negative rate then $1-\beta$ is the rate of not making a false negative error, that is, the rate of rejecting the null when there really is an effect. This is called the **power** of the experiment. An experiment with high power will have a low probability of a Type II error. An experiment with low power will have a high probability of a Type II error. Power is partly determined by sample size, the bigger the sample the smaller the *p*-value, all other things equal (think about why in the context of the formula for the *t*-value). Power is also a function of $\alpha$. If we set a low $\alpha$ (say, $\alpha=0.01$), the test is conservative. We are more likely to fail to reject the null even if the null is false. This is the balance. We want to make sure that we test our batch of beer using enough cans to find a bad batch if it exists, but we don't want to test too many cans because this is a waste of money. An experimenter sets $\alpha$, computes the sample size needed to achieve a certain level of power ($1-\beta$), and then does the experiment.
+After setting $\alpha$, the experimenter designs the experiment to achieve an acceptable rate of $\beta$. Since $\beta$ is the false negative rate then $1-\beta$ is the rate of not making a false negative error, that is, the rate of rejecting the null when there really is an effect. This is called the **power** of the experiment. An experiment with high power will have a low probability of a Type II error. An experiment with low power will have a high probability of a Type II error. Power is partly determined by sample size, the bigger the sample the smaller the *p*-value, all other things equal (think about why in the context of the formula for the *t*-value). Power is a function of error variance, both the natural variance and the component added because of measurement error (think about why in the context of the formula for the *t*-value). Power is also a function of $\alpha$. If we set a low $\alpha$ (say, $\alpha=0.01$), the test is conservative. We are more likely to fail to reject the null even if the null is false. A researcher can increase power by increasing sample size, using clever strategies to reduce measurement error, or increasing alpha.
 
-In Fisher's interpretation, there is no $\alpha$, no $\beta$, no alternative hypothesis, and no sharp decision rule. Instead, in Fisher, $p$ is a continuous measure of evidence against the null and its value is interpreted subjectively by an informed and knowledgeable expert using additional information to make decisions. Neyman-Pearson rejected Fisher's conception of $p$ as evidence against the null and used $p$ as a tool to make a decision that maintains long-term type I error rates at alpha given a certain power. In Neyman-Pearson, $p$ is compared to a threshold, $\alpha$ and this alone makes the decision. In Neyman-Pearson, $p$ is not treated as continuous information. $p=0.00000001$ is no more evidence to use to reject the null than $p=0.049$.
+An experimenter sets $\alpha$, computes the sample size needed to achieve a certain level of power ($1-\beta$), and then does the experiment. A thoughtful researcher will set $\alpha$ after considering and weighing the pros and cons of different levels of $\alpha$. If false positives have costly consequences (expense, time, deleterious side-effects), then set $\alpha$ to a low value, such as 0.01 or 0.001. For example, if an initial screen has identified a previously unknown candidate that potentially functions in the focal system of the researcher, then a researcher might decide to set a low $\alpha$ (0.001) in the initial tests of this candidate to avoid devoting time, personel, and expense to chasing a phantom (a false-positive candidate). If false positives have trivial consequences, then set $\alpha$ to a high value, such as 0.05, or 0.1, or even 0.2. For example, if the initial tests of a candidate in a functional system are cheap and fast to construct, then a researcher might choose to set a high $\alpha$ for the screen that identifies candidates. False positive candidates don't cost the lab much effort to identify them as false, but missing positive candidates because of a small $\alpha$ (which results in low power) at the screen stage costs the researcher the discovery of a potentially exciting coponent of the functional system.
+
+In Fisher's interpretation, there is no $\alpha$, no $\beta$, no alternative hypothesis, and no sharp decision rule. Instead, in Fisher, *p* is a continuous measure of evidence against the null and its value is interpreted subjectively by an informed and knowledgeable expert using additional information to make decisions. Neyman-Pearson rejected Fisher's conception of *p* as evidence against the null arguing that a single experimental *p*-value is too noisy without embedding it into a more formal system of of decision making that maintains long-term type I error rates at $\alpha$, given a certain power. In Neyman-Pearson, *p* is compared to a threshold, $\alpha$ and this alone makes the decision. In Neyman-Pearson, *p* **is not treated as continuous information**. $p=0.00000001$ is no more evidence to use to reject the null than $p=0.049$.
 
 ### NHST
 
-Modern researchers interpret $p$ using a combination of Fisher and Neyman-Pearson concepts in what has become known as Null Hypothesis Significance Testing (NHST). Similar to Neyman-Pearson, a *p*-value is compared to $\alpha$ but similar to Fisher, many researchers, and many textbooks and statistics software (including base R) trichtomize a statistically significant $p$ into "significance levels" (three asterisks for $p < 0.001$, two asterisks for $0.001 < p < 0.01$, and one asterisk for $0.01 < p < 0.05$) but many researchers also casuallly partition non-significant $p$ values into "marginally signifiant" (or similar) and "not significant".
+Most biology researchers today interpret *p* using a combination of Fisher and Neyman-Pearson concepts in what has become known as Null Hypothesis Significance Testing (NHST).
 
-### Some major misconceptions of the $p$-value
+1. Nearly all papers in biology either explicitly state something like "P values < 0.05 were considered to be statistically significant" or implicitly use 0.05 as the "level of significance" ($\alpha$). Comparing a *p*-value to a pre-defined $\alpha$ is Neyman-Pearson.
+2. Unlike Neyman-Pearson, there is no evidence that researchers are thoughtfully considering the level of $\alpha$ for each experiment. Instead, researchers mindlessly choose $\alpha=0.05$ because this is what everyone else uses.
+3. Unlike Neyman-Pearson, but somewhat in the spirit of Fisher, researchers, journals, and textbooks, advocate trichotomizing a statistically significant *p* into "significance bins" -- three asterisks for $p < 0.001$, two asterisks for $0.001 < p < 0.01$, and one asterisk for $0.01 < p < 0.05$). This is not Neyman-Pearson. Again, Neyman-Pearson developed a system to control the long-run frequency of Type I error, which is controled by a strict use of $\alpha$. If an observed *p*-value is in the *** bin or the * bin is meaningless in a system using Neyman-Pearson. There is only "accept" ($p >= \alpha$) or "reject" ($p < \alpha$).
+4. Many researchers report exact *p*-values when $p < 0.05$ but "n.s." (not significant) when $p > 0.05$. Reporting exact *p*-values is Fisher. Reporting n.s. is Neyman-Pearson.
+5. Many researchers further polychomotomize the *p*-value space just above 0.05 by using language such as "marginally significant". If Neyman-Pearson and Fisher got together and spawned a love-child, this would be it.
+
+## Some major misconceptions of the *p*-value
 
 Setting the type I error rate $\alpha$ to 0.05 is so pervasive that I'm going to simply use "0.05" instead of "alpha" in discussing misconceptions.
 
-#### Misconception: $p$ is the probability that the null is true *and* $1-p$ is probability that the alternative is true
+### Misconception: *p* is the probability that the null is true *and* $1-p$ is probability that the alternative is true
 
 Many researchers believe that if $p > 0.05$ then "there is no effect." A frequentist hypothesis test cannot show that an effect doesn't exist, only that the null has a low probablity of producing a test statistic as extreme or more extreme than the observed effect.
 
@@ -282,10 +379,12 @@ The two errors above are gross misconceptions that are pervasive in the biology 
 
 Importantly, no single experiment confirms an explanatory hypothesis. Instead, alternative explanations require multiple experiments with different controls to "rigrously probe" the preferred hypothesis.
 
-#### Misconception: a $p$-value is repeatable
-Many researchers believe that a *p*-value is a precise measure -- that if the experiment were replicated, a similar $p$ would result. This belief requires at least two misconceptions. First, if the null were true, then *any* *p*-value is equally likely. $p=0.00137$ is just as likely as $p=0.492$. In other words, if the null were true, the *p*-value is not replicable at all! Second, the $p$ value is highly dependent on the sample, and can be highly variable among replications, but there is no true *p*-value, so there can be no estimate or standard error. Let's explore these. 
+### Misconception: a *p*-value is repeatable
+Many researchers believe that a *p*-value is a precise measure -- that if the experiment were replicated, a similar *p* would result. This belief requires at least two misconceptions. First, if the null were true, then *any* *p*-value is equally likely. $p=0.00137$ is just as likely as $p=0.492$. In other words, if the null were true, the *p*-value is not replicable at all! Second, the *p*-value is highly dependent on the sample, and can be highly variable among replications, but there is no true *p*-value, so there can be no estimate or standard error. Let's explore these. 
 
-**What is the distribution of $p$-values under the null?** I often ask students, "if the null were true, what is the most likely *p*-value?" or "if the null were true, what kind of *p*-values would we expect, that is what is the expected distribution". A common answer is $p=0.5$ is the most likely value and something like a normal curve, except the tails abruptly stop at 0 and 1, is the expected distribution.
+#### What is the distribution of *p*-values under the null?
+
+I often ask students, "if the null were true, what is the most likely *p*-value?" or "if the null were true, what kind of *p*-values would we expect, that is what is the expected distribution". A common answer is $p=0.5$ is the most likely value and something like a normal curve, except the tails abruptly stop at 0 and 1, is the expected distribution.
 
 ```{r uniform, echo=FALSE}
 set.seed(2)
@@ -301,8 +400,7 @@ for(j in 1:m){
 qplot(pvalue, breaks=seq(0,1,by=0.05))
 ```
 
-
-**The incredible inconsistency of the $p$-value**
+#### The incredible inconsistency of the *p*-value
 
 ```{r dance-setup, echo=FALSE}
 set.seed(1)
@@ -350,7 +448,7 @@ gg
 
 ```
 
-#### Misconception: 0.05 is the lifetime rate of false discoveries
+### Misconception: 0.05 is the lifetime rate of false discoveries
 
 An important and widespread misconception is that if a researcher consistently uses $\alpha=0.05$, then the frequency of incorrectly concluding an effect exists, or "discovering" an effect, over the lifetime of the researcher, will be 5%. This is incorrect. $\alpha$ is the rate of false positive if the null hypothesis is true, so our lifetime "false discovery" rate could only be 5% if everything we ever tested has no true effect! More generally, the **false discovery rate** is the frequency of false positives divided by the frequency of positives (the sum of false and true positives). This differs from the the Type I error rate, which is the frequency of false positives divided by the frequency of tests *in which the null is true*.
 
@@ -365,8 +463,8 @@ Imagine we test
 
 Think about this. If the null is never true, you cannot have a false discovery--every $p \le 0.05$ is a true discovery (the false discovery rate is 0%). And if the null is always true, every $p < 0.05$ is a false discovery (the false discovery rate is 100%).
 
-#### Misconception: a low $p$-value indicates an important effect
-Many researchers write results as if they believe that a small *p*-value means the effect is big or important. This may misconception may arise because of the ubiquitous use of "significant" to indicate a small p-value and "very" or "extremely" or "wicked" significant to indicate a really small p-value. Regardless, this is a misconception. A small p-value will usually result when there is high power (but can occur even if power is low) and power is a function of effect size, variability (the standard deviation), and sample size. A small $p$ could result from a large effect size but can also result with a small effect size if the sample size is big enough.
+### Misconception: a low *p*-value indicates an important effect
+Many researchers write results as if they believe that a small *p*-value means the effect is big or important. This may misconception may arise because of the ubiquitous use of "significant" to indicate a small p-value and "very" or "extremely" or "wicked" significant to indicate a really small p-value. Regardless, this is a misconception. A small p-value will usually result when there is high power (but can occur even if power is low) and power is a function of effect size, variability (the standard deviation), and sample size. A small *p* could result from a large effect size but can also result with a small effect size if the sample size is big enough.
 
 This is easy to simulate (see script below). Let's model the effect of the genotype of a gene on height
 
@@ -386,8 +484,8 @@ coefficients(summary(fit))
 ```
 
 
-#### Misconception: a low $p$-value indicates high model fit or high predictive capacity
-On page 606, of Lock et al "Statistics: Unlocking the Power of Data", the authors state in item D "The p-value from the ANOVA table is 0.000 so the model as a whole is effective at predicting grade point averages." This is incorrect.  A p-value is not a measure of the predictive capacity of a model because the p-value is a function of the signal, noise (unmodeled error), and *sample size* while predictive capacity is a function of just the signal:noise ratio. If the signal:noise ratio is tiny, the predictive capacity is small but the p-value can be tiny if the sample size is large. This is easy to simulate (see script below). The whole-model p-value is exceptionally small (0.00001002) but the relative predictive ability, measured by the $R^2$, is near zero (0.002).
+### Misconception: a low *p*-value indicates high model fit or high predictive capacity
+On page 606, of Lock et al "Statistics: Unlocking the Power of Data", the authors state in item D "The p-value from the ANOVA table is 0.000 so the model as a whole is effective at predicting grade point averages." This is incorrect.  A p-value is not a measure of the predictive capability of a model because the p-value is a function of the signal, noise (unmodeled error), and *sample size* while predictive ability is a function of just the signal:noise ratio. If the signal:noise ratio is tiny, the predictive ability is small but the p-value can be tiny if the sample size is large. This is easy to simulate (see script below). The whole-model p-value is exceptionally small (0.00001002) but the relative predictive ability, measured by the $R^2$, is near zero (0.002).
  
 ```{r prediction-with-small-p-2, eval=TRUE}
 set.seed(1)
@@ -403,31 +501,45 @@ fit <- lm(y ~ X)
 summary(fit)
 ```
 
-##### What the $p$-value does not mean
+## What the *p*-value does not mean
 
-1. $p$ is not the probability of the null being true. More formally, this probability is $P(null | data)$ but our *p*-value is $P(data | null)$. These are not the same. $P(null | data)$ is the probability of the null being true given the data. $P(data | null)$ is the probability of our data, or something more extreme than our data, conditional on a true null.
+1. *p* is not the probability of the null being true. More formally, this probability is $Prob(null | data)$ but our *p*-value is $P(data | null)$. These are not the same. $P(null | data)$ is the probability of the null being true given the data. $P(data | null)$ is the probability of our data, or something more extreme than our data, conditional on a true null.
 2. $1-p$ is not the probability of the alternative
-3. $p$ is not a measure of effect size.
-4. $p$ in one experiment is not the same level of evidence against the null as in another experiment
-5. $p$ is not a great indicator of which is more likely, H0 or H1.
+3. *p* is not a measure of effect size.
+4. *p* in one experiment is not the same level of evidence against the null as in another experiment
+5. *p* is not a great indicator of which is more likely, H0 or H1.
 6. If one treatment level has $p < 0.05$ and another treatment level has $p > 0.05$, this is not evidence that the treatment levels have different effects on the outcome.
 
 
-### Recommendations
+## Recommendations
 
-**If you are working on basic science research** simply report the exact *p*-value, along with a CI. If $p < 0.05$ (or some other $\alpha$) do not report this as "significant" -- in fact, avoid the word "significant". In the english language, "significant" implies big or important. Small *p*-values can result even with trivially small effects if $n$ is big or sample variation is small. If $p$ is smaller than say 0.001, then this is pretty good evidence that the data is not a fluke of sampling. But if $p$ is closer to 0.01 or 0.05, this is only weak evidence of a fluke because of the sampling variability of $p$.
+1. Simply report the exact *p*-value, along with a CI of the estimate.
+* *P*-values are noisy, there is little reason to report more than two significant digits (report "$p = 0.011$" not "$p = 0.0108$") although some journals recommend more than two significant digits.
+* For high *p*-values, report "$p = 0.23$" not "$p = n.s.$".
+* For small *p*-values, there is little reason to report more than one significant digit (report "$p = 0.0002$" not "$p = 0.00018$").
+* For really small p-values, there is little reason to report the exact *p*-value (report "$p < 0.0001$" and not "$p = 2.365E-11$"). Recognize that "really small" is entirely arbitrary. Rafael Irizarry suggested that *p*-values less than something like the probability of being killed by lightning strike should be reported as "$p < m$", where $m$ is the probability of being killed by lightning strike^[https://twitter.com/rafalab/status/1310610623898808320]. According Google University, this is 0.00000142 in one year or 0.00033 in one lifetime. This text will use $p < ls$" for *p*-values less than 0.0001 -- the lifetime probability of being killed by lightning strike in someone that spends too much time in doors analyzing data.
+2. If $p < 0.05$ (or some other $\alpha$) do not report this as "significant" -- in fact, avoid the word "significant". In the english language, "significant" implies big or important. Small *p*-values can result even with trivially small effects if $n$ is big or sample variation is small. The phrase "ASK1 knockout had a significant effect on reducing liver TG ($p = 0.011$)" is
+* potentially misleading, if we interpret "significant" to mean "having a large effect on the regulation of liver TG",
+* wrong, if we interpret "significant" to mean "there is an ASK1 knockout effect".
+A low *p*-value is evidence that the effect of ASK1 knockout is not zero, but I would wager that knocking out any gene expressed in white adipose cells will have *some* effect (however small) on liver TG.
+3. If a decision needs to be made ("do we devote time, expense, and personel to pursue this further?"), then a *p*-value is a useful tool. If *p* is smaller than say 0.001, this is pretty good evidence that the data is not a fluke of sampling, **as long as we are justifiably confident in all the assumptions that went into computing this *p*-value**. A replicate experiment with a small *p*-value is better evidence. If *p* is closer to 0.01 or 0.05, this is only weak evidence of a fluke because of the sampling variability of *p*. A replicate experiment with a small *p*-value is *much* better evidence.
 
-**If you are working on quality control** then a $p$ value is a useful tool, but is only relevant compared to a decision rule with well-reasoned values of $\alpha$ and $\beta$ -- exact values of $p$ are not very meaningful.
+### Primary sources for recommendations
 
+1. "". [Statistical tests, P values, confidence intervals, and power: a guide to misinterpretations](https://link.springer.com/article/10.1007/s10654-016-0149-3).
+2. "Q: Why do so many colleges and grad schools teach p = 0.05? A: Because that's still what the scientific community and journal editors use. Q: Why do so many people still use p = 0.05? A: Because that's what they were taught in college or grad school." -- [ASA Statement on Statistical Significance and P-Values](https://amstat.tandfonline.com/doi/full/10.1080/00031305.2016.1154108)
+3. "We then discuss our own proposal, which is to abandon statistical significance. We recommend dropping the NHST paradigm—and the p-value thresholds intrinsic to it—as the default statistical paradigm for research, publication, and discovery in the biomedical and social sciences." -- [Abandon Statistical Significance](https://www.tandfonline.com/doi/abs/10.1080/00031305.2018.1527253)
+4. " We conclude, based on our review of the articles in this special issue and the broader literature, that it is time to stop using the term “statistically significant” entirely. Nor should variants such as “significantly different,” “p < 0.05,” and “nonsignificant” survive, whether expressed in words, by asterisks in a table, or in some other way." -- [Moving to a World Beyond “p < 0.05”](https://www.tandfonline.com/doi/full/10.1080/00031305.2019.1583913)
+5. "We agree, and call for the entire concept of statistical significance to be abandoned."--[Scientists rise up against statistical significance](https://www.nature.com/articles/d41586-019-00857-9)
 
 ## Problems
 
-Problem 1 -- simulate the distribution of $p$ under the null. There are many ways to do this but a straightforard approach is to
+Problem 1 -- simulate the distribution of *p* under the null. There are many ways to do this but a straightforard approach is to
 
 1. Create a $2n \times m$ matrix of random normal deviates with mean 0 and sd 1
 2. Do a *t*-test on each column, with the first $n$ values assigned to one group and the remaining $n$ values assigned to the second group. Save the *p*-value from each.
 3. Plot a histogram of the *p*-values.
-4. What is the distribution? What is the most likely value of $p$?
+4. What is the distribution? What is the most likely value of *p*?
 
 Problem 2 -- simulate power. Again, many ways to do this but following up on Problem 1.
 1. Create a $2n \times m$ matrix of random normal deviates with mean 0 and sd 1
@@ -438,25 +550,4 @@ Problem 2 -- simulate power. Again, many ways to do this but following up on Pro
 4. Compute the power, the relative frequency $p \le 0.05$.
 5. Repeat with different values of $n$, effect size, and sd, but only vary one at a time. How does power vary with these three parameters?
 
-Problem 3 -- write a script for a permutation test of the vitamin E and vitamin C levels of the vole data. Compare this to the *t*-test.
-
-```{r permute-vole, echo=FALSE, eval=FALSE}
-n_iter <- 5000
-y <- vole[treatment!="vitamin_C", lifespan]
-x <- vole[treatment!="vitamin_C", treatment]
-t.p <- t.test(y~x, var.equal=TRUE)$p.value
-d <- numeric(n_iter)
-t <- numeric(n_iter)
-for(i in 1:n_iter){
-  xbar1 <- mean(y[x=="control"])
-  xbar2 <- mean(y[x=="vitamin_E"])
-  d[i] <- xbar2-xbar1
-  y <- sample(y, replace=FALSE)
-}
-qplot(d)
-abs_d <- abs(d)
-sum(abs_d >= abs_d[1])/n_iter
-```
-
-Problem 4 -- grad students only. Simulate the false discovery rate. Explore the parameters: the frequency of true nulls and the power.
 

@@ -1,1 +1,1 @@
-# Part V: Expanding the Linear Model -- Generalized Linear Models and Multilevel (Linear Mixed) Models {-}
+# Part VII -- Expanding the Linear Model {-}

@@ -1,0 +1,4 @@
+why downloaded?
+- 2 x 2 factorial count data
+- subsampled data -> glmm
+- highly cited

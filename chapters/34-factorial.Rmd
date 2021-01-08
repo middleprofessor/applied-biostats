@@ -30,6 +30,8 @@ urchin[, Temp:=factor(Temp)]
 urchin[, CO2:=factor(CO2, c("400","1100"))]
 ```
 
+** "ASK1 inhibits browning of white adipose tissue in obesity" ** assess interaction by comparing simple effects and concluded incorrectly.
+
 ## Factorial experiments 
 A factorial experiment is one in which there are two or more categorical $X$ that are **crossed**, resulting in a group for all combinations of the levels of each factor. Factorial experiments are used to estimate the **interaction** between factors, which occurs when the effect of the level of one factor depends on the levels of the other factors. For example, a researcher wants to estimate the effect of an environmental toxin on basal metabolic rate (BMR) in a fish and designs an experiment with two factors: $Treatment$ with levels "control" and "toxin" and $Sex$, with levels "male" and "female". If the magnitude (and possibly sign) of the effect of the toxin on BMR differs between males and females, there is an interaction between $Treatment$ and $Sex$. Interactions are usually denoted with a $\times$ symbol: $Treatment \times Sex$. Interactions are ubiquitous, although sometimes they are small enough to ignore with little to no loss of understading.
 
