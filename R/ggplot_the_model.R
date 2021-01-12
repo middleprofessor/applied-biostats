@@ -18,7 +18,8 @@ library(ggpubr)
 library(ggforce)
 library(insight)
 library(cowplot)
-library(lazyWeave) #pvalstring
+library(lazyWeave) #pretty p-values
+library(rstatix) # even prettier p-values
 
 pal_okabe_ito <- c(
   "#E69F00",
@@ -245,7 +246,10 @@ emm_table <- function(fit_emm){
 
 
 ## ----effects_table-------------------------------------------------------
-effects_table <- function(fit_pairs){
+effects_table <- function(fit_pairs,
+                          digits = 2,
+                          accuracy = 1e-04,
+                          add.p = FALSE){
   if(is.data.frame(fit_pairs) == TRUE){
     pairs_dt <- data.table(fit_pairs)
   }else{
@@ -263,6 +267,8 @@ effects_table <- function(fit_pairs){
   # for simple = each,
   if(which(colnames(pairs_dt)=="contrast") == 3){
     # replace "." with blank
+    g_col <- colnames(fit_pairs)[1]
+    x_col <- colnames(fit_pairs)[2]
     pairs_dt[get(g_col) == ".", 
              (1) := ""]
     pairs_dt[get(x_col) == ".", 
@@ -276,7 +282,11 @@ effects_table <- function(fit_pairs){
   }
   
   # create a column of nicely formatted p-values for display.
-  pairs_dt[, p := pvalString(p.value)]
+  # pairs_dt[, p := pvalString(p.value)]
+  pairs_dt[, p := p_format(p.value,
+                           digits = digits,
+                           accuracy = accuracy,
+                           add.p = add.p)]
   pairs_dt[, contrast := factor(contrast, contrast)]
   return(pairs_dt)
 }
@@ -1100,4 +1110,8 @@ ggplot_the_treatments <- function(
   )
   return(gg_out)
 }
+
+
+## ----output-as-R-file----------------------------------------------------
+
 

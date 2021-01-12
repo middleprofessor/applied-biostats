@@ -104,7 +104,7 @@ Once these are installed, you don't need to do this again although there will be
 4. Choose "Existing Directory" and navigate to your project folder
 5. Choose "Create Project"
 6. Check that a ".Rproj" file is in your project folder
-7. Download and move the file "ggplot_the_model.R" into the R folder.
+7. Download and move the file [ggplot_the_model.R](https://raw.githubusercontent.com/middleprofessor/applied-biostats/master/R/ggplot_the_model.R) into the R folder.
 
 ```{r project-organization-image, echo = FALSE, fig.cap = "Project folder with the .Rproj file and all main folders located at the first level of the project"}
 image_path <- here::here("images", "project_organization.png")
