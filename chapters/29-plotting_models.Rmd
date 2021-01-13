@@ -51,9 +51,9 @@ The answer to these questions should inform what is and what is not plotted. The
 
 A typical pretty good plot contains some combination of
 
-1. Modeled effects with confidence intervals. "Effects" are the coefficients of a model, or contrasts constructed from the model, such as pairwise differences between the means of the levels of a factor. Inferences are typically made from the estimated effects
-2. Modeled means and standard errors or confidence intervals.
-3. Raw data points or a summary distribution of these.
+1. Modeled effects with confidence intervals. "Effects" are differences between groups in response to treatment -- the *raison d'etre* of an experiment.
+2. Modeled means and confidence intervals.
+3. Individual data points or a summary distribution of these.
 
 ## Pretty good plots show the model and the data
 
@@ -281,7 +281,7 @@ fig2e_pairs_plot_order[, group2 := c(0, 2, 1, 3, 1)]
 
 ```
 
-```{r plots-fig2e-gg-effects, echo=FALSE}
+```{r plots-fig2e-gg-effects, echo=FALSE, fig.cap = "Effects plot of glucose AUC data"}
 # get bounds for y-axis
 min_bound <- min(fig2e_pairs_plot_order[, lower.CL])
 max_bound <- min(fig2e_pairs_plot_order[, upper.CL])
@@ -450,7 +450,7 @@ While a response plot like that in Figure \@ref(fig:plots-fig2-gg-response-adjus
 
 Effects plots are very uncommon in most of biology outside of meta-analysis and clinical medicine more generally. An effects plot alone fails to communicate anything about the sample size or conditional distribution of the data. Equally important, response values are often meaningful and researchers working in the field should be familiar with usual and unusual values. This can be useful for interpreting biological consequences of treatment effects but also for researchers and readers to asses the credibility of the data (for example, I have twice, once in my own data and once in a colleagues data, found mistakes in the measurement of an entire data set of response variable because the plotted values weren't credible).
 
-## Some comments on plot components
+### Some comments on plot components
 
 1. Several recent criticisms of bar plots have advocated box plots or violin plots as alternatives. Box plots and violin plots are useful alternatives to jittered dots if there are sufficient data to capture the distribution but I wouldn't advocate replacing the plot of modeled means and confidence intervals with box or violin plots, as these communicate different things. More importantly, box and violin plots do not communicate the treatment effects.
 2. Almost all plots in biology report the error bars that represent the sample standard error. As described above, sample standard error bars do not reflect the fit model and can be highly misleading, at least if interpreting as if they do reflect the model. Also, sample standard error bars can explicitly include absurd values or imply absurd confidence intervals. For example, I sometimes see standard error bars cross $y=0$ for a response that cannot be negative, such as a count. Even if the standard error bar doesn't cross zero, it is common to see standard error bars that imply (but do not explicitly show) 95% confidence intervals that cross zero, again for responses that cannot be negative. A standard error bar or confidence interval that crosses zero implies that negative means are compatible with the data. This is an absurd implication for responses that cannot have negative values (or are "bounded by" zero). Explicit or implicit error bars that cross zero are especially common for count responses with small means. *If* a researcher plots confidence intervals, these should be computed using a method that avoids absurd implications, such methods include the bootstrap and generalized linear models.
@@ -694,7 +694,6 @@ m1_plot
 #### ggplot_the_treatments
 
 ```{r plots-ggplot_the_treatments}
-
 x_levels <- rbind(
   ASK1 = c("F/F", "Δadipo", "F/F", "Δadipo"),
   Diet = c("chow", "chow", "HFD", "HFD")
@@ -721,9 +720,10 @@ m1_response_plot2 <- ggplot_the_treatments(
 
 m1_response_plot2
 ```
+
 If you prefer plus and minus symbols, use `minus <- "\u2013"` for the minus sign instead of the hyphen "-"
 
-```{r}
+```{r plots-ggplot_the_treatments-minus}
 minus <- "\u2013" # good to put this in the setup chunk
 
 x_levels <- rbind(
@@ -773,7 +773,7 @@ m1_response <- ggplot(
   geom_jitter(width = 0.2) +
   
   # change the title of the y-axis
-  ylab(expression(paste("mmol ", l^-1, " min"))) +
+  ylab(expression(paste("AUC (mmol ", l^-1, " min)"))) +
   
   # change the theme
   theme_pubr() +
@@ -808,7 +808,7 @@ m1_response <- ggstripchart(
   y = "glucose_auc",
   color = "ask1",
   xlab = "",
-  ylab = expression(paste("mmol ", l^-1, " min")),
+  ylab = expression(paste("AUC (mmol ", l^-1, " min)")),
   palette = pal_okabe_ito_blue,
   legend = "none"
   )
@@ -921,14 +921,15 @@ Notes on adding manual *p*-values to the plot:
 ```{r plot-manual-p-values-subset}
 m1_response_p <- m1_response +
   stat_pvalue_manual(
-    data = m1_simple_dt[c(1,3,4), ], # only rows 1, 3, 4
+    data = m1_simple_dt[c(2,4), ], # only rows 2, 4
     label = "p_pretty",
-    y.position = c(3300, 3450, 3600),
+    y.position = c(3300, 3450),
     tip.length = 0.01)
 
 m1_response_p
 
 ```
+
 #### A variation for factorial models
 
 The experiment in Fig2e has a factorial design and was analyzed (here, not in the original paper) using a factorial model. The factorial design can be represented in the plot by clustering the levels.
@@ -945,20 +946,21 @@ m1_simple_dt[, xmax := c(1+dodge_width/4,
                         2-dodge_width/4,
                         2+dodge_width/4)]
 
-m1_response_2 <- ggstripchart(
+m1_response_fac <- ggstripchart(
   data = fig2e,
   x = "diet",
   y = "glucose_auc",
   color = "ask1",
   fill = "ask1",
-  xlab = "",
-  ylab = expression(paste("mmol ", l^-1, " min")),
+  ylab = expression(paste("AUC (mmol ", l^-1, " min)")),
   palette = pal_okabe_ito_blue,
 #  position = position_dodge(width = dodge_width)
   position = position_jitterdodge(dodge.width = dodge_width,
                                   jitter.width = jitter_width)
 ) +
   
+  rremove("xlab") + #ggpubr function
+
   # add layer containing means
   geom_point(data = m1_emm_dt,
              aes(y = emmean,
@@ -975,6 +977,7 @@ m1_response_2 <- ggstripchart(
                 width = 0.05,
              position = position_dodge(width = dodge_width)) +
   
+  # add p-value brackets
   stat_pvalue_manual(
     data = m1_simple_dt,
     label = "p_pretty",
@@ -986,7 +989,210 @@ m1_response_2 <- ggstripchart(
   
   NULL
 
-m1_response_2
+m1_response_fac
 ```
 
+#### How to add treatment combinations to a ggpubr plot
 
+```{r plots-how to plot treatments}
+
+use_this <- FALSE # if false use +/- symbols
+if(use_this == TRUE){
+  x_levels <- rbind(
+    "ASK1:" = c("F/F", "Δadipo", "F/F", "Δadipo"),
+    "Diet:" = c("chow", "chow", "HFD", "HFD")
+  )
+}else{
+  minus <- "\u2013" # good to put this in the setup chunk
+  x_levels <- rbind(
+    "Δadipo:" = c(minus, "+", minus, "+"),
+    "HFD: " = c(minus, minus, "+", "+")
+  )
+}
+
+
+x_levels_text <- apply(x_levels, 2, paste0, collapse="\n")
+x_levels_title <- paste(row.names(x_levels), collapse="\n")
+
+x_axis_min <- 0.4
+x_axis_max <- 4.5
+y_plot_min <- 1200
+y_axis_min <- 1350
+y_axis_max <- 3500
+y_breaks <- seq(1500, 3500, by = 500)
+y_labels <- as.character(y_breaks)
+
+m1_response_final <- m1_response_p +
+  coord_cartesian(ylim = c(y_plot_min, y_axis_max)) +
+  scale_y_continuous(breaks = y_breaks) +
+  theme(
+    axis.line = element_blank(), # remove both x & y axis lines
+    axis.text.x = element_blank(), # remove x-axis labels
+    axis.ticks.x = element_blank() # remove x-axis ticks
+  ) +
+  
+  # add shortened y-axis line that doesn't extend to treatments
+  geom_segment(aes(x = x_axis_min + 0.01,
+                   y = y_axis_min,
+                   xend = x_axis_min + 0.01,
+                   yend = y_axis_max),
+               size = 0.5) +
+  
+  # add x-axis line above treatments
+  geom_segment(aes(x = x_axis_min,
+                   y = y_axis_min,
+                   xend = x_axis_max,
+                   yend = y_axis_min),
+               size = 0.5) +
+  
+  # add treatment combinations
+  annotate(geom = "text",
+           x = 1:4,
+           y = y_plot_min,
+           label = x_levels_text) +
+  
+  # add factor names
+  annotate(geom = "text",
+           x = x_axis_min,
+           y = y_plot_min,
+           label = x_levels_title,
+           hjust = 0) +
+  NULL
+  
+m1_response_final
+```
+Notes
+
+1. `ggplot_the_treatments` should work with any ggplot, including those generated by ggpubr functions, with categorical values on the x-axis.
+2. Here, I add the treatment combinations manually. The table of combinations is added inside the plot area (inside the axes). To make this look nice, and not weird, the x and y axes are removed and new lines are inserted to create new axis lines. The bottom of the new y-axis line starts above the treatment table. The new x-axis line is inserted above the treatment table.
+3. To include the treatment combination (group) names, add this as the first row of `x_levels`.
+4. Note that if the plot has a grid, this grid will extend into the area occupied by the treatment table using this method.
+
+### How to generate an Effects Plot
+
+The effects plot is built using ggplot2 instead of ggpubr because the plot is "flipped" -- the y-axis is the categorical variable and the x-axis is the continuous variable. The base plot with the estimates (but not the error bars) could be made using ggpubr (see below) but the subsequent functions to modify the plot are awkward because of inconsistencies in the designation of the x and y-axis (old or new?).
+
+```{r plots-how-to-plot-effects, fig.asp = 0.4, warning=FALSE}
+# use the m1_simple_dt object created above
+
+# create nice labels for the contrasts
+m1_simple_dt[, contrast_pretty := c("ASK1Δadipo - Control",
+                                    "ASK1Δadipo - HFD",
+                                    "HFD - Control",
+                                    "ASK1Δadipo+HFD - ASK1Δadipo")]
+# make sure the levels of contrast_pretty are in the order of that in
+# m1_simple_dt
+m1_simple_dt[, contrast_pretty := factor(contrast_pretty,
+                                         levels = contrast_pretty)]
+
+m1_effects <- ggplot(data = m1_simple_dt,
+                     aes(x = estimate,
+                         y = contrast_pretty)) +
+  
+  geom_point() +
+  
+  xlab("Effects (mmol/L)") +
+
+  # add error bars
+  geom_errorbar(aes(x = estimate,
+                    xmin = lower.CL,
+                    xmax = upper.CL),
+                width = 0.02) +
+  
+  # add zero effect line
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = pal_okabe_ito_blue[1]) +
+  
+  # add p-values
+  annotate(geom = "text",
+           x = m1_simple_dt$estimate + c(-20,0,0,0),
+           y = 1:4 + 0.2,
+           label = m1_simple_dt$p_pretty,
+           size = 3) +
+  
+  theme_pubr() +
+  rremove("ylab") + #remove y-axis, ggpubr function
+  
+  
+  NULL
+
+m1_effects
+```
+Notes
+
+1. `c(-20,0,0,0)` is added to the x coordinate to shift the first p-value to the left of the zero-effect line.
+
+**how would this be done with ggpubr?**
+
+```{r plots-how-to-plot-effects-ggpubr, fig.asp = 0.4, warning=FALSE}
+# use the modified m1_simple_dt object created in the previous chunk
+
+# use ggpubr::ggerrorplot with no error
+m1_effects_pubr <- ggerrorplot(data = m1_simple_dt,
+                        y = "estimate",
+                        x = "contrast_pretty",
+                        ylab = "Effects (mmol/L)",
+                        desc_stat = "mean", # mean only!
+                        orientation = "horizontal") +
+  
+  # remove y-axis title
+  rremove("ylab") + #ggpubr function
+  
+  # add error bars using ggplot function
+  # note using original (not horizontal) axis designation
+  geom_errorbar(aes(y = estimate,
+                    ymin = lower.CL,
+                    ymax = upper.CL),
+                width = 0.02) +
+  
+  # add zero effect line using ggplot function
+  # note using original (not horizontal) axis designation
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             color = pal_okabe_ito_blue[1]) +
+  
+  # add p-values
+  # note using original (not horizontal) axis designation
+  annotate(geom = "text",
+           y = m1_simple_dt$estimate + c(-20,0,0,0),
+           x = 1:4 + 0.3,
+           label = m1_simple_dt$p_pretty,
+           size = 3) +
+  
+  NULL
+
+m1_effects_pubr
+```
+
+### How to combine the response and effects plots
+
+The `cowplot::plotgrid()` function is used generally to arrange multiple plots into a single figure. Here I use it to combine the response and effects subplots into a single plot.
+
+```{r plots-combined-plot}
+# modify the response and effects plots for consistency
+
+# change group names for consistency
+groups_pretty <- c("Control",
+                   "ASK1Δadipo",
+                   "HFD",
+                   "ASK1Δadipo+HFD")
+m1_bottom <- m1_response +
+  scale_x_discrete(labels = groups_pretty) +
+  coord_flip() # rotate to horizontal
+
+m1_top <- m1_effects + # assign to new plot object
+  scale_x_continuous(position="top") # move x-axis to "top"
+  
+m1_plot <- plot_grid(m1_top,
+                     m1_bottom,
+                     nrow = 2,
+                     align = "v",
+                     axis = "lr",
+                     rel_heights = c(1, 1))
+
+m1_plot
+```
+Notes
+
+1. The response plot was flipped in this code. If you know that you want it in this orientation, simply build it with this orientation to avoid the kinds of axis designation ambiguities highlighted above with the ggpubr effects plot.
