@@ -513,19 +513,20 @@ fig2e <- na.omit(fig2e)
 # View(fig2e)
 ```
 
-### Plot the Model functions
+### How to plot the model
 
-The philosophy underneath these functions is to use the model fitted by the researcher to make the plots. The functions require information from three objects:
+The steps throughout the text for plotting the model fit to experimental data are
 
-1. the data frame containing the modeled data
-2. the modeled means and CIs from `emmeans`
-3. the modeled effects, CIs and *p*-values from `emmeans::contrast`.
+1. fit the statistical model
+2. use the fit model to estimate the modeled means and confidence limits using `emmeans` from the [emmeans package](https://cran.r-project.org/web/packages/emmeans/index.html).
+3. use the `emmeans` object to estimate the contrasts of interests using the `contrast` function from emmeans.
+4. Plot the individual points. If covariates are in the model, use the fit model from step 1 to plot the adjusted values of the points.
+5. Use the values from step 2 to plot the modeled means and error intervals.
+6. If including p-value brackets, use the values from step 3.
 
-This philosophy strikes a balance between functions in which all of the statistical modeling is hidden and the researcher only sees the output and manually building ggplots. Actually, I strongly encourage researchers to learn how to build these plots and to not rely on canned functions, and I outline this after introducing the ggplot_the_model functions
+If you are using ggplot_the_model functions, then steps 4-6 are done for you.
 
-So, before we plot, we have to fit a linear model and get the modeled means and contrasts
-
-In steps 1-3 below, I fit the model and use the `emmeans` and `contrast` functions without comment. The details of these functions are in the chapters that follow. The fit model and construction of the plots is simplified from those above.
+Here, I fit a linear model to the fig2e data and compute the use the `emmeans` and `contrast` functions without comment. The details of these functions are in the chapters that follow. The fit model and construction of the plots is simplified from those above.
 
 #### Fit the model
 
@@ -537,7 +538,7 @@ m1 <- lm(glucose_auc ~ ask1*diet,
                data = fig2e)
 ```
 
-#### Estimate the modeled means and confidence levels
+#### Compute the modeled means table of estimated means and confidence intervals
 
 Modeled means are computed by passing the model object (`m1`) to the `emmeans` function and specifying the columns containing the groups using the `specs = ` argument`.
 
@@ -546,9 +547,9 @@ m1_emm <- emmeans(m1, specs = c("ask1", "diet"))
 m1_emm
 ```
 
-#### Compute the contrasts, with p-values and confidence levels
+#### Compute the contrasts table of estimated effects with confidence intervals and p-values
 
-Contrasts among levels, or combinations of levels, are computed by passing the emmeans object (`m1.emm`) to the `contrast` function. There are many important variations of this step.
+Contrasts among levels, or combinations of levels, are computed by passing the emmeans object (`m1.emm`) to the `contrast` function. There are many important variations of this step. This text advocates computing planned comparisons, which requires expert knowledge and forthought. Here I limit the computation to the four simple effects (the effects of one factor in each of the levels of the other factor).
 
 ```{r plot-m1-pairs}
 m1_simple <- contrast(m1_emm,
@@ -559,6 +560,22 @@ m1_simple <- contrast(m1_emm,
   summary(infer = TRUE)
 m1_simple
 ```
+
+Notes
+
+1. I often use `m1_pairs` as the name of the contrast table. Here I use `m1_simple` to remind me that I've limited the comparison to the four simple effects. If I only compute planned comparisons, I might use `m1_planned`.
+
+### How to use the Plot the Model functions
+
+The philosophy underneath these functions is to use the model fitted by the researcher to make the plots. The functions require information from three objects:
+
+1. the data frame containing the modeled data
+2. the modeled means and CIs from `emmeans`
+3. the modeled effects, CIs and *p*-values from `emmeans::contrast`.
+
+This philosophy strikes a balance between functions in which all of the statistical modeling is hidden and the researcher only sees the output and manually building ggplots. Actually, I strongly encourage researchers to learn how to build these plots and to not rely on canned functions, and I outline this after introducing the ggplot_the_model functions
+
+These functions require the fit model object (`m1`), the emmeans object of modeled means (`m1_emm`) and the contrast object of modeled effects (`m1_simple`).
 
 #### ggplot_the_response
 
@@ -743,18 +760,9 @@ m1_response_plot2
 
 ### How to generate a Response Plot using ggpubr
 
-The steps are
+Steps 1-3 were completed above.
 
-1. fit the statistical model
-2. use the fit model to estimate the modeled means and confidence limits using `emmeans` from the [emmeans package](https://cran.r-project.org/web/packages/emmeans/index.html).
-3. use the `emmeans` object to estimate the contrasts of interests using the `contrast` function from emmeans.
-4. Plot the individual points. If covariates are in the model, use the fit model from step 1 to plot the adjusted values of the points.
-5. Use the data from step 2 to plot the modeled means and error intervals.
-6. If including p-value brackets, use the data from step 3.
-
-Steps 1-3 were done above
-
-#### Step 4: Plot the individual points
+#### Step 4: Plot the individual points {#plot-individual-points}
 
 **Using ggplot**
 
@@ -768,7 +776,7 @@ m1_response <- ggplot(
       color = ask1 # define the grouping variable
   )) +
   
-  # surpisingly, the code above doesn't plot anything
+  # surprisingly, the code above doesn't plot anything
   # this adds the points as a layer
   geom_jitter(width = 0.2) +
   
@@ -782,7 +790,7 @@ m1_response <- ggplot(
   # the theme
   theme(
     legend.position = "none", # remove legend
-    axis.title.x = element_blank() # remove the x-axis
+    axis.title.x = element_blank() # remove the x-axis title
   ) +
   
   
@@ -903,6 +911,8 @@ m1_simple_dt[, p_pretty := p_format(p_rounded,
 Now add the p-values
 
 ```{r plot-manual-p-values}
+# simply assigning this to a new plot with new name
+# because I want to re-use the base plot in the next chunk
 m1_response_p <- m1_response +
   stat_pvalue_manual(
     data = m1_simple_dt,
@@ -994,6 +1004,10 @@ m1_response_fac
 
 #### How to add treatment combinations to a ggpubr plot
 
+Many researchers in bench biology insert a grid of treatments below the x-axis of a plot. This is time consuming if we are using some external software to add to this. A much leaner workflow would be to add the treatment grid in the same step as generating the plot itself. Here is a kludgy way to do this using a ggpubr plot. A much more elegant method is described below
+
+##### Variant 1 -- Fake axes
+
 ```{r plots-how to plot treatments}
 
 use_this <- FALSE # if false use +/- symbols
@@ -1061,12 +1075,152 @@ m1_response_final <- m1_response_p +
   
 m1_response_final
 ```
+
 Notes
 
 1. `ggplot_the_treatments` should work with any ggplot, including those generated by ggpubr functions, with categorical values on the x-axis.
 2. Here, I add the treatment combinations manually. The table of combinations is added inside the plot area (inside the axes). To make this look nice, and not weird, the x and y axes are removed and new lines are inserted to create new axis lines. The bottom of the new y-axis line starts above the treatment table. The new x-axis line is inserted above the treatment table.
 3. To include the treatment combination (group) names, add this as the first row of `x_levels`.
 4. Note that if the plot has a grid, this grid will extend into the area occupied by the treatment table using this method.
+
+### How to generate a Response Plot with a grid of treatments using ggplot2
+
+Above, I wrote a [short script for generating the base response plot](#plot-individual-points) using ggplot. In this plot, the x-axis variable ("treatment") is categorical and ggplot uses the integers 1, 2, 3, 4 as the coordinate values for the position of the four groups on the x-axis. Understanding this mapping is important for adding lines to a plot or annotating a plot with text, both of which requires x,y coordinates to position the feature. While the x-axis is discrete -- I cannot add a tick at x = 1.5 -- the horizontal dimension of the plot area itself is continuous and I can add points or lines or text at any x coordinate within the plot area. 
+
+Here I generate the same plot using a continuous x-axis. This requires that I explicitly create a numeric column in the data with the x-axis position for each group. This is easy. The advantage of this is that I now have a continuous x-axis that is more manipulatable than a discrete x-axis. I use this to add treatment levels below the plot
+
+#### First, wrangle the data
+
+```{r plots-wrangle-for-continous-x}
+# make sure treatment is a factor with the levels in the 
+# desired order
+fig2e[, treatment_i := as.integer(treatment)]
+
+# convert m1_emm to a data.table
+m1_emm_dt_i <- summary(m1_emm) %>%
+  data.table()
+
+# create treatment_i column
+m1_emm_dt_i[, treatment_i := 1:4]
+
+# convert m1_simple to a data.table
+m1_simple_dt_i <- data.table(m1_simple)
+
+# create group1 -- column containing x-position
+# of the left side of the bracket
+# need to look at m1_simple_dt to construct this.
+# "ASK1F/F chow", "ASK1Δadipo chow" ,"ASK1F/F HFD", "ASK1Δadipo HFD" 
+m1_simple_dt_i[, group1 := c(2, 4, 3, 4)]
+
+# create group2 -- column containing x-position
+# of the right side of the bracket
+# need to look at m1_simple_dt to construct this.
+# "ASK1F/F chow", "ASK1Δadipo chow" ,"ASK1F/F HFD", "ASK1Δadipo HFD" 
+m1_simple_dt_i[, group2 := c(1, 3, 1, 2)]
+
+m1_simple_dt_i[, p_rounded := p_round(p.value,
+                                  digits = 2)]
+m1_simple_dt_i[, p_pretty := p_format(p_rounded,
+                                    digits = 2,
+                                    accuracy = 1e-04,
+                                    add.p = TRUE)]
+```
+
+Notes
+
+1. The first line simply converts the categorical variable treatment into a numeric variable with values 1-4 assigned to the four treatment levels.
+2. As above, `m1_emm_dt` is created and a column with the x-variable name is added
+3. As above, `m1_simple_dt` is created and group1 and group2 columns with the x-axis positions of the two groups in the contrast are created. Here these columns are integers and not group names.
+
+#### Second, generate the plot
+
+```{r plots-ggplot-continuous-x}
+m1_response_2 <- ggplot(
+  data = fig2e,
+  aes(x = treatment_i, # these 2 lines define the axes
+      y = glucose_auc,
+      color = ask1 # define the grouping variable
+  )) +
+  
+  # add jittered points
+  geom_jitter(width = 0.2) +
+  
+  # add layer containing means
+  geom_point(data = m1_emm_dt_i,
+             aes(y = emmean,
+                 color = ask1), 
+             size = 3) +
+  
+  # add layer containing error bars
+  geom_errorbar(data = m1_emm_dt_i, 
+                aes(y = emmean,
+                    ymin = lower.CL, 
+                    ymax = upper.CL,
+                    color = ask1), 
+                width = 0.05) +
+  
+  # add the p-value brackets
+  stat_pvalue_manual(
+    data = m1_simple_dt_i[c(2,4), ], # only rows 2, 4
+    label = "p_pretty",
+    y.position = c(3300, 3450),
+    tip.length = 0.01) +
+  
+  # change the title of the y-axis
+  ylab(expression(paste("AUC (mmol ", l^-1, " min)"))) +
+  
+  # change the theme
+  theme_pubr() +
+
+  # these theme modifications need to be added after re-setting
+  # the theme
+  theme(
+    legend.position = "none", # remove legend
+    axis.title.x = element_blank() # remove the x-axis title
+  ) +
+  
+  # change the colors palette for the points
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  NULL
+
+  
+m1_response_2
+```
+
+Notes
+
+1. This code is exactly the same as [that above](#plot-individual-points) but uses an x-variable that is numeric instead of a factor.
+
+#### Third, add the grid of treatments below the x-axis
+
+```{r plots-method3-treatment-grid}
+minus <- "\u2013" # good to put this in the setup chunk
+
+# I've added x-axis group names in addition to the grid
+x_levels <- rbind(
+  c("", "Control", "Δadipo", "HFD", "Δadipo+HFD"),
+  c("Δadipo:", minus, "+", minus, "+"),
+  c("HFD: ", minus, minus, "+", "+")
+)
+
+x_breaks_text <- apply(x_levels, 2, paste0, collapse="\n")
+x_breaks <- c(0.5, 1:4)
+
+m1_response_2 <- m1_response_2 +
+  coord_cartesian(xlim = c(0.5, 4.5)) +
+  scale_x_continuous(breaks = x_breaks,
+                     labels = x_breaks_text,
+                     expand = c(0, 0)) +
+  theme(axis.ticks.x = element_blank()) + # remove x-axis ticks
+  
+  NULL
+        
+m1_response_2
+```
+Notes
+
+1. This is a good plot. A pretty good plot would include the effects.
 
 ### How to generate an Effects Plot
 
@@ -1106,7 +1260,7 @@ m1_effects <- ggplot(data = m1_simple_dt,
   
   # add p-values
   annotate(geom = "text",
-           x = m1_simple_dt$estimate + c(-20,0,0,0),
+           x = m1_simple_dt$estimate + c(-30,0,0,0),
            y = 1:4 + 0.2,
            label = m1_simple_dt$p_pretty,
            size = 3) +
@@ -1119,9 +1273,10 @@ m1_effects <- ggplot(data = m1_simple_dt,
 
 m1_effects
 ```
+
 Notes
 
-1. `c(-20,0,0,0)` is added to the x coordinate to shift the first p-value to the left of the zero-effect line.
+1. `c(-30,0,0,0)` is added to the x coordinate to shift the first p-value to the left of the zero-effect line.
 
 **how would this be done with ggpubr?**
 
@@ -1155,7 +1310,7 @@ m1_effects_pubr <- ggerrorplot(data = m1_simple_dt,
   # add p-values
   # note using original (not horizontal) axis designation
   annotate(geom = "text",
-           y = m1_simple_dt$estimate + c(-20,0,0,0),
+           y = m1_simple_dt$estimate + c(-30,0,0,0),
            x = 1:4 + 0.3,
            label = m1_simple_dt$p_pretty,
            size = 3) +
@@ -1166,8 +1321,8 @@ m1_effects_pubr
 ```
 
 ### How to combine the response and effects plots
-
-The `cowplot::plotgrid()` function is used generally to arrange multiple plots into a single figure. Here I use it to combine the response and effects subplots into a single plot.
+#### Using the ggpubr response plot
+The `cowplot::plotgrid()` function is used generally to arrange multiple plots into a single figure. Here I use it to combine the response and effects subplots into a single plot. The response plot is `m1_response` created using ggpubr.
 
 ```{r plots-combined-plot}
 # modify the response and effects plots for consistency
@@ -1196,3 +1351,218 @@ m1_plot
 Notes
 
 1. The response plot was flipped in this code. If you know that you want it in this orientation, simply build it with this orientation to avoid the kinds of axis designation ambiguities highlighted above with the ggpubr effects plot.
+2. the `align` and `axis` arguments are used to force the plot areas to have the same width.
+3. `rel_heights = c()` adjusts the relative heights of the top and bottom plot. This typically requires fiddling.
+4. The placement of the p-values looks different than it does in the standalone effects plot. To improve the look in the combined plot, fiddle with the placement argument (the x and y positions) in the chunk that generates the effects plot.
+
+#### Using a response plot with a treatment grid
+
+Here, I re-build the response plot in a horizontal orientation
+
+```{r plots-response-horizontal}
+tab <- "\u0009"  # good to put this in the setup chunk
+minus <- "\u2013" # good to put this in the setup chunk
+minus_pad <- paste0(minus, "    ")
+plus_pad <- "+    "
+
+x_levels <- rbind(
+  c(minus_pad, plus_pad, minus_pad, plus_pad),
+  c(minus_pad, minus_pad, plus_pad, plus_pad)
+)
+x_breaks_text <- apply(x_levels, 2, paste0, collapse = "")
+x_breaks_text <- c(x_breaks_text, "Δadipo HFD")
+x_breaks <- c(1:4, 4.5)
+
+m1_response_horiz <- ggplot(
+  data = fig2e,
+  aes(y = treatment_i, # these 2 lines define the axes
+      x = glucose_auc,
+      color = ask1 # define the grouping variable
+  )) +
+  
+  # add jittered points
+  geom_jitter(width = 0.2) +
+  
+  # add layer containing means
+  geom_point(data = m1_emm_dt_i,
+             aes(x = emmean,
+                 color = ask1), 
+             size = 3) +
+  
+  # add layer containing error bars
+  geom_errorbar(data = m1_emm_dt_i, 
+                aes(x = emmean,
+                    xmin = lower.CL, 
+                    xmax = upper.CL,
+                    color = ask1), 
+                width = 0.05) +
+  
+  # change the title of the y-axis
+  xlab(expression(paste("AUC (mmol ", l^-1, " min)"))) +
+  
+  # change the theme
+  theme_pubr() +
+
+  # these theme modifications need to be added after re-setting
+  # the theme
+  theme(
+    legend.position = "none", # remove legend
+    axis.title.y = element_blank(), # remove the x-axis title
+    axis.ticks.y = element_blank() # remove y-axis ticks
+  ) +
+  
+  # change the colors palette for the points
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  # add the treatment
+  
+  coord_cartesian(ylim = c(0.5, 4.5)) +
+  scale_y_continuous(breaks = x_breaks,
+                     labels = x_breaks_text,
+                     expand = c(0, 0)) +
+  NULL
+
+m1_response_horiz
+```
+
+```{r plots-response-effects-plot-treatment}
+m1_plot <- plot_grid(m1_top,
+                     m1_response_horiz,
+                     nrow = 2,
+                     align = "v",
+                     axis = "lr",
+                     rel_heights = c(1, 1))
+
+m1_plot
+```
+
+### How to add the interaction effect to response and effects plots
+
+In the experiment for Figure 2E, a good question to ask is, is the effect of ASK1Δadipo conditional on diet? For example, a scenario where ASK1Δadipo lowers AUC about the same amount in both Chow and HFD mice (that is, the effect of ASK1Δadipo is not conditional on diet) has a different underlying biological explanation of the control of browning than a scenario where ASK1Δadipo lowers AUC only in HFD mice. To pursue this, we need an estimate of the interaction effect. In general, **if an experiment has a factorial design, we always want estimates of the interaction effects**
+
+#### Adding interaction p-value to a response plot
+
+Wrangle
+
+```{r plots-ixn-response-wrangle}
+m1_coef <- coef(summary(m1))
+ixn_estimate <- m1_coef["ask1ASK1Δadipo:dietHFD", "Estimate"]
+p_ixn <- m1_coef["ask1ASK1Δadipo:dietHFD", "Pr(>|t|)"] %>%
+  p_round(digits = 3) %>%
+  p_format(digits = 3, accuracy = 1e-04)
+p_ixn_text <- paste0("interaction p = ", p_ixn)
+```
+
+
+```{r}
+m1_response_ixn <- m1_response_fac +
+  
+  # add line connecting group means
+  # comment out all lines to remove
+  geom_line(data = m1_emm_dt,
+            aes(y = emmean,
+                group = ask1,
+                color = ask1),
+            position = position_dodge(width = dodge_width)) +
+  
+  # add p-value
+  annotate(geom = "text",
+           x = 1.5,
+           y = 2300,
+           label = p_ixn_text) +
+  
+  NULL
+
+m1_response_ixn
+```
+#### Adding interaction effect to effects plot
+##### Add the interaction effect to the contrast table
+
+```{r plots-ixn-contrast}
+# convert m1_simple to data.table
+m1_simple_dt <- data.table(m1_simple)
+
+# get interaction p-value using emmeans::contrast()
+m1_ixn <- contrast(m1_emm,
+                   interaction = c("revpairwise"),
+                   by = NULL) %>%
+  summary(infer = TRUE) %>%
+  data.table()
+
+setnames(m1_ixn,
+         old = names(m1_ixn)[1:2], 
+         new = names(m1_simple_dt)[1:2])
+m1_ixn[, contrast := "ask1:diet"]
+
+# note that column order does not need to be the same
+m1_effects_dt <- rbind(m1_simple_dt,
+                       m1_ixn)
+
+m1_effects_dt[, contrast_pretty := c("Δadipo - Control",
+                                     "Δadipo+HFD - HFD",
+                                     "HFD - Control",
+                                     "Δadipo+HFD - Δadipo",
+                                     "Interaction")]
+m1_effects_dt[, p_round := p_round(p.value, digits = 2)]
+m1_effects_dt[, p_pretty := p_format(p_round,
+                                     digits = 2,
+                                    accuracy = 1e-04,
+                                    add.p = TRUE)]
+
+# don't forget this imperative step!
+# otherwise your p-values and factor labels won't match!
+m1_effects_dt[, contrast_pretty := factor(contrast_pretty,
+                                          levels = contrast_pretty)]
+```
+
+```{r plots-ixn-effects-plot}
+m1_effects <- ggplot(data = m1_effects_dt,
+                     aes(x = estimate,
+                         y = contrast_pretty)) +
+  
+  geom_point() +
+  
+  xlab("Effects (mmol/L)") +
+
+  # add error bars
+  geom_errorbar(aes(x = estimate,
+                    xmin = lower.CL,
+                    xmax = upper.CL),
+                width = 0.02) +
+  
+  # add zero effect line
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = pal_okabe_ito_blue[1]) +
+  
+  # add p-values
+  annotate(geom = "text",
+           x = m1_effects_dt$estimate + c(-30,0,0,0,0),
+           y = 1:5 + 0.2,
+           label = m1_effects_dt$p_pretty,
+           size = 3) +
+  
+  theme_pubr() +
+  rremove("ylab") + #remove y-axis, ggpubr function
+  
+  
+  NULL
+
+m1_effects
+```
+```{r plots-ixn-combined-plot}
+m1_top <- m1_effects +
+  scale_x_continuous(position="top") # move x-axis to "top"
+
+m1_plot <- plot_grid(m1_top,
+                     m1_response_horiz,
+                     nrow = 2,
+                     align = "v",
+                     axis = "lr",
+                     rel_heights = c(1, 0.9))
+
+m1_plot
+```
+Notes
+
+1. This is a pretty good plot
