@@ -16,7 +16,9 @@ output:
 Some plots in this document require the file "ggplotsci.R" within the "R" folder, within the project folder.
 
 ```{r target-setup, echo=TRUE, warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(echo = TRUE,
+                      warning=FALSE,
+                      message=FALSE)
 
 # wrangling packages
 library(here)

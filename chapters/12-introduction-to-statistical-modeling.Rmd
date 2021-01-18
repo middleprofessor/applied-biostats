@@ -75,7 +75,7 @@ gg
 
 ```
 
-## Three specifications of a linear model
+## Two specifications of a linear model
 
 ### The "error draw" specification
 
@@ -142,7 +142,7 @@ The error-draw specification is not very useful for thinking about data generati
 
 Although a linear model (or statistical model more generally) is a model of a data-generating process, linear models are not typically used to actually generate any data. Instead, when we use a linear model to understand something about a real dataset, we think of our data as one realization of a process that generates data like ours. A linear model is a model of that process. That said, it is incredibly useful to use linear models to create fake datasets for at least two reasons: to probe our understanding of statistical modeling generally and, more specifically, to check that a model actually creates data like that in the real dataset that we are analyzing.
 
-### The ANOVA specification of a linear model
+### ANOVA notation of a linear model
 
 Many textbooks treat ANOVA differently from regression and express a linear model as an ANOVA model (and generally do not use the phrase "linear model"). ANOVA models are all variations of 
 
@@ -151,7 +151,7 @@ y_{ij} &= \mu + \tau_{i} + \varepsilon_{ij}
 (\#eq:anova-spec)
 \end{equation}
 
-Unlike the error and conditional draw specifications above, the ANOVA model doesn't have a linear predictor in the form of a regression equation (or the equation for a line) -- that is, there are neither $X$ variables nor coefficients ($\beta$). Instead, the ANOVA model is made up of a linear combination of means and deviations from means. In \@ref(eq:anova-spec), $\mu$ is the grand mean (the mean of the means of the groups), $\tau_i$ is the deviation of the mean of group $i$ from the grand mean (these are the effects), and $\varepsilon_{ij}$ is the deviation (or error) of individual $j$ from the mean of group $i$. Traditional ANOVA computes effects and the statistics for inference by computing means and deviations from means. Modern linear models compute effects and the statistics for inference by solving for the coefficients of the regression model. These are two ways of doing the same thing. That said, I don't find the ANOVA model very useful for understanding the biological consequences of an experiment. I want to know the effect of a treatment relative to a control and not the deviation (effect) of a control and of a treatment relative to the grand mean.
+Unlike the error and conditional draw specifications above, the ANOVA model doesn't have a linear predictor in the form of a regression equation (or the equation for a line) -- that is, there are neither $X$ variables nor coefficients ($\beta$). Instead, the ANOVA model is made up of a linear combination of means and deviations from means. In \@ref(eq:anova-spec), $\mu$ is the grand mean (the mean of the means of the groups), $\tau_i$ is the deviation of the mean of group $i$ from the grand mean (these are the effects), and $\varepsilon_{ij}$ is the deviation (or error) of individual $j$ from the mean of group $i$. Traditional ANOVA computes effects and the statistics for inference by computing means and deviations from means. Modern linear models compute effects and the statistics for inference by solving for the coefficients of the regression model. These are two ways of doing the same thing. That said, I don't find the ANOVA model very useful for understanding the biological consequences of an experiment. I want to know the effect of a treatment relative to one or more controls and not the deviation (effect) of a control and of a treatment relative to the grand mean.
 
 ## A linear model can be fit to data with continuous, discrete, or categorical $X$ variables
 
@@ -177,7 +177,7 @@ fig_2c_explainer
 
 ```
 
-### Fitting linear models to experimental data in which the $X$ variable is categorical
+### Fitting linear models to experimental data in which the $X$ variable is categorical {#slope}
 
 Linear models can be fit to experimental data in which the $X$ variable is categorical -- this is the focus of this text! For the model fit to the data in Figure \@ref(fig:line)B, the coefficient of $X$ is the slope of the line. Perhaps surprisingly, 1) we can fit a model like equation \@ref(eq:error-spec) to data in which the $X$ variable is categorical and 2) the coefficient of $X$ *is* a slope. How is this possible? The slope of a line is $\frac{y_2 - y_1}{x_2 - x_1}$ where $(x_1, y_1)$ and $(x_2, y_2)$ are the graph coordinates of any two points on the line. What is the denominator of the slope function $(x_2 - x_1)$ when $X$ is categorical?
 

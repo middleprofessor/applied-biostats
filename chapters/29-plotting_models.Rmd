@@ -1543,13 +1543,14 @@ m1_effects <- ggplot(data = m1_effects_dt,
            size = 3) +
   
   theme_pubr() +
+  
   rremove("ylab") + #remove y-axis, ggpubr function
-  
-  
+
   NULL
 
 m1_effects
 ```
+
 ```{r plots-ixn-combined-plot}
 m1_top <- m1_effects +
   scale_x_continuous(position="top") # move x-axis to "top"

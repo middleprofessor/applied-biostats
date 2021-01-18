@@ -19,20 +19,20 @@ library(ggplot2) # ggplot environment
 library(ggpubr) # publication ready plots
 library(ggforce) # jitter
 library(ggsci) # color palettes
-library(ggpubfigs) # color palettes
-# execute this command only the first time you use ggpubfigs
-# devtools::install_github("JLSteenwyk/ggpubfigs")
 library(cowplot) # combine plots
 library(lazyWeave) # pretty pvalues
 library(broom)
-
+library(knitr)
+library(kableExtra)
 
 here <- here::here
-data_folder <- "data"
 
-# Okabe & Ito palette
-ito_seven <- friendly_pal("ito_seven") # ggpubfigs
-pal_okabe_ito <- ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
+plot_path <- here("R/ggplot_the_model.R")
+source(plot_path)
+
+clean_names <- janitor::clean_names
+
+data_folder <- "data"
 
 ```
 
@@ -53,9 +53,9 @@ Cold temperature and the neurotransmitter/hormone norepinephrine are known to st
 ### Example 1 -- two treatment levels ("groups")
 Let's start with the experiment in Figure 3d, which was designed to measure the effect of 12,13-diHOME on plasma triglyceride level. If 12,13-diHOME stimulates BAT activity, then levels in the 12,13-diHOME mice should be less than levels in the control mice.
 
-**response variable**: *serum_tg*, a continuous variable.
+**response variable**: $\texttt{serum_tg}$, a continuous variable.
 
-**treatment variable**: *treatment*, with levels: "Vehicle", "12,13-diHOME" (the control or "Vehicle" mice were injected with saline). Coded as a factor.
+**treatment variable**: $\texttt{treatment}$, with levels: "Vehicle", "12,13-diHOME" (the control or "Vehicle" mice were injected with saline). Coded as a factor.
 
 **design**: single, categorical *X*
 
@@ -99,14 +99,13 @@ fig_3d[, treatment := factor(treatment, treatment_levels)]
 
 The second step is to examine the data to
 
-@. get a sense of sample size and balance
-@. check for biologically implausible outliers that suggest measurement failure, or transcription error (from a notebook, not in a cell)
-@. assess outliers for outlier strategy or robust analysis
-@. assess reasonable distributions and models for analysis.
+1. get a sense of sample size and balance
+2. check for biologically implausible outliers that suggest measurement failure, or transcription error (from a notebook, not in a cell)
+3. assess outliers for outlier strategy or robust analysis
+4. assess reasonable distributions and models for analysis.
 
 ```{r, echo=TRUE}
 qplot(x = treatment, y = serum_tg, data = fig_3d)
-# ggdotplot(x = "treatment", y = "serum_tg", data = fig_3d)
 ```
 
 There are no obviously implausible data points. A normal distribution is a good, reasonable start. This can be checked more thoroughly after fitting the model.
@@ -135,142 +134,62 @@ The spread-location plot shows no conspicuous trend in how the spread changes wi
 #### Step 5 -- inference
 ##### coefficient table
 
-```{r, echo=TRUE}
+```{r fig3d_m1_coef, echo=TRUE}
 fig3d_m1_coef <- cbind(coef(summary(fig3d_m1)),
                         confint(fig3d_m1))
-fig3d_m1_coef
-#knitr::kable(fig3d_m1_coef, digits = c(1,2,1,4,1,1))
+kable(fig3d_m1_coef, digits = c(1,2,1,4,1,1)) %>%
+  kable_styling()
 ```
 
 ##### Marginal means table
 
 ```{r, echo=TRUE}
-(fig3d_m1_emm <- emmeans(fig3d_m1, specs = "treatment"))
+fig3d_m1_emm <- emmeans(fig3d_m1, specs = "treatment")
+kable(fig3d_m1_emm, digits = c(1,1,2,0,1,1)) %>%
+  kable_styling()
 ```
 
 ##### Contrasts table
 
 ```{r, echo=TRUE}
-(fig3d_m1_pairs <- contrast(fig3d_m1_emm,
+fig3d_m1_pairs <- contrast(fig3d_m1_emm,
                             method = "revpairwise") %>%
-  summary(infer = TRUE))
+  summary(infer = TRUE)
+
+kable(fig3d_m1_pairs, digits = c(1,1,1,0,1,1,2,4)) %>%
+  kable_styling()
 ```
 
 #### Step 6 -- plot the model
 
-The script for plotting the model in the section Hidden code below.
-
-```{r, echo=FALSE}
-fig3d_m1_emm_dt <- summary(fig3d_m1_emm) %>%
-  data.table
-fig3d_m1_pairs_dt <- data.table(fig3d_m1_pairs)
-fig3d_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
-fig3d_m1_pairs_dt[, group1 := 1]
-fig3d_m1_pairs_dt[, group2 := 2]
-```
-
-```{r, echo=FALSE}
-fig3d_gg_response <- ggplot(data = fig_3d,
-                    aes(x = treatment,
-                        y = serum_tg,
-                        color = treatment)) +
-  
-  # points
-  geom_sina(alpha = 0.5) +
-  
-  # plot means and CI
-  geom_errorbar(data = fig3d_m1_emm_dt,
-                aes(y = emmean,
-                    ymin = lower.CL,
-                    ymax = upper.CL,
-                    color = treatment),
-                width = 0
-  ) +
-  
-  geom_point(data = fig3d_m1_emm_dt,
-             aes(y = emmean,
-                 color = treatment),
-             size = 3
-  ) +
-  
- # plot p-values (y positions are adjusted by eye)
-  # stat_pvalue_manual(fig3d_m1_pairs_dt,
-  #                    label = "p_pretty",
-  #                    y.position=c(50),
-  #                    tip.length = 0.01) +
-  
-  # aesthetics
-  ylab("Serum TG (µg/dL)") +
-  scale_color_manual(values=pal_okabe_ito[5:6],
-                     name = NULL) +
-  theme_pubr() +
-  theme(legend.position="none") +
-  theme(axis.title.x=element_blank()) +
-  
-  NULL
-
-#fig3d_gg_response
-```
-
-```{r, echo=FALSE}
-
-min_bound <- min(fig3d_m1_pairs_dt[, lower.CL])
-max_bound <- min(fig3d_m1_pairs_dt[, upper.CL])
-y_lo <- min(min_bound+min_bound*0.2,
-            -max_bound)
-y_hi <- max(max_bound + max_bound*0.2,
-            -min_bound)
-y_lims <- c(y_lo, y_hi)
-
-fig3d_gg_effect <- ggplot(data=fig3d_m1_pairs_dt, 
-                          aes(x = contrast,
-                              y = estimate)) +
-  # confidence level of effect
-  geom_errorbar(aes(ymin=lower.CL, 
-                    ymax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # zero effect
-  geom_hline(yintercept=0, linetype = 2) +
-  
-  # p-value
-  annotate(geom = "text",
-           label = fig3d_m1_pairs_dt$p_pretty,
-           x = 1,
-           y = 5) +
-  
-  # aesthetics
-  scale_y_continuous(position="right") +
-  scale_x_discrete(labels = "12,13-diHOME\neffect") +
-  coord_flip(ylim = y_lims) + 
-  theme_pubr() +
-  ylab("Effects (µg/dL)") +
-  theme(axis.title.y = element_blank()) +
-  NULL
-
-#fig3d_gg_effect
-```
-
-```{r, echo=FALSE}
-fig3d_fig <- plot_grid(fig3d_gg_effect,
-                       fig3d_gg_response,
-                       nrow=2,
-                       align = "v",
-                       axis = "lr",
-                       rel_heights = c(0.4,1))
-fig3d_fig
+```{r ggplot_the_model, echo = TRUE}
+ggplot_the_model(
+  fig3d_m1,
+  fig3d_m1_emm,
+  fig3d_m1_pairs,
+  legend_position = "none",
+  y_label = "Serum TG (µg/dL)",
+  effect_label = "Effects (µg/dL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.5,1)
+)
 ```
 
 #### Step 7 -- report the model results
 
-Mean serum TG in mice with 12,13-diHOME (35.5 µg/dL, 95% CI: 31.7, 39.2) was 7.17 µg/dL less (95% CI: -12.4, -1.9, $p = 0.012$) than mean serum TG in control mice (42.6 µg/dL, 95% CI: 38.9, 46.3).
+1. Different ways of reporting the results without making claims that are not evidenced by the statistical analysis
+
+"The estimated average effect of 12,13-diHOME on serum TG is 7.17 µg/dL (95% CI: -12.4, -1.9, $p = 0.012$)."
+
+"Mean serum TG in mice with 12,13-diHOME (35.5 µg/dL, 95% CI: 31.7, 39.2) was 7.17 µg/dL less (95% CI: -12.4, -1.9, p = 0.012) than mean serum TG in control mice (42.6 µg/dL, 95% CI: 38.9, 46.3)."
+
+2. Problematic reports
+
+"12,13-diHOME significantly reduced serum TG ($p = 0.012$)" (1.  In English, the current use of "significant" means "large" or "important". Only knowledge of the physiological consequences of TG reduction over the range of the CI can be use as evidence of importance. 2. The statistics do not provide evidence that it is the serum TG that caused this reduction. While 7.17 µg/dL is the difference, some or all of the effect could be due to, in general, sampling, execution errors such as non-random treatment assignment, clustered caging, clustered application of assays, or non-blinded measurement of the response.
 
 ### Understanding the analysis with two treatment levels
 
-The variable $treatment$ in the Figure 3d mouse experiment, is a single, categorical $X$ variable. In a linear model, categorical variables are called **factors**. $treatment$ can take two different values, "Vehicle" and "12,13-diHOME". The different values in a factor are the **factor levels** (or just "levels"). "Levels" is a strange usage of this word; a less formal name for levels is "groups". In a **Nominal** categorical factor, the levels have no units and are unordered, even if the variable is based on a numeric measurement. For example, I might design an experiment in which mice are randomly assigned to one of three treatments: one hour at 14 °C, one hour at 18 °C, or one hour at 26 °C. If I model this treatment as a nominal categorical factor, then I simply have three levels. While I would certainly choose to arrange these levels in a meaningful way in a plot, for the analysis itself, these levels have no units and there is no order. **Ordinal** categorical factors have levels that are ordered but there is no information on relative distance. The treatment at 18 °C is not more similar to 14 °C than to 26 °C. Nominal categorical factors is the default in R and how all factors are analyzed in this text.
+The variable $\texttt{treatment}$ in the Figure 3d mouse experiment, is a single, categorical $X$ variable. In a linear model, categorical variables are called **factors**. $\texttt{treatment}$ can take two different values, "Vehicle" and "12,13-diHOME". The different values in a factor are the **factor levels** (or just "levels"). "Levels" is a strange usage of this word; a less formal name for levels is "groups". In a **Nominal** categorical factor, the levels have no units and are unordered, even if the variable is based on a numeric measurement. For example, I might design an experiment in which mice are randomly assigned to one of three treatments: one hour at 14 °C, one hour at 18 °C, or one hour at 26 °C. If I model this treatment as a nominal categorical factor, then I simply have three levels. While I would certainly choose to arrange these levels in a meaningful way in a plot, for the analysis itself, these levels have no units and there is no order. **Ordinal** categorical factors have levels that are ordered but there is no information on relative distance. The treatment at 18 °C is not more similar to 14 °C than to 26 °C. Nominal categorical factors is the default in R and how all factors are analyzed in this text.
 
 #### Linear models are regression models
 
@@ -278,254 +197,300 @@ The linear model fit to the serum TG data is
 
 \begin{align}
 serum\_tg &= treatment + \varepsilon\\
-\varepsilon &~ N(0, sigma^2)
-(\#eq:lm-serum-tg)
-\end{align}
-
-This specification is potentially confusing because the variable $treatment$ is a factor containing the words "Vehicle" and "12,13-diHOME" and not numbers. A linear model with a single factor containing two levels can be specified using notation for a regression model.
-
-\begin{align}
-Y &= \beta_0 + \beta_1 X_1 + \varepsilon\\
 \varepsilon &\sim N(0, \sigma^2)
-(\#eq:model-cat-x)
+(\#eq:lm-model-example-1)
 \end{align}
 
-Model \@ref(eq:model-cat-x) is a regression model where $X_1$ is not the variable $treatment$, containing the words "Vehicle" or "12,13-diHOME" but a numeric variable that indicates group membership, containing the number 1 if the element belongs to the first non-reference level (if there are only two levels, then there is only a single, non-reference level) and the number 0 if the element doesn't belong to the first non-reference level.
-
-For the serum TG data, "Vehicle" is the reference, so we can write the linear model fit to the serum TG data using regression model notation.
+This notation is potentially confusing because the variable $\texttt{treatment}$ is a factor containing the words "Vehicle" and "12,13-diHOME" and not numbers. The linear model in \@ref(eq:lm-model-example-1) can be specified using notation for a regression model using
 
 \begin{align}
 serum\_tg &= \beta_0 + \beta_1 treatment_{12,13-diHOME} + \varepsilon\\
 \varepsilon &\sim N(0, \sigma^2)
-(\#eq:model-cat-serum-tg)
+(\#eq:reg-model-example-1)
 \end{align}
 
-Model \@ref(eq:model-cat-serum-tg) is a regression model where $treatment_{12,13-diHOME}$ is not the variable $treatment$, containing the words "Vehicle" or "12,13-diHOME" but a numeric variable that indicates membership in the level "12,13-diHOME". This variable contains the number 1 if the element belongs to "12,13-diHOME" and the number 0 if the element doesn't belong to "12,13-diHOME". More generally, model \@ref(eq:model-cat-x) is a regression model where $X_1$ contains the number 1 if the element belongs to the first non-reference level (if there are only two levels, then there is only a single, non-reference level) and the number 0 if the element doesn't belong to the first non-reference level. If there were a third level within $treatment$ (say, a 12,13-diHOME inhibitor), there would be a second $X$ variable added to the model ($X_2$), which would contain the number 1 if the element belongs to the second non-reference level (12,13-diHOME inhibitor) and the number 0, otherwise.
+Model \@ref(eq:reg-model-example-1) is a regression model where $treatment_{12,13-diHOME}$ is not the variable $\texttt{treatment}$, containing the words "Vehicle" or "12,13-diHOME" but a numeric variable that indicates membership in the group "12,13-diHOME". This variable contains the number 1 if the mouse belongs to "12,13-diHOME" and the number 0 if the mouse doesn't belong to "12,13-diHOME". $treatment_{12,13-diHOME}$ is known as an **indicator variable** because it indicates group membership. There are several ways of coding indicator variables and the way described here is called **dummy** or treatment coding. Dummy-coded indicator variables are sometimes called **dummy variables**.
 
-The $X$ variables in the regression model notation that indicate group membership are called **indicator variables**. There are several ways of coding indicator variables and the way described here is called **dummy** or treatment coding. This text will typically call dummy-coded indicator variables **dummy variables**. The `lm` function creates these dummy variables under the table, in something called the **model matrix**. You won't see these columns in your data but if you did, they would look like this
+The `lm` function creates indicator variables under the table, in something called the **model matrix**. 
 
-```{r, echo=FALSE}
-fig3d_m1_model_matrix <- model.matrix(fig3d_m1)
-dt <- copy(fig_3d)
-dt[, "treatment12,13-diHOME" := fig3d_m1_model_matrix[,2]]
-knitr::kable(dt)
+```{r cat-x-dummy-coding, echo=TRUE}
+X <- model.matrix(~ treatment, data = fig_3d)
+N <- nrow(X)
+X[1:N,]
 ```
 
-R names dummy variables by combining the names of the factor and the name of the level within the factor. So the $X$ variable that R creates in the model matrix for the fit linear model in model \@ref(eq:model-cat-x) is $treatment12,13-diHOME$. You can see these names as terms in the coefficient table of the fit model.
+The columns of the model matrix are the names of the **model terms** in the fit model. R names dummy variables by combining the names of the factor and the name of the level within the factor. So the $X$ variable that R creates in the model matrix for the fit linear model in model \@ref(eq:reg-model-example-1) is $treatment12,13-diHOME$. You can see these names as terms in the coefficient table of the fit model.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-Analysis fail. There are alternatives to dummy coding for creating indicator variables. Dummy coding is the default in R and it makes sense when thinking about experimental data with an obvious control level. I also like the interpretation of a "interaction effect" using Dummy coding. The classical coding for ANOVA is deviation effect coding, which creates coefficients that are deviations from the grand mean. In contrast to R, Deviation coding is the default in many statistical software packages including SAS, SPSS, and JMP. The method of coding can make a difference in an ANOVA table. Watch out for this -- I've come across numerous published papers where the researchers used the default dummy coding but interpreted the ANOVA table as if they had used deviation coding. This is both getting ahead of ourselves and somewhat moot, because I don't advocate publishing ANOVA tables.
-</div> 
+There are alternatives to dummy coding for creating indicator variables. Dummy coding is the default in R and it makes sense when thinking about experimental data with an obvious control level. I also like the interpretation of a "interaction effect" using Dummy coding. The classical coding for ANOVA is deviation effect coding, which creates coefficients that are deviations from the grand mean. In contrast to R, Deviation coding is the default in many statistical software packages including SAS, SPSS, and JMP. The method of coding can make a difference in an ANOVA table. Watch out for this -- I've found several published papers where the researchers used the default dummy coding but interpreted the ANOVA table as if they had used deviation coding. This is both getting ahead of ourselves and somewhat moot, because I don't advocate reporting ANOVA tables.
+</div>
 
-#### The "Estimates" in the coefficient table are estimates of the parameters of the linear model fit to the data.
+#### The Estimates in the coefficient table are estimates of the parameters of the linear model fit to the data.
 
-```{r, echo=FALSE}
-fig3d_m1_coef
+```{r cat-x-fig3d_m1_coef-kable, echo=FALSE}
+fig3d_m1_coef %>%
+  kable(digits = c(1,2,1,4,1,1)) %>%
+  kable_styling()
 ```
 
-The linear model \@ref(eq:model-cat-serum-tg) fit to the serum TG data has three parameters, including two in the regression equation. The "estimates" in the coefficient table are the estimates of the regression parameters $\beta_0$ and $\beta_1$. These estimates are the coefficients of the fit model
+The row names of the coefficient table are the column names of the model matrix. These are the model terms. There are two terms (two rows) because there are two parameters in the regression model \@ref(eq:reg-model-example-1). The values in the column $\texttt{Estimate}$ in the coefficient table are the estimates of the regression parameters $\beta_0$ and $\beta_1$. These estimates are the coefficients of the fit model, $b_0$ and $b_1$.
+
+#### The coefficients of a linear model using dummy coding have a useful interpretation
+
+```{r example1-coef-understanding, echo=FALSE}
+new_table <- data.table(
+  coefficient = c("$b_0$", "$b_1$"),
+  parameter = c("$\\beta_0$", "$\\beta_1$"),
+  "model term" = row.names(fig3d_m1_coef),
+  interpretation = c("$\\overline{Vehicle}$",
+                     "$\\overline{12,13\\;diHOME} - \\overline{Vehicle}$")
+)
+new_table %>%
+  kable(escape = FALSE,
+        caption = "Understanding model coefficients of a linear model with a single treatment variable with two groups. The means in the interpretation column are conditional means.") %>%
+  kable_styling()
+```
+
+It is important to understand the interpretation of the coefficients of the fit linear model \@ref(eq:lm-model-example-1) (Table \@ref(tab:example1-coef-understanding)).
+
+1. The coefficient $b_0$ is the is the conditional mean of the response for the reference level, which is "Vehicle". Remember that a conditional mean is the mean of a group that all have the same value for one or more $X$ variables.
+2. The coefficient $b_1$ is the difference between the conditional means of the "12,13-diHOME" level and the reference ("Vehicle") level:
 
 \begin{equation}
-serum\_tg = b_0 + b_1 \beta_1 treatment_{12,13-diHOME} + e
-(\#eq:fit-serum-tg)
+\mathrm{E}[serum\_tg|treatment = \texttt{"12,13-diHOME"}] - \mathrm{E}[serum\_tg|treatment = \texttt{"Vehicle"}]
 \end{equation}
 
-The coefficients $b_0$ and $b_1$ are the two values in the column "Estimate" of the table of model coefficients (or "coefficient table"). In addition to the estimates, the table inlcludes the standard error, 95% confidence interval, and *t* and *p*-values of each estimate.
+Because there are no additional covariates in model, this difference is equal to the difference between the sample means $\bar{Y}_{12,13-diHOME} - \bar{Y}_{Vehicle}$. The *direction* of this difference is important -- it is non-reference level minus the reference level.
 
-#### The parameters of a linear model using dummy coding have an impoortant interpretation
+The estimate $b_1$ is the **effect** that we are interested in. Specifically, it is the measured effect of 12,13-diHOME on serum TG. When we inject 12,13-diHOME, we find the mean serum TG decreased by -7.2 µg/dL relative to the mean serum TG in the mice that were injected with saline. Importantly, the reference level is not a property of an experiment but is set by whomever is analyzing the data. Since the non-reference estimates are differences in means, it often makes sense to set the "control" treatment level as the reference level.
 
-It is important to understand the interpretation of the coefficients of the fit linear model @\ref(eq:fit-serum-tg). The "coefficient" $b_0$ is the first value in the "Estimate" column of the coefficient table (in the row "(intercept)"). This is the conditional mean of the response for the reference level, which is "Vehicle". Remember that a conditional mean is the mean of a group that all have the same value for one or more $X$ variables. The coefficient $b_1$ is the second value in the "Estimate" column (in the row "treatment12,13-diHOME"). $b_1$ is the difference between the conditional means of the 12,13-diHOME level and the reference (Vehicle) level. The *direction* of this difference is important; it is $\bar{Y}_{12,13-diHOME} - \bar{Y}_{Vehicle}$, that is, the non-reference level minus the reference level. The estimate for treatment12,13-diHOME is the **effect** that we are interested in. Specifically, it is the effect of 12,13-diHOME on serum TG. When we inject 12,13-diHOME, we find the mean serum TG decreases by -7.2 µg/dL relative to the mean serum TG in the mice that were injected with saline. Importantly, the reference level is not a property of an experiment but is set by whomever is analyzing the data. Since the non-reference estimates are differences in means, it often makes sense to set the "control" treatment level as the reference level.
+Many beginners mistakenly memorize the coefficient $b_1$ to equal the mean of the non-reference group ("12,13-diHOME"). Don't do this. In a regression model, only $b_0$ is a mean. The coefficient $b_1$ in model \@ref(eq:reg-model-example-1) is a difference in means.
 
-The intercept estimates the true, mean serum TG in a hypothetical population of mice that have been given saline but not 12,13-diHOME. The treatment12,13-diHOME value estimates the true, difference in means between a hypothetical population of mice that have been given 12,13-diHOME and a population that has been given only saline.
+```{r cat-x-coef-fig, echo=FALSE, fig.cap="What the coefficients of a linear model with a single categorical X mean. The means of the two treatment levels for the serum TG data are shown with the large, filled circles and the dashed lines. The intercept ($b_0$) is the mean of the reference treatment level (\"Vehicle\"). The coefficient $b_1$ is the difference between the treatment level's mean and the reference mean. As with a linear model with a continuous $X$, the coefficient $b_1$ is an effect."}
+
+b <- fig3d_m1_coef[, "Estimate"]
+b0 <- b[1]
+x_adj <- 0.25
+y_adj <- 0
+
+gg <- ggplot_the_response(
+  fig3d_m1,
+  fig3d_m1_emm,
+  fig3d_m1_pairs,
+  legend_position = "none",
+  palette = pal_okabe_ito_blue,
+  y_label = "Serum TG (µg/dL)",
+) +
+  
+  # b0 dotted line
+  geom_segment(aes(x = 0.8,
+                   y = b[1],
+                   xend = 2.25,
+                   yend = b[1]),
+               linetype = 2,
+               color = "black") +
+  # b0 arrow
+  geom_segment(aes(x = 0.65,
+                   y = b[1] + y_adj,
+                   xend = 0.4,
+                   yend = b[1]),
+               color = "black",
+               arrow = arrow(length  =  unit(0.05, "npc"),
+                             ends = "last",type = "open")) +
+  annotate("text",
+           label = "b[0]",
+           parse = TRUE,
+           x = 0.725,
+           y = (b[1]) + y_adj,
+           size = 8) +
+  
+  # b1 dotted line
+  geom_segment(aes(x = 0.8,
+                   y = b[1] + b[2],
+                   xend = 2.25,
+                   yend = b[1] + b[2]),
+               linetype = 2,
+               color = "black") +
+  
+  # b1 arrow
+  geom_segment(aes(x = 2 + x_adj,
+                   y = b[1] + b[2] + 0.3,
+                   xend = 2 + x_adj,
+                   yend = b[1]),
+               color = "black",
+               arrow = arrow(length  =  unit(0.05, "npc"),
+                             ends = "both",type = "open")) +
+  annotate("text",
+           label = "b[1]",
+           parse = TRUE,
+           x = 1.9 + x_adj,
+           y = (b[1] + 0.5*b[2]),
+           size = 8) +
+  NULL
+
+
+gg
+```
+
+A geometric interpretation of the coefficients is illustrated in Figure \@ref(fig:cat-x-coef-fig). $b_0$ is the conditional mean of the reference level ("Vehicle") and is an estimate of $\beta_0$, the true, conditional mean of the population. $b_1$ is the difference in the conditional means of the first non-reference level ("12,13-diHOME") and the reference level ("Vehicle") and is an estimate of $\beta_1$, the true difference in the conditional means of the population with and without the treatment 12,13-diHOME. 
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 tl;dr. What is a population? In the experimental biology examples in this text, we might consider the population as a very idealized, infinitely large set of mice, or fish, or fruit flies, or communities from which our sample is a reasonably representative subset. For the experiments in the 12,13-diHOME study, the population might be conceived of as the hypothetical, infinitely large set of 12-week-old, male, C57BL/6J mice, raised in the mouse facility at Joslin Diabetes Center. An even more abstract way to way to think about what the population could be is the infinitely large set of values that could generated by the linear model.
 </div> 
 
-```{r, echo=FALSE, fig.cap="What the coefficients of a linear model with a single categorical X mean. The means of the two treatment levels for the serum TG data are shown with the filled circles. The intercept ($b_0$) is the mean of the reference treatment level. The coefficient $b_1$ is the difference between the treatment level's mean and the reference mean. As with a linear model with a continuous X, the coefficients are effects."}
-
-b <- fig3d_m1_coef[, "Estimate"]
-b0 <- b[1]
-line1 <- data.frame(
-  x = 0.8,
-  xend = 2.25,
-  y = b[1],
-  yend = b[1]
-)
-arrow1 <- data.frame(
-  x = 0.65,
-  xend = 0.4,
-  y = b[1],
-  yend = b[1]
-)
-arrow2 <- data.frame(
-  x = 2,
-  xend = 2,
-  y = b[1] + b[2] + 0.3,
-  yend = b[1]
-)
-
-gg <- ggplot(data = fig3d_m1_emm_dt,
-             aes(x = treatment,
-                 y = emmean)) +
-  # means
-  geom_point(size = 3) +
-  
-  # b0 dotted line
-  geom_segment(data = line1,
-               aes(x = x, y = y, xend = xend, yend = yend), linetype = 2) +
-  # b0 arrow
-  geom_segment(data = arrow1, aes(x = x, y = y, xend = xend, yend = yend), arrow = arrow(length  =  unit(0.05, "npc"), ends = "last",type = "open")) +
-  annotate("text", label = "b[0]", parse = TRUE, x = 0.725, y = (b[1]), size = 8) +
-  # b1 arrow
-  geom_segment(data = arrow2, aes(x = x, y = y, xend = xend, yend = yend), arrow = arrow(length  =  unit(0.05, "npc"), ends = "both",type = "open")) +
-  annotate("text", label = "b[1]", parse = TRUE, x = 1.9, y = (b[1] + 0.5*b[2]), size = 8) +
-  
-  ylab("Serum TG (µg/dL") +
-  
-  NULL
-gg
-```
-
-Let's put this all together. $b_0$ is the conditional mean of the reference level ("Vehicle") and is an estimate of $\beta_0$, the true, conditional mean of the population. $b_1$ is the difference in the conditional means of the first non-reference level ("12,13-diHOME") and the reference level ("Vehicle") and is an estimate of $\beta_1$, the true difference in the conditional means of the population with and without the treatment 12,13-diHOME. 
-
-#### The table of marginal means is a table of modeled means and inferential statistics, not a table of raw means and inferential statistics
-
-The table of marginal means for the model fit to the Figure 3d serum TG data is (shown to five decimal places for a later comparison)
-
-```{r, echo=FALSE}
-knitr::kable(summary(fig3d_m1_emm), digits = 5)
-```
-```{r, echo=FALSE}
-fig_3d_unbalanced <- fig_3d[2:12]
-
-fit <- lm(serum_tg ~ treatment, data = fig_3d_unbalanced)
-fit_emm <- emmeans(fit, specs = ~ 1)
-mean_emm <- summary(fit_emm)[1, "emmean"]
-
-mean_raw <- fig_3d_unbalanced[, .(mean = mean(serum_tg))]
-
-# mean_raw
-# fit_emm
-```
-
-A **marginal mean** is the mean of a set of conditional means and is, consequently, a **modeled mean** (it comes from a model). The table of marginal means ("marginal means table) outputs the specified marginal means and the standard error and 95% confidence interval of each mean. There is no test-statistic with a *p*-value because there is no significance test. The specified marginal means table of the Figure 3d data is not too exciting because it simply contains the conditional means -- the values are not marginalized over any $X$. In several sections of this text, the marginal means table will contain values that average conditional means over one or more factors. The marginal means table also computes these means as the expected value (mean) at the average value of a continuous covariate, if any covariates are in the linear model. Because the marginal means table contains different sorts of means (conditional, marginal, adjusted), this text will generally refer to the means in this table as "modeled means".
-
-If the design is **balanced**, meaning the sample size for each conditional mean is the same, then a marginal mean will simply equal the average of the individual values. But, this is not the case for unbalanced designs. For example, if we unbalance the Figure 3d data by throwing out the first row of and refit the model, the raw mean of $serum\_tg$ is `r round(mean_raw, 3)` and the marginal mean, marginalized over $treatment$, is `r round(mean_emm, 3)`.
-
-Like the modeled means, the standard errors in the marginal means table are modeled and not raw values. Recall that the standard error of a mean is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation. In the marginal means table, $s$ is not the raw standard deviation of the group but the estimate of $\sigma$, the square root of the true variance. As with the raw standard error of the mean, the denominator is the sample size $n$ for the group. Since the numerator of the modeled SE is the same for all groups, the modeled SE will be the same in all groups that have the same sample size, as seen in the marginal means table for the model fit to the Figure 3d data. This may seem odd. It is not. Remember that an assumption of the linear model is homogeneity of variances -- that the $e_i$ for each group are drawn from $N(0, \sigma^2)$ regardless of group. $s^2$, which is computed as a variance of the model residuals, is an estimate this true variance ($\sigma^2$). It is also useful to think of the raw variances computed separately for each group (level of $treatment$) as estimates of $\sigma^2$. The separately computed estimates are averaged to create a single estimate, which is equal to $s^2$ computed from the model residuals.
-
-Unlike the modeled means, the modeled standard error and confidence interval will, effectively, never equal the raw values.
-
-
-```{r categorical-x-explore, echo=FALSE, eval=FALSE}
-sigma <- summary(fig3d_m1)$sigma
-sigma
-sd(fig3d_m1$residuals)
-sqrt(sum((fig3d_m1$residuals)^2)/(fig3d_m1$df))
-sigma/sqrt(6)
-
-fig3d_summary <- fig_3d[, .(var = sd(serum_tg)^2), by = treatment]
-sigma_2 <- sqrt(sum(fig3d_summary[, var])/2)
-sigma
-sigma_2
-
-sigma_ub <- summary(fit)$sigma
-sigma_ub
-sqrt(sum((fit$residuals)^2)/(fit$df))
-sigma_ub/sqrt(6)
-sigma_ub/sqrt(5)
-knitr::kable(summary(emmeans(fit, specs = "treatment")))
-
-fig3d_ub_summary <- fig_3d_unbalanced[, .(var = sd(serum_tg)^2), by = treatment]
-sigma_2_ub <- sqrt(sum(fig3d_ub_summary[, var])/2)
-sigma_ub
-sigma_2_ub
-
-m2 <- gls(serum_tg ~ treatment,
-          data = fig_3d,
-          weights = varIdent(form = ~ 1|treatment))
-t.test(serum_tg ~ treatment,
-          data = fig_3d)
-```
-
-#### Report the modeled means and inferential statistics from the marginal means table, not the raw means and inferential statistics
-
-This text advocates the best practice of reporting, including plotting, the modeled means and inferential statistics (SEM or confidence interval) and not the raw means and summary statistics, because only the modeled means and statistics are consistent with the modeled statistical analysis. Raw means and summary statistics can both mask the effects that we want to communicate and give misleading interpretation of the statistics, including the conditional distribution of the data.
-
-The raw, group means and standard errors of each mean of the Figure 3d serum TG are
+#### Better know the coefficient table
 
 ```{r}
-fig_3d[, .(mean = mean(serum_tg),
-           SE = sd(serum_tg)/sqrt(.N)),
-       by = treatment]
+fig3d_m1_coef %>%
+  kable(digits = c(1,2,1,4,1,1)) %>%
+  kable_styling()
 ```
 
-The raw means are equal to the modeled means but the SE differs.
+1. The $\texttt{(Intercept)}$ row contains the statistics for $b_0$ (the estimate of $\beta_0$). Remember that $b_0$ is the conditional mean of the reference treatment ("Vehicle").
+2. The $\texttt{treatment12,13-diHOME}$ row contains the statistics for $b_1$ (the estimate of $\beta_1$). Remember that $b_1$ is the difference in conditional means of the groups "12,13-diHOME" and "Vehicle".
+3. The column $\texttt{Estimate}$ contains the model coefficients, which are estimates of the parameters.
+4. The column $\texttt{Std. Error}$ contains the model SEs of the coefficients. The SE of $\texttt{(Intercept)}$ is a standard error of a mean (SEM). The SE of $\texttt{treatment12,13-diHOME}$ is a standard error of a difference (SED).
+5. The column $\texttt{t value}$ contains the test statistic of the coefficients. This value is the ratio $\frac{Estimate}{SE}$. For this model, we are only interested in the test statistic for $b_1$. Effectively, we will never be interested in the test statistic for $b_0$ because the mean of a group will never be zero.
+6. The column $\texttt{Pr(>|t|)}$ contains the *p*-values for the test statistic of the coefficients. For this model, and all models in this text, we are only interested in the *p*-value for the non-intercept coefficients. 
+7. The columns $\texttt{2.5 %}$ and $\texttt{97.5 %}$ contain the lower and upper limits of the 95% confidence interval of the estimate.
+
+#### The emmeans table is a table of modeled means and inferential statistics
+
+```{r fig3d_m1_emm_kable, echo=FALSE}
+kable(summary(fig3d_m1_emm),
+      digits = c(1,1,2,1,1,1),
+      caption = "Estimated marginal means table for model fig3d_m1.") %>%
+  kable_styling()
+```
+
+The table of marginal means for the model fit to the fig3d serum TG data (Model \@ref(eq:lm-model-example-1)) is given in Table \@ref(tab:fig3d_m1_emm_kable). The table of marginal means gives the **modeled* mean, standard error and confidence interval for all specified groups. There is no test-statistic with a *p*-value because there is no significance test. In this text, I'll refer to this table as the "emmeans table", since it is the output from the `emmeans` function  ("em" is the abbreviation for "estimated marginal"). I'll use "modeled means" to refer to the means themselves as these are the estimate of means from a fit linear model.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+A **marginal mean** is the mean over a set of conditional means. For example, if a treatment factor has three levels, the conditional means are the means for each level and the marginal mean is the mean of the three means. Or, if the conditional means are the expected values given a continous covariate, the marginal mean is the expected value at the mean of covariate. The specified emmeans table of the fig3d data is not too exciting because it simply contains the conditional means -- the values are not marginalized over any $X$. Because the emmeans table contains different sorts of means (conditional, marginal, adjusted), this text will generally refer to the means in this table as "modeled means".
+</div>
+
+```{r cat-x-emmeans-table, echo = FALSE}
+kable(summary(fig3d_m1_emm),
+      digits = 5,
+      caption = "The emmeans table contains modeled means, SE, and CIs.") %>%
+  kable_styling()
+```
+
+
+```{r cat-x-summary-table, echo = FALSE}
+# summary table
+summary_table <- fig_3d[, .(mean = mean(serum_tg),
+                            SE = sd(serum_tg)/sqrt(.N)),
+                        by = treatment]
+df <- nrow(fig_3d) - 2
+summary_table[, lower.CL := mean + SE*qt(0.025, df)]
+summary_table[, upper.CL := mean + SE*qt(0.975, df)]
+
+kable(summary_table,
+      digits = 5,
+      caption = "A summary table contains sampled means, SE, and CIs.") %>%
+  kable_styling()
+```
+
+1. The means in the emmeans table are modeled means. Here, and for many linear models, these will be equal to the sampled means. This will not be the case in models with one or more continuous covariates, or if marginal means are explicitly specified. 
+2. Unlike the modeled means, the modeled standard errors and confidence intervals will, effectively, never equal sample standard errors and confidence intervals. In many models, plots using sample statistics can lead to very deceiving inference of differences between groups. This is why this text advocates plotting the model -- using modeled means and confidence intervals in plots.
+
+It is exceptionally important to understand the difference between the means, SEs, and CIs in the emmeans table and the statistics of the same name in a summary table of the data.
+
+1. The statistics in a summary table are **sampled** means, SEs, and CIs -- these statistics are computed for the group using *only the data in the group*.
+2. To understand modeled SEs and CIs, recall that the standard error of a sample mean is $\frac{s}{\sqrt{n}}$, where $s$ is the sample standard deviation and $n$ is the sample size in the group. The computation of the SE in the emmeans table uses the same equation, except the numerator is not the sample standard deviation of the group but the model standard deviation $\hat{\sigma}$. As with the sample SE, the denominator for the modeled SE is the sample size $n$ for the group. Since the numerator of the modeled SE is the same for all groups, the modeled SE will be the same in all groups that have the same sample size, as seen in the marginal means table for the model fit to the Figure 3d data. This is not true for sampled SEs, since sampled standard deviations will always differ.
+
+It may seem odd to use a common standard deviation in the computation of the modeled SEs. It is not. Remember that an assumption of the linear model is homogeneity of variances -- that all residuals $e_i$ are drawn from the same distribution ($N(0, \sigma^2)$) (a "single hat") regardless of group. The model standard deviation $\hat{\sigma}$ is the estimate of the square root of the variance of this distribution. Given this interpretation, it is useful to think of each sample standard deviation as an estimate of $\sigma$ (the linear model assumes that all differences among the sample standard deviations are due entirely to sampling). The model standard deviation is a more precise estimate of $\sigma$ since it is computed from a larger sample (all $N$ residuals).
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+The model standard deviation is called the "pooled" standard deviation in the ANOVA literature and is computed as a sample-size weighted average of the sample standard deviations.
+</div>
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+The modeled standard error of the mean uses the estimate of $\sigma$ from the fit model. This estimate is
+
+\begin{equation}
+\hat{\sigma} = \sqrt{\frac{\sum{(y_i - \hat{y}_i)^2}}{df}}
+\end{equation}
+
+Create a code chunk that computes this. Recall that $(y_i - \hat{y}_i)$ is the set of residuals from the model, which can be extracted using `residuals(fit)` where "fit" is the fit model object. $df$ is the model degrees of freedom, which is $N-k$, where $N$ is the total sample size and $k$ is the number of parameters that are fit. This makes sense -- for the sample variance there is one parameter that is fit, the mean of the group. In model fig3d_m1, there are two parameters that are fit, the intercept and the coefficient of treatment12,13-diHOME.
+</div>
+
+```{r cat-x-explore-1, echo=FALSE, eval=FALSE}
+summary(fig3d_m1)$sigma
+df <- nrow(fig_3d) - 2
+sqrt(sum(residuals(fig3d_m1)^2)/df)
+```
 
 #### Estimates of the effects are in the contrasts table
 
-```{r}
-fig3d_m1_pairs
+```{r fig3d_m1_pairs, echo = FALSE}
+kable(fig3d_m1_pairs, digits = c(1,1,2,1,1,1,1,3)) %>%
+  kable_styling()
 ```
 
-This table is important for reporting treatment effects and CIs and for plotting the model. A contrast is a difference in means. With only two treatment levels, the table of contrasts doesn't give any more information than the coefficient table -- the single contrast is the coefficient $b_1$ in the coefficient table. Nevertheless, I advocate computing this table to stay consistent and because the script to plot the model uses this table and not the coefficient table.
-
-The values in the column "estimate" is the simple difference of groups given in the contrast column (what you would compute if you simply computed the difference for these groups). This is true for this model, but is not generally true.
-
-The values in the "SE" column are standard errors of a difference (SED), specifically the difference in the estimate column. These SEs are from the fit model using the pooled estimate of $\sigma$.
-
-The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. This confidence level applies to the procedure and not the estimate. Think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. More formally, it is correct to interpret this CI as "95% of the CIs computed using this procedure include the true value given the model conditions."
-
-The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling the same distribution, fiting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
+1. This table is important for reporting treatment effects and CIs and for plotting the model. A contrast is a difference in means. With only two treatment levels, the table of contrasts doesn't give any more information than the coefficient table -- the single contrast is the coefficient $b_1$ in the coefficient table. Nevertheless, I advocate computing this table to stay consistent and because the script (or function) to plot the model uses this table and not the coefficient table.
+2. The value in the column $\texttt{Estimate}$ is the mean of the non-reference group ("12,13-diHOME") minus the mean of the reference group ("Vehicle").
+3. The value in the "SE" column is the standard error of the difference (SED), specifically the difference in the estimate column. This SE is computed using the model standard deviation $\sigma$.
+4. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
+5. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to either "Vehicle" or "12,13-diHOME", fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
 
 #### *t* and *p* from the contrasts table -- when there are only two levels in $X$ -- are the same as *t* and *p* from a *t*-test
 
 Compare
 
+coefficient table:
 ```{r}
 m1 <- lm(serum_tg ~ treatment, data = fig_3d)
-m1_pairs <- emmeans(m1, specs = "treatment") %>%
+coef(summary(m1)) %>%
+  kable() %>%
+  kable_styling()
+```
+contrast table:
+```{r}
+emmeans(m1, specs = "treatment") %>%
   contrast(method = "revpairwise") %>%
-  summary(infer = TRUE)
-m1_pairs
+  kable() %>%
+  kable_styling()
 ```
 
+t-test:
 ```{r}
 m2 <- t.test(serum_tg ~ treatment,
                 data = fig_3d,
                 var.equal = TRUE)
-glance(m2) # glance is from the broom package
+glance(m2) %>% # glance is from the broom package
+  kable() %>%
+  kable_styling()
 ```
+
 Notes
 
-1. The "statistic" in the output contains the *t*-value of the *t*-test. It is equal in magnitude but opposite in sign to that in the contrast table from the linear model. This is because the `method = "revpairwise"` argument tells the `contrast` function to use the difference "non-reference mean minus reference mean", which is the direction I prefer (I like to compare to the reference, which is usually a control)
-2. The "p.value" in the output contains the *p*-value of the *t*-test. It is equal to that in the contrast table from the linear model.
-3. The `t.test` function doesn't output the estimate of the difference in means, only the estimates of each mean.
-4. The `t.test` function does give the 95% confidence intervals of the difference in means. Notice that these have the same magnitude but opposite sign of those in the contrast table, for the same reason given in note 1 above.
+1. The estimates in the t-test output is equal in magnitude but opposite in sign to the coefficient $b_1$ in the coefficient table and to the contrast $\texttt{(12,13-diHOME) - Vehicle}$ in the contrast table. This is because the `t.test` function computes the direction of the difference as reference minus non-reference.
+2. The "statistic" in the t-test output contains the *t*-value of the *t*-test. Like the estimate, it is equal in magnitude but opposite in sign to the t-test statistics in the coefficient and contrast tables.
+3. The *p*-values in all three tables are precisely the same.
 
 The *t* and *p* values for the *t*-test are the same as those for the linear model, because the *t*-test is a specific case of the linear model. Reasons to abandon classic *t*-tests and learn the linear modeling strategy include
 
 1. A linear modeling strategy encourages researchers to think about the effect and uncertainty in the effect and not just a *p*-value.
-2. The linear model is nearly infinitely flexible and expandible while the *t*-test has extremely limited flexibility. 
+2. The linear model is nearly infinitely flexible and expandible while the *t*-test is limited to a few variations.
+
+There is rarely a reason to ever use the `t.test()` function. Throw the function away. Ignore web pages that teach you to use it. The *t*-test is easy to learn, which encourages its overuse. If your only tool is a t-test, every problem looks like a comparison between two-means.
 
 ### Example 2 -- three treatment levels ("groups")
 
 The data come from the experiment reported in Figure 2a of the 12,13-diHOME article described above. This experiment was designed to probe the hypothesis that 12,13-diHOME is a mediator of known stimulators of increased BAT activity (exposure to cold temperature and sympathetic nervous system activation). Mice were assigned to control (30 °C), one-hour exposure to 4 °C, or 30 minute norepinephrine (NE) treatment level (NE is the neurotransmitter of the sympathetic neurons targeting peripheral tissues).
 
-**response variable**: *diHOME*, the serum concentration of 12,13-diHOME. a continuous variable.
+**response variable**: $\texttt{diHOME}$, the serum concentration of 12,13-diHOME. a continuous variable.
 
-**treatment variable**: *treatment*, with levels: "Control", "1 hour cold", "30 min NE. Coded as a factor.
+**treatment variable**: $\texttt{treatment}$, with levels: "Control", "1 hour cold", "30 min NE. Coded as a factor.
 
 **design**: single, categorical *X*
 
-```{r, echo=FALSE}
-data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
+```{r cat-x-import-fig2a, echo=FALSE, message=FALSE}
 file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
-```
 
-```{r, echo=FALSE}
 # assuming mice are independent and not same mouse used for all three treatment
 melt_col_names <- paste("Animal", 1:6)
 fig2a <- read_excel(file_path,
@@ -571,132 +536,46 @@ The combination of the raw residuals and the spread-level plot suggests heteroge
 ```{r, echo=TRUE}
 fig2a_m1_coef <- cbind(coef(summary(fig2a_m1)),
                         confint(fig2a_m1))
-fig2a_m1_coef
+fig2a_m1_coef %>%
+  kable(digits = c(1,2,1,4,1,1)) %>%
+  kable_styling()
 ```
 ##### Marginal means table
 
 ```{r categorical-x-fig2a-lm-emmeans, echo=TRUE}
-(fig2a_m1_emm <- emmeans(fig2a_m1, specs = "treatment"))
+fig2a_m1_emm <- emmeans(fig2a_m1, specs = "treatment")
+
+fig2a_m1_emm %>%
+  kable(digits = c(1,1,2,0,1,1)) %>%
+  kable_styling()
 ```
 
 ##### Contrasts table
 
 ```{r, echo=TRUE}
-(fig2a_m1_pairs <- contrast(fig2a_m1_emm,
+fig2a_m1_pairs <- contrast(fig2a_m1_emm,
                             method = "revpairwise",
                             adjust = "none") %>%
-  summary(infer = TRUE))
+  summary(infer = TRUE)
+
+fig2a_m1_pairs %>%
+  kable(digits = c(1,1,1,0,1,1,2,4)) %>%
+  kable_styling()
 ```
 
 #### plot the model
 
-The script for plotting the model in the section Hidden code below.
-
-```{r, echo=FALSE}
-fig2a_m1_emm_dt <- summary(fig2a_m1_emm) %>%
-  data.table
-fig2a_m1_pairs_dt <- data.table(fig2a_m1_pairs)
-fig2a_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
-fig2a_m1_pairs_dt[, group1 := 1]
-fig2a_m1_pairs_dt[, group2 := 2]
-```
-
-```{r, echo=FALSE}
-fig2a_gg_response <- ggplot(data = fig2a,
-                            aes(x = treatment,
-                                y = diHOME,
-                                color = treatment)) +
-  
-  # points
-  geom_sina(alpha = 0.5) +
-  
-  # plot means and CI
-  geom_errorbar(data = fig2a_m1_emm_dt,
-                aes(y = emmean,
-                    ymin = lower.CL,
-                    ymax = upper.CL,
-                    color = treatment),
-                width = 0
-  ) +
-  
-  geom_point(data = fig2a_m1_emm_dt,
-             aes(y = emmean,
-                 color = treatment),
-             size = 3
-  ) +
-
-  # aesthetics
-  ylab("12,13-diHOME (pmol/mL)") +
-  scale_color_manual(values=pal_okabe_ito,
-                     name = NULL) +
-  theme_pubr() +
-  theme(legend.position="none") +
-  theme(axis.title.x=element_blank()) +
-  
-  NULL
-
-#fig2a_gg_response
-```
-
-```{r, echo=FALSE}
-# reverse order of rows so flipped plot has original order
-fig2a_m1_pairs_dt <- fig2a_m1_pairs_dt[rev(1:.N)]
-
-# order "contrast" factor as in table!
-contrast_order <- fig2a_m1_pairs_dt[, contrast]
-fig2a_m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
-
-min_bound <- min(fig2a_m1_pairs_dt[, lower.CL])
-max_bound <- min(fig2a_m1_pairs_dt[, upper.CL])
-y_lo <- min(min_bound+min_bound*0.2,
-            -max_bound)
-y_hi <- max(max_bound + max_bound*0.2,
-            -min_bound)
-y_lims <- c(y_lo, y_hi)
-
-fig2a_gg_effect <- ggplot(data=fig2a_m1_pairs_dt, 
-                          aes(x = contrast,
-                              y = estimate)) +
-  # confidence level of effect
-  geom_errorbar(aes(ymin=lower.CL, 
-                    ymax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # zero effect
-  geom_hline(yintercept=0, linetype = 2) +
-  
-  # p-value
-  annotate(geom = "text",
-           label = fig2a_m1_pairs_dt$p_pretty,
-           x = 1:3,
-           y = -10) +
-  
-  # aesthetics
-  scale_y_continuous(position="right") +
-  scale_x_discrete(labels = c("NE minus cold",
-                              "NE effect",
-                              "cold effect"
-  )) +
-  coord_flip(ylim = y_lims) + 
-  theme_pubr() +
-  ylab("Effects (pmol/mL)") +
-  theme(axis.title.y = element_blank()) +
-  NULL
-
-# fig2a_gg_effect
-```
-
-```{r categorical-x-fig2a-plot, echo=FALSE, message=FALSE, warning=FALSE}
-fig2a_fig <- plot_grid(fig2a_gg_effect,
-                       fig2a_gg_response,
-                       nrow=2,
-                       align = "v",
-                       axis = "lr",
-                       rel_heights = c(0.5,1))
-fig2a_fig
+```{r}
+ggplot_the_model(
+  fig2a_m1,
+  fig2a_m1_emm,
+  fig2a_m1_pairs,
+  legend_position = "none",
+  y_label = "12,13-diHOME (pmol/mL)",
+  effect_label = "Effects (pmol/mL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.5,1)
+)
 ```
 
 #### Report the model results
@@ -704,65 +583,95 @@ fig2a_fig
 Compared to control mice (12.0 pmol/mL, 95% CI: 5.4, 18.6), mean serum 12,13-diHOME in mice exposed to one-hour cold (19.2 pmol/mL, 95% CI: 11.9, 26.4) was 7.1 pmol/mL higher (95% CI: -2.7, 16.9, $p = 0.14$) while mean Serum 12,13-diHOME in mice exposed to 30 minutes NE (26.8 pmol/mL, 95% CI: 20.2, 33.3) was 14.8 pmol/mL higher (95% CI: 5.4, 24.1 $p = 0.004$).
 
 ### Understanding the analysis with three (or more) treatment levels
-#### The coefficient table
+#### Better know the coefficient table
 
-```{r echo=FALSE}
-fig2a_m1_coef
-```
-Two understand row names in the first column, its useful to recall the order of the factor levels of $treatment$, which is
-
-```{r}
-levels(fig2a$treatment) 
-```
-"Control" is the reference level, so the Estimate of the intercept is the mean 12,13diHome for the "Control" mice. The 2nd row of the coefficient table contains the estimate and statistics for the "1 hour cold" level. The estimate (in the column "Estimate") is the difference in means $\bar{y}_{1\_hour\_cold} - \bar{y}_{Control}$. The 3rd row contains the estimate and statistics for the "30 min NE" level. The estimate is the difference in means $\bar{y}_{30\_min\_NE} - \bar{y}_{Control}$.
-
-Let's put this in the context of the linear model fit to the data.
+The fit regression model for the data in Figure 2a is
 
 \begin{equation}
 diHOME_i = b_0 + b_1 treatment_{1\_hour\_cold,i} + b_2 treatment_{30\_min\_NE,i} + e_i
 (\#eq:fit-dihome)
 \end{equation}
 
-The value in the column "Estimate" for the "(Intercept)" row is $b_0$, the estimate of $\beta_0$, the "population" mean of "control" mice. The value in the column "Estimate" for the "treatment1 hour cold" row is $b_1$, the estimate of $\beta_1$, the effect of the cold treatment on the response (relative to the control). The value in the column "Estimate" for the "treatment30 min NE" row is $b_1$, the estimate of $\beta_2$, the effect of the NE treatment on the response (relative to the control).
+The coefficients of the model are in the $\texttt{Estimate}$ column of the coefficient table.
 
-$treatment_{1\_hour\_cold, i}$ is a dummy-coded indicator variable, containing the number 1, if $i$ is in the "1 hour cold" group, or the number 0, otherwise. $treatment_{30\_min\_NE, i}$ is a dummy-coded indicator variable, containing the number 1, if $i$ is in the "30 min NE" group, or the number 0, otherwise. Importantly, the function `lm` creates these indicator variables under the hood. You don't create these but understanding how these are made gives you phenomenal cosmic power (because there are models where you have to construct these manually).
+```{r example2-coef-understand, echo=FALSE}
+fig2a_m1_coef %>%
+  kable(digits = c(1,1,1,0,1,1,2,4)) %>%
+  kable_styling()
+```
 
-This generalizes to any number of levels of the factor variable. If there are $k$ levels of the factor, there are $k-1$ indicator variables, each with its own coefficient ($b_1$ through $b_{k-1}$) that estimates the effect of that treatment level relative to the control (if using dummy coding).
+1. The $\texttt{(Intercept)}$ row contains the statistics for $b_0$ (the estimate of $\beta_0$). Here, $b_0$ is the mean of the reference group, which is "Control".
+2. The $\texttt{treatment1 hour cold}$ row contains the statistics for $b_1$ (the estimate of $\beta_1$). Here, $b_1$ is the difference $\mathrm{E}[diHOME|treatment = \texttt{"1 hour cold"}] - \mathrm{E}[diHOME|treatment = \texttt{"Control"}]$. This difference in conditional means is equal to the difference in the sample means of the two groups *for this model* because there are no additional covariates in the model.
+3. The $\texttt{treatment30 min NE}$ row contains the statistics for $b_2$ (the estimate of $\beta_2$). Here, $b_2$ is the difference $\mathrm{E}[diHOME|treatment = \texttt{"30 min NE"}] - \mathrm{E}[diHOME|treatment = \texttt{"Control"}]$. Do not make the mistake in thinking that the value in $\texttt{Estimate}$ is the mean of the "30 min NE" group.
+4. The number of non-intercept coefficients generalizes to any number of levels of the factor variable. If there are $k$ levels of the factor, there are $k-1$ indicator variables, each with its own coefficient ($b_1$ through $b_{k-1}$) estimating the effect of that treatment level relative to the control (if using dummy coding).
 
-As in the example with only two treatment levels above, both $b_1$ and $b_2$ are "slopes". Don't visualize this as a single line from the control mean through both non-control means but as two lines, each with their own slopes. The numerator of each slope is the difference between that group's mean and the control mean. The denominator of each slope is 1 (because each has the value 1 when the row is assigned to that group).
+Again --  Do not make the mistake in thinking that the values in $\texttt{Estimate}$ for the $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ rows are the *means* of the "1 hour cold" and "30 min NE" groups. These coefficients are differences in means. And, to emphasize further understanding of these coefficients, both $b_1$ and $b_2$ are "slopes". Don't visualize this as a single line from the control mean through both non-control means. as two lines. Slopes is plural -- there are two regression lines. $b_1$ is the slope of the line from the control mean to the "1 hour cold" mean. $b_2$ is the slope of the line from the control mean to the "30 min NE" mean. The numerator of each slope is the difference between that group's mean and the control mean. The denominator of each slope is 1 (because each has the value 1 when the row is assigned to that group).
 
-The model formula (`dihome ~ treatment`) used in the `lm` function is the same, regardless of the number of levels in the factor $treatment$. This model formula is the verbal form of the fit linear model and is useful for communication, but disconnects the formula from the actual model. For example, it might lead to the confusion on how the model `dihome ~ treatment` can output an intercept and *two* coefficients when there is only *one* $X$ variable. The answer is, this question confuses the verbal formula with the quantitative formula. The model is fit using the quantitative formula which has $3-1=2$ indicator variables resulting in two (non-intercept) coefficients.
+Two understand the names of the model terms, it's useful to recall the order of the factor levels of $\texttt{treatment}$, which is
+
+```{r}
+levels(fig2a$treatment) 
+```
+
+Given this ordering, the `lm` function creates a regression model with an intercept column for the "Control" group (because it is first in the list), an indicator variable for the "1 hour cold" group called `treatment1 hour cold`, and an indicator variable for the "30 min NE" group called `treatment30 min NE`. We can see these model names by peeking at the model matrix of the fit model
+
+```{r}
+fig2a_m1_X <- model.matrix(fig2a_m1)
+
+head(fig2a_m1_X)
+```
+
+The column $\texttt{treatment1 hour cold}$ is a dummy-coded indicator variable containing the number 1, if the individual is in the "1 hour cold" group, or the number 0, otherwise. The column $\texttt{treatment30 min NE}$ is a dummy-coded indicator variable containing the number 1, if the individual is in the "30 min NE" group, or the number 0, otherwise.
+
+The model coefficients, parameters, model term, and interpretation are summarized in the following table.
+
+```{r echo = FALSE}
+new_table <- data.table(
+  coefficient = c("$b_0$", "$b_1$", "$b_2$"),
+  parameter = c("$\\beta_0$", "$\\beta_1$", "$\\beta_2$"),
+  "model term" = row.names(fig2a_m1_coef),
+  interpretation = c("$\\overline{Control}$",
+                     "$\\overline{1\\;hour\\;cold} - \\overline{Control}$",
+                     "$\\overline{30\\;min\\;NE} - \\overline{Control}$")
+)
+new_table %>%
+  kable(escape = FALSE,
+        caption = "Understanding model coefficients of a linear model with a single treatment variable with three groups. The means in the interpreation column are conditional means.") %>%
+  kable_styling()
+```
 
 #### The estimated marginal means table
 
-```{r}
-fig2a_m1_emm
+```{r example2-emm-understand, echo=FALSE}
+fig2a_m1_emm%>%
+  kable(digits = c(1,1,2,0,1,1)) %>%
+  kable_styling()
 ```
-This table is important for reporting means and CIs and for plotting the model. As in example 1, the values in the column "emmean" are the simple means of each group (what you would compute if you simply computed the mean for that group). Again, this is true for this model, but is not generally true. Despite the column label standing for "estimated marginal mean", these are conditional means -- the mean conditional on treatment level.
 
-Also as in example 1, the SE for each mean is *not* the sample SE but the modeled SE -- it is based on a pooled estimate of $\sigma$. *These are the SEs that you should report* because it is these SEs that are used to compute the *p*-value and CI that you report, that is, they tell the same "story". The SE for the "1 hour cold" group is a bit higher because the sample size $n$ for this group is smaller by 1.
+This table is important for reporting means and CIs and for plotting the model. As in example 1, the values in the column "emmean" are the sample means of each group (what you would compute if you simply computed the mean for that group). Again, this is true for this model, but is not generally true.
+
+And again, as in example 1, the SE for each mean is *not* the sample SE but the modeled SE -- it is computed from the residuals of the model and is an estimate of $\sigma$. *These are the SEs that you should report* because it is these SEs that are used to compute the *p*-value and CI that you report, that is, they tell the same "story". The SE for the "1 hour cold" group is a bit higher because the sample size $n$ for this group is smaller by 1.
 
 #### The contrasts table
 
-```{r}
-fig2a_m1_pairs
+```{r example2-pairs-understand, echo = FALSE}
+fig2a_m1_pairs %>%
+  kable(digits = c(1,1,2,0,1,1,1,4)) %>%
+  kable_styling()
 ```
-If a factor variable has more than two levels, there are multiple kinds of contrasts that a researcher can compare. The simplest are **pairwise contrasts**, which are differences between group means. These are typically called "post-hoc" tests in hypothesis testing but I avoid that because the focus in this text is estimation.
 
-
-This table is important for reporting treatment effects and CIs and for plotting the model. As in example 1, the values in the column "estimate" are the simple differences between the means of the groups given in the contrast column (what you would compute if you simply computed the difference for these groups). Again, this is true for this model, but is not generally true.
-
-The values in the "SE" column are standard errors of a difference (SED), specifically the difference in the estimate column. These SEs are from the fit model using the pooled estimate of $\sigma$ and not the SED one would compute if one simply used the two groups in the contrast column. *These are the SEs that you should report* because it is these SEs that are used to compute the *p*-value and CI that you report, that is, they tell the same "story".
-
-The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Again, this confidence level applies to the procedure and not the estimate. Think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. More formally, it is correct to interpret this CI as "95% of the CIs computed using this procedure include the true value given the model conditions."
-
-The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling the same distribution, fiting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
+1. This table is important for reporting treatment effects and CIs and for plotting the model. A contrast is a difference in means. Unlike the contrast table in Example 1, which had only two groups, This contrast table has more information than is in the coefficient table.
+2. The column $\texttt{Contrast}$ contains the names of the contrasts specified in the `contrast()` function. Here, these contrasts are all those between pairs of levels in $\texttt{treatment}$ (this is "all pairwise contrasts"). With $k$ levels, there are $k(k-1)/2$ pairwise contrasts. Note that the name gives the direction of the difference.
+3. The values in the column $\texttt{estimate}$ are the contrasts. These are the differences in the conditional means of the groups identified in the $\texttt{Contrast}$ column. These are the **effects** that we are interested in.
+4. The value in the "SE" column is the standard error of the difference (SED) of each contrast. This SE is computed using the model standard deviation $\sigma$.
+5. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
+6. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to the three groups (using the original sample sizes for each), fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
 
 #### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups
 
 The contrasts, CIs, and significance test statistics in the contrasts table come from a single model fit to the data. Researchers commonly fit separate *t*-tests for each pair of treatment levels instead of a single linear model.
 
-```{r }
+```{r example2-t-tests-understand, echo=TRUE}
 # classic t-test
 test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
        fig2a[treatment == "Control", diHOME],
@@ -775,28 +684,93 @@ test2 <- t.test(fig2a[treatment == "30 min NE", diHOME],
 test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
        fig2a[treatment == "1 hour cold", diHOME],
        var.equal=TRUE)
-
-ttests <- data.frame(t = c(test1$statistic, test2$statistic, test3$statistic),
-                     p = c(test1$p.value, test2$p.value, test3$p.value))
-row.names(ttests) <- c("1 hour cold - Control", 
-                       "30 min NE - Control",
-                       "30 min NE - 1 hour cold")
-ttests
 ```
 
-The *t* and *p*-values computed from three separate tests differ from the *t* and *p*-values computed from the single linear model shown in the contrasts table above. The values differ because the SE in the denominators used to compute the $t$-values differ. The *t*-value computed from the linear model use variation in all three groups to estimate $\sigma^2$ the variance of the response conditional on treatment level, and this estimate is commmon to all three *t*-tests (the SE differs slightly because of sample size differences among levels). The *t*-value computed from the separate tests each use variation from only the two groups in that test to estimate $\sigma^2$. Consequently, $\sigma^2$, and the SE of the estimate, differs for each test.
+Compare the *t* and *p* values from the three indpendent tests with the *t* and *p*-values from the linear model.
 
-Using the linear model is a better practice than the pairwise *t*-tests. The reason is that the *t*-tests assume homogeneity of variance, that is, the $\sigma^2$ equal in all three groups. And, since a *t*-test estimates $\sigma^2$, it is more precise to estimate this using three groups (the linear model) than two groups (the pairwise *t*-test). And, because the three pairwise *t*-test computes three estimates of $\sigma^2$, it is inconsistent to use one estimate in one test and a different estimate in a second test (why would we think the $\sigma^2$ for the Control group is two different values?).
+```{r echo = FALSE}
+
+y_cols <- c("contrast", "t.ratio", "p.value")
+lm_t <- fig2a_m1_pairs[, y_cols]
+colnames(lm_t)[2:3] <- c("t (lm)", "p (lm)")
+t_t <- data.table(contrast =
+                    c("1 hour cold - Control", 
+                      "30 min NE - Control",
+                      "30 min NE - 1 hour cold"),
+                  "t (t-test)" = c(test1$statistic,
+                                   test2$statistic,
+                                   test3$statistic),
+                  "p (t-test)" = c(test1$p.value,
+                                   test2$p.value,
+                                   test3$p.value))
+merge(lm_t, t_t, by = "contrast") %>%
+  kable() %>%
+  kable_styling()
+```
+
+The *t* and *p*-values computed from three separate tests differ from the *t* and *p*-values computed from the single linear model shown in the contrasts table above. The values differ because the SE in the denominators used to compute the $t$-values differ. The linear model uses the same value of $\sigma$ to compute the SED (the denominator of *t*) for all three t-tests in the contrast table. Each separate t-test uses a different value of $\sigma$ to compute the SED. Which is correct? Neither.  
+
+1. In general, using the linear model is a better practice than the separate *t*-tests. The reason is the homogeneity of variance assumption. If we assume homogeneity of variances, then we can think of the sample standard deviation of all three groups as an estimate of $\sigma$. In the linear model, we use three groups to estimate $\sigma$ but in each separate *t*-test, we use only two groups. Consequently, our estimate of $\sigma$ in the linear model is more precise than that in the *t*-tests. While the difference can be large with any individual data set (it's pretty big with the fig2a data), the long-run advantage of using the linear model instead of separate *t*-tests is pretty small, especially with only three groups (the precision increases with more groups).
+2. We can drop the homogeneity of variance assumption with either the linear model or the three, separate *t*-tests. This is outlined below. In this case, the *t* and *p*-values for the three comparisons are the same. Still, the linear model (that models heterogenity) is better practice than the separate *t*-tests because the linear model is much more flexible and expandable. 
 
 #### The contrasts table -- when there are more than two levels in $X$ -- has multiple p-values. How to handle this "multiple testing" is highly controversial
 
-**Multiple testing** is the practice of adjusting *p*-values (and less commonly confidence intervals) to account for the expected increase in the frequency of Type I error in a batch, or *family*, of tests. An example of a batch of tests is the three tests in the contrast table for the analysis of the fig2a data. Multiple testing is a concept that exists because of Neyman-Pearson hypothesis testing strategy. My own belief is that the major problem of multiple testing is less the inflation of Type I error and more the idea that we "discover by p-value". If we focus on effects and uncertainty in experiments where we have good prior knowledge to have reasonable expectations of these effects for the different treatment levels, we shouldn't be concerned about inflated Type I error. If we use experiments to "see what happens" in tens, hundreds, thousands, or millions of response variables after we perturb the system, then multiple testing is more problematic. Issues surrounding multiple testing are fleshed out in more detail in Chapter xxx "Best Practices". Computing adjusted values is covered below in the "Working in R" section.
+**Multiple testing** is the practice of adjusting *p*-values and confidence intervals to account for the expected increase in the frequency of Type I error in a batch, or *family*, of tests. Multiple testing is a concept that exists because of Neyman-Pearson hypothesis testing strategy. If multiple tests are used to answer the same question then, these are in the same family. Issues surrounding multiple testing are fleshed out in more detail in Chapter xxx "Best Practices". Computing adjusted values is covered below in the "Working in R" section.
 
 ## Working in R
+### Fit the model
 
-### Specifying the contrasts
+```{r}
+m1 <- lm(diHOME ~ treatment, data = fig2a)
+```
 
+1. As described in [Fitting the linear model](fit-the-model), `diHOME ~ treatment` is the model formula. All functions that will be used to fit models in this text will use a model formula. Many base R and package functions that are meant to be either "easy" or follow an ANOVA strategy use lists of dependent and independent variables instead of a model formula. We won't use these because they are not consistent with a linear modeling way of thinking about data analysis.
+2. $\texttt{treatment}$ was specifically coded as a factor variable in the import and wrangle chunk and R will automatically create the correct indicator variables. If categorical variables on the RHS of the formula have not be converted to factors by the user, then R will treat character variables as factors and create the indicator variables. If the categorical variable is numeric (for example, the variable `time` might have levels 1, 2, 3 instead of "1 hour", "2 hours", "three hours"), R will treat the variable as numeric and not create the indicator variables. A user could use the formula `y ~ factor(time)` to force R to create the indicator variable. I prefer to explicitly create a version of the variable that is recoded as factor using something like `dt[, time_fac := factor(time, levels = c("1", "2", "3"))]`.
+
+### Controlling the output in tables using the coefficient table as an example
+
+```{r}
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+m1_coef
+```
+The standard print of the `m1_coef` object is too long for the display and often wraps when printed on the display, which can make it hard to read. I use `knitr::kable` to print the table with fewer decimal places and `kableExtra::kable_styling` to make it a little prettier.
+
+```{r}
+# the row names are not part of the m1_coef object
+# so there is not digit designation for this column
+kable(m1_coef, digits = c(2,3,3,5,2,2)) %>%
+  kable_styling()
+# explor other styles in the kableExtra package
+```
+
+### Using the emmeans function
+
+```{r cat-x-m1_emm}
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_emm
+```
+Notes
+1. The `specs` argument specifies the factor variables used to compute the modeled means. The specified variables must be in the model object (here, `m1`) passed to the function. Any variable passed to `specs` must be categorical. Do not pass numeric covariates here.
+2. If there are two factor variables in the model, and both are passed to `specs`, then the modeled means of all combinations of the levels of the two variables will be computed. If only one factor variable is passed, then the marginal means (averaged over all levels of the missing factor) are computed. This will become more clear in the chapter "Models for two (or more) categorical X variables".
+3. If there are continuous covariates in the model, the modeled mean is computed at the average value of the continuous covariates.
+
+### Using the contrast function
+
+```{r cat-x m1_pairs}
+m1_pairs <- contrast(m1_emm,
+                     method = "trt.vs.ctrl",
+                     adjust = "dunnett")
+
+m1_pairs
+```
+
+Notes
+
+1. `method = "revpairwise"`, computes contrasts between all pairs of groups within the factor(s) specified in the "specs" argument of `emmeans`. I prefer "revpairwise" to "pairwise" because "revpairwise" orders the difference as non-reference minus reference.
+2. [See the list](https://rdrr.io/cran/emmeans/man/emmc-functions.html){target="_blank"} of the different contrasts available with `method =`. Also, read the [comparisons and contrasts vignette](https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html){target="_blank"} for more on `emmeans::contrast()`
 ### Adjustment for multiple comparisons
+
 If the head of your group or a reviewer demands that you adjust p-values in data from an experiment like that for the fig2a data, then the `adjust` argument in `emmeans::contrast()` controls the method for *p*-value adjustment. The default is "tukey".
 
 1. "none" -- no adjustment, in general my preference.
@@ -1090,7 +1064,7 @@ plot_grid(gg_effect,
 
 ### Lack of independence
 
-The data from the experiment for Figure 1b of the 12,13-diHOME article outlined above are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($diHOME$) is not independent because 
+The data from the experiment for Figure 1b of the 12,13-diHOME article outlined above are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) is not independent because 
 
 ```{r, echo=FALSE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
@@ -1255,112 +1229,62 @@ p_table
 Conspicuously, the *p*-value for the "1 hour cold - Control" contrast is 0.039, which is "significant" using the conventional 
 
 ## Hidden Code
-
-### fig2a data
-
-The script for plotting the model in the section Hidden code below.
+### Importing and wrangling the fig_3d data for example 1
 
 ```{r, echo=TRUE}
-fig2a_m1_emm_dt <- summary(fig2a_m1_emm) %>%
-  data.table
-fig2a_m1_pairs_dt <- data.table(fig2a_m1_pairs)
-fig2a_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
+data_folder <- "data"
+data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 ```
 
 ```{r, echo=TRUE}
-fig2a_gg_response <- ggplot(data = fig2a,
-                            aes(x = treatment,
-                                y = diHOME,
-                                color = treatment)) +
-  
-  # points
-  geom_sina(alpha = 0.5) +
-  
-  # plot means and CI
-  geom_errorbar(data = fig2a_m1_emm_dt,
-                aes(y = emmean,
-                    ymin = lower.CL,
-                    ymax = upper.CL,
-                    color = treatment),
-                width = 0
-  ) +
-  
-  geom_point(data = fig2a_m1_emm_dt,
-             aes(y = emmean,
-                 color = treatment),
-             size = 3
-  ) +
+# need data_folder and data_from from earlier chunk
+file_name <- "41591_2017_BFnm4297_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
 
-  # aesthetics
-  ylab("12,13-diHOME (pmol/mL)") +
-  scale_color_manual(values=pal_okabe_ito,
-                     name = NULL) +
-  theme_pubr() +
-  theme(legend.position="none") +
-  theme(axis.title.x=element_blank()) +
-  
-  NULL
+# ignore the column with animal ID. Based on methods, I am inferring
+# that the six mice in vehicle group *are different* from the
+# six mice in the 1213 group.
+col_names_3d <- c("Vehicle", "1213")
+treatment_levels <- c("Vehicle", "12,13-diHOME")
+fig_3d <- read_excel(file_path,
+                     sheet = "Figure 3d",
+                     range = "B3:C9",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = col_names_3d,
+       variable.name = "treatment",
+       value.name = "serum_tg")
 
-#fig2a_gg_response
+# change group name of "1213"
+fig_3d[treatment == "1213", treatment := "12,13-diHOME"]
+
+# make treatment a factor with the order in "treatment_levels"
+fig_3d[, treatment := factor(treatment, treatment_levels)]
+
+#View(fig_3d)
 ```
 
-```{r, echo=TRUE}
-# reverse order of rows so flipped plot has original order
-fig2a_m1_pairs_dt <- fig2a_m1_pairs_dt[rev(1:.N)]
+### Importing and wrangling the fig2a data for example 2
 
-# order "contrast" factor as in table!
-contrast_order <- fig2a_m1_pairs_dt[, contrast]
-fig2a_m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
+```{r , echo=TRUE, message=FALSE}
+# need data_folder and data_from from earlier chunk
+file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
 
-min_bound <- min(fig2a_m1_pairs_dt[, lower.CL])
-max_bound <- min(fig2a_m1_pairs_dt[, upper.CL])
-y_lo <- min(min_bound+min_bound*0.2,
-            -max_bound)
-y_hi <- max(max_bound + max_bound*0.2,
-            -min_bound)
-y_lims <- c(y_lo, y_hi)
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- paste("Animal", 1:6)
+fig2a <- read_excel(file_path,
+                     sheet = "Fig 2a",
+                     range = "A3:G6",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "id",
+       value.name = "diHOME") # cannot start a variable with number
+setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
 
-fig2a_gg_effect <- ggplot(data=fig2a_m1_pairs_dt, 
-                          aes(x = contrast,
-                              y = estimate)) +
-  # confidence level of effect
-  geom_errorbar(aes(ymin=lower.CL, 
-                    ymax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # zero effect
-  geom_hline(yintercept=0, linetype = 2) +
-  
-  # p-value
-  annotate(geom = "text",
-           label = fig2a_m1_pairs_dt$p_pretty,
-           x = 1:3,
-           y = -10) +
-  
-  # aesthetics
-  scale_y_continuous(position="right") +
-  scale_x_discrete(labels = c("NE minus cold",
-                              "NE effect",
-                              "cold effect"
-  )) +
-  coord_flip(ylim = y_lims) + 
-  theme_pubr() +
-  ylab("Effects (pmol/mL)") +
-  theme(axis.title.y = element_blank()) +
-  NULL
+treatment_order <- c("Control", "1 hour cold", "30 min NE")
+fig2a[, treatment := factor(treatment, treatment_order)] # order levels
 
-# fig2a_gg_effect
-```
-
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
-fig2a_fig <- plot_grid(fig2a_gg_effect,
-                       fig2a_gg_response,
-                       nrow=2,
-                       align = "v",
-                       axis = "lr",
-                       rel_heights = c(0.5,1))
-fig2a_fig
+#View(fig2a)
 ```

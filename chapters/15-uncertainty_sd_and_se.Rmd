@@ -1,4 +1,4 @@
-# Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals)
+# Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals) (#variability)
 
 ```{r uncertain-setup, echo=FALSE}
 library(here)
@@ -341,7 +341,7 @@ Here I introduce a **confidence interval** of a sample mean but the concept is e
 (upper <- mean(control_voles) + qt(1 - 0.05/2, df=(n-1))*sd(control_voles)/sqrt(n))
 ```
 
-The function `qt` maps a probability to a *t*-value -- this is the opposite of a *t* test, which maps a *t*-value to a probability. Sending $\alpha/2$ and $1 - \alpha/2$ to `qt` returns the bounds of the confidence intereval on a standardized scale. Multiplying these bounds by the standard error of the control vole lifespan pops the bounds onto the scale of the control vole lifespans. 
+The function `qt` maps a probability to a *t*-value -- this is the opposite of a *t* test, which maps a *t*-value to a probability. Sending $\alpha/2$ and $1 - \alpha/2$ to `qt` returns the bounds of the confidence interval on a standardized scale. Multiplying these bounds by the standard error of the control vole lifespan pops the bounds onto the scale of the control vole lifespans. 
 
 We can check our manual computation with the linear model
 

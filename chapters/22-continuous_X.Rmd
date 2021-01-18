@@ -945,7 +945,7 @@ fig1f_gg
 ### Using a regression model for for calibration
 
 ## Working in R
-### Fitting the linear model
+### Fitting the linear model {#fit-the-model}
 
 A linear model is fit with the `lm` function, which is very flexible and will be a workhorse in much of this text.
 
@@ -955,14 +955,14 @@ m1 <- lm(transition_date ~ temperature, data = fig2c)
 
 m1 is an lm model object that contains many different kinds information, such as the model coefficients.
 
-```{r}
+```{r coef-function}
 coef(m1)
 ```
 
 We'll return to others, but first, let's explore some of the flexibility of the `lm` function. Two arguments were sent to the function
 
 1. the model formula `transition_date ~ temperature` with the form `Y ~ X`, where Y and X are names of columns in the data.
-* The model formula itself be assinged to a variable, which is useful when building functions. An example
+* The model formula itself can be assigned to a variable, which is useful when building functions. An example
 
 ```{r}
 coef_table <- function(x, y, data){
@@ -982,6 +982,7 @@ coef_table(x = "temperature",
 m2 <- lm(log(transition_date) ~ temperature, data = fig2c)
 coef(m2)
 ```
+
 or
 
 ```{r}
@@ -1004,7 +1005,7 @@ coef(m4)
 
 The `lm` function returns an `lm` object, which we've assigned to the name `m1`. `m1` contains lots of information about our fit of the linear model to the data. Most of the information that we want for most purposes can be retrieved with the `summary` function, which is a general-purpose R command the works with many R objects.
 
-```{r}
+```{r summary-function}
 summary(m1)
 ```
 
@@ -1031,17 +1032,22 @@ Beneath the Signif. codes are some model statistics which are useful
 
 **F-statistic and p-value**. These are statistics for the whole model (not the individual coefficients) and I just don't find these very useful.
 
-### Inference -- the coefficient table and Confidence intervals
+### Inference -- the coefficient table
 
-To get the coefficient table without the other statistics from `summary`, use `summary(m1) %>% coef()`.
+There are different ways of 
 
-```{r }
-m1_coeff <- summary(m1) %>%
-  coef()
-m1_confint <- confint(m1)
-m1_coeff <- cbind(m1_coeff, m1_confint)
-m1_coeff
+```{r coef_table}
+# step by step
 
+m1_summary <- summary(m1) # get summary
+m1_coef_p1 <- coef(m1_summary) # extract coefficient table
+m1_coef_p2 <- confint(m1) # get CIs
+m1_coef <- cbind(m1_coef_p1, m1_coef_p2) # column bind the two
+
+# this can be shortened (but still readable) using
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+m1_coef
 ```
 
 Note that the *p*-value for the coefficient for *temperature* is very small and we could conclude that the data are not compatible with a model of no temperature effect on day of green-down. But did we need a formal hypothesis test for this? We haven't learned much if we have only learned that the slope is "not likely to be exactly zero" (Temperature effects everything in biology). A far more important question is not *if* there is a relationship between *temperature* and *day* of green-down, but what is the sign and magnitude of the effect and what is the uncertainty in our estimate of this effect. For this, we we want the coefficient and its SE or confidence interval, both of which are in this table. Remember, our working definition of a confidence interval:
