@@ -1,475 +1,663 @@
-# Two (or more) Categorical $X$ -- Factorial designs
+---
+title: "Models for two (or more) categorical X variables -- Factorial designs"
+author: "Jeffrey A. Walker"
+date: "11/13/2020"
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    fig_caption: yes
+    number_sections: true
+    code_folding: show
+    includes:
+      before_body: copyright.html
+---
+# Models for two (or more) categorical $X$ -- Factorial designs
 
 ```{r factorial-setup, echo=FALSE, warning=FALSE, message=FALSE}
-library(data.table)
-library(ggplot2)
-library(emmeans) # pooled CIs
-library(phia) # interaction plot
-library(doBy)
-library(harrellplot)
-library(car)
-library(broom)
-library(cowplot)
-library(ggsci) # scale color
-library(gt) # tables
-library(kableExtra)
 library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+library(stringr)
+library(dplyr)
+
+# analysis packages
+library(nlme) # gls
+library(lmerTest) # lmm
+library(emmeans)
+library(car) # qqplot, spreadlevel
+library(lmPerm)
+
+# graphing packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(ggforce) # jitter
+library(ggsci) # color palettes
+library(ggpubfigs) # color palettes
+library(ggthemes) # themes and palettes including colorblind
+# execute this command only the first time you use ggpubfigs
+# devtools::install_github("JLSteenwyk/ggpubfigs")
+library(cowplot) # combine plots
+library(lazyWeave) # pretty pvalues
+library(broom)
+library(kableExtra) #tables
+
+
 here <- here::here
+data_folder <- "data"
 
-data_path <- "data" # bookdown
+# Okabe & Ito palette
+pal_ito_seven <- friendly_pal("ito_seven") # ggpubfigs
+pal_okabe_ito <- colorblind_pal()(8)[2:8] # ggthemes
 
-source(here("R/gg_interaction.R"))
 ```
-
-```{r factorial-urchin-import, echo=FALSE}
-folder <- "Data from Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins"
-filename <- "urchin.txt"
-file_path <- here(data_path, folder, filename)
-urchin <- fread(file_path)
-urchin[, Temp:=factor(Temp)]
-urchin[, CO2:=factor(CO2, c("400","1100"))]
-```
-
-** "ASK1 inhibits browning of white adipose tissue in obesity" ** assess interaction by comparing simple effects and concluded incorrectly.
 
 ## Factorial experiments 
-A factorial experiment is one in which there are two or more categorical $X$ that are **crossed**, resulting in a group for all combinations of the levels of each factor. Factorial experiments are used to estimate the **interaction** between factors, which occurs when the effect of the level of one factor depends on the levels of the other factors. For example, a researcher wants to estimate the effect of an environmental toxin on basal metabolic rate (BMR) in a fish and designs an experiment with two factors: $Treatment$ with levels "control" and "toxin" and $Sex$, with levels "male" and "female". If the magnitude (and possibly sign) of the effect of the toxin on BMR differs between males and females, there is an interaction between $Treatment$ and $Sex$. Interactions are usually denoted with a $\times$ symbol: $Treatment \times Sex$. Interactions are ubiquitous, although sometimes they are small enough to ignore with little to no loss of understading.
+A factorial experiment is one in which there are two or more factor variables (categorical $X$) that are **crossed**, resulting in a group for each combination of the levels of each factor. Factorial experiments are used to estimate the **interaction** effect between factors. Interaction effects were introduced in Chapter xxx, Models with a added covariate. Remember the key to interactions -- two factors interact when the effect of one factor depends on the level of the other factor. Interactions are ubiquitous, although sometimes they are small enough to ignore with little to no loss of understanding.
 
-This chapter uses data from an experiment measuring the effect of $Temp$ and $CO2$ on larval sea urchin metabolic rate ($Resp$) (there are other outcome measures in the study too). The units of metabolic rate are pmol O2/hr/larva. There are two $Temp$ levels (13C and 18C) and two $CO2$ levels (400 µAtm and 1100 µAtm) and the factors are fully crossed, which makes this a $2 \times 2$ (crossed or factorial) design. There are $n=6$ replicates for each combination of the levels. A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($Temp$) against the $p$ levels of factor 2 ($CO2$)
+## Example 1: Maize defense response
 
-```{r factorial-2x2, echo=FALSE}
-knitr::include_graphics(paste("images/2x2_table.png"))
+This chapter uses data from an experiment measuring the effect of two defense signals on the defense response in Maize plants. In response to herbivory from insects, maize, and other plants, release multiple, chemical signals into the air (chemicals that evaporate into the air are known as volatile compounds). These chemicals signal the plant, and neighboring plants, to secrete anti-herbivory hormones, including abcisic acid and jasmonic acid. The researchers investigated the effects of two volatile compounts, (Z)‐3‐hexenyl acetate (HAC) and Indole, on the defense response both each without the other and in combination.
+
+The example data come from Figure 1a, which is the effect of HAC and Indole on tissue concentrations of the hormone abcisic acid (ABA). The design is fully crossed with two factors, each with two levels: $hac$, with levels "HAC-" and "HAC+", and $indole$, with levels ("Indole-" and "Indole+").  A good way to visualize the treatment combinations in a crossed design is with a $m \times p$ table showing all combinations of the $m$ levels of factor 1 ($hac$) against the $p$ levels of factor 2 ($indole$).
+
+```{r factorial-2way-table, echo = FALSE, message=FALSE, warning=FALSE}
+df <- data.frame("HAC-" = c("Control", "Indole"),
+                 "HAC+" = c("HAC", "HAC+Indole"))
+row.names(df) <- c("Indole-", "Indole+")
+knitr::kable(df, col.names = c("HAC-", "HAC+"))
 ```
 
-The upper left cell represents the combination of 13 C and 400 µAtm level within the CO2 factor. The replicates in this cell were grown with no added treatments, so this cell is the "control" for Temp and the control for CO2, which we will use as the "reference" group for the linear model. The replicates in the lower left cell were grown with an added temperature treatment (in this case, a 5 C higher temperature). The replicates in the upper right cell were grown with an added CO2 treatment (700 µATM higher CO2). And finally, the replicates in the bottom right cell were grown with both the added temperature (+5 C) and added CO2 (+700 µATM). Here, I use a "+" or "-" to designate the addition (or not) of the treatment, so our $2 \times 2$ treatment levels are Temp-/CO2-, Temp+/CO2-, Temp-/CO2+ and Temp+/CO2+.
+```{r factorial-import-ecology, echo=FALSE, warning=FALSE, message=FALSE}
 
-### Model coefficients: an interaction effect is what is leftover after adding the treatment effects to the control
+data_from <- "Integration of two herbivore-induced plant volatiles results in synergistic effects on plant defense and resistance"
+file_name <- "Data for Dryad.xlsx"
+file_path <- here(data_folder, data_from, file_name)
 
-A factorial design allows a researcher to estimate the interaction between two factors. To clarify this, let's fit the factorial model and look at the coefficient table. The systematic component of the factorial model is
+fig1 <- read_excel(file_path,
+                     sheet = "Fig. 1",
+                     range = "A3:K23", # 1 blank column
+                     col_names = TRUE) %>%
+  data.table() %>%
+  clean_names()
+
+fig1[treat == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
+fig1[treat == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
+fig1[treat == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
+fig1[treat == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
+
+treat_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
+fig1[, treat := factor(treat, levels = treat_levels)]
+fig1[, hac := factor(hac)] # levels in correct order
+fig1[, indole := factor(indole)] # levels in correct order
+# View(fig1)
+```
+### Analysis
+
+#### Examine the data
+
+```{r}
+qplot(x = treat, y = aba, data = fig1)
+```
+
+Too few points for box plot. control variance is small. No obvious implausible points. fit with lm but recognize small n warning for any inference.
+
+#### Fit the model
+```{r factorial-fit-model}
+m1 <- lm(aba ~ hac * indole, data = fig1)
+```
+
+#### Model check
+
+```{r}
+qqPlot(m1, id = FALSE)
+```
+
+A plausible sample from a Normal distribution.
+
+```{r}
+spreadLevelPlot(m1)
+```
+A bit of increase in variance with mean. 
+
+#### Inference from the model
+
+```{r}
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+knitr::kable(m1_coef, digits = 3)
+```
+
+
+```{r}
+m1_emm <- emmeans(m1, specs = c("hac", "indole"))
+knitr::kable(m1_emm, digits = 2)
+```
+
+```{r}
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     simple = "each",
+                     combine = TRUE,
+                     adjust = "none") %>%
+  summary(infer = TRUE)
+
+knitr::kable(m1_pairs, digits = 2)
+```
+```{r}
+m1_interaction <- contrast(m1_emm,
+                           interaction = c("revpairwise"),
+                           by = NULL) %>%
+  summary(infer = TRUE)
+
+m1_interaction %>%
+  kable(digits = c(1,1,1,2,0,2,1,2,3)) %>%
+  kable_styling()
+```
+
+#### Plot the model
+
+xxx if interested in synergy plot the coefficients! this is what we want. When would we want to plot all simple effects?
+
+```{r factorial-aba-prepare-plot, echo=FALSE}
+
+m1_emm_dt <- summary(m1_emm) %>%
+  data.table
+m1_emm_dt[, treat := levels(fig1$treat)]
+m1_pairs_dt <- data.table(m1_pairs)
+
+# create contrast column with unique value each row
+within_group <- c("Indole-", "Indole+", "HAC-", "HAC+")
+m1_pairs_dt[, contrast := paste(within_group, contrast, sep =": ")]
+
+# add interaction row
+m1_pairs_dt <- rbind(m1_pairs_dt,
+                     data.table(contrast = "Interaction",
+                                estimate = m1_coef[4, "Estimate"],
+                                lower.CL = m1_coef[4, "2.5 %"],
+                                upper.CL = m1_coef[4, "97.5 %"],
+                                p.value = m1_coef[4, "Pr(>|t|)"]),
+                     fill = TRUE)
+
+# pvalString is from package lazyWeave
+m1_pairs_dt[ , p_pretty := pvalString(p.value)]
+# also create a column with "p-val: "
+m1_pairs_dt[ , pval_pretty := paste("p-val:", p_pretty)]
+```
+
+
+```{r factorial-aba-build-plot, echo=FALSE}
+# response plot using treat column
+gg_response <- ggplot(data = fig1,
+                            aes(x = aba,
+                                y = treat,
+                                color = hac,
+                                shape = indole)) +
+  # points
+  geom_jitter(alpha = 0.5,
+            height = 0.4) +
+  
+  # plot means and CI
+  geom_errorbar(data = m1_emm_dt,
+                aes(x = emmean,
+                    xmin = lower.CL,
+                    xmax = upper.CL,
+                    color = hac),
+                width = 0,
+  ) +
+  
+  geom_point(data = m1_emm_dt,
+             aes(x = emmean,
+                 color = hac),
+             size = 3
+  ) +
+
+  # aesthetics
+  xlab("ABA (ng per g FW)") +
+  scale_color_manual(values=pal_okabe_ito,
+                     name = NULL) +
+  theme_pubr() +
+  theme(legend.position="none") +
+  theme(axis.title.y=element_blank()) +
+  
+  NULL
+
+# gg_effect
+
+contrast_order <- m1_pairs_dt[, contrast]
+m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
+contrast_labels <- c("HAC - Control",
+                     "HAC+Indole - Indole",
+                     "Indole - Control",
+                     "HAC+Indole - HAC",
+                     "Interaction")
+
+gg_effect <- ggplot(data = m1_pairs_dt, 
+                    aes(x = estimate,
+                        y = contrast)) +
+  # confidence level of effect
+  geom_errorbar(aes(xmin=lower.CL, 
+                    xmax=upper.CL),
+                width=0, 
+                color="black") +
+  # estimate of effect
+  geom_point(size = 3) +
+  
+  # draw a line at effect = 0
+  geom_vline(xintercept=0, linetype = 2) +
+  # draw a line to sep interaction from simple effects
+  geom_vline(xintercept=4.5, color = "gray") +
+  
+  # p-value. The y coordinates are set by eye
+  annotate(geom = "text",
+           label = m1_pairs_dt$p_pretty,
+           y = 1:5,
+           x = 40,
+           size = 3) +
+  
+  # aesthetics
+  
+  scale_y_discrete(labels = contrast_labels) +
+  scale_x_continuous(position = "top") + # move to top
+
+  xlab("Effect (ng per g FW)") +
+  ylab("Contrast") +
+  coord_cartesian(xlim = c(-10,40)) +
+  
+  # use ggpubr theme
+  theme_pubr() +
+  theme(axis.title.y=element_blank()) +
+  
+  NULL
+
+#gg_effect
+```
+
+```{r factorial-aba-plot, echo=FALSE}
+plot_grid(gg_effect,
+          gg_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.5,1))
+```
+
+### A factorial model adds an interaction effect to the coefficients table
+
+A factorial design allows a researcher to estimate the interaction between two factors. An interaction is an effect between two variables in a linear model. The interaction effect is the coefficient $beta_3$ in the linear model
 
 \begin{equation}
-Resp = \beta_0 + \beta_1 Temp^+ + \beta_2 CO2^+ + \beta_3 Temp^+ CO2^+
+aba = \beta_0 + \beta_1 hac_{HAC^+} + \beta_2 indole_{Indole^+} + \beta_3 hac_{HAC^+}:indole_{Indole^+} +\varepsilon
 (\#eq:factorial-full)
 \end{equation}
 
-Again, $Temp^+$ and $CO2^+$ are dummy variables. The model also includes $Temp^+ CO2^+$, which is a dummy variable for the interaction between Temp and CO2. The value of this interaction dummy variable is literally the product of the two main factor dummy variables ($Temp^+$ and $CO2^+$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
+$hac_{HAC^+}$ and $indole_{Indole^+}$ are dummy-coded **indicator variables** indicating group membership. $hac_{HAC^+} : indole_{Indole^+}$ is a dummy-coded variable for the interaction between $hac$ and $indole$. The value of this variable is the product of the two indicator variables in the interaction ($hac_{HAC^+}$ and $indole_{Indole^+}$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
 
-```{r urchin-dummy, echo=FALSE}
-urchin1 <- copy(urchin)
-# change factor levels for analysis aesthetics
-urchin1[, CO2:=factor(ifelse(CO2=="400","-", "+"))]
-urchin1[, Temp:=factor(ifelse(Temp=="13", "-", "+"))]
-dt <- urchin1[, .SD, .SDcols=c("Resp", "Temp", "CO2")]
-dt <- rbind(dt[Temp=="-" & CO2=="-"][1:2,],
-            dt[Temp=="+" & CO2=="-"][1:2,],
-            dt[Temp=="-" & CO2=="+"][1:2,],
-            dt[Temp=="+" & CO2=="+"][1:2,]
-            )
-fit_dummy <- lm(Resp ~ Temp*CO2, data=dt)
-model_matrix <- model.matrix(fit_dummy)
-knitr::kable(model_matrix)
+```{r factorial-dummy, echo=FALSE}
+m1_mm <- model.matrix(m1)
+first_two <- c(1:2, 6:7, 11:12, 16:17)
+knitr::kable(m1_mm[first_two,])
 ```
 
 The coefficient table is
 
-```{r urchin-full-model, echo=FALSE}
-
-m1 <- lm(Resp ~ Temp*CO2, data=urchin1)
-knitr::kable(coef(summary(m1)), digits=c(2,2,1,3), caption="Coefficient table of the factorial model")
+```{r factorial-coef, echo=FALSE}
+knitr::kable(m1_coef, digits=c(2,2,1,3, 2, 2), caption="Coefficient table of the factorial model")
 ```
 
-1. The Intercept ($b_0$) is the mean (8.23) of the reference (Temp-/CO2-) group, and so the mean of the upper left cell in Table 1).
-2. The Temp+ coefficient ($b_1$) is the estimate of the added temperature effect relative to the reference, and so is the mean of the lower left cell minus the mean of the upper left cell ($b_1=\bar{Y}_{Temp^+}-\bar{Y}_{Temp-/CO2-}$). Another way of stating this is, it is the effect of Temp when CO2 is at its reference level.
-3. The CO2+ coefficient ($b_2$) is the estimate of the added CO2 effect relative to the reference, and so is the mean of the upper right cell minus the mean of the upper left cell ($b_2=\bar{Y}_{CO2^+}-\bar{Y}_{Temp-/CO2-}$). Another way of stating this is, it is the effect of CO2 when Temp is at its reference level.
-4. The Temp+:CO2+ coefficient ($b_3$) is the estimate of the **interaction effect**, which is the effect in addition to the Temp$^+$ and CO2$^+$ effects. If you added $b_1$ and $b_2$ to $b_0$, you would get the mean of the Temp$^+$/CO2$^+$ group *if the effects were purely additive*. So the interaction effect is the difference between the mean of the bottom right cell and the sum of the coefficients of the other three cells ($b_3 = \bar{Y}_{Temp^+CO2^+} - (b0 + b1 + b2)$). An interaction is a **non-additive effect**. Think about this. Adding 5 C increases respiration by 4.51 units. Adding 700 µATM CO2 decreases respiration by .32 units. If these effects were purely additive, then adding both 5 C and 700 µATM should result in a mean of 8.23 + 4.51 - .32 = 12.42 units for the Temp$^+$/CO2$^+$ group. What is the mean of this group?
+1. The Intercept ($b_0$) is the mean of the reference (HAC-/Indole-) group, and so the mean of the upper left cell ("Control") in Table \@ref(tab:factorial-coef).
+2. The hacHAC+ coefficient ($b_1$) is the estimate of the added HAC effect relative to the reference, and so is the mean of the lower left cell ("HAC") minus the mean of the upper left cell ("Control"). Another way of stating this is, it is **the effect of HAC when Indole is at its reference level**.
+3. The indoleIndole+ coefficient ($b_2$) is the estimate of the added Indole effect relative to the reference, and so is the mean of the upper right cell ("Indole") minus the mean of the upper left cell ("Control"). Another way of stating this is, **it is the effect of Indole when HAC is at its reference level**.
+4. The hacHAC+:indoleIndole+ coefficient ($b_3$) is the estimate of the **interaction effect**. If we added the HAC effect ($b_1$) and the Indole effect ($b_2$) to the Control mean ($b_0$), we would get the expected mean of the "HAC+Indole" group **if the effects were additive**. The hacHAC+:indoleIndole+ effect ($b_3$) is the additional bit that we need to get from this additive expectation to the modeled HAC+Indole mean (Figure \@ref(factorial-what-are-coefficients-plot)). It is the difference between the mean of the bottom right cell ("HAC+Indole") and the sum of the coefficients of the other three cells ($b0$, $b1$, $b2$).
 
-9.74! So the difference between the ``additive expectation'' and the actual mean is $9.74 - 12.42 = -2.68$, which is the interaction effect (coefficient). A graphical interpretation of these coefficients are in the figure of treatment means below (figure \@ref(factorial-what-are-coefficients-plot))
+An interaction is a **non-additive effect**. Think about this. Adding HAC alone increases ABA concentration by 13.3 ng per g FW. Adding Indole alone increases ABA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
 
-```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (dashed line) is the mean of the reference. b1 (length of vector b1) is the mean of the Temp treatment minus the mean of the reference. b2 (length of vector b2) is the mean of the CO2 treatment minus the mean of the reference. b3 (length of vector b3) is the mean of the Temp + CO2 treatment minus what this value would be if there were no interaction (indicated by the open gold circle)"}
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
+```{r factorial-what-are-coefficients-plot, echo=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (blue line) is the mean of the reference (Control). b1 (orange line) is the /HAC effect. Numerically, it is the mean of the HAC group minus the mean of the reference. b2 (green line) is the Indole effect. Numerically it is the mean of the Indole group minus the mean of the reference. The expected mean of the HAC+Indole group if HAC and Indole were additive is b0 + b1 + b2 (gray circle). b3 (purple line) is the interaction effect. Numerically, it is the observed mean of the HAC+Indole group minus the expected additive mean (gray circle)"}
+m1 <- lm(aba ~ hac * indole, data = fig1)
+m1_emm <- emmeans(m1, specs=c("hac", "indole"))%>%
+  summary() %>%
+  data.table()
+
+treatment_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
+m1_emm[, treatment := factor(treatment_levels, treatment_levels)]
+
 b <- coef(m1)
 b0 <- b[1]
 b1 <- b[2]
 b2 <- b[3]
 b3 <- b[4]
 
-off <- 0.125
-# ref dotted line
-line1 <- data.frame(
-  x=0.75,
-  xend=2+.5,
-  y=b0,
-  yend=b0
-)
-# additive
-mean4 <- data.frame(
-  x=2.125,
-  y=b0 + b1 + b2
-)
-# ref arrow
-arrow.b0 <- data.frame(
-  x = 0.6,
-  xend = 0.35,
-  y = b0,
-  yend = b0
-)
-# b1 arrow
-arrow.b1 <- data.frame(
-  x = 2 - off,
-  xend = 2 - off,
-  y = b0,
-  yend = b0 + b1
-)
-arrow.b2 <- data.frame(
-  x = 1 + off,
-  xend = 1 + off,
-  y = b0,
-  yend = b0 + b2
-)
-arrow.b2.2 <- data.frame(
-  x = 2 + off,
-  xend = 2 + off,
-  y = b0 + b1,
-  yend = b0 + b1 + b2
-)
-arrow.b3 <- data.frame(
-  x = 2 + off,
-  xend = 2 + off,
-  y = b0 + b1 + b2,
-  yend = b0 + b1 + b2 + b3
-)
 
-dodge <- 0.5
-pd <- position_dodge(dodge)
-ggplot(data=m1.emm, aes(x=Temp, y=emmean, color=CO2)) +
-  geom_point(size=3, position=pd) +
-  geom_point(data=mean4, aes(x=x, y=y), color=(pal_jco("default")(4))[2], shape=1, size=4) +
-  ylab("Resp") +
-  geom_segment(data=line1, aes(x=x, y=y, xend=xend, yend=yend), linetype=2, color="grey") +
-  annotate("text", label="b[0]", parse=TRUE, x=0.65, y=(b[1]), size=8) +
-  #geom_segment(data=arrow.b0, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
-  geom_segment(data=arrow.b1, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
-  annotate("text", label="b[1]", parse=TRUE, x=2-off-.1, y=(b0 + 0.5*b1), size=8) +
-  geom_segment(data=arrow.b2, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
-  annotate("text", label="b[2]", parse=TRUE, x=1+off+.1, y=(b0 + 0.5*b2), size=8) +
-  #annotate("text", label="b[2]", parse=TRUE, x=1+off, y=(b0 + b2 + 0.7), size=8) +
-  #geom_segment(data=arrow.b2.2, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
-  geom_segment(data=arrow.b3, aes(x=x, y=y, xend=xend, yend=yend), arrow=arrow(length = unit(0.05, "npc"), ends="last",type="open"), color="black") +
-  annotate("text", label="b[3]", parse=TRUE, x=2+off+.1, y=(arrow.b3$y + arrow.b3$yend)/2, size=8) +
-  theme_classic() +
-  scale_color_jco() +
+gg_add <- ggplot(data = m1_emm,
+                 aes(x = treatment,
+                     y = emmean,
+                     color = treatment)) +
+  geom_point(size = 4, alpha = 0.5) +
+  coord_cartesian(ylim = c(0, 60)) +
+
+  geom_point(aes(x = 4,
+                 y = b0 + b1 + b2),
+             size = 4,
+             alpha = 0.5) +
+  
+  geom_segment(aes(x = c(1, 2, 3, 4),
+                   y = c(0,emmean[1],emmean[1],emmean[1]),
+                   xend = c(1, 2, 3, 4),
+                   yend = emmean),
+               size = 1,
+               show.legend = FALSE) +
+ 
+  geom_segment(aes(x = c(4),
+                   y = c(emmean[1]),
+                   xend = c(4),
+                   yend = c(emmean[2])),
+               size = 1,
+               color = pal_ito_seven[2]) +
+  geom_segment(aes(x = c(4),
+                   y = c(emmean[2]),
+                   xend = c(4),
+                   yend = c(emmean[2] + (emmean[3]-emmean[1]))),
+               size = 1,
+               color = pal_ito_seven[3]) +
+  
+  annotate(geom = "text",
+           label="b[0]",
+           parse=TRUE,
+           x = 1.15,
+           y = b0/2) +
+  annotate(geom = "text",
+           label="b[1]",
+           parse=TRUE,
+           x = 2.15,
+           y = b0 + b1/2) +
+  annotate(geom = "text",
+           label="b[2]",
+           parse=TRUE,
+           x = 3.15,
+           y = b0 + b2/2) +
+  annotate(geom = "text",
+           label="b[3]",
+           parse=TRUE,
+           x = 4.15,
+           y = b0 + b1 + b2 + b2/2) +
+
+  annotate(geom = "text",
+           label="interaction effect",
+           x = 2.55,
+           y = 51.5,
+           size = 4) +
+  geom_segment(aes(x = 3.1,
+                   y = 51,
+                   xend = 3.9,
+                   yend = b0+b1+b2+b3/2),
+               arrow=arrow(length = unit(0.05, "npc"),
+                           ends="last",type="open"),
+               color="black") +
+
+  annotate(geom = "text",
+           label="additive expectation",
+           x = 2.55,
+           y = 44.5,
+           size = 4) +
+  geom_segment(aes(x = 3.2,
+                   y = 44,
+                   xend = 3.9,
+                   yend = b0+b1+b2+0.3),
+               arrow=arrow(length = unit(0.05, "npc"),
+                           ends="last",type="open"),
+               color="black") +
+  
+  scale_color_manual(values=pal_ito_seven,
+                     name = "Group mean") +
+  
+  ylab("ABA (ng per g FW)") +
+  theme_minimal_hgrid() +
+  
+  theme(axis.title.x=element_blank()) +
+  scale_y_continuous(
+    # don't expand y scale at the lower end
+    expand = expansion(mult = c(0, 0.05)))  +
+
   NULL
+  
+gg_add
 ```
 
-### What is the biological meaning of an interaction effect?
-I can dead lift 150 pounds and my friend Jake can deadlift 175 pounds. Working together, we should be able to lift 325 pounds. What if together, we could actually lift 400 pounds? If this were the case, this would be an interaction with an effect equal to 75 pounds. Is this biologically plausible? If so, what is the mechanism? Here is a possible mechanism (although I am highly skeptical of it having a magnitude of 75 pounds): when lifting an object as part of a group, the central nervous system allows increased motor unit recruitment, and so each person can lift more weight than they could if lifting alone. A positive interaction like this is called *synergistic*. Always think about the biological meaning of an interaction effect.
+### The biological interpretation of an interaction effect
 
-### The interpretation of the coefficients in a factorial model is entirely dependent on the reference...
+The biological reasons causing interaction effects are highly variable but lets consider how interactions *might* arise in the context of the ABA defense response to HAC and Indole. Additive effects (no interaction) may occur when combined treatments act independently of each other. This might occur in the Maize ABA response if the signaling path from HAC reception to ABA secretion and Indole reception to ABA secretion occur in different cells or by different signaling pathways and activity in either pathway has no influence on the other. Positive, or **synergistic** interaction effects may occur when combined treatments augment each other's ability to affect the response. This could occur in the Maize ABA response if an active signaling path from one of the volatile compound to ABA secretion makes the signaling path from the other compound to ABA secretion more sensitive to that compound. Negative, or **antagonistic** interaction effects may occur when combined treatments interfere with each other's ability to affect the response. This could occur in the Maize ABA response if an active signaling path from one of the volatile compound to ABA secretion inhibits the signaling path from the other compound to ABA secretion. Negative interaction effects could also occur if there is a simple threshold response and all it takes is either the HAC or the Indole signaling pathway to activate the response.
 
-at least using dummy coding of the factor variables, which is the default in R. To see this, here is the coefficient table of the model but assigning Temp+/CO2+ as the reference (by re-ordering levels in both factors)
+### Conditional and marginal means
 
-```{r factor-interpretation2, echo=FALSE}
-urchin2 <- copy(urchin)
-# change factor levels for analysis aesthetics
-urchin2[, CO2:=factor(ifelse(CO2=="400","-", "+"), c("+","-"))]
-urchin2[, Temp:=factor(ifelse(Temp=="13", "-", "+"), c("+","-"))]
-
-m1.2 <- lm(Resp ~ Temp*CO2, data=urchin2)
-knitr::kable(coef(summary(m1.2)), digits=c(2,2,1,3))
-
-```
-This dependence of the coefficients on the reference is a feature not a bug. It is what we mean when we pose the questions "Compared to larvae raised at today's temperature, what is the effect of adding 5° Temp on larval respiration?", "Compared to larvae raised at today's CO2, what is the effect of adding 700 ppm CO2 on larval respiration?", and "Compared to larvae raised at today's temperature and CO2, what is the effect of adding 5° Temp and 700 µAtm CO2 on larval respiration?" If we change the reference, we are asking different questions.
-
-### Estimated marginal means
-
-The modeled means (or predicted values) of the factorial model (Model \@ref(eq:factorial-full)) fit to the urchin data are shown in the table below. The values in the last column and row are the **marginal means**, which are the means of the associated row or column. More generally, *marginal* refers to a statistic averaged across multiple levels of another variable
-
-
-```{r factorial-means, echo=FALSE}
+```{r factorial-conditional-means, echo=FALSE, message=FALSE}
 options(knitr.kable.NA = '')
+ycols <- c("group", names(m1_emm))
 
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
-m1.mm <- data.frame(
-  "CO2.400" = m1.emm[CO2=="400", emmean],
-  "CO2.1100"  = m1.emm[CO2=="1100", emmean]
-)
-m1.mm <- cbind(m1.mm, apply(m1.mm, 1, mean))
-m1.mm <- rbind(m1.mm, apply(m1.mm, 2, mean))
-m1.mm[3,3] <- NA
-colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "mean")
-m1.mm <- cbind(Temp=c("13 C", "18 C", "mean"), m1.mm)
+m1_emm_dt <- emmeans(m1, specs=c("hac", "indole")) %>%
+  summary() %>%
+  data.table()
 
-# gt_tbl <- gt(m1.mm,
-#              rowname_col = "Temp"
-# )
-# gt_tbl <- tab_stubhead_label(gt_tbl,
-#   label = "Temp"
-# )
-# gt_tbl <- tab_spanner(gt_tbl,
-#   label = "CO2",
-#   columns = vars("400 µAtm", "1100 µAtm")
-# )
-# gt_tbl <- tab_spanner(gt_tbl,
-#   label = "",
-#   columns = vars("mean")
-# )
-# gt_tbl <- fmt_missing(gt_tbl,
-#                       columns=vars("mean"),
-#                       missing_text = ""
-#                       )
-# gt_tbl <- fmt_number(gt_tbl,
-#                       columns=everything(),
-#                       decimals = 2
-#                       )
-# #gt_tbl
-# 
-# gt_table_2 <- gt(m1.mm
-# )
-# gt_table_2 <- tab_spanner(gt_table_2,
-#   label = "CO2",
-#   columns = vars("400 µAtm", "1100 µAtm")
-# )
-# gt_table_2 <- tab_spanner(gt_table_2,
-#   label = "",
-#   columns = vars("mean")
-# )
-# gt_table_2 <- tab_spanner(gt_table_2,
-#   label = "",
-#   columns = vars("Temp")
-# )
-# gt_table_2 <- fmt_missing(gt_table_2,
-#                       columns=vars("mean"),
-#                       missing_text = ""
-#                       )
-# gt_table_2 <- fmt_number(gt_table_2,
-#                       columns=2:4,
-#                       decimals = 2
-#                       )
-# gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "#CCCCCC"),
-#     locations = cells_data(
-#       columns = vars("mean"),
-#       rows = 1:2
-#   ))
-# gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "#CCCCCC"),
-#     locations = cells_data(
-#       columns = vars("400 µAtm"),
-#       rows = 3
-#   ))
-# gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "#CCCCCC"),
-#     locations = cells_data(
-#       columns = vars("1100 µAtm"),
-#       rows = 3
-#   ))
-# gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "white"),
-#     locations = cells_data(
-#       columns = vars("Temp"),
-#       rows = 2
-#   ))
-# gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "white"),
-#     locations = cells_data(
-#       columns = vars("400 µAtm"),
-#       rows = 2
-#    ))
-#  gt_table_2 <-  tab_style(gt_table_2,
-#     style = cell_fill(color  = "white"),
-#      locations = cells_data(
-#        columns = vars("1100 µAtm"),
-#        rows = 2
-#    ))
+m1_emm_hac <- emmeans(m1, specs=c("hac")) %>%
+  summary() %>%
+  data.table()
 
-# gt_table_2
+m1_emm_indole <- emmeans(m1, specs=c("indole")) %>%
+  summary() %>%
+  data.table()
 
-table_3 <- knitr::kable(m1.mm, digits=4, caption="Marginal means from the full factorial model")
-# table_3 <- column_spec(table_3, 4, background = "#CCCCCC")
-# table_3 <- row_spec(table_3, 3, background = "#CCCCCC")
-# table_3 <- add_header_above(table_3, 
-#                             c(" " = 1, "CO2" = 2, " " = 1))
-table_3
+
+hac_0 <- c(m1_emm_dt[hac == "HAC-", emmean],
+           m1_emm_hac[hac == "HAC-", emmean])
+hac_1 <- c(m1_emm_dt[hac == "HAC+", emmean],
+           m1_emm_hac[hac == "HAC+", emmean])
+indole_means <- c(m1_emm_indole[, emmean], NA)
+
+means_table <- data.frame("HAC-" = hac_0,
+                          "HAC+" = hac_1,
+                          "mean" = indole_means)
+row.names(means_table) <- c("Indole-", "Indole+","mean")
+
+
+bgc1 <- pal_okabe_ito[1]
+bgc2 <- pal_okabe_ito[2]
+
+knitr::kable(means_table, 
+             digits = 3,
+             col.names = c("HAC-", "HAC+", "mean"),
+             caption = "Conditional (white background) and marginal (color background) means from full factorial model fit to ABA data") %>%
+  kable_styling(full_width = FALSE) %>%
+  # row_spec(row = 0,
+  #          bold = F) %>%
+  column_spec(column = 1,
+              bold = c(T, T, T)) %>%
+  column_spec(column = 4,
+              background = c(bgc1, bgc1, "white")) %>%
+  column_spec(column = 3,
+              background = c("white", "white", bgc2)) %>%
+  column_spec(column = 2, 
+              background = c("white", "white", bgc2))
+ 
+
 ```
 
-The marginal means with their CIs are
+The conditional means from model \@ref(eq:factorial-full) are shown in the upper left $2 \times 2$ block (white background) of Table \@ref(tab:factorial-conditional-means). These means are conditional on the level of $hac$ and $indole$. The values in the last row and column are the **marginal means**, which are the means of the associated row or column cells (these values are in the margins of the table). More generally, *marginal* refers to a statistic averaged across multiple levels of another variable. The marginal means of $indole$ (orange background) are the means of the `Indole+` and `Indole-` rows. The marginal means of $hac$ (blue background) are the means of the `HAC+` and `HAC-` columns.
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-m1.emm.temp <- summary(emmeans(m1, specs=c("Temp")))
-m1.emm.co2 <- summary(emmeans(m1, specs=c("CO2")))
-knitr::kable(m1.emm.temp)
-knitr::kable(m1.emm.co2)
+### Simple (conditional) effects
+
+In a factorial experiment with crossed A and B factors, there is an effect of factor A (relative to the reference, or another level of factor A) for each of the *p* levels of factor B. And, there is an effect of factor B (relative to the reference, or another level of factor B) for each of the *m* levels of factor A.
+
+For the maize defense response experiment, there is an Indole effect at `hac = HAC-` and a different effect at `hac = HAC+`. Similarly, there is a HAC effect at `indole = Indole-` and a different effect at `indole = Indole+`. These effects, or **contrasts** (differences in modeled means), are called the **simple effects**. I prefer **conditional effects**, since the value of the effect is conditional on the level factor of the other factor.
+
+```{r, echo=FALSE}
+m1_emm <- emmeans(m1, specs=c("hac", "indole"))
+m1_pairs <- contrast(m1_emm,
+                        method = "revpairwise",
+                        adjust = "none",
+                        simple = "each",
+                        combine = TRUE)
+knitr::kable(m1_pairs, 
+             digits=c(1,1,1,1,2,1,1,5),
+             caption = "Conditional (or \"simple\") effects of the factorial model.") %>%
+  kable_styling()
 ```
 
-### In a factorial model, there are multiple effects of each factor (simple effects)
+The first two rows are the conditional effects of $hac$ in each of the levels of $Indole$. The last two rows are the conditional effects of $Indole$ in each of the levels of $hac$.
 
-With a single factor, there was a single effect for each non-reference level of the factor. For example, if the levels are "control", "knockout", and "rescue", the knockout effect is the contrast between knockout and control and the rescue effect is the contrast between rescue and control. In a factorial experiment with crossed A and B factors, there are multiple effects of a non-reference level of factor A -- one for each level of factor B. For the urchin experiment, there is an effect of the 18 C level of Temp when CO2 is 400 µAtm and an effect when CO2 is 1100 µAtm. Similarly, there is an effect of the 1100 level of CO2 when Temp is 13 C and when Temp is 18 C. These effects, or **contrasts** (differences in modeled means), are sometimes called the **simple effects**. Another name could be the "conditional" effects, since the value of the effect is conditional on the level factor B.
-
-One way to visualize the simple effects is by using the $2 \times 2$ table of treatment combinations. The contrasts in the right-side column are the simple effects of CO2 at each level of Temp. The contrasts in the bottom row are the simple effects of Temp at each level of CO2. Note that the first simple effect for each factor has a corresponding row in the table of coefficients of the fit model above.
-
-```{r factorial-simple, echo=FALSE}
+```{r factorial-simple-effects, echo = FALSE}
 options(knitr.kable.NA = '')
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-m1.emm <- data.table(summary(emmeans(m1, specs=c("Temp", "CO2"))))
-m1.mm <- data.frame(
-  "CO2.400" = m1.emm[CO2=="400", emmean],
-  "CO2.1100"  = m1.emm[CO2=="1100", emmean]
-)
-m1.mm <- cbind(m1.mm, contrast = m1.mm[,2] - m1.mm[,1])
-m1.mm <- rbind(m1.mm, m1.mm[2,] - m1.mm[1,])
-m1.mm[3,3] <- NA
-row.names(m1.mm) <- NULL
-colnames(m1.mm) <- c("400 µAtm", "1100 µAtm", "simple")
-m1.mm <- cbind("Temp"=c("13 C", "18 C", "simple"), m1.mm)
-knitr::kable(m1.mm, digits=4, caption = "Conditional (simple) effects of full factorial model fit to urchin data")
+ycols <- c("group", names(m1_emm))
+
+m1_emm <- emmeans(m1, specs=c("hac", "indole"))
+m1_pairs_dt <- contrast(m1_emm,
+                        method = "revpairwise",
+                        adjust = "none",
+                        simple = "each",
+                        combine = TRUE) %>%
+  summary() %>%
+  data.table()
+
+hac_0 <- c(m1_emm_dt[hac == "HAC-", emmean],
+           m1_pairs_dt[hac == "HAC-", estimate])
+hac_1 <- c(m1_emm_dt[hac == "HAC+", emmean],
+           m1_pairs_dt[hac == "HAC+", estimate])
+hac_diffs <- c(m1_pairs_dt[1:2, estimate], NA)
+
+simple_table <- data.frame("HAC-" = hac_0,
+                          "HAC+" = hac_1,
+                          "simple" = hac_diffs)
+row.names(simple_table) <- c("Indole-", "Indole+","simple")
+
+
+
+bgc1 <- pal_okabe_ito[1]
+bgc2 <- pal_okabe_ito[2]
+
+knitr::kable(simple_table, 
+             digits = 3,
+             col.names = c("HAC-", "HAC+", "simple"),
+             caption = "Conditonal (\"simple\") effects of HAC (orange background) and Indole (blue background) on ABA concentration. The conditional means of each combination of the factor levels are in the cells with the white background. The simple effect is the difference in the means of the associated row or column.") %>%
+  kable_styling(full_width = FALSE) %>%
+  # row_spec(row = 0,
+  #          bold = F) %>%
+  column_spec(column = 1,
+              bold = c(T, T, T)) %>%
+  column_spec(column = 4,
+              background = c(bgc1, bgc1, "white")) %>%
+  column_spec(column = 3,
+              background = c("white", "white", bgc2)) %>%
+  column_spec(column = 2, 
+              background = c("white", "white", bgc2))
+ 
+
+
 ```
 
-The 95% confidence intervals and *p*-values of the simple effects of the factorial model (Model \@ref(eq:factorial-full)) are given in the table below.
-
-```{r factorial-conditional-effects, echo=FALSE}
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-m1.emm <- emmeans(m1, specs=c("Temp","CO2"))
-m1.effects <- data.table(summary(contrast(m1.emm,
-                 method="revpairwise",
-                 adjust="none",
-                 simple = "each",
-                 combine=TRUE),
-        infer=c(TRUE,TRUE)))
-setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
-y_cols <- c("CO2", "Temp","Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
-knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
-
-```
-
-The first line is the effect of the 18 C level of Temp when CO2 is 400 µAtm. The 3rd line is the effect of the 1100 µAtm level of CO2 when Temp is 13 C.
+One way to understand conditional effects is by using the $m \times p$ table of treatment combination means (Table \@ref(factorial-simple-effects)). The values in the right-side column (orange) are the conditional effects of HAC at each level of Indole. These values are the difference of the means in the associated row. For example, the conditional effect of $hac$ when `indole = Indole-` is 13.297 (first value in orange column). The values in the bottom row (blue) are the conditional effects of Indole at each level of HAC. These values are the difference of the means in the associated column. For example, the conditional effect of $indole$ when `hac = HAC+` is 21.594 (second value in blue row). Note that the first conditional effect for each factor has a corresponding row in the table of coefficients of the fit model.
 
 ### Marginal effects
 
-The average of the simple effects for a factor are the **marginal effects**, or the **main effects** in ANOVA terminology.
+The average of the conditional effects for a factor are the **marginal effects**, or the **main effects** in ANOVA terminology.
 
-```{r factorial-main, echo=FALSE}
-m1.main <- copy(m1.mm)
-m1.main$Temp <- as.character(m1.main$Temp)
-temp_marginal <- mean(unlist(m1.main[3, 2:3]))
-co2_marginal <- mean(m1.main$simple, na.rm=TRUE)
-m1.main <- rbind(m1.main, c(NA, NA, NA, co2_marginal))
-m1.main[4,1] <- "marginal"
-m1.main <- cbind(m1.main, marginal=c(NA, NA, temp_marginal, NA))
-knitr::kable(m1.main, digits=4)
+```{r factorial-main, echo=FALSE, warning=FALSE, message=FALSE}
+
+m1_hac_dt <- emmeans(m1, specs = "hac") %>%
+  contrast(
+    method = "revpairwise") %>%
+  summary() %>%
+  data.table()
+
+m1_indole_dt <- emmeans(m1, specs = "indole") %>%
+  contrast(
+    method = "revpairwise") %>%
+  summary() %>%
+  data.table()
+
+marginal_table <- copy(simple_table)
+
+marginal_table <- rbind(marginal_table, marginal =
+                        c(NA, NA, m1_hac_dt[1, estimate]))
+marginal_table <- cbind(marginal_table,
+                        marginal = c(NA, NA, m1_indole_dt[1, estimate], NA))
+
+orange_color <- pal_okabe_ito[1]
+blue_color <- pal_okabe_ito[2]
+gray_color <- pal_jco(alpha = 0.6)(9)[3]
+
+knitr::kable(marginal_table, 
+             digits = 3,
+             col.names = c("HAC-", "HAC+", "simple", "marginal"),
+             caption = "Marginal effects of HAC (orange) and Indole (blue) on ABA concentration. Simple effects are in grey cells. The conditional means of each combination of the factor levels are in the white cells.") %>%
+  kable_styling(full_width = FALSE) %>%
+  # row_spec(row = 0,
+  #          bold = F) %>%
+  column_spec(column = 1,
+              bold = c(T, T, T,T)) %>%
+  column_spec(column = 2, 
+              background = c("white", "white", gray_color, "white")) %>%
+  column_spec(column = 3,
+              background = c("white", "white", gray_color, "white")) %>%
+  column_spec(column = 4,
+              background = c(gray_color, gray_color, "white", orange_color)) %>%
+  column_spec(column = 5,
+              background = c("white", "white", blue_color, "white"))
+
 ```
 
-The 95% confidence interval and *p*-value of these marginal effects are
-```{r factorial-marginal, echo=FALSE, message=FALSE}
-m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-m1.emm.1 <- emmeans(m1, specs=c("Temp"))
-m1.effects.1 <- data.table(summary(contrast(m1.emm.1,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE)))
-m1.emm.2 <- emmeans(m1, specs=c("CO2"))
-m1.effects.2 <- data.table(summary(contrast(m1.emm.2,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE)))
-m1.effects <- rbind(m1.effects.1, m1.effects.2)
-setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
-y_cols <- c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
-knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
-```
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Be careful with reporting marginal effects. In this example, the simple effects of HAC are very different for the `Indole-` and `Indole+` treatment levels and the mean of these two effects may not be especially relevant to the question that we are pursuing. If the simple effects of a factor are similar, then it may make more sense to report the marginal effect.
+</div> 
 
-Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large. The urchin example is a good example of marginal effects that would be highly misleading to present without further comment.
- 
 ### The additive model
+
+Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large. The maize ABA response is a good example of marginal effects that would be highly misleading to present without further comment.
 
 If an interaction effect is small, then it can be useful to estimate the effects of the two factors as if the interaction were equal to zero.
 
 \begin{equation}
-Resp = \beta_0 + \beta_1Temp^+ + \beta_2CO2^+
+aba = \beta_0 + \beta_1 hac_{HAC^+} + \beta_2 indole_{Indole^+} + \varepsilon
+(\#eq:factorial-reduced)
 \end{equation}
 
-This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. The model coefficients of the additive model are given in the table below.
+This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. In R, this model is
 
-```{r urchin-reduced-model, echo=FALSE}
-m2 <- lm(Resp ~ Temp + CO2, data=urchin1) # use urchin1 data with relabeled levels
-knitr::kable(coef(summary(m2)), digits=c(2,2,1,3))
+```{r}
+m2 <- lm(aba ~ hac + indole, data = fig1)
+```
 
-eval_it <- FALSE
-if(eval_it==TRUE){
-  m1 <- lm(Resp ~ Temp*CO2, data=urchin)
-  contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
-  m2 <- lm(Resp ~ Temp+CO2, data=urchin)
-  contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
-  coef(m2)
-  contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
-  m4 <- lm(Resp ~ Temp, data=urchin)
-  coef(m4)
-  contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
-  
-  urchin[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)]
-  emmeans(m1, specs=c("Temp", "CO2"))
-  emmeans(m2, specs=c("Temp", "CO2"))
-  
-  urchin.na <- urchin[!is.na(Resp)]
-  urchin.na <- urchin.na[1:(nrow(urchin.na)-2)]
-  m1 <- lm(Resp ~ Temp*CO2, data=urchin.na)
-  contrast(emmeans(m1, specs="Temp"), adjust="none", method="revpairwise")
-  m2 <- lm(Resp ~ Temp+CO2, data=urchin.na)
-  contrast(emmeans(m2, specs=c("Temp", "CO2")), adjust="none", method="revpairwise")
-  coef(m2)
-  contrast(emmeans(m2, specs=c("Temp")), adjust="none", method="revpairwise")
-  m4 <- lm(Resp ~ Temp, data=urchin.na)
-  coef(m4)
-  contrast(emmeans(m4, specs=c("Temp")), adjust="none", method="revpairwise")
-  emmeans(m1, specs=c("Temp", "CO2"))
-  emmeans(m2, specs=c("Temp", "CO2"))
-  (means_table <- urchin.na[!is.na(Resp), .(mean=mean(Resp), N=.N), by=.(Temp, CO2)])
-  t1100 <- (means_table[Temp=="18" & CO2=="1100", mean] - means_table[Temp=="13" & CO2=="1100", mean])
-  t400 <- (means_table[Temp=="18" & CO2=="400", mean] - means_table[Temp=="13" & CO2=="400", mean])
-  (t1100 + t400)/2
-  (10*t1100 + 12*t400)/(12+10)
-  
-}
+The model coefficients of the additive model are
+
+```{r factorial-reduced-model, echo=FALSE}
+m2_coef <- cbind(coef(summary(m2)),
+        confint(m2))
+knitr::kable(m2_coef, 
+             digits=c(2,2,1,3),
+             caption = "Model coefficients of additive model.") %>%
+  kable_styling()
 
 ```
 
 The conditional effects of the reduced model are
 
 ```{r, echo=FALSE}
-m1 <- lm(Resp ~ Temp + CO2, data=urchin)
-m1.emm <- emmeans(m1, specs=c("Temp","CO2"))
-m1.effects <- data.table(summary(contrast(m1.emm,
-                 method="revpairwise",
-                 adjust="none",
+m2_emm <- emmeans(m2, specs=c("hac", "indole"))
+m2_pairs <- contrast(m2_emm,
+                 method = "revpairwise",
+                 adjust = "none",
                  simple = "each",
-                 combine=TRUE),
-        infer=c(TRUE,TRUE)))
-setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
-y_cols <- c("CO2", "Temp","Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
-knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
+                 combine = TRUE) %>%
+  summary(infer = TRUE)
+
+
+knitr::kable(m2_pairs,
+             digits = c(1,1,1,5,2,1,2,2,2,5),
+             caption = "Conditional effects of additive model.") %>%
+  kable_styling()
 
 ```
 
-The table shows that all conditional effects within a factor are the same. This makes sense -- if the model fit is additive, the interaction effect is set to zero and, consequently there cannot be differences in conditional effects. Probably a better way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically computes marginal effects.
-
-```{r, echo=FALSE}
-m1 <- lm(Resp ~ Temp + CO2, data=urchin)
-m1.emm.1 <- emmeans(m1, specs=c("Temp"))
-m1.effects.1 <- data.table(summary(contrast(m1.emm.1,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE)))
-m1.emm.2 <- emmeans(m1, specs=c("CO2"))
-m1.effects.2 <- data.table(summary(contrast(m1.emm.2,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE)))
-m1.effects <- rbind(m1.effects.1, m1.effects.2)
-setnames(m1.effects, old=c("contrast", "estimate", "lower.CL", "upper.CL", "t.ratio", "p.value"), new=c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p"))
-y_cols <- c("Contrast", "Estimate", "Lower CI", "Upper CI", "t", "p")
-knitr::kable(m1.effects[, .SD, .SDcols=y_cols], digits=4)
-```
+The table shows that, in an additive model, all conditional effects for one factor are the same for each level of the other factor. This makes sense. If the model fit is additive, the interaction effect is set to zero by the model and there cannot be differences in conditional effects among the contrasts at each of the levels of the other factor (otherwise, there would be an interaction). Also note that the conditional effects xxx. Probably a better way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically computes marginal effects.
 
 Compare the table of marginal effects of the additive model to the table of marginal effects of the full model. The estimates are the same but the *t*-values and *p*-values differ because of different degrees of freedom (the full model estimates one more parameter, the interaction effect). The estimate is the same only if the design is balanced, which means that each combination of treatment levels has the same sample size *n*.
 
@@ -482,315 +670,26 @@ Aided and abetted by statistics textbooks for biologists, there is a long histor
 1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if the interaction were $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
 2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or even that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
 
-### What about models with more than two factors?
-A factorial model can have more than two factors, for example, a model with three factors (A, B, and C), each with two levels (which I'll designate with a "+"), is
-
-\begin{equation}
-Y = \beta_0 + \beta_1 A^+ + \beta_1 B^+ + \beta_3 C^+ + \beta_4 A^+ B^+ + \beta_5 A^+ C^+ + \beta_6 B^+ C^+ + \beta_7 A^+ B^+ C^+ + \varepsilon
-\end{equation}
-
-It is easy enough to get an ANOVA table with $p$-values for this model but I don't recommend it because
-
-1. If space and/or time and/or materials are limited then it typically makes more sense to prioritize the power to estimate standard errors by choosing one of the two-factor models and increasing sample size
-2. Interaction effects in 2-factor models are hard enough to interpret. A 3-way interaction is very, very tough to interpret. If all we did was table up $F$-ratios and $p$-values, this wouldn't matter. But it does matter.
-
-## Reporting results
-
-### Text results
-
-The effect of the increased temperature at the control CO2 level was 4.5 pmol O2/hr/larva (95% CI: 2.4, 6.7; $p < 0.001$). The effect of increased CO2 at the control temperature was -0.3 pmol O2/hr/larva (95% CI: -2.4, 1.8; $p=.76$). The interaction effect was -2.7 pmol O2/hr/larva (95% CI: -5.7, 0.3; $p = 0.079$). Because of the relatively large interaction, the effect of temperature at the high level of CO2 was less than half the effect at the low level of CO2 (estimate: 1.82; 95% CI: -0.3, 4.0; $p = 0.091$) and the effect of CO2 at the high level of Temp was 10 times greater than that at the low level of Temp (estimate: -3.0; 95% CI: -5.1, -.9; $p = 0.0084$).
-
-The CI on the interaction includes both large negative values and trivially small values, including zero, and, consequently, our data is compatible with both scientific models (that is, we can neither support nor reject the predictions of the scientific model using these results).
-
 ## Working in R
 ### Model formula
 
-A full-factorial model with two factors is specified in the model formula as `y ~ A*B` where A is the first factor, and B is the second factor. The * indicates to cross A and B. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
+A full-factorial model with two factors is specified in the model formula as `y ~ A*B` where $texttt{A}$ is the first factor, and $texttt{B}$ is the second factor. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
 
-```{r urchin-full-factorial}
-m1 <- lm(Resp ~ Temp*CO2, data=urchin) # use urchin1 data with relabeled levels
-coef(summary(m1))
+```{r }
+m1 <- lm(aba ~ hac * indole, data = fig1)
+m1_coef <- coef(summary(m1))
+  
+m1_coef %>%
+  kable(digits = c(1,2,2,3))
 ```
 
 The additive model is specified by the formula `y ~ A + B`
 
 ```{r urchin-additive}
-m2 <- lm(Resp ~ Temp + CO2, data=urchin) # use urchin1 data with relabeled levels
-coef(summary(m2))
+m2 <- lm(aba ~ hac + indole, data = fig1)
+m2_coef <- coef(summary(m2))
+  
+m2_coef %>%
+  kable(digits = c(1,2,2,5))
 ```
 
-### Modeled means
-
-Modeled means are estimated using `emmeans::emmeans`. The means for all combinations of Temp and CO2 are obtained with the specs argument.
-
-```{r}
-m1.emm <- emmeans(m1, specs=c("Temp", "CO2"))
-m1.emm
-```
-
-### Marginal means
-
-The marginal means are
-
-```{r, message=FALSE, warning=FALSE}
-m1.emm.temp <- emmeans(m1, specs=c("Temp"))
-m1.emm.co2 <- emmeans(m1, specs=c("CO2"))
-m1.emm.temp
-m1.emm.co2
-```
-
-### Contrasts
-
-All six pairwise contrasts are computed using `emmeans::contrast`. The adjust argument specifies the adjustment for multiple testing. The method argument specifies the type of contrast (pairwise and revpairwise give all pairwise contrasts. revpairwise simply gives the reverse of pairwise)
-
-```{r}
-m1.contrast <- contrast(m1.emm, adjust="none", method="revpairwise")
-# add CIs
-m1.contrast.ci <- summary(m1.contrast, infer=c(TRUE, TRUE))
-m1.contrast.ci
-```
-
-### Simple effects
-
-The four conditional (simple) effects are a subset of the contrasts above and are computed using the arguments `simple="each"` and `combine=TRUE`.
-
-```{r}
-m1.effects <- summary(contrast(m1.emm,
-                 method="revpairwise",
-                 adjust="none",
-                 simple = "each",
-                 combine=TRUE),
-        infer=c(TRUE,TRUE))
-m1.effects
-```
-
-### Marginal effects
-
-The marginal effects of the factorial model are
-
-```{r}
-m1.emm.1 <- emmeans(m1, specs=c("Temp"))
-m1.effects.1 <- summary(contrast(m1.emm.1,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE))
-m1.effects.1
-m1.emm.2 <- emmeans(m1, specs=c("CO2"))
-m1.effects.2 <- summary(contrast(m1.emm.2,
-                 method="revpairwise",
-                 adjust="none"),
-        infer=c(TRUE,TRUE))
-m1.effects.2
-
-```
-
-These can be combined into a single table using `rbind`
-
-```{r}
-m1.effects.marginal <- rbind(data.table(m1.effects.1), data.table(m1.effects.2))
-m1.effects.marginal
-```
-
-### Plotting results
-#### Bar plot with uniform coloring poorly communicate the factorial design
-```{r}
-# bar plot with uniform color
-urchin[, xlabel := paste0("Temp:",Temp,"/","CO2:",CO2)]
-ggbarplot(x="xlabel",
-          y="Resp",
-          data=urchin[!is.na(Resp),],
-          add=c("mean_ci", "jitter"),
-          fill=(pal_jco("default")(4))[1]) +
-  xlab("Treatment") +
-  NULL
-```
-
-#### Plots that communicate the factorial design
-```{r factorial-interaction-plots, fig.height=7, fig.cap="Interaction plots. (B) is the classic interaction plot, which is characterized by lines connecting the groups that share the same Factor B level. This line allows one to visual the effect of Factor A (the slope) at each level of Factor B."}
-# bar-plot with 2nd factor different color
-pd <- position_dodge(0.7)
-gg1 <- ggbarplot(x="Temp",
-          y="Resp",
-          fill="CO2",
-          data=urchin[!is.na(Resp),],
-          add=c("mean_ci"),
-          position=pd) +
-  geom_point(aes(fill=CO2), 
-             color="black", 
-             position=position_jitterdodge(jitter.width=0.2), 
-             show.legend=FALSE, 
-             alpha=0.5) +
-  scale_fill_jco() +
-  NULL
-
-# "interaction" plot
-m1.emm.dt <- data.table(summary(m1.emm))
-pd = position_dodge(0.7)
-gg2 <- ggplot(data=m1.emm.dt, 
-                      aes(x=Temp, 
-                          y=emmean, 
-                          shape=CO2, 
-                          color=CO2, 
-                          group=CO2)) +
-  geom_point(position=pd, size=3) +
-  geom_errorbar(aes(x=Temp, 
-                                 ymin=lower.CL, 
-                                 ymax=upper.CL,
-                                 group=CO2)
-                , position=pd, width=0.1) +
-  geom_line(position=pd) +
-  ylab("Resp") +
-  scale_color_jco() +
-  theme_pubr() +
-  #theme(legend.position="bottom") +
-  NULL
-
-# interaction "jitter" plot
-gg3 <- gg2 +
-  geom_point(data=urchin[!is.na(Resp),], aes(x=Temp, y=Resp, fill=CO2),
-             position=position_jitterdodge(jitter.width=0.2)) +
-#             position=position_jitter(width=0.2)) +
-  theme(legend.position="bottom") +
-  NULL
-gg_response <- gg3 # used below
-
-# box "interaction" plot
-m1.emm.dt <- data.table(summary(m1.emm))
-pd <- position_dodge(0.8)
-gg4 <- ggboxplot(x="Temp",
-          y="Resp",
-          data=urchin[!is.na(Resp),],
-          fill="CO2") +
-  scale_fill_jco() +
-  geom_point(data=m1.emm.dt, 
-             aes(x=Temp, y=emmean, group=CO2),
-             color="red",
-             position=pd) +
-  geom_line(data=m1.emm.dt, 
-            aes(x=Temp, y=emmean, group=CO2),
-            position=pd) +
-  theme(legend.position="bottom") +
-  NULL
-
-plot_grid(gg1, gg2, gg3, gg4, nrow=2, labels="AUTO")
-```
-
-A common way to plot the results of factorial models is with an **interaction plot** (Figure \@ref(fig:factorial-interaction-plots)). In the interaction plot of the urchin data, the $X$-axis contains the two $Temp$ treatment levels and the $Y$-axis is the outcome ($Resp$). The plot shows the four cell means indicated by the circles (low CO2 levels) or triangles (high CO2 levels). The solid lines connect the cell means *across Temp levels within CO2 levels*.
-
-1. The slope of a line is the effect of $Temp$ on $Resp$
-2. The relative *elevation* of the two lines is the effect of $CO2$ on $Resp$
-3. The difference in slope *or* the relative elevation at each level of $Temp$ is the interaction effect
-
-Let's deconstruct this. The top (CO2-) line is the effect of $Temp$ at the control (400 µATM) value of $CO2$. The slope of the bottom (CO2+) line is the effect of $Temp$ at the high (1100 µATM) value of $CO2$. *These lines have different slopes*, or the slope *is conditional on* the level of CO2. This means that the effect of $Temp$ on respiration is *conditional on the value of $CO2$*. Think about this. This is what an interaction implies--conditional effects.
-
-At the reference temperature (13 C), the CO2+ line is barely below the CO2- line. But at the high temperature (18 C), the CO2+ line is far below the CO2- line. That is, the relative elevation (the $CO2$ effect) is conditional on the level of $Temp$. It will always be the case that if the effect of Factor A is conditional on the levels of Factor B, then the effect of Factor B will be conditional on the levels of Factor A.
-
-An interaction plot is an okay plot. It doesn't show the data, only a minimal, descriptive summary (means and standard errors). If we are interested in the interaction effect, it doesn't give us a very good sense of the error in this effect. And *that* is a problem because with real data, two lines are never precisely parallel. Our interpretation of the similarity of the slopes would probably mostly reflect our pre-conceived scientific model.
-
-#### Effects plots
-
-```{r, warning=FALSE, message=FALSE}
-# need m1.emm and m1.effects from above
-# convert to data.table
-m1.coefs <- coef(summary(m1))
-m1.ci <- confint(m1)
-m1.coefs.dt <- data.table(Term=row.names(m1.coefs), m1.coefs, m1.ci)
-# convert labels to match those of m1.effects
-setnames(m1.coefs.dt, 
-         old=c("Estimate", "Std. Error", "Pr(>|t|)", "2.5 %", "97.5 %"),
-         new=c("estimate", "SE", "p.value", "lower.CL", "upper.CL"))
-m1.contrasts.dt <- data.table(m1.effects)
-# create a label for each contrast
-m1.contrasts.dt[, Term:=ifelse(CO2!=".", 
-                              paste0(CO2, ":", contrast), 
-                              paste0(Temp, ":", contrast))]
-m1.effects.dt <- rbind(m1.coefs.dt[4,], m1.contrasts.dt, fill=TRUE)
-
-# effects plot
-# get p-values
-pval <- as.character(round(m1.effects.dt$p.value, 3))
-pval[2] <- "0.0003"
-gg_effects <- ggdotplot(x="Term", 
-                 y="estimate", 
-                 data=m1.effects.dt, 
-                 color = (pal_jco("default")(4))[1],
-                 fill = (pal_jco("default")(4))[1],
-                 size=0.5) +
-  geom_errorbar(aes(x=Term, ymin=lower.CL, ymax=upper.CL),
-                width=0.15, color=(pal_jco("default")(4))[1]) +
-  ylab("Contrast") +
-  geom_hline(yintercept=0, linetype = 2) +
-  annotate("text", x = 1:5, y = rep(7.75, 5), label = pval) +
-  annotate("text", x=5.4, y=7.75, label="p-value") +
-  expand_limits(y = 8.3) +
-  xlab("Contrast") +
-  coord_flip() + 
-  NULL
-
-gg_effects
-```
-
-This effects plot shows the four simple effects, the single interaction (Temp18:CO21100), and their 95% confidence intervals. In the original paper, the researchers were testing a scientific (not statistical!) model that predicted no interaction between CO2 and Temp, and the researchers argued that these data supported this model because of the "not statistically significant" *p*-value for the interaction effect. The data are consistent with this model (one end of the 95% CI for the interaction includes zero) but also support a model of a large, negative interaction (the other end of the 95% CI includes large negative values). The data are too course (or the signal:noise ratio is to small) to have much confidence in the size of the interaction effect.
-
-#### Harrell plots
-
-```{r, warning=FALSE, message=FALSE, fig.height=7}
-gg_effects <- gg_effects + scale_y_continuous(position="right")
-
-plot_grid(gg_effects, gg_response, nrow=2, 
-          align = "v", 
-          rel_heights = c(1, 1.75))
-```
-
-The effects and interaction plot are combined into a single plot.
-
-## Problems
-
-1. Draw four $2 \times 2$ tables and label the row and column headers using the levels of the urchin treatment. In the first table, insert the cell means. In the 2nd table, insert the equation for the coefficient. In the third table, solve the equations. And in the fourth column, insert the estimates from the table above. Are tables 3 and 4 the same? If not, you've goofed somewhere.
-
-2. Frew et al. (2017) showed that increasing atomospheric CO2 increases grub activity in the soil which in turn increases root damage to sugarcane. They used a 2 x 2 experiment to then show that silicon added to the soild decreased the damage to the roots by the grubs (silicon minerals are very hard and plants uptake silicon from the soil to mineralize tissues to protect against insect damage). There are lots of analyses in the paper -- try to reproduce Fig. 4b, but using an interaction plot.
-
-(The treatment assignments are in a different file than the experimental results. Use the `merge` function to glue the two tables together, keying on the common column "plant")
-
-1. **file name**: "canegrub_feedingtrial.csv"
-2. **file name**: "treatments.csv"
-3. **source**: https://datadryad.org/resource/doi:10.5061/dryad.r3s16
-
-```{r urchin-insect, echo=FALSE, eval=FALSE}
-folder <- "Data from Increased root herbivory under elevated atmospheric carbon dioxide concentrations is reversed by silicon-based plant defences"
-filename <- "canegrub_feedingtrial.csv"
-file_path <- here(data_path, folder, filename)
-feeding <- fread(file_path)
-# open design file
-filename <- "treatments.csv"
-file_path <- here(data_path, folder, filename)
-treatments <- fread(file_path)
-treatments[, CO2treat:=factor(CO2treat)]
-treatments[, Silicon:=factor(Silicon, c("silicon0", "silicon+"))]
-dt <- merge(feeding[, .SD, .SDcols=c("plant", "RC")], treatments, by="plant")
-gg_interaction_plot(x=c("Silicon", "CO2treat"), y="RC", data=dt)
-
-dt.res1 <- harrellplot(x="Silicon", g="CO2treat", y="RC", data=dt)
-dt.res1$tables$anova.1
-dt.res1$tables$anova.3
-```
-
-```{r, echo=FALSE}
-knitr::include_graphics(paste("images/frew_fig_4b.png"))
-```
-
-3. Kardol et al investigated the effect of moss growth in response to rainfall and community structure. Analyze the effect of these two factors on biomass gain and generate a Harrell plot alternative to their bar plot in Fig. 3 (see below). What is striking about your plot compared to theirs?
-
-**Filename** "Data file for Dryad.xlsx"
-**sheet** "Data"
-**Source*:** https://datadryad.org/resource/doi:10.5061/dryad.66d5f
-
-```{r, echo=FALSE}
-knitr::include_graphics(paste("images/kardol_fig_3.png"))
-```
-
-```{r moss, echo=FALSE, eval=FALSE}
-
-```
-
-4. (Grad students only) Generate a fake experiment! The experiment should have two factors each with two levels. Experiment with power by varying sample size and effect size.

@@ -1,4 +1,4 @@
-# Adding covariates to a linear model
+# Adding covariates to a linear model {#chapter-covariates}
 
 ```{r setup-ancova, echo=FALSE, warnng=FALSE, message=FALSE}
 library(here)
@@ -934,6 +934,35 @@ For an nonadditive model with interactions, add the covariate to the model formu
 
 ```{r}
 m2 <- lm(area_of_necrosis ~ area_at_risk * treatment, data = fig4h)
+```
+
+### Using the emmeans function
+
+```{r}
+m1_emm <- emmeans(m1,
+        specs = c("treatment"))
+m1_emm
+```
+```{r}
+m1_emm <- emmeans(m1,
+        specs = c("area_at_risk", "treatment"))
+m1_emm
+
+```
+
+```{r}
+# recenter emms at the mean of the vehicle group
+
+vehicle_mean_x <- mean(fig4h[treatment == "Vehicle",
+                         area_at_risk])
+m1_emm_2 <- emmeans(m1,
+                    specs = c("area_at_risk","treatment"),
+                    at = list(area_at_risk = vehicle_mean_x))
+m1_emm_2
+```
+```{r}
+fig4h[, .(mean = mean(area_of_necrosis)),
+      by = treatment]
 ```
 
 ### ANCOVA tables

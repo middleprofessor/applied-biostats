@@ -53,15 +53,17 @@ Cold temperature and the neurotransmitter/hormone norepinephrine are known to st
 ### Example 1 -- two treatment levels ("groups")
 Let's start with the experiment in Figure 3d, which was designed to measure the effect of 12,13-diHOME on plasma triglyceride level. If 12,13-diHOME stimulates BAT activity, then levels in the 12,13-diHOME mice should be less than levels in the control mice.
 
+####  Step 1 -- Understand the experiment design
+
 **response variable**: $\texttt{serum_tg}$, a continuous variable.
 
 **treatment variable**: $\texttt{treatment}$, with levels: "Vehicle", "12,13-diHOME" (the control or "Vehicle" mice were injected with saline). Coded as a factor.
 
 **design**: single, categorical *X*
 
-#### Step 1 -- import
+#### Step 2 -- import
 
-The first step in any analysis is to open the data and, if necessary, wrangle into an analyzable format. The script to import these data is in the section Hidden code below.
+Open the data and, if necessary, wrangle into an analyzable format. The script to import these data is in the section Hidden code below.
 
 ```{r, echo=FALSE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
@@ -95,7 +97,7 @@ fig_3d[, treatment := factor(treatment, treatment_levels)]
 #View(fig_3d)
 ```
 
-#### Step 2 -- examine the data
+#### Step 3 -- inspect the data
 
 The second step is to examine the data to
 
@@ -110,13 +112,13 @@ qplot(x = treatment, y = serum_tg, data = fig_3d)
 
 There are no obviously implausible data points. A normal distribution is a good, reasonable start. This can be checked more thoroughly after fitting the model.
 
-#### Step 3 -- fit the model
+#### Step 4 -- fit the model
 
 ```{r, echo=TRUE}
 fig3d_m1 <- lm(serum_tg ~ treatment, data = fig_3d)
 ```
 
-#### Step 4 -- check the model
+#### Step 5 -- check the model
 
 ```{r, echo = TRUE}
 set.seed(1)
@@ -131,7 +133,7 @@ spreadLevelPlot(fig3d_m1, id=FALSE)
 
 The spread-location plot shows no conspicuous trend in how the spread changes with the conditonal mean. There is no cause for concern with inference.
 
-#### Step 5 -- inference
+#### Step 6 -- inference
 ##### coefficient table
 
 ```{r fig3d_m1_coef, echo=TRUE}
@@ -141,7 +143,7 @@ kable(fig3d_m1_coef, digits = c(1,2,1,4,1,1)) %>%
   kable_styling()
 ```
 
-##### Marginal means table
+##### emmeans table
 
 ```{r, echo=TRUE}
 fig3d_m1_emm <- emmeans(fig3d_m1, specs = "treatment")
@@ -149,7 +151,7 @@ kable(fig3d_m1_emm, digits = c(1,1,2,0,1,1)) %>%
   kable_styling()
 ```
 
-##### Contrasts table
+##### contrasts table
 
 ```{r, echo=TRUE}
 fig3d_m1_pairs <- contrast(fig3d_m1_emm,
@@ -224,6 +226,43 @@ The columns of the model matrix are the names of the **model terms** in the fit 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 There are alternatives to dummy coding for creating indicator variables. Dummy coding is the default in R and it makes sense when thinking about experimental data with an obvious control level. I also like the interpretation of a "interaction effect" using Dummy coding. The classical coding for ANOVA is deviation effect coding, which creates coefficients that are deviations from the grand mean. In contrast to R, Deviation coding is the default in many statistical software packages including SAS, SPSS, and JMP. The method of coding can make a difference in an ANOVA table. Watch out for this -- I've found several published papers where the researchers used the default dummy coding but interpreted the ANOVA table as if they had used deviation coding. This is both getting ahead of ourselves and somewhat moot, because I don't advocate reporting ANOVA tables.
 </div>
+
+<br>
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Recall from stats 101 that the slope of $X$ in the model $Y = b_0 + b_1 X$ is $b_1 = \frac{\textrm{COV}(X,Y)}{\textrm{VAR}(X)}$. This can be generalized using the equation
+
+\begin{equation}
+\mathbf{b} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}
+\end{equation}
+
+where $\mathbf{X}$ is the model matrix containing a column for an intercept, columns for all indicator variables, and columns for all numeric covariates. $\mathbf{b}$ is a vector containing the model coefficients, including the intercept in the first element. The first part of the RHS ($\mathbf{X}^\top \mathbf{X}$) is a matrix of the "sums of squares and cross-products" of the columns of $\mathbf{X}$. Dividing each element of this matrix by $N-1$ gives us the covariance matrix of the $\mathbf{X}$, which contains the variances of the $X$ columns along the diagonal, so this component has the role of the denominator in the stats 101 equation. Matrix algebra doesn't do division, so the inverse of this matrix is multiplied by the second part. The second part or the RHS ($\mathbf{X}^\top \mathbf{y}$) is a vector containing the cross-products of each column of $\mathbf{X}$ with $\mathbf{y}$. Dividing each element of this vector by $N-1$ gives us the covariances of each $X$ with $y$, so this component has the role of the numerator in the stats 101 equation.
+</div>
+
+<br>
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Self-learning. `lm` fits the model `y ~ X` where X is the model matrix. Fit the model using the standard formula and the model using the model matrix. The coefficient table should be the same.
+
+`m1 <- lm(serum_tg ~ treatment, data = fig_3d)`
+
+`X <- model.matrix(~ treatment, data = fig_3d)`
+
+`m2 <- lm(serum_tg ~ X, data = fig_3d)`
+
+`coef(summary(m1))`
+
+`coef(summary(m2))`
+
+</div>
+ 
+```{r echo=FALSE, eval=FALSE}
+m1 <- lm(serum_tg ~ treatment, data = fig_3d)
+X <- model.matrix(~ treatment, data = fig_3d)
+m2 <- lm(serum_tg ~ X, data = fig_3d)
+coef(summary(m1))
+coef(summary(m2))
+```
 
 #### The Estimates in the coefficient table are estimates of the parameters of the linear model fit to the data.
 
@@ -478,12 +517,21 @@ The *t* and *p* values for the *t*-test are the same as those for the linear mod
 There is rarely a reason to ever use the `t.test()` function. Throw the function away. Ignore web pages that teach you to use it. The *t*-test is easy to learn, which encourages its overuse. If your only tool is a t-test, every problem looks like a comparison between two-means.
 
 ### Example 2 -- three treatment levels ("groups")
-
+#### Understand the experiment design
 The data come from the experiment reported in Figure 2a of the 12,13-diHOME article described above. This experiment was designed to probe the hypothesis that 12,13-diHOME is a mediator of known stimulators of increased BAT activity (exposure to cold temperature and sympathetic nervous system activation). Mice were assigned to control (30 °C), one-hour exposure to 4 °C, or 30 minute norepinephrine (NE) treatment level (NE is the neurotransmitter of the sympathetic neurons targeting peripheral tissues).
 
 **response variable**: $\texttt{diHOME}$, the serum concentration of 12,13-diHOME. a continuous variable.
 
-**treatment variable**: $\texttt{treatment}$, with levels: "Control", "1 hour cold", "30 min NE. Coded as a factor.
+**treatment variable**: $\texttt{treatment}$, with levels: "Control", "1 hour cold", "30 min NE". Coded as a factor.
+
+1. "Control" -- the negative control. We expect diHOME to be low relative to the two treated conditions.
+2. "1 hour cold" -- focal treatment 1. If diHOME is a mediator, then response should be relatively high.
+3. "30 min NE" -- focal treatment 2. If diHOME is a mediator, then response should be relatively high.
+
+**planned comparisons**
+
+1. "1 hour cold" - "Control" -- If diHOME is a mediator of cold, then difference should be positive.
+2. "30 min NE" - "Control" -- If diHOME is a mediator of NE, then difference should be positive.
 
 **design**: single, categorical *X*
 
@@ -505,6 +553,9 @@ setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
 
 treatment_order <- c("Control", "1 hour cold", "30 min NE")
 fig2a[, treatment := factor(treatment, treatment_order)] # order levels
+
+# there is one row with a missing response. Omit this row
+fig2a <- fig2a[!is.na(diHOME), ]
 
 #View(fig2a)
 ```
@@ -531,7 +582,7 @@ spreadLevelPlot(fig2a_m1, id=FALSE)
 The combination of the raw residuals and the spread-level plot suggests heterogeneity but low confidence in anything given the small sample size.
 
 #### Inference from the model
-##### Coefficient table
+##### coefficient table
 
 ```{r, echo=TRUE}
 fig2a_m1_coef <- cbind(coef(summary(fig2a_m1)),
@@ -540,7 +591,7 @@ fig2a_m1_coef %>%
   kable(digits = c(1,2,1,4,1,1)) %>%
   kable_styling()
 ```
-##### Marginal means table
+##### emmeans table
 
 ```{r categorical-x-fig2a-lm-emmeans, echo=TRUE}
 fig2a_m1_emm <- emmeans(fig2a_m1, specs = "treatment")
@@ -550,15 +601,16 @@ fig2a_m1_emm %>%
   kable_styling()
 ```
 
-##### Contrasts table
+##### contrasts table
 
 ```{r, echo=TRUE}
-fig2a_m1_pairs <- contrast(fig2a_m1_emm,
-                            method = "revpairwise",
-                            adjust = "none") %>%
+fig2a_m1_planned <- contrast(fig2a_m1_emm,
+                           method = "trt.vs.ctrl",
+                           adjust = "none",
+                           level = 0.95) %>%
   summary(infer = TRUE)
 
-fig2a_m1_pairs %>%
+fig2a_m1_planned %>%
   kable(digits = c(1,1,1,0,1,1,2,4)) %>%
   kable_styling()
 ```
@@ -569,7 +621,7 @@ fig2a_m1_pairs %>%
 ggplot_the_model(
   fig2a_m1,
   fig2a_m1_emm,
-  fig2a_m1_pairs,
+  fig2a_m1_planned,
   legend_position = "none",
   y_label = "12,13-diHOME (pmol/mL)",
   effect_label = "Effects (pmol/mL)",
@@ -640,7 +692,7 @@ new_table %>%
   kable_styling()
 ```
 
-#### The estimated marginal means table
+#### The emmeans table
 
 ```{r example2-emm-understand, echo=FALSE}
 fig2a_m1_emm%>%
@@ -655,21 +707,31 @@ And again, as in example 1, the SE for each mean is *not* the sample SE but the 
 #### The contrasts table
 
 ```{r example2-pairs-understand, echo = FALSE}
-fig2a_m1_pairs %>%
+fig2a_m1_planned %>%
   kable(digits = c(1,1,2,0,1,1,1,4)) %>%
   kable_styling()
 ```
 
-1. This table is important for reporting treatment effects and CIs and for plotting the model. A contrast is a difference in means. Unlike the contrast table in Example 1, which had only two groups, This contrast table has more information than is in the coefficient table.
-2. The column $\texttt{Contrast}$ contains the names of the contrasts specified in the `contrast()` function. Here, these contrasts are all those between pairs of levels in $\texttt{treatment}$ (this is "all pairwise contrasts"). With $k$ levels, there are $k(k-1)/2$ pairwise contrasts. Note that the name gives the direction of the difference.
-3. The values in the column $\texttt{estimate}$ are the contrasts. These are the differences in the conditional means of the groups identified in the $\texttt{Contrast}$ column. These are the **effects** that we are interested in.
-4. The value in the "SE" column is the standard error of the difference (SED) of each contrast. This SE is computed using the model standard deviation $\sigma$.
-5. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
-6. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to the three groups (using the original sample sizes for each), fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
+1. This table is important for reporting treatment effects and CIs and for plotting the model. A contrast is a difference in means.
+2. The contrast table here has no more information than is in the coefficient table, but that is not generally true for models with treatment factors with more than two groups. In "Working in R" below, I show how to compute a contrast table with all pairwise comparisons (contrasts between all possible pairings of the groups) 
+3. The column $\texttt{Contrast}$ contains the names of the contrasts. Note that the name gives the direction of the difference.
+4. The values in the column $\texttt{estimate}$ are the contrasts. These are the differences in the conditional means of the groups identified in the $\texttt{Contrast}$ column. These are the **effects** that we are interested in.
+5. The value in the "SE" column is the standard error of the difference (SED) of each contrast. This SE is computed using the model standard deviation $\sigma$.
+6. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
+7. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to the three groups (using the original sample sizes for each), fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
 
 #### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups
 
-The contrasts, CIs, and significance test statistics in the contrasts table come from a single model fit to the data. Researchers commonly fit separate *t*-tests for each pair of treatment levels instead of a single linear model.
+```{r}
+fig2a_m1_pairs <- contrast(fig2a_m1_emm,
+                           method = "revpairwise",
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+```
+
+The chunk above computes a contrast table that includes comparisons of all pairs of groups in the factor $\texttt{treatment}$ (this adds a 3rd comparison to the contrast table of planned comparisons above). The *t*-tests for the contrasts are derived from a single fit linear model.
+
+In contrast to the analysis in the chunk above, researchers commonly fit separate *t*-tests for each pair of treatment levels.
 
 ```{r example2-t-tests-understand, echo=TRUE}
 # classic t-test
@@ -686,10 +748,9 @@ test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
        var.equal=TRUE)
 ```
 
-Compare the *t* and *p* values from the three indpendent tests with the *t* and *p*-values from the linear model.
+Compare the *t* and *p* values from the three independent tests with the *t* and *p*-values from the single linear model.
 
-```{r echo = FALSE}
-
+```{r example2-t-test-table, echo = FALSE}
 y_cols <- c("contrast", "t.ratio", "p.value")
 lm_t <- fig2a_m1_pairs[, y_cols]
 colnames(lm_t)[2:3] <- c("t (lm)", "p (lm)")
@@ -710,8 +771,9 @@ merge(lm_t, t_t, by = "contrast") %>%
 
 The *t* and *p*-values computed from three separate tests differ from the *t* and *p*-values computed from the single linear model shown in the contrasts table above. The values differ because the SE in the denominators used to compute the $t$-values differ. The linear model uses the same value of $\sigma$ to compute the SED (the denominator of *t*) for all three t-tests in the contrast table. Each separate t-test uses a different value of $\sigma$ to compute the SED. Which is correct? Neither.  
 
-1. In general, using the linear model is a better practice than the separate *t*-tests. The reason is the homogeneity of variance assumption. If we assume homogeneity of variances, then we can think of the sample standard deviation of all three groups as an estimate of $\sigma$. In the linear model, we use three groups to estimate $\sigma$ but in each separate *t*-test, we use only two groups. Consequently, our estimate of $\sigma$ in the linear model is more precise than that in the *t*-tests. While the difference can be large with any individual data set (it's pretty big with the fig2a data), the long-run advantage of using the linear model instead of separate *t*-tests is pretty small, especially with only three groups (the precision increases with more groups).
-2. We can drop the homogeneity of variance assumption with either the linear model or the three, separate *t*-tests. This is outlined below. In this case, the *t* and *p*-values for the three comparisons are the same. Still, the linear model (that models heterogenity) is better practice than the separate *t*-tests because the linear model is much more flexible and expandable. 
+1. Most importantly, **never** do both methods, look at the *p*-values, and then convince yourself that the method with the *p*-values that match your hypothesis is the correct method. Human brains are very, very good at doing this. This is called p-hacking. When you p-hack, the interpretation of the *p*-value is effectively meaningless. P-hacking leads to irreproducible science.
+2. In general, using the linear model is a better practice than the separate *t*-tests. The reason is the homogeneity of variance assumption. If we assume homogeneity of variances, then we can think of the sample standard deviation of all three groups as an estimate of $\sigma$. In the linear model, we use three groups to estimate $\sigma$ but in each separate *t*-test, we use only two groups. Consequently, our estimate of $\sigma$ in the linear model is more precise than that in the *t*-tests. While the difference can be large with any individual data set (it's pretty big with the fig2a data), the long-run advantage of using the linear model instead of separate *t*-tests is pretty small, especially with only three groups (the precision increases with more groups).
+3. We can drop the homogeneity of variance assumption with either the linear model or the three, separate *t*-tests. This is outlined below. In this case, the *t* and *p*-values for the three comparisons are the same. Still, the linear model (that models heterogenity) is better practice than the separate *t*-tests because the linear model is much more flexible and expandable. 
 
 #### The contrasts table -- when there are more than two levels in $X$ -- has multiple p-values. How to handle this "multiple testing" is highly controversial
 
@@ -738,10 +800,13 @@ The standard print of the `m1_coef` object is too long for the display and often
 
 ```{r}
 # the row names are not part of the m1_coef object
-# so there is not digit designation for this column
-kable(m1_coef, digits = c(2,3,3,5,2,2)) %>%
+# so there is no digit designation for this column
+
+m1_coef %>% # pipe the m1_coef object to kable
+  kable(digits = c(2,3,3,5,2,2)) %>% 
   kable_styling()
-# explor other styles in the kableExtra package
+
+# explore other styles in the kableExtra package
 ```
 
 ### Using the emmeans function
@@ -750,315 +815,98 @@ kable(m1_coef, digits = c(2,3,3,5,2,2)) %>%
 m1_emm <- emmeans(m1, specs = "treatment")
 m1_emm
 ```
+
 Notes
-1. The `specs` argument specifies the factor variables used to compute the modeled means. The specified variables must be in the model object (here, `m1`) passed to the function. Any variable passed to `specs` must be categorical. Do not pass numeric covariates here.
-2. If there are two factor variables in the model, and both are passed to `specs`, then the modeled means of all combinations of the levels of the two variables will be computed. If only one factor variable is passed, then the marginal means (averaged over all levels of the missing factor) are computed. This will become more clear in the chapter "Models for two (or more) categorical X variables".
-3. If there are continuous covariates in the model, the modeled mean is computed at the average value of the continuous covariates.
+
+1. Note that printing the `emmeans` object displays useful information. Here the information, this information includes the confidence level used. If the object is printed using `kable` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+2. `emmeans` computes the modeled means of all combinations of the levels of the factor variables specified in `specs`.
+3. If there are two factor variables in the model, and both are passed to `specs`, then the modeled means of all combinations of the levels of the two variables are computed. If only one factor variable is passed, then the marginal means (averaged over all levels of the missing factor) are computed. This will become more clear in the chapter "Models for two (or more) categorical X variables".
+4. If there are continuous covariates in the model, the modeled means are computed at the average values of these covariates. These covariates do not need to be passed to the `specs` argument.
+5. You can pass numeric and integer covariates to `specs` to control the value of the covariates used compute the modeled means. This is outlined in [Adding covariates to a linear model](chapter-covariates)
 
 ### Using the contrast function
 
-```{r cat-x m1_pairs}
-m1_pairs <- contrast(m1_emm,
-                     method = "trt.vs.ctrl",
-                     adjust = "dunnett")
+```{r cat-x-using-contrast-1}
+m1_planned <- contrast(m1_emm,
+                       method = "trt.vs.ctrl",
+                       adjust = "none",
+                       level = 0.95) %>%
+  summary(infer = TRUE)
 
-m1_pairs
+m1_planned
 ```
-
 Notes
 
-1. `method = "revpairwise"`, computes contrasts between all pairs of groups within the factor(s) specified in the "specs" argument of `emmeans`. I prefer "revpairwise" to "pairwise" because "revpairwise" orders the difference as non-reference minus reference.
-2. [See the list](https://rdrr.io/cran/emmeans/man/emmc-functions.html){target="_blank"} of the different contrasts available with `method =`. Also, read the [comparisons and contrasts vignette](https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html){target="_blank"} for more on `emmeans::contrast()`
-### Adjustment for multiple comparisons
+1. Note that printing the `contrast` object displays useful information, including the confidence level used and the method of adjustment for multiple tests. If the object is printed using `kable` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+2. The `method` argument is used to control the set of contrasts that are computed. See below.
+3. The `adjust` argument controls if and how to adjust for multiple tests. Each `method` has a default adjustment method. See below.
+4. The `level` argument controls the percentile boundaries of the confidence interval. The default is 0.95. Including this argument with this value makes this level transparent.
 
-If the head of your group or a reviewer demands that you adjust p-values in data from an experiment like that for the fig2a data, then the `adjust` argument in `emmeans::contrast()` controls the method for *p*-value adjustment. The default is "tukey".
+#### method argument
 
-1. "none" -- no adjustment, in general my preference.
-2. "tukey" -- Tukey's HSD
-3. "bonferroni" -- the standard bonferroni, which is conservative
-4. "fdr" -- the false discovery rate
-5. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables
+The `method =` argument is used to control the set of contrasts that are computed. Type `help("contrast-methods")` into the console to see the list of available methods. Also, read the [comparisons and contrasts vignette](https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html){target="_blank"} for more on `emmeans::contrast()`
 
-Here I use the Tukey HSD adjustment, which is a common choice for the "posthoc comparison of means" in experimental data like this. The Tukey adjustment is the default of `emmeans::contrast()` if the method of comparison is `revpairwise`, which means that the `adjust` argument does not need to be specified. That said, explicitly specify the adjustment as this makes the analysis more transparent. 
+1. `method = "trt.vs.ctrl"` computes all non-reference minus reference contrasts. This method was used in the "Inference" section because it gives the two contrasts of the planned comparisons identified in the "understand the experimental design" step.
+2. The default adjustment for multiple tests is "dunnettx", which is [Dunnett's test](https://en.wikipedia.org/wiki/Dunnett%27s_test){target="_blank"}. "none" was specified in the inference section because both comparisons were planned.
 
 ```{r}
-(fig2a_m1_pairs_tukey <- contrast(fig2a_m1_emm,
-                            method = "revpairwise",
-                            adjust = "tukey") %>%
-  summary(infer = TRUE))
+m1_tukey <- contrast(m1_emm,
+                       method = "revpairwise",
+                       adjust = "tukey",
+                       level = 0.95) %>%
+  summary(infer = TRUE)
+m1_tukey
+```
+1. Both `method = "pairwise"` and `method = "revpairwise"` compute all pairwise comparisons. I prefer "revpairwise" because the contrasts that include the reference are in the direction non-reference minus reference.
+2. The default adjustment for multiple tests is "tukey", which is the [Tukey's HSD method](https://en.wikipedia.org/wiki/Tukey%27s_range_test){target="_blank"}.
 
+#### Adjustment for multiple tests
+
+1. "none" -- no adjustment
+2. "dunnettx" -- [Dunnett's test](https://en.wikipedia.org/wiki/Dunnett%27s_test){target="_blank"} is a method used when comparing all treatments to a single control.
+3. "tukey" -- [Tukey's HSD method](https://en.wikipedia.org/wiki/Tukey%27s_range_test){target="_blank"} is a method used to compare all pairwise comparisons. One might use this in an exploratory experiment.
+4. "bonferroni" -- [Bonferroni](https://en.wikipedia.org/wiki/Bonferroni_correction){target="_blank"} is a general purpose method to compare any set of multiple tests. The test is conservative. A better method is "holm"
+5. "holm" -- [Holm-Bonferroni](https://en.wikipedia.org/wiki/Holm–Bonferroni_method){target="_blank"} is a general purpose method like the Bonferroni but is more powerful.
+6. "fdr" -- controls the [false discovery rate](https://en.wikipedia.org/wiki/False_discovery_rate){target="_blank"} not the Type I error rate for a family of tests. One might use this in an exploratory experiment.
+7. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables. One might use this in an exploratory experiment.
+
+#### Planned comparisons using custom contrasts
+
+With any but purely exploratory experiment, we have certain contrasts that test the focal hypotheses. We care little to none about other contrasts. We can limit the contrasts computed using `emmeans::contrast()` by passing custom contrasts to `method`.
+
+1. create a set of vectors with as many elements as there are rows in the emmeans table. Name each vector using the (or a) group name for the row in the emmeans table. For the vector created for row *j*, set the value of the *j*th element to 1 and set all other values to zero.
+2. create a list of contrasts, with each set in the list the difference of two of the named vectors from step 1.
+
+```{r}
+# m1_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+cn <- c(1,0,0) # control is in row 1
+cold <- c(0,1,0) # cold in in row 2
+ne <- c(0,0,1) # ne is in row 3
+
+# contrasts are the difference in the vectors created above
+# the focal contrasts are in the understand the experimental
+# design section
+# 1. (cold - cn) 
+# 2. (ne - cn)
+
+planned_contrasts <- list(
+  "Cold - Cn" = c(cold - cn),
+  "NE - Cn" = c(ne - cn)
+)
+m1_planned <- contrast(m1_emm,
+                       method = planned_contrasts,
+                       adjust = "none"
+) %>%
+  summary(infer = TRUE)
+
+m1_planned %>%
+  kable(digits = c(1,1,2,0,1,1,1,4)) %>%
+  kable_styling()
+  
 ```
 
 ### Plotting models with a single, categorical $X$
-#### Response plot -- Sample means and error bars using ggpubr
-
-The package ggpubr makes it very easy to create a publishable plot.
-
-```{r, warning=FALSE, message=FALSE}
-gg_good <- ggstripchart(data = fig2a,
-                    x = "treatment",
-                    y = "diHOME",
-                    add = "mean_se"
-)
-gg_good
-```
-
-With a little work, we can improve this. Note that I've changed the error interval from 1 SE to a 95% CI.
-
-```{r, message=FALSE, warning=FALSE}
-compare_list <- list(c("Control", "1 hour cold"),
-                     c("Control", "30 min NE"))
-
-gg_better <- ggstripchart(data = fig2a,
-                    x = "treatment",
-                    y = "diHOME",
-                    add = "mean_ci",
-                    color = "treatment",
-                    palette = "jco"
-) +
-  stat_compare_means(method = "t.test",
-                     comparisons=compare_list)
-
-gg_better
-```
-
-#### Response plot -- Modeled CIs and custom p-values using ggpubr
-
-The CI's and *p*-values computed using ggpubr are sample statistics and multiple, independent Welch *t*-tests and not from the linear model `lm(fig2a ~ treatment)`. Since the p-values are from Welch *t*-tests, the CIs and *p*-values are consistent in that they are using the same models to compute them.
-
-ggpubr and `stat_compare_means()` have very limited flexibility in the means, CI's and *p* values that can be reported in a plot. This raises issues with best practices in this text, which advocates reporting modeled means, CIs and *p*-values. This includes adjusted *p*-values, which are not handled by `stat_compare_means()`. ggpubr has the function `stat_pvalue_manual()`, which is useful for reporting *p*-values from tests other than the limited number of tests available in `stat_compare_means()`. For the model used with fig2a, we can use ggpub to construct the base plot of means and raw values. But with more complex models, we have to skip ggpubr alltogether and use ggplot2 directly.
-
-Step 1 -- convert the "emm" (estimated marginal means) and "pairs" (contrast) tables to data.table. The "emm" table is ready after conversion to a data.table but the "pairs" table needs additional columns
-
-1. create a column of pretty *p*-values that are rounded or converted to "< 0.001" if small.
-2. create the group columns containing the pair of groups that are compared. adding *p*-values to the graph requires a bracket to show which groups are being compared. The column "group1" is added to list the "x value" of the first group. The column "group2" is added to list the "x value" of the second group. The "x value" of a group is the index of the group returned by the `levels()` function.
-
-```{r}
-levels(fig2a$treatment)
-```
-As an example, the contrast in the first row of the contrast table is "1 hour cold - Control". This is 2 - 1. The first element of Group1 is "2" and the first element of Group2 is "1". ggpubr will use these columns to construct the brackets.
-
-```{r}
-fig2a_m1_emm_dt <- summary(fig2a_m1_emm) %>%
-  data.table
-fig2a_m1_pairs_dt <- data.table(fig2a_m1_pairs)
-
-# pvalString is from package lazyWeave
-fig2a_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
-# also create a column with "p-val: "
-fig2a_m1_pairs_dt[ , pval_pretty := paste("p-val:", p_pretty)]
-
-# create group columns -- this is needed for p-value brackets
-fig2a_m1_pairs_dt[, group1 := c(2, 3, 3)]
-fig2a_m1_pairs_dt[, group2 := c(1, 1, 2)]
-
-```
-
-Step 2 -- Add the CIs and *p*-value to a ggpubr plot
-
-```{r, message=FALSE, warning=FALSE}
-gg_almost_best <- ggstripchart(data = fig2a,
-                    x = "treatment",
-                    y = "diHOME",
-                    add = "mean",
-                    color = "treatment",
-                    palette = "jco"
-) +
-  
-  geom_errorbar(data = fig2a_m1_emm_dt,
-                aes(y = emmean,
-                    ymin = lower.CL,
-                    ymax = upper.CL,
-                    color = treatment),
-                width = 0) +
-  
-  # only plotting 1st two p-values
-  stat_pvalue_manual(fig2a_m1_pairs_dt,
-                           label = "p_pretty", 
-                           y.position = c(46, 54, 50)) +
-
-  NULL # add to ease exploring plot components
-  
-gg_almost_best
-```
-
-Notes
-
-1. The `y.position` argument in `stat_pvalue_manual()` contains the position on the y-axis for the p-value brackets. I typically choose these values "by eye". Essentially, I look at the maximum y-value on the plot and then choose a value just above this for the first bracket.
-2. All three *p*-values are shown. In general, all *p*-values (and means and CIs) should be reported but these can be in a supplemental table. To limit the *p*-values that are shown, use the row index of a data.table. For example, to show on the *p*-values with the control, use the following script (note that y.position was also changed to only show the y position of two brackets).
-
-```{r}
-  stat_pvalue_manual(fig2a_m1_pairs_dt[1:2,],
-                           label = "p_pretty", 
-                           y.position = c(46, 50))
-```
-
-#### Response plot -- Modeled means and CIs using ggplot2
-
-The only difference between this and the "gg_almost_best" plot constructed above is that I am using the `ggplot` function to create the base plot (the axes) and `geom_sina` to plot the points in place of `ggstripchart` from the `ggpubr` package.
-
-Step 1 - Create the data tables "fig2a_m1_emm_dt" and "fig2a_m1_pairs_dt" as above.
-
-Step 2 - plot using the color-blind friendly Okabe-Ito paletter instead of "jco".
-
-```{r, echo=TRUE}
-gg_response <- ggplot(data = fig2a,
-                            aes(x = treatment,
-                                y = diHOME,
-                                color = treatment)) +
-  # points
-  geom_sina(alpha = 0.5) + # ggforce package
-  
-  # plot means and CI
-  geom_errorbar(data = fig2a_m1_emm_dt,
-                aes(y = emmean,
-                    ymin = lower.CL,
-                    ymax = upper.CL,
-                    color = treatment),
-                width = 0
-  ) +
-  
-  geom_point(data = fig2a_m1_emm_dt,
-             aes(y = emmean,
-                 color = treatment),
-             size = 3
-  ) +
-
-  # aesthetics
-  ylab("12,13-diHOME (pmol/mL)") +
-  scale_color_manual(values=pal_okabe_ito,
-                     name = NULL) +
-  theme_pubr() +
-  theme(legend.position="none") +
-  theme(axis.title.x=element_blank()) +
-  
-  NULL
-
-# create a version with the p-values. We want the p-valueless version for the combined effects-response plot
-
-gg_response_p <- gg_response + 
-      # only plotting 1st two p-values
-  stat_pvalue_manual(fig2a_m1_pairs_dt,
-                           label = "p_pretty", 
-                           y.position = c(46, 54, 50))
-
-gg_response_p
-```
-
-#### Effects plot
-
-Effects plots commonly use the y-axis for the categorical variable (the contrast pairs) and the x-axis for the continuous variable (the effects). It is important to make sure the order of the plotted contrasts and p-values match!
-
-```{r}
-# important -- this insures the order of the contrasts in the plot i
-# the order in the pairs table.
-contrast_order <- fig2a_m1_pairs_dt[, contrast]
-fig2a_m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
-# labels for plotting contrasts - double check the order
-fig2a_m1_pairs_dt[, contrast_label := c("cold effect",
-                                        "NE effect",
-                                        "NE minus cold")]
-
-gg_effect <- ggplot(data=fig2a_m1_pairs_dt, 
-                          aes(x = estimate,
-                              y = contrast)) +
-  # confidence level of effect
-  geom_errorbar(aes(xmin=lower.CL, 
-                    xmax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # draw a line at effect = 0
-  geom_vline(xintercept=0, linetype = 2) +
-  
-  # p-value. The y coordinates are set by eye
-  annotate(geom = "text",
-           label = fig2a_m1_pairs_dt$p_pretty,
-           y = 1:3,
-           x = 28) +
-  annotate(geom = "text",
-           label = "p-value",
-           y = 3.25,
-           x = 28) +
-  
-  # # contrast labels
-  scale_y_discrete(labels = fig2a_m1_pairs_dt$contrast_label) +
-  
-  # x-axis label and aesthetics
-  xlab("Effects (pmol/mL)") +
-  ylab("Contrast") +
-  coord_cartesian(xlim = c(-10,30)) +
-
-  # use ggpubr theme
-  theme_pubr() +
-  
-  NULL
-
-gg_effect
-```
-
-#### Combined effects-response plot
-
-`plot_grid` from the cowplot package is used to create a combined effects-response plot by combining the gg_effect and gg_response plots. This looks best if the labels of the x-axis are set to "top" instead of "bottom". Also we don't need p-values on both components. The placement of "p-value" in the gg_effect plot above does not look good in the combined plot and I cannot remove this (easily) so I'm rebuilding the gg_effect component from scratch.
-
-```{r}
-# important -- this insures the order of the contrasts in the plot i
-# the order in the pairs table.
-contrast_order <- fig2a_m1_pairs_dt[, contrast]
-fig2a_m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
-# labels for plotting contrasts - double check the order
-fig2a_m1_pairs_dt[, contrast_label := c("cold effect",
-                                        "NE effect",
-                                        "NE minus cold")]
-
-gg_effect <- ggplot(data=fig2a_m1_pairs_dt, 
-                          aes(x = estimate,
-                              y = contrast)) +
-  # confidence level of effect
-  geom_errorbar(aes(xmin=lower.CL, 
-                    xmax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # draw a line at effect = 0
-  geom_vline(xintercept=0, linetype = 2) +
-  
-  # p-value. The y coordinates are set by eye
-  annotate(geom = "text",
-           label = fig2a_m1_pairs_dt$p_pretty,
-           y = 1:3,
-           x = 28) +
-  
-  scale_y_discrete(labels = fig2a_m1_pairs_dt$contrast_label) +
-  
-  # x-axis label and aesthetics
-  xlab("Effects (pmol/mL)") +
-  ylab("Contrast") +
-  coord_cartesian(xlim = c(-10,30)) +
-  
-  # the new code
-  scale_x_continuous(breaks = c(-10, 0, 10, 20, 28),
-                     labels = c("-10", "0", "10", "20", "p-value"),
-                     position = "top") + # move to top
-
-  # use ggpubr theme
-  theme_pubr() +
-  
-  NULL
-```
-
-```{r}
-plot_grid(gg_effect,
-          gg_response,
-          nrow=2,
-          align = "v",
-          axis = "lr",
-          rel_heights = c(0.5,1))
-```
 
 ## Issues in inference in models with a single, categorical $X$
 
