@@ -554,9 +554,6 @@ setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
 treatment_order <- c("Control", "1 hour cold", "30 min NE")
 fig2a[, treatment := factor(treatment, treatment_order)] # order levels
 
-# there is one row with a missing response. Omit this row
-fig2a <- fig2a[!is.na(diHOME), ]
-
 #View(fig2a)
 ```
 
@@ -720,7 +717,7 @@ fig2a_m1_planned %>%
 6. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
 7. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to the three groups (using the original sample sizes for each), fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
 
-#### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups
+#### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups {#ttests}
 
 ```{r}
 fig2a_m1_pairs <- contrast(fig2a_m1_emm,
@@ -906,15 +903,29 @@ m1_planned %>%
   
 ```
 
-### Plotting models with a single, categorical $X$
-
 ## Issues in inference in models with a single, categorical $X$
 
-### Lack of independence
+### Lack of independence ("paired t-test")
 
-The data from the experiment for Figure 1b of the 12,13-diHOME article outlined above are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) is not independent because 
+This is a preview of the chapter "Models with random effects -- Blocking and pseudoreplication"
 
-```{r, echo=FALSE}
+The data from the experiment for Figure 1b of the 12,13-diHOME article are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) violates the "independent" sampling assumption for inference because there are two measures of the response in each individual.
+
+Textbooks that use a "which test?" strategy often point to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups. The researchers followed this norm and analyzed the data using a paired t-test.
+
+Here, I show empirically that a paired t-test is a special case of a *linear model with an added random factor*. The advantage of understanding this is, the linear model with added random factor is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. 
+
+A good way to think about the model generating the data is
+
+\begin{equation}
+diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold + \varepsilon
+\end{equation}
+
+1. $\beta_0$ is the expected value of diHome in humans given a saline treatment.
+2. $\beta_{0_i}$ is the expected difference between the expected value of diHome in human $i$ given a saline treatment and the expected value of diHome in humans given a saline treatment. $\beta_{0_i}$ is a kind of **random effect**
+3. $\beta_0 + \beta_{0_i}$ is the expected value of diHome in human $i$ given a saline treatment. It is the **random intercept** for human $i$.
+
+```{r fig1b-import, echo=FALSE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
@@ -940,24 +951,108 @@ fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
 #View(fig1b)
 ```
 
-```{r}
-# fit the model
-m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
+#### Fit a linear model with added random factor
 
+```{r fig1b-m1}
+# fit the model
+fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
+```
+
+1. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table fig1b.
+2. We are now using the function `lmer()` from the lme4 package (loaded with package lmerTest)
+3. `(1|id)` tells `lmer` to add $\texttt{id}$ as a random intercept.
+4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ if a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
+
+#### Inference 
+
+Inference using the linear model with added random factor:
+
+```{r fig1b_m1_pairs}
 # estimated marginal means table
-m1_emm <- emmeans(m1, specs = "treatment")
+fig1b_m1_emm <- emmeans(fig1b_m1, specs = "treatment")
 
 # contrasts table
-(m1_pairs <- contrast(m1_emm,
+fig1b_m1_pairs <- contrast(fig1b_m1_emm,
                      method = "revpairwise") %>%
-  summary(infer = TRUE))
+  summary(infer = TRUE)
+
+fig1b_m1_pairs %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
+```
+Inference using paired t-test:
+
+```{r fig1b_ttest}
+fig1b_ttest <- t.test(
+  x = fig1b[treatment == "cold", diHOME],
+  y = fig1b[treatment == "saline", diHOME],
+  paired = TRUE
+)
+
+fig1b_ttest
+```
+Notes
+
+1. The *t* and *p* values are the same because the paired *t*-test is a special case of the linear model.
+
+#### An example with more than two groups
+
+Let's say each mice in the Figure 2A experiment was subjected to all three treatments so that we have three measures per mouse (I don't know that this isn't the case and the set up of the archived data is ambiguous). If this were the case, the response would violate the independence assumption.
+
+The linear model (in regression notation) is
+
+\begin{equation}
+diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold\ + \beta_2 treatment\_NE\ + \varepsilon 
+\end{equation}
+
+```{r fig2a-m2}
+# fit the model
+fig2a_m2 <- lmer(diHOME ~ treatment + (1|id), data = fig2a)
 ```
 
-```{r}
-t.test(x = fig1b[treatment == "cold", diHOME],
-       y = fig1b[treatment == "saline", diHOME],
-       paired = TRUE)
+1. fig2a_m2 is a linear mixed model. fig2a_m2 (above) is a fixed effects model of the same data. Here, we wouldn't fit both. The researchers know if the response was measured for each treatment for each mouse or if different mice were used for each treatment. 
+
+Inference using the linear model with added random factor:
+
+```{r fig2a-m2_pairs}
+# estimated marginal means table
+fig2a_m2_emm <- emmeans(fig2a_m2, specs = "treatment")
+
+# contrasts table
+fig2a_m2_planned <- contrast(fig2a_m2_emm,
+                     method = "trt.vs.ctrl",
+                     adjust = "none") %>%
+  summary(infer = TRUE)
+
+fig2a_m2_planned %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
 ```
+
+Inference using two paired t-tests:
+
+```{r fig2a_ttest_cold}
+fig2a_ttest_cold <- t.test(
+  x = fig2a[treatment == "1 hour cold", diHOME],
+  y = fig2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+fig2a_ttest_cold
+```
+
+
+```{r fig2a_ttest_ne}
+fig2a_ttest_ne <- t.test(
+  x = fig2a[treatment == "30 min NE", diHOME],
+  y = fig2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+fig2a_ttest_ne
+```
+
+Notes
+1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" had to throw out one mouse 6 because this mouse is missing the "1 hour cold" measure. The linear mixed model used all the data.
+2. The paired t-test *t* and *p* values are not equal to those from the linear mixed model. This is partly because of the missing data (note 1). Even if there were no missing data, these wouldn't be equal because the linear mixed model using an estimate of $\sigma$ computed from the single model with all three groups to compute the standard errors (See the comparison of t-tests and linear models above).
 
 ### Heterogeneity of variances
 
@@ -994,6 +1089,7 @@ The modeled means and contrasts are computed as above for the `lm` object
 fig2a_m2_emm <- emmeans(fig2a_m2, specs="treatment")
 fig2a_m2_emm
 ```
+
 Notes
 
 1. The SE of the means in this table are modeled SEs but are equal to the sample SE of the means, because this was specified in the GLS model.
