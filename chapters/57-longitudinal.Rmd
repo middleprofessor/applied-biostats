@@ -13,7 +13,7 @@ output:
     code_folding: hide
     fig_caption: true
 ---
-#  Models for longitudinal experiments -- I. pre-post designs
+# Linear models for longitudinal experiments -- I. pre-post designs {#pre-post}
 
 ```{r pre-post-setup, echo=FALSE, warning=FALSE, message=FALSE}
 

@@ -13,7 +13,7 @@ output:
     includes:
       before_body: copyright.html
 ---
-# Models for two (or more) categorical $X$ -- Factorial designs
+# Linear models with two categorical $X$ -- Factorial designs ("two-way ANOVA") {#factorial}
 
 ```{r factorial-setup, echo=FALSE, warning=FALSE, message=FALSE}
 library(here)

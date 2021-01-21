@@ -1,4 +1,4 @@
-# Linear models with a single, continuous *X*
+# Linear models with a single, continuous *X* ("regression") {#regression}
 
 ```{r continuous-x-setup, echo=FALSE, message=FALSE}
 # import and wrangling packages

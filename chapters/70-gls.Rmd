@@ -1,3 +1,2 @@
-# Linear models with heterogenous variance
+# Linear models with heterogenous variance {#gls}
 
-## gls

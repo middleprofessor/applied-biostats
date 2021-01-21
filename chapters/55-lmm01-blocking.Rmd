@@ -1,4 +1,4 @@
-# Models with random effects -- Blocking and pseudoreplication
+# Models with random factors -- Blocking and pseudoreplication {#lmm}
 
 ## Random effects
 

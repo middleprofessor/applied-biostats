@@ -1,4 +1,4 @@
-# Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals) (#variability)
+# Variability and Uncertainty (Standard Deviations, Standard Errors, Confidence Intervals) {#uncertainty}
 
 ```{r uncertain-setup, echo=FALSE}
 library(here)

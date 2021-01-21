@@ -1,4 +1,4 @@
-# Linear models with a single, categorical *X*
+# Linear models with a single, categorical *X* ("t-tests" and "ANOVA") {#oneway}
 
 ```{r categorical-x-setup, echo=FALSE, warning=FALSE, message=FALSE}
 library(here)
@@ -11,8 +11,10 @@ library(stringr)
 library(nlme) # gls
 library(lmerTest) # lmm
 library(emmeans)
-library(car) # qqplot, spreadlevel
+library(car) # qqplot, spreadlevel, Anova
+library(afex) #aov4
 library(lmPerm)
+library(glmmTMB)
 
 # graphing packages
 library(ggplot2) # ggplot environment
@@ -479,14 +481,16 @@ kable(fig3d_m1_pairs, digits = c(1,1,2,1,1,1,1,3)) %>%
 Compare
 
 coefficient table:
-```{r}
+
+```{r echo = TRUE}
 m1 <- lm(serum_tg ~ treatment, data = fig_3d)
 coef(summary(m1)) %>%
   kable() %>%
   kable_styling()
 ```
 contrast table:
-```{r}
+
+```{r echo = TRUE}
 emmeans(m1, specs = "treatment") %>%
   contrast(method = "revpairwise") %>%
   kable() %>%
@@ -494,10 +498,11 @@ emmeans(m1, specs = "treatment") %>%
 ```
 
 t-test:
+
 ```{r}
-m2 <- t.test(serum_tg ~ treatment,
-                data = fig_3d,
-                var.equal = TRUE)
+m2 <- t.test(fig_3d[treatment == "12,13-diHOME", serum_tg],
+             fig_3d[treatment == "Vehicle", serum_tg],
+             var.equal = TRUE)
 glance(m2) %>% # glance is from the broom package
   kable() %>%
   kable_styling()
@@ -505,8 +510,8 @@ glance(m2) %>% # glance is from the broom package
 
 Notes
 
-1. The estimates in the t-test output is equal in magnitude but opposite in sign to the coefficient $b_1$ in the coefficient table and to the contrast $\texttt{(12,13-diHOME) - Vehicle}$ in the contrast table. This is because the `t.test` function computes the direction of the difference as reference minus non-reference.
-2. The "statistic" in the t-test output contains the *t*-value of the *t*-test. Like the estimate, it is equal in magnitude but opposite in sign to the t-test statistics in the coefficient and contrast tables.
+1. The default `t.test` in R is the Welch t-test for heterogenous variance. To compute the Student t-test, use `var.equal = TRUE`.
+2. The "statistic" in the t-test output contains the *t*-value of the *t*-test. It is precisely the same as the *t*-statistic in the coefficient table and the contrast table.
 3. The *p*-values in all three tables are precisely the same.
 
 The *t* and *p* values for the *t*-test are the same as those for the linear model, because the *t*-test is a specific case of the linear model. Reasons to abandon classic *t*-tests and learn the linear modeling strategy include
@@ -557,7 +562,7 @@ fig2a[, treatment := factor(treatment, treatment_order)] # order levels
 #View(fig2a)
 ```
 
-#### fit the model
+#### fit the model {#fig2a-m1}
 
 ```{r, echo=TRUE}
 fig2a_m1 <- lm(diHOME ~ treatment, data = fig2a)
@@ -717,9 +722,9 @@ fig2a_m1_planned %>%
 6. The values in the "lower.CL" and "upper.CL" columns are the bounds of the 95% confidence interval of the estimate. Remember (from Chapter \@ref(variability)) to think of this interval as containing potential values of the true parameter (the true difference in means between the two groups) that are reasonably compatible with the data. Don't think of the interval as having 95% probability of containing the true effect. Remember that a confidence interval applies to the procedure and not a parameter -- 95% of the CIs from hypothetical, replicate experiments that meet all the assumptions used to compute the CI will include the true effect.
 7. The columns "t.ratio" and "p.value" contains the *t* and *p* values of the significance (not hypothesis!) test of the estimate. The *t*-statistic is the ratio of the estimate to the SE of the estimate (use the console to confirm this given the values in the table). It is a signal (the estimate) to noise (SE of the estimate) ratio. The *p*-value is the probability of sampling from normal distribution with the observed standard deviation, randomly assigning the sampled values to the three groups (using the original sample sizes for each), fitting the linear model, and observing a *t*-value as or more extreme than the observed *t*. A very small *p*-value is consistent with the experiment "not sampling from distributions with the same mean" -- meaning that adding a treatment affects the mean of the distribution. This is the logic used to infer a treatment effect. Unfortunately, it is also consistent with the experiment not approximating other conditions of the model, including non-random assignment, non-independence, non-normal conditional responses, and variance heterogeneity. It is up to the rigorous researcher to be sure that these other model conditions are approximated or "good enough" to use the *p*-value to infer a treatment effect on the mean.
 
-#### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups {#ttests}
+#### *t* and *p* from the contrasts table -- when there are more than two levels in $X$ -- are not the same as those from pairwise *t*-tests among pairs of groups {#oneway-ttest}
 
-```{r}
+```{r fig2a_m1_pairs}
 fig2a_m1_pairs <- contrast(fig2a_m1_emm,
                            method = "revpairwise",
                            adjust = "none") %>%
@@ -733,17 +738,22 @@ In contrast to the analysis in the chunk above, researchers commonly fit separat
 ```{r example2-t-tests-understand, echo=TRUE}
 # classic t-test
 test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
-       fig2a[treatment == "Control", diHOME],
-       var.equal=TRUE)
+                fig2a[treatment == "Control", diHOME],
+                var.equal = TRUE)
 
 test2 <- t.test(fig2a[treatment == "30 min NE", diHOME],
-       fig2a[treatment == "Control", diHOME],
-       var.equal=TRUE)
+                fig2a[treatment == "Control", diHOME],
+                var.equal = TRUE)
 
 test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
-       fig2a[treatment == "1 hour cold", diHOME],
-       var.equal=TRUE)
+                fig2a[treatment == "1 hour cold", diHOME],
+                var.equal = TRUE)
 ```
+
+Notes
+
+1. Again, the default t.test in R is the Welch t-test for heterogenous variance. To compute the Student t-test, use `var.equal = TRUE`
+2. To see the full `t.test` output, type "test1" into the console.
 
 Compare the *t* and *p* values from the three independent tests with the *t* and *p*-values from the single linear model.
 
@@ -766,11 +776,11 @@ merge(lm_t, t_t, by = "contrast") %>%
   kable_styling()
 ```
 
-The *t* and *p*-values computed from three separate tests differ from the *t* and *p*-values computed from the single linear model shown in the contrasts table above. The values differ because the SE in the denominators used to compute the $t$-values differ. The linear model uses the same value of $\sigma$ to compute the SED (the denominator of *t*) for all three t-tests in the contrast table. Each separate t-test uses a different value of $\sigma$ to compute the SED. Which is correct? Neither.  
+The *t* and *p*-values computed from three separate tests differ from the *t* and *p*-values computed from the single linear model shown in the contrasts table above. The values differ because the SE in the denominators used to compute the $t$-values differ. The linear model uses the same value of $\sigma$ to compute the SED (the denominator of *t*) for all three t-tests in the contrast table. Each separate t-test uses a different value of $\sigma$ to compute the SED. Which is correct? Neither -- they simply make different assumptions about the data generating model.
 
 1. Most importantly, **never** do both methods, look at the *p*-values, and then convince yourself that the method with the *p*-values that match your hypothesis is the correct method. Human brains are very, very good at doing this. This is called p-hacking. When you p-hack, the interpretation of the *p*-value is effectively meaningless. P-hacking leads to irreproducible science.
 2. In general, using the linear model is a better practice than the separate *t*-tests. The reason is the homogeneity of variance assumption. If we assume homogeneity of variances, then we can think of the sample standard deviation of all three groups as an estimate of $\sigma$. In the linear model, we use three groups to estimate $\sigma$ but in each separate *t*-test, we use only two groups. Consequently, our estimate of $\sigma$ in the linear model is more precise than that in the *t*-tests. While the difference can be large with any individual data set (it's pretty big with the fig2a data), the long-run advantage of using the linear model instead of separate *t*-tests is pretty small, especially with only three groups (the precision increases with more groups).
-3. We can drop the homogeneity of variance assumption with either the linear model or the three, separate *t*-tests. This is outlined below. In this case, the *t* and *p*-values for the three comparisons are the same. Still, the linear model (that models heterogenity) is better practice than the separate *t*-tests because the linear model is much more flexible and expandable. 
+3. We can drop the homogeneity of variance assumption with either the linear model or the three, separate *t*-tests. This is outlined below in "Heterogeneity of variance". In this case, the *t* and *p*-values for the three comparisons are the same. Still, the linear model (that models heterogenity) is better practice than the separate *t*-tests because the linear model is much more flexible and expandable. 
 
 #### The contrasts table -- when there are more than two levels in $X$ -- has multiple p-values. How to handle this "multiple testing" is highly controversial
 
@@ -903,15 +913,104 @@ m1_planned %>%
   
 ```
 
+### How to generate ANOVA tables
+
+ANOVA is Analysis of Variance. Researchers frequently use the term "ANOVA" as the name for an analysis of an experiment with single-factor with more than two groups. However, ANOVA is a general method of inference for complex experimental designs. ANOVA models and regression models are different ways of expressing the same underlying linear model.
+
+```{r fig2a-anova-table, echo=FALSE, warning=FALSE, message=FALSE}
+# .I is a data.table function that returns the row number
+fig2a[, fake_id := paste("mouse", .I)]
+
+m1_aov4 <- aov_4(diHOME ~ treatment + (1|fake_id),
+                 data = fig2a)
+
+m1_aov4_nice <- nice(m1_aov4)[1, -5]
+colnames(m1_aov4_nice)[1] <- "Term"
+
+m1_aov4_nice %>%
+  kable(digits = c(0,1,1,3),
+        caption = "ANOVA table for the Figure 2a (example 2) data.") %>%
+  kable_styling()
+```
+An ANOVA table for a single factor with more than two groups has a single *p*-value for the treatment term. The single *p*-value is the probability of sampling a value of *F* as large or larger than the observed *F* under the null (no true effects of either treatment and all specifications of the generating model are true). There is not much we can do with this number - we want to estimate the effect sizes and their uncertainty and we don't get this from an ANOVA table. Many textbooks, websites, and colleagues suggest to 1) fit the ANOVA, 2) check the *F*, and, if $F < 0.05$, 3) do "tests after an ANOVA". These tests after an ANOVA are the planned comparisons and post-hoc tests described above using the linear model. In classical ANOVA, the initial computation of the means and sums of squares was a logical first step to the decomposition of these sums of squares to compute the contrasts. With modern linear models using regression, the ANOVA first step is unnecessary and not recommended.
+
+If your PI, manager, thesis committee, or journal editor insists that you do ANOVA, and you cannot convince them otherwise, here is how to generate an ANOVA table in R. Note that even though we are generating that table, the computation of the contrast table and all inference from that is not part of the ANOVA.
+
+#### The afex aov_4 function
+
+The package afex was developed to make it much easier for researchers to generate ANOVA tables that look like those from other statistics packages including SAS, SPSS, JMP, and Graphpad Prism.
+
+```{r aov_4, warning=FALSE, message = FALSE}
+# .I is a data.table function that returns the row number
+fig2a[, fake_id := paste("mouse", .I)]
+
+m1_aov4 <- aov_4(diHOME ~ treatment + (1|fake_id),
+                 data = fig2a)
+
+anova(m1_aov4)
+```
+
+Notes
+
+1. The afex package has three function names for generating the same ANOVA table and statistics -- here I'm using `aov_4` because this functions uses a linear model formula argument (specifically, that used in the lme4 package), which is consistent with the rest of this text.
+2. The formula includes the addition of a random factor (`(1|id)`) even though there really is no random factor in this model. See Section \@ref(oneway-paired-t) below for a brief explanation of a random factor. The random factor (the factor variable "id" created in the line before the fit model line) identifies the individual mouse from which the response variable was measured. Because the response was only measured once on each individual mouse, "id" is not really a random factor but the addition of this in the model formula is necessary for the `aov_4` function to work.
+3. It is easy to get an ANOVA table that you don't want in R. If you want an ANOVA table that matches one from Graphpad Prism or JMP or similar software, the best practice is using the ANOVA functions from the afex package. 
+4. What do I mean by "an ANOVA table that you don't want"? With factorial ANOVA with unbalanced data, there are three ways to compute the sums of squares for the different terms of the ANOVA table. SAS termed these Type I, II, and III sums of squares and these names have stuck. Following SAS, almost all statistics packages use Type III as the default (or only) method for computing ANOVA tables. R uses Type I as the default. There are very good arguments for using Type II. This distinction is moot for single factor ANOVA or multi-factor ANOVA for balanced designs but is not moot for unbalanced multi-factor ANOVA or any ANOVA with covariates. If you want an ANOVA table from R to match what would be generated by Graphpad Prism or JMP (Type III), then the afex package is the best practice.
+
+#### The car Anova function
+
+The car package has the extremely useful `Anova` function although using it is a bit like doing brain surgery having only watched a youtube video.
+
+```{r anova-car-Anova}
+type3 <- list(treatment = contr.sum)
+m1_type3 <- lm(diHOME ~ treatment,
+                data = fig2a,
+                contrasts = type3)
+Anova(m1_type3, type="3")
+```
+
+Notes
+
+1. `car::Anova` has arguments for reporting the Type III sum of squares. Again, this is not relevant to a single factor ANOVA with no covariates but to avoid making mistakes in the future, its good to know about best practices now. For this, I prefer the `afex::aov_4 function` above. But, this works also.
+2. Background: The default model matrix in the `lm` function uses dummy (or treatment) coding. For a Type 3 SS ANOVA (the kind that matches that in Graphpad Prism or JMP), we need to tell `lm` to use sum (or deviation) coding.
+3. Many online sites give you code to change this using 
+
+```{r anova-options-contrasts}
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+
+If you're reading this book, you almost certainly don't want to do this because this code resets how R computes coefficients of linear models and SS of ANOVA tables. This will effect all future analysis until the contrasts are set to something else or a new R session is started. 
+4. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
+5. The coefficients of `m1_type3` will be different from `m1`. The intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology.
+5. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
+
+**base R aov and anova**
+
+```{r anova-aov}
+m1_aov <- aov(diHOME ~ treatment, data = fig2a)
+summary(m1_aov)
+```
+
+```{r anova-anova}
+# same as m1 in the Example 2 section
+m1 <- lm(diHOME ~ treatment, data = fig2a)
+anova(m1)
+```
+
+Notes
+
+1. Many introduction to statistics textbooks and websites use the base R `aov` function. I don't find this function useful given the afex package functions.
+2. The base R `anova` is useful if you know what you are doing with it. 
+
 ## Issues in inference in models with a single, categorical $X$
 
-### Lack of independence ("paired t-test")
+### Lack of independence ("paired t-test") {#oneway-paired-t}
 
-This is a preview of the chapter "Models with random effects -- Blocking and pseudoreplication"
+This is a preview of the chapter [Models with random effects -- Blocking and pseudoreplication](#lmm)
 
 The data from the experiment for Figure 1b of the 12,13-diHOME article are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) violates the "independent" sampling assumption for inference because there are two measures of the response in each individual.
 
-Textbooks that use a "which test?" strategy often point to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups. The researchers followed this norm and analyzed the data using a paired t-test.
+A "which test?" strategy points to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups.
 
 Here, I show empirically that a paired t-test is a special case of a *linear model with an added random factor*. The advantage of understanding this is, the linear model with added random factor is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. 
 
@@ -1010,7 +1109,7 @@ diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold\ + \beta_2 treatment\
 fig2a_m2 <- lmer(diHOME ~ treatment + (1|id), data = fig2a)
 ```
 
-1. fig2a_m2 is a linear mixed model. fig2a_m2 (above) is a fixed effects model of the same data. Here, we wouldn't fit both. The researchers know if the response was measured for each treatment for each mouse or if different mice were used for each treatment. 
+1. `fig2a_m2` is a linear mixed model. [fig2a_m1](#fig2a-m1) is a fixed effects model of the same data. Here, we wouldn't fit both. The researchers know if the response was measured for each treatment for each mouse or if different mice were used for each treatment. 
 
 Inference using the linear model with added random factor:
 
@@ -1051,79 +1150,113 @@ fig2a_ttest_ne
 ```
 
 Notes
-1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" had to throw out one mouse 6 because this mouse is missing the "1 hour cold" measure. The linear mixed model used all the data.
-2. The paired t-test *t* and *p* values are not equal to those from the linear mixed model. This is partly because of the missing data (note 1). Even if there were no missing data, these wouldn't be equal because the linear mixed model using an estimate of $\sigma$ computed from the single model with all three groups to compute the standard errors (See the comparison of t-tests and linear models above).
 
-### Heterogeneity of variances
+1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" excluded mouse 6 because of a missing "1 hour cold" measure. The linear mixed model was fit to all data, including the "Control" and "30 min NE" measures. The consequence is higher power/more precision in the linear mixed model.
+2. The paired t-test *t* and *p* values are not equal to those from the linear mixed model. This is partly because of the missing data (note 1). Even if there were no missing data, these wouldn't be equal because the linear mixed model uses an estimate of $\sigma$ computed from the single model with all three groups to compute the standard errors. See the comparison of t-tests and the contrast table from a linear model in Section \@ref(ttests).
+3. The results of the separate, paired t-tests and the linear mixed model differ in a way that might affect our inference about the system. Which is correct? Neither -- they simply make different assumptions about the data generating model.
+* The linear model strategy has more power and precision but this advantage is small. The best reason to use linear models instead of separate *t*-tests is learning how to use linear models, and their extensions, gives you phenomenal cosmic power.
+* Do not compute both separate paired *t*-tests **and** the linear models and then convince yourself that that the assumption of the method with the *p*-value that matches your hypothesis is correct. See the p-hacking discussion above.
 
-Textbooks that use a "which test?" strategy often point to a Welch's *t*-test in place of Student's *t*-test if there is heterogeneity of variances between treatment groups. A Welch t-test is infrequent in the experimental biology literature, perhaps because
+### Heterogeneity of variances {#oneway-welch}
+
+Heterogeneity of variance among treatment groups is a problem for inference, especially if the sample size is unequal among groups (statisticians tend to agree that heterogeneity is much more problematic than a non-normal response).
+
+A "which test?" strategy points to a Welch's *t*-test in place of Student's *t*-test if there is heterogeneity of variances between treatment groups. A Welch t-test is infrequent in the experimental biology literature, perhaps because
 
 1. it is poorly known and it doesn't occur to researchers to use a test that models heterogeneity of variances.
-2. many experiments have more than two levels, or are factorial, and these are often analyzed with ANOVA instead of multiple *t*-tests.
-3. heterogeneity often arises in right-skewed data, which is often analyzed with a non-parametric test like the Mann-Whitney U test.
+2. heterogeneity often arises in right-skewed data, which is often analyzed with a non-parametric test like the Mann-Whitney U test.
 
-The Welch *t*-test is a special case of a linear model that explicitly models the within-group variance using **generalized least squares** (GLS). The 95% CI of a mean differences and *p*-values from the fit gls linear model and from Welch's t-test are the same. Advantages of using a linear modeling strategy is that a researcher uses the model to estimate effects (difference in means) and measures of uncertainty in the effects (standard errors or confidence intervals of the difference). Advantages of specifically using the gls extension of the linear model is that it is it can be easily expanded to analyze more complex designs including 1) more than two treatment groups, 2) more than one factor, and 3) additional covariates.
+The Welch *t*-test is a special case of a linear model that explicitly models the within-group variance using **generalized least squares** (GLS). The 95% CI of a mean differences and *p*-values from the fit gls linear model and from Welch's t-test are the same. Advantages of using a linear modeling strategy is that a researcher uses the model to estimate effects (difference in means) and measures of uncertainty in the effects (standard errors or confidence intervals of the difference). Advantages of specifically using a GLS linear model is that it is easily expanded to analyze more complex designs including 1) more than one factor, 2) added covariates, 3) correlated residuals due to non-independence.
 
-Modeling variance heterogenity is the focus of chapter xxx so the account here is brief. Heterogeneity can be modeled using a generalized least squares linear model with the `gls` function. The `weights` argument is used to model the variances using each group's sample variance. In this example, I use the data from the Figure 1b experiment, which can be compared to the analysis of the same data in Example 2 above.
+Some statisticians argue that researchers should *always* use a Welch t-test instead of Student's t-test. Given this logic, researchers should consider using GLS linear models for more complex experimental designs (added covariates, factorial) in place of classical ANCOVA and two-way ANOVA.
 
-```{r}
+Modeling variance heterogeneity is the focus of Chapter \@ref(gls) so the account here is brief. Heterogeneity can be modeled using a generalized least squares linear model with the `gls` function. The `weights` argument is used to model the variances using each group's sample variance. In this example, I use the data from the Figure 1b experiment, which can be compared to the analysis of the same data in Example 2 above.
+
+```{r fig2a_m3}
+# gls fails with missing data
 subdata <- fig2a[is.na(diHOME) == FALSE,] # omit rows with missing data
-fig2a_m2 <- gls(diHOME ~ treatment,
+fig2a_m3 <- gls(diHOME ~ treatment,
                 data = subdata,
                 weights = varIdent(form = ~ 1 | treatment))
 ```
 
-The model fig2a_m2 uses variance computed in each group separately as the estimate of $\sigma^2$ for that group. The coefficient table of the GLS model is
+The model `fig2a_m3` uses variance computed in each group separately as the estimate of $\sigma$ for that group. The coefficient table of the GLS model is
 
-```{r}
-summary(fig2a_m2) %>%
-  coef()
+```{r fig2a_m3_coef}
+fig2a_m3_coef <- cbind(coef(summary(fig2a_m3)),
+                       confint(fig2a_m3))
+
+fig2a_m3_coef %>%
+  kable(digits = c(4,4,4,6,4,4)) %>%
+  kable_styling()
 ```
 Notes
 
-1. **Important** for reporting *p*-values. Unlike the linear model modeling homogenous variance, the *p*-values for the coefficients of $treatment1\;hour\;cold$ and $treatment30\;min\;NE$ are *not* the same as the *p*-values of these equivalent contrasts in the contrasts table (see below). The reason is, the computation of the *p*-value in the two tables use two different degrees of freedom. Report the *p*-values from the contrast table using the Satterthwaite df.
+1. **Important** for reporting CIs and *p*-values. Unlike the linear model modeling homogenous variance, the CIs and *p*-values for the coefficients of $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ are *not* the same as the *p*-values of these equivalent contrasts in the contrasts table (see below). The reason is, the computation of the CI and *p*-values in the two tables use two different degrees of freedom. Report the CI and *p*-values from the contrast table using the Satterthwaite df.
 
 The modeled means and contrasts are computed as above for the `lm` object
 
-```{r categorical-x-fig2a-gls-emmeans}
-fig2a_m2_emm <- emmeans(fig2a_m2, specs="treatment")
-fig2a_m2_emm
+```{r fig2a_m3_emm}
+fig2a_m3_emm <- emmeans(fig2a_m3, specs="treatment")
+fig2a_m3_emm
 ```
 
 Notes
 
 1. The SE of the means in this table are modeled SEs but are equal to the sample SE of the means, because this was specified in the GLS model.
 
-```{r}
-fig2a_m2_pairs <-  contrast(fig2a_m2_emm,
+```{r fig2a_m3_pairs}
+fig2a_m3_pairs <-  contrast(fig2a_m3_emm,
                             method = "revpairwise",
                             adjust = "none") %>%
   summary(infer = TRUE)
-fig2a_m2_pairs
+
+fig2a_m3_pairs %>%
+  kable(digits = c(1,4,4,1,4,4,4,5)) %>%
+  kable_styling()
 ```
+Notes
 
-Compare this table to the three Welch *t*-tests of all pairs of treatment levels in the fig2a experiment.
+1. Compare the statistics for "1 hour cold - Control" and "30 min NE - Control" to the coefficients for $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ in the coefficient table. The estimates, SE, and *t* are the same but the CIs and *p* values differ. The contrast function is using a different method ("satterthwaite") for computing the degrees of freedom and this results in a different value of the *t*-distribution tail area used to compute the CI and *p* value.
 
-```{r}
-
+The 
+```{r welch-t, echo=TRUE}
 test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
        fig2a[treatment == "Control", diHOME],
-       var.equal=FALSE)
+       var.equal = FALSE)
 
 test2 <- t.test(fig2a[treatment == "30 min NE", diHOME],
        fig2a[treatment == "Control", diHOME],
-       var.equal=FALSE)
+       var.equal = FALSE)
 
 test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
        fig2a[treatment == "1 hour cold", diHOME],
-       var.equal=FALSE)
+       var.equal = FALSE)
+```
 
-welch_tests <- data.frame(t = c(test1$statistic, test2$statistic, test3$statistic),
-                     p = c(test1$p.value, test2$p.value, test3$p.value))
-row.names(welch_tests) <- c("1 hour cold - Control", 
-                       "30 min NE - Control",
-                       "30 min NE - 1 hour cold")
-welch_tests
+Notes
+
+1. the default `t.test` is the Welch t-test. However, I've included `var.equal = FALSE` so the method is transparent.
+
+Compare the contrast *p* values to the three Welch *t*-tests of all pairs of treatment levels in the fig2a experiment.
+
+```{r welch-t-table, echo = FALSE}
+y_cols <- c("contrast", "t.ratio", "p.value")
+lm_t <- fig2a_m3_pairs[, y_cols]
+colnames(lm_t)[2:3] <- c("t (gls lm)", "p (gls lm)")
+t_t <- data.table(contrast =
+                    c("1 hour cold - Control", 
+                      "30 min NE - Control",
+                      "30 min NE - 1 hour cold"),
+                  "t (welch t)" = c(test1$statistic,
+                                   test2$statistic,
+                                   test3$statistic),
+                  "p (welch t)" = c(test1$p.value,
+                                   test2$p.value,
+                                   test3$p.value))
+merge(lm_t, t_t, by = "contrast") %>%
+  kable() %>%
+  kable_styling()
 ```
 
 The *t* and *p*-values computed from the GLS linear model and from the three, pairwise Welch *t*-tests are the same (to about the 6th decimal place). They are the same because each is estimating $\sigma^2$ separately for each group and not as the pooled (among two groups for *t*-test or three groups for the linear model) estimate and because they use the same degrees of freedom to compute the *p*-value.
@@ -1141,7 +1274,106 @@ Even though the linear model that models heterogeneity and the Welch *t*-test pr
 
 ### The conditional response isn't Normal
 
-### Pre-post designs
+Of all the issues with inference from a linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome if all we care about is *p*-values. Confidence intervals computed using the normal distribution on non-normal data can be awkward, for example, the CIs might include impossible values such as negative counts or percent of cells expressing a certain marker above 100 %.
+
+Some alternative to a linear model assuming normal distribution include:
+
+1. Count data -- count data tend to be right skewed and groups with higher mean counts tend to have larger variance.
+* Generalized linear models using either a negative binomial or quasi-poisson distribution family are a good alternative to consider.
+* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
+* Log transformation of a count response is controversial at best. log transformations can be pretty good at making the response look more like it was sampled from a normal distribution (and can make variances more similar). But...If the counts include zero, researchers have to add a kludge factor (typically equal to 1) to all counts prior to transformation. The value of the kludge factor is arbitrary and matters (adding .1 gives different results than adding 1). A log transformation (or any transformation) raises interpretation problems. For the log transformation, the effect is the difference between the means of the log-transformed counts. I don't know what the magnitude of an effect on a log scale means biologically. If we backtransform this, the effect is the ratio of the geometric means of the two groups. A ratio effect is easy enough to interpret but do we really want to model the geometric and not the arithmetic means? Finally, log transformation does not specifically address either the shape of the distribution or the heterogeneity that often comes with the non-normal shape. A generalized linear model can specifically model both the shape and the variance.
+* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+2. Fraction (proportion) data -- For example, the number of cells expressing a certain marker relative to all counted cells in the sample. Fraction data have hard bounds at 0 and 1, or at 0 and 100 if converted to a percent. Fraction data tend to be right skewed if the mean is closer to zero and left skewed if the mean is closer to the upper bound.
+* Generalized linear model using a binomial distribution family with a logit link ("logistic regression") is a good alternative to consider. This model is used for Bernouili (success/fail) responses (for example the subject "lived" or "died"), where success is assigned the value 1 and fail is assigned the value 0. Using this model with proportion data is equivalent to assigning a 0 ("does not express marker") or 1 ("expresses marker") to all cells in the count.
+* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
+* arcsin transformation. See [The arcsine is asinine: the analysis of proportions in ecology] (https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/10-0340.1)
+* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+
+```{r fig6f-import, echo=FALSE}
+# need data_folder and data_from from earlier chunk
+data_from <- "Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells"
+file_name <- "41591_2019_633_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- c("Sedentary", "Exercise")
+fig6f <- read_excel(file_path,
+                     sheet = "Figure 6f",
+                     range = "A7:B29",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "treatment",
+       value.name = "neutrophils") %>%
+  na.omit() # danger!
+
+treatment_levels <- melt_col_names
+fig6f[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+# neutrophils is count/10^6
+fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
+
+fig6f[1, neutrophil_count]
+#View(fig6f)
+```
+
+#### Linear model ("t-test") with non-normal count data
+
+```{r}
+m1 <- lm(neutrophil_count ~ treatment, data = fig6f)
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "trt.vs.ctrl") %>%
+  summary(infer = TRUE)
+```
+
+#### GLM with negative binomial family with non-normal count data
+
+```{r}
+m2 <- glmmTMB(neutrophil_count ~ treatment,
+              data = fig6f,
+              family = nbinom2())
+m2_emm <- emmeans(m2,
+                  specs = "treatment",
+                  type = "response")
+m2_pairs <- contrast(m2_emm,
+                     method = "trt.vs.ctrl",
+                     type = "response") %>%
+  summary(infer = TRUE)
+```
+
+```{r}
+gg1 <- ggplot_the_model(
+  m1,
+  m1_emm,
+  m1_pairs,
+  legend_position = "none",
+  y_label = "Neutrophil Count (/mL)",
+  effect_label = "Effect (/mL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.75,1)
+)
+
+gg2 <- ggplot_the_model(
+  m2,
+  m2_emm,
+  m2_pairs,
+  legend_position = "none",
+  y_label = "Neutrophil Count (/mL)",
+  effect_label = "Effect (/mL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.75,1),
+  effect_lims = c(0.35, 1.25)
+)
+
+plot_grid(gg1, gg2, nrow=2)
+```
+
+
+### Pre-post designs (change from baseline)
 
 ### Longitudinal designs
 
@@ -1232,3 +1464,36 @@ fig2a[, treatment := factor(treatment, treatment_order)] # order levels
 
 #View(fig2a)
 ```
+
+### Importing and wrangling the fig6f data for non-normal example
+
+```{r echo=TRUE}
+# need data_folder from earlier chunk
+data_from <- "Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells"
+file_name <- "41591_2019_633_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- c("Sedentary", "Exercise")
+fig6f <- read_excel(file_path,
+                     sheet = "Figure 6f",
+                     range = "A7:B29",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "treatment",
+       value.name = "neutrophils") %>%
+  na.omit() # danger!
+
+treatment_levels <- melt_col_names
+fig6f[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+# neutrophils is count/10^6
+fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
+
+fig6f[1, neutrophil_count]
+#View(fig6f)
+```
+
+

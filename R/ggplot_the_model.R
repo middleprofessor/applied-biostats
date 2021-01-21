@@ -416,8 +416,13 @@ response_plot <- function(
   y_col <- insight::find_response(fit)
   
   fit_emm_dt <- emm_table(fit_emm)
-
-  if(which(names(fit_emm_dt) == "emmean") == 2){
+  
+  # get number of pre emmean/ratio/rate columns
+  if("emmean" %in% names(fit_emm_dt)){response <- "emmean"}
+  if("rate" %in% names(fit_emm_dt)){response <- "rate"}
+  if("ratio" %in% names(fit_emm_dt)){response <- "ratio"}
+  
+  if(which(names(fit_emm_dt) == response) == 2){
     x_col <- names(fit_emm_dt)[1]
     g_col <- NA
   }else{
@@ -473,14 +478,14 @@ response_plot <- function(
   
   # plot means and CI
   gg <- gg +
-    geom_errorbar(data = fit_emm_dt, aes(y = emmean,
+    geom_errorbar(data = fit_emm_dt, aes(y = get(response),
                                          ymin = lower.CL,
                                          ymax = upper.CL,
                                          color = get(color_col)),
                   width = 0,
                   position = pd
     ) +
-    geom_point(data = fit_emm_dt, aes(y = emmean,
+    geom_point(data = fit_emm_dt, aes(y = get(response),
                                       color = get(color_col)),
                size = 3,
                position = pd
@@ -642,7 +647,7 @@ ggplot_the_response <- function(
  fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm,
   fit_pairs,
-  wrap_col=NULL,
+  wrap_col = NULL,
   x_label = "none",
   y_label = "Response (units)",
   g_label = NULL,
@@ -919,7 +924,8 @@ ggplot_the_effects <- function(fit,
                        fit_pairs,
                        contrast_rows = "all",
                        show_p = TRUE,
-                       effect_label = "Effect (units)"){
+                       effect_label = "Effect (units)",
+                       x_lims = "auto"){
 
 
   if(contrast_rows == "all"){
@@ -931,9 +937,12 @@ ggplot_the_effects <- function(fit,
   
   if("ratio" %in% names(fit_pairs)){
     nill_null <- 1.0
+    setnames(fit_pairs_dt, old = "ratio", new = "estimate")
+    effect_type <- "ratio"
   }else{
     nill_null <- 0.0
   }
+  
   neg_space <- 0.4
   p <- nrow(fit_pairs_dt)
   min_bound <- min(fit_pairs_dt[, lower.CL])
@@ -947,8 +956,11 @@ ggplot_the_effects <- function(fit,
     x_hi <- -neg_space*x_lo
   }
   
-  x_lims <- c(x_lo, x_hi)
+  if(x_lims[1] == "auto"){
+    x_lims <- c(x_lo, x_hi)
+  }
   
+
   gg <- ggplot(data = fit_pairs_dt,
                aes(y = contrast,
                    x = estimate)) +
@@ -962,9 +974,12 @@ ggplot_the_effects <- function(fit,
     theme_pubr() +
     xlab(effect_label) +
     theme(axis.title.y = element_blank()) +
-    coord_cartesian(xlim = x_lims) +
     scale_x_continuous(position="top") +
     NULL
+  
+  if(!is.null(x_lims)){
+    gg <- gg + coord_cartesian(xlim = x_lims)
+  }
   
   if(show_p == TRUE){
     gg <- gg +
@@ -1001,7 +1016,8 @@ ggplot_the_model <- function(fit,
                            legend_position = "bottom",
                            flip_horizontal = TRUE,
                            rel_heights = c(1,1),
-                           group_lines = FALSE){
+                           group_lines = FALSE,
+                           effect_lims = "auto"){
   
   gg1 <- response_plot(
     fit = fit,
@@ -1022,7 +1038,8 @@ ggplot_the_model <- function(fit,
                           fit_pairs,
                           contrast_rows,
                           show_p,
-                          effect_label)
+                          effect_label,
+                          x_lims = effect_lims)
   plot_grid(gg2,
             gg1,
             nrow=2,
@@ -1083,7 +1100,7 @@ plot_treatments <- function(gg,
 
 
 
-## ------------------------------------------------------------------------
+## ----ggplot_the_treatments-----------------------------------------------
 ggplot_the_treatments <- function(
   gg,
   x_levels,
@@ -1113,5 +1130,5 @@ ggplot_the_treatments <- function(
 
 
 ## ----output-as-R-file----------------------------------------------------
-
+#knitr::purl("0.1-ggplot_the_model.Rmd")
 

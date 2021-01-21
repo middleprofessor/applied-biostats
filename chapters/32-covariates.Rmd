@@ -1,4 +1,4 @@
-# Adding covariates to a linear model {#chapter-covariates}
+# Linear models with an added covariate ("ANCOVA") {#covariates}
 
 ```{r setup-ancova, echo=FALSE, warnng=FALSE, message=FALSE}
 library(here)
@@ -39,7 +39,7 @@ pal_okabe_ito <- pal_ito_seven[c(6,5,3,7,1,2,4)] # order of Wilke
 pal_okabe_ito_2 <- colorblind_pal()(8)[2:8] # ggthemes
 ```
 
-In its most general sense, **Covariates** are simply the $X$ variables in a statistical model. With data from experiments, "covariates" more typically refers to $X$ variables that are added to a model to increase precision of the treatment effects. In observational designs, covariates might be added to a model to 1) increase predictive ability, 2) because the researcher is interested in specific conditional effects, or 3) to eliminate confounding. These are discussed in later chapters. In this chapter, the covariate added to a linear model is a continous variable. Nothing is fundamentally different if the covariate added is categorical ($Sex$ is a common categorical covariate).
+In its most general sense, **Covariates** are simply the $X$ variables in a statistical model. With data from experiments, "covariates" more typically refers to continuous $X$ variables that are added to a model to increase precision of the treatment effects. In observational designs, continuous and categorical covariates might be added to a model to 1) increase predictive ability, 2) because the researcher is interested in specific conditional effects, or 3) to eliminate confounding. These are discussed in later chapters. In this chapter, a single, continuous covariate is added to a linear model. Nothing is fundamentally different if the covariate added is categorical ($Sex$ is a common categorical covariate) or if multiple covariates are added.
 
 ## Adding covariates can increases the precision of the effect of interest
 

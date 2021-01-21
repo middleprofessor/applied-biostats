@@ -1,4 +1,4 @@
-# Covariance and Correlation
+# Covariance and Correlation {#cov}
 
 ```{r setup-cov, echo=FALSE, warning=FALSE, message=FALSE}
 library(data.table)

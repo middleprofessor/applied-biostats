@@ -1,0 +1,27 @@
+---
+title: "00- how to cross reference"
+author: "Jeffrey A. Walker"
+date: "1/21/2021"
+output: html_document
+---
+
+If using \@ref do NOT include the #. If using []() DO use the #.
+
+without "#"
+
+1. see the reference in this chapter above \@ref(oneway-ttest). This works and results in section number.
+2. see the reference in this chapter below \@ref(oneway-welch). This works and results in section number.
+3. See the previous Chapter \@ref(uncertainty). This works and results in chapter number.
+4. See the previous Chapter [Variability and uncertainty](uncertainty). This fails. There is linked text but the link doesn't go anywhere.
+5. See the future Chapter \@ref(lmm). This works and results in chapter number.
+6. See the future [linear mixed model chapter](lmm). This fails. There is linked text but the link doesn't go anywhere.
+
+with "#"
+
+1. see the reference in this chapter above \@ref(#oneway-ttest). This fails and just prints the reference.
+2. see the reference in this chapter below \@ref(#oneway-welch). This fails and just prints the reference.
+3. See the previous Chapter \@ref(#uncertainty). This fails and just prints the reference.
+4. See the previous Chapter [Variability and uncertainty](#uncertainty). This works and results in linked text.
+5. See the future Chapter \@ref(#lmm). This fails and just prints the reference.
+6. See the future [linear mixed model chapter](#lmm). This works and results in linked text.
+

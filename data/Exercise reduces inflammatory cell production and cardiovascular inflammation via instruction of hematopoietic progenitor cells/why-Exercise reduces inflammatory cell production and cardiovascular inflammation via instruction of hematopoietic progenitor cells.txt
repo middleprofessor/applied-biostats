@@ -1,0 +1,5 @@
+Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells
+
+Fig 3b 3 x 1 counts not right skewed. good multiple level data
+Fig 4 - many t-test with large r skew and heterogeneity
+Fig 6 - many t-tests counts with large R skew and heterogeneity

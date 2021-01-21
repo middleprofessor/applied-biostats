@@ -34,7 +34,6 @@ rmd_files: ["index.Rmd",
 "chapters/60-glm01-counts.Rmd",
 "chapters/70-gls.Rmd",
 "chapters/80-supplements.Rmd",
-"chapters/82-ggplotsci.Rmd",
 "chapters/92-R_resources.Rmd",
 "chapters/93-Getting_started_with_linear_modeling.Rmd"
 ]
