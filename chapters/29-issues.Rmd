@@ -1,0 +1,33 @@
+# Issues in inference {#issues}
+
+## Pre-post designs (change from baseline)
+
+## Longitudinal designs
+
+## Comparing responses normalized to a standard
+
+## Comparing responses that are ratios
+
+## Researcher degrees of freedom
+
+```{r echo = FALSE, eval=FALSE}
+
+ycols <- c("contrast", "p.value")
+p_table <- fig2a_m1_pairs_dt[, .SD, .SDcols = ycols]
+setnames(p_table, old = "p.value", new = "lm")
+p_table <- cbind(p_table, "t test" = ttests[, "p"])
+p_table <- cbind(p_table, "gls" = summary(fig2a_m2_pairs)[, "p.value"])
+p_table <- cbind(p_table, "Welch" = welch_tests[, "p"])
+
+# permutation
+m3 <- lmp(diHOME ~ treatment,
+                 data = subdata,
+                 perm = "Exact")
+coef(summary(m3))
+# wilcoxan
+p_table
+
+#Conspicuously, the *p*-value for the "1 hour cold - Control" contrast is 0.039, which is "significant" using the conventional 
+
+```
+

@@ -12,6 +12,7 @@ library(boot)
 library(ggpubr)
 library(doBy)
 library(here)
+library(kableExtra)
 here <- here::here
 data_path <- "data"
 ```
@@ -57,49 +58,86 @@ If a researcher carries out thousands of tests to "discover" new facts, and uses
 If a researcher caries out many tests, and ranks the effects by magnitude or *p*-value, then the effect sizes of the largest effects will be inflated. Before explaining why, let's simulate this using an experiment of allelopathic effects of the invasive garlic mustard (*Alliaria petiolata*) on gene expression in the native American ginseng (*Panax quinquefolius*). In the treated group, we have ten pots, each with an American ginseng plant grown in a container with a mustard plant. In the control group, we have ten pots, each with an American ginseng plant grown in a container with another American ginseng. I've simulated the response of 10,000 genes. The treatment has a true effect in 10% of the 10,000 genes but most effects are very small.
 
 ```{r}
+do_it <- TRUE
 set.seed(4)
 p <- 10^4 # number of genes
 pt <- 0.1*p # number of genes with true response to treatment
-n <- 10
-
 # sample the gene effects from an exponential distribution
-theta <- .3
-beta <- c(rexp(pt, rate=1/theta),
+theta <- .4
+beta <- c(rexp(pt, rate = 1/theta),
           rep(0, (p-pt))) # the set of 10,000 effects
 
-# sample the variance of the expression level with a gamma, and set a minimum
-sigma <- rgamma(p, shape=2, scale=1/4) + 0.58
-# quantile(sigma, c(0.001, 0.1, 0.5, 0.9, 0.999))
-
-Y1 <- matrix(rnorm(n*p, mean=0, sd=rep(sigma, each=n)), nrow=n)
-Y2 <- matrix(rnorm(n*p, mean=rep(beta, each=n), sd=rep(sigma, each=n)), nrow=n) # check
-# use n <- 10^4 to check
-# apply(y2, 2, mean)[1:5]
-# b[1:5]
-x <- rep(c("cn","tr"), each=n)
-bhat <- numeric(p)
-p.value <- numeric(p)
-sigma_hat <- numeric(p)
-for(j in 1:p){
-  fit <- lm(c(Y1[,j], Y2[, j]) ~ x)
-  bhat[j] <- coef(summary(fit))["xtr", "Estimate"]
-  p.value[j] <- coef(summary(fit))["xtr", "Pr(>|t|)"]
-  sigma_hat[j] <- sqrt(sum(fit$residuals^2)/fit$df.residual)
+if(do_it == TRUE){
+  n <- 10
+  
+  # sample the variance of the expression level with a gamma, and set a minimum
+  sigma <- rgamma(p, shape = 2, scale = 1/4) + 0.58
+  # quantile(sigma, c(0.001, 0.1, 0.5, 0.9, 0.999))
+  
+  cn <- matrix(rnorm(n*p,
+                     mean = 0,
+                     sd = rep(sigma, each=n)),
+               nrow=n)
+  tr <- matrix(rnorm(n*p,
+                     mean = rep(beta, each=n),
+                     sd = rep(sigma, each=n)),
+               nrow=n) # check
+  
+  # use n <- 10^4 to check
+  # apply(y2, 2, mean)[1:5]
+  # b[1:5]
+  
+  x <- rep(c("cn","tr"), each=n)
+  fake_res <- matrix(as.numeric(NA),
+                     nrow = p,
+                     ncol = 3) %>%
+    data.table()
+  colnames(fake_res) <- c("b_hat",
+                          "p_value",
+                          "sigma_hat")
+  for(j in 1:p){
+    fit <- lm(c(cn[,j], tr[, j]) ~ x)
+    b <- coef(summary(fit))
+    fake_res[j, b_hat := b["xtr", "Estimate"]]
+    fake_res[j, p_value := b["xtr", "Pr(>|t|)"]]
+    fake_res[j, sigma_hat := summary(fit)$sigma]
+  }
+  
+  sim_folder <- "sim_data"
+  sim_file_name <- "fake_gene_expression.Rds"
+  sim_path <- here(sim_folder, sim_file_name)
+  saveRDS(fake_res, sim_path)
+}else{
+  sim_folder <- "sim_data"
+  sim_file_name <- "fake_gene_expression.Rds"
+  sim_path <- here(sim_folder, sim_file_name)
+  fake_res <- readRDS(sim_path)
 }
-
+  fake_res[, beta := beta]
+  fake_res[, p_adj := p.adjust(p_value, "fdr")]
 ```
 
 ```{r inflation-histogram, fig.cap="A histogram of the distribution of the 10,000 effects", echo=FALSE}
-gghistogram(x="b", data=data.table(b=beta[1:pt]), bins=30)
+# first pt are true effects
+gghistogram(x = "beta",
+            data = fake_res[1:pt],
+            bins = 30)
 
 ```
 
 ```{r, echo=FALSE}
-res <- data.table(effect=beta, estimate=bhat, sigma=sigma, sd=sigma_hat, p.value=p.value)
-res[, "relative true effect" := effect/max(effect)]
-res[effect > 0, rank:=pt-rank(effect)+1]
-res <- orderBy(~p.value, data=res)
-knitr::kable(res[1:10,], digits=c(2, 2, 2, 2, 7, 2, 0), caption="The top 10 genes ranked by p-value. Rank is the rank of the true effect, from large to small.")
+fake_res[, "relative true effect" := beta/max(beta)]
+fake_res[beta > 0, rank := pt - rank(beta) + 1]
+fake_res <- orderBy(~ p_value, data = fake_res)
+y_cols <- c("p_adj",
+            "beta",
+            "b_hat",
+            "relative true effect",
+            "rank")
+fake_res[1:10, .SD, .SDcols = y_cols] %>%
+  kable(digits=c(8, 2, 2, 2, 0),
+        caption="The top 10 genes ranked by p-value. Rank is the rank of the true effect, from large to small. NA indicates the true effect is zero.") %>%
+  kable_styling()
 ```
 
 The table above lists the top 10 genes ranked by *p*-value, using the logic that the genes with the smallest *p* values are the genes that we should pursue with further experiments to understand the system. Some points

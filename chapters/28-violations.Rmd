@@ -1,0 +1,527 @@
+# Linear models with violations of independence, homogeneity, or Normality {#violations}
+
+```{r violations-setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+library(stringr)
+
+# analysis packages
+library(nlme) # gls
+library(lmerTest) # lmm
+library(emmeans)
+library(car) # qqplot, spreadlevel, Anova
+library(afex) #aov4
+library(lmPerm)
+library(glmmTMB)
+
+# graphing packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(ggforce) # jitter
+library(ggsci) # color palettes
+library(cowplot) # combine plots
+library(lazyWeave) # pretty pvalues
+library(broom)
+library(knitr)
+library(kableExtra)
+
+here <- here::here
+
+plot_path <- here("R/ggplot_the_model.R")
+source(plot_path)
+
+clean_names <- janitor::clean_names
+
+data_folder <- "data"
+```
+
+## Lack of independence {#oneway-paired-t}
+### A paired t-test is a special case of a linear model for correlated data with two groups
+
+The data from the experiment for Figure 1b of the [12,13-diHOME article](#oneway-data) are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) violates the "independent" sampling assumption for inference because there are two measures of the response in each individual.
+
+A "which test?" strategy points to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups.
+
+Here, I show empirically that a paired t-test is a special case of a **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. 
+
+A good way to think about the model generating the data is
+
+\begin{equation}
+diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold + \varepsilon
+\end{equation}
+
+1. $\beta_0$ is the expected value of diHome in humans given a saline treatment.
+2. $\beta_{0_i}$ is the expected difference between the expected value of diHome in human $i$ given a saline treatment and the expected value of diHome in humans given a saline treatment. $\beta_{0_i}$ is a kind of **random effect**
+3. $\beta_0 + \beta_{0_i}$ is the expected value of diHome in human $i$ given a saline treatment. It is the **random intercept** for human $i$.
+
+Importantly, if the random effect ($\beta_{0_i}$) isn't modeled, then variation in this component is picked up by the model error $e$. Consequently, the error component **is correlated** because the subsets of $e$ from the same individual are expected to have more similar values to each other than to that from other individuals. Correlated error is discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
+
+```{r fig1b-import, echo=FALSE}
+data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
+file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig1b <- read_excel(file_path,
+                     sheet = "Fig 1 b thur c",
+                     range = "A1:C20",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  clean_names() %>%
+  na.omit() # get rid of blank row
+
+setnames(fig1b,
+         old = names(fig1b),
+         new = c("sample", "diHOME", "bat_activity"))
+
+fig1b[, id := substr(sample, 1, 6)]
+fig1b[, treatment := ifelse(substr(sample, 8,8) ==
+                              "C", "cold", "saline")]
+fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
+
+# names(fig1b)
+#View(fig1b)
+```
+
+#### Fit a linear mixed model
+
+```{r fig1b-m1}
+# fit the model
+fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
+```
+
+1. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table fig1b.
+2. We are now using the function `lmer()` from the lme4 package (loaded with package lmerTest)
+3. `(1|id)` tells `lmer` to add $\texttt{id}$ as a random intercept.
+4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ if a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
+
+#### Inferences from the linear mixed model and paired t-test are the same when there are only two groups
+
+Inference using the linear model with added random factor:
+
+```{r fig1b_m1_pairs}
+# estimated marginal means table
+fig1b_m1_emm <- emmeans(fig1b_m1, specs = "treatment")
+
+# contrasts table
+fig1b_m1_pairs <- contrast(fig1b_m1_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+fig1b_m1_pairs %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
+```
+
+Inference using paired t-test:
+
+```{r fig1b_ttest}
+fig1b_ttest <- t.test(
+  x = fig1b[treatment == "cold", diHOME],
+  y = fig1b[treatment == "saline", diHOME],
+  paired = TRUE
+)
+
+fig1b_ttest
+```
+
+Notes
+
+1. The *t* and *p* values are the same because the paired *t*-test is a special case of the linear model.
+
+### Example 2 -- more than two groups
+
+```{r violations-fig2a-import, echo=FALSE, message=FALSE}
+file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- paste("Animal", 1:6)
+fig2a <- read_excel(file_path,
+                     sheet = "Fig 2a",
+                     range = "A3:G6",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "id",
+       value.name = "diHOME") # cannot start a variable with number
+setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
+
+treatment_order <- c("Control", "1 hour cold", "30 min NE")
+fig2a[, treatment := factor(treatment, treatment_order)] # order levels
+
+#View(fig2a)
+```
+
+The structure of the Figure 2A experiment from the chapter [Linear models with a single, categorical *X*](#oneway) is ambiguous. It is not clear from the archived data if the measures of 12,13 diHome were on separate mice within each of the three treatments ("Control", "1 hour cold", "30 min NE") or if the same mice were used in each set. If each mouse was measured three times, I assume the researchers would have stated this, which they didn't. But, to outline modeling correlated data when we have more than two groups, let's say each mouse in the Figure 2A experiment was subjected to all three treatments. We have three measures per mouse and the response measure violates the independence assumption.
+
+The linear model (in regression notation) is
+
+\begin{equation}
+diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold\ + \beta_2 treatment\_NE\ + \varepsilon 
+\end{equation}
+
+```{r violoations-fig2a-m2}
+# fit the model
+fig2a_m2 <- lmer(diHOME ~ treatment + (1|id), data = fig2a)
+```
+
+Notes
+
+1. If a treatment factor has more than two groups, nothing special has to be done relative to a model with a treatment factor with only two groups.
+
+#### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
+
+Inference using the linear model with added random factor:
+
+```{r fig2a-m2_pairs}
+# estimated marginal means table
+fig2a_m2_emm <- emmeans(fig2a_m2, specs = "treatment")
+
+# contrasts table
+fig2a_m2_planned <- contrast(fig2a_m2_emm,
+                     method = "trt.vs.ctrl",
+                     adjust = "none") %>%
+  summary(infer = TRUE)
+
+fig2a_m2_planned %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
+```
+
+Inference using two paired t-tests:
+
+```{r fig2a_ttest_cold}
+fig2a_ttest_cold <- t.test(
+  x = fig2a[treatment == "1 hour cold", diHOME],
+  y = fig2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+fig2a_ttest_cold
+```
+
+
+```{r fig2a_ttest_ne}
+fig2a_ttest_ne <- t.test(
+  x = fig2a[treatment == "30 min NE", diHOME],
+  y = fig2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+fig2a_ttest_ne
+```
+
+Notes
+
+1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" excluded mouse 6 because of a missing "1 hour cold" measure. The linear mixed model was fit to all data, including the "Control" and "30 min NE" measures. The consequence is higher power/more precision in the linear mixed model.
+2. The paired t-test *t* and *p* values are not equal to those from the linear mixed model. This is partly because of the missing data (note 1). Even if there were no missing data, these wouldn't be equal because the linear mixed model uses an estimate of $\sigma$ computed from the single model with all three groups to compute the standard errors. See the comparison of t-tests and the contrast table from a linear model in Section \@ref(ttests).
+3. The results of the separate, paired t-tests and the linear mixed model differ in a way that might affect our inference about the system. Which is correct? Neither -- they simply make different assumptions about the data generating model.
+* The linear model strategy has more power and precision but this advantage is small. The best reason to use linear models instead of separate *t*-tests is learning how to use linear models, and their extensions, gives you phenomenal cosmic power.
+* Do not compute both separate paired *t*-tests **and** the linear models and then convince yourself that that the assumption of the method with the *p*-value that matches your hypothesis is correct. See the p-hacking discussion above.
+
+## Heterogeneity of variances {#oneway-welch}
+
+Heterogeneity of variance among treatment groups is a problem for inference, especially if the sample size is unequal among groups (statisticians tend to agree that heterogeneity is much more problematic than a non-normal response).
+
+A "which test?" strategy points to a Welch's *t*-test in place of Student's *t*-test if there is heterogeneity of variances between treatment groups. A Welch t-test is infrequent in the experimental biology literature, perhaps because
+
+1. it is poorly known and it doesn't occur to researchers to use a test that models heterogeneity of variances.
+2. heterogeneity often arises in right-skewed data, which is often analyzed with a non-parametric test like the Mann-Whitney U test.
+
+The Welch *t*-test is a special case of a linear model that explicitly models the within-group variance using **generalized least squares** (GLS). The 95% CI of a mean differences and *p*-values from the fit gls linear model and from Welch's t-test are the same. Advantages of using a linear modeling strategy is that a researcher uses the model to estimate effects (difference in means) and measures of uncertainty in the effects (standard errors or confidence intervals of the difference). Advantages of specifically using a GLS linear model is that it is easily expanded to analyze more complex designs including 1) more than one factor, 2) added covariates, 3) correlated residuals due to non-independence.
+
+Some statisticians argue that researchers should *always* use a Welch t-test instead of Student's t-test. Given this logic, researchers should consider using GLS linear models for more complex experimental designs (added covariates, factorial) in place of classical ANCOVA and two-way ANOVA.
+
+Modeling variance heterogeneity is the focus of Chapter \@ref(gls) so the account here is brief. Heterogeneity can be modeled using a generalized least squares linear model with the `gls` function. The `weights` argument is used to model the variances using each group's sample variance. In this example, I use the data from the Figure 1b experiment, which can be compared to the analysis of the same data in Example 2 above.
+
+```{r fig2a_m3}
+# gls fails with missing data
+subdata <- fig2a[is.na(diHOME) == FALSE,] # omit rows with missing data
+fig2a_m3 <- gls(diHOME ~ treatment,
+                data = subdata,
+                weights = varIdent(form = ~ 1 | treatment))
+```
+
+The model `fig2a_m3` uses variance computed in each group separately as the estimate of $\sigma$ for that group. The coefficient table of the GLS model is
+
+```{r fig2a_m3_coef}
+fig2a_m3_coef <- cbind(coef(summary(fig2a_m3)),
+                       confint(fig2a_m3))
+
+fig2a_m3_coef %>%
+  kable(digits = c(4,4,4,6,4,4)) %>%
+  kable_styling()
+```
+Notes
+
+1. **Important** for reporting CIs and *p*-values. Unlike the linear model modeling homogenous variance, the CIs and *p*-values for the coefficients of $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ are *not* the same as the *p*-values of these equivalent contrasts in the contrasts table (see below). The reason is, the computation of the CI and *p*-values in the two tables use two different degrees of freedom. Report the CI and *p*-values from the contrast table using the Satterthwaite df.
+
+The modeled means and contrasts are computed as above for the `lm` object
+
+```{r fig2a_m3_emm}
+fig2a_m3_emm <- emmeans(fig2a_m3, specs="treatment")
+fig2a_m3_emm
+```
+
+Notes
+
+1. The SE of the means in this table are modeled SEs but are equal to the sample SE of the means, because this was specified in the GLS model.
+
+```{r fig2a_m3_pairs}
+fig2a_m3_pairs <-  contrast(fig2a_m3_emm,
+                            method = "revpairwise",
+                            adjust = "none") %>%
+  summary(infer = TRUE)
+
+fig2a_m3_pairs %>%
+  kable(digits = c(1,4,4,1,4,4,4,5)) %>%
+  kable_styling()
+```
+Notes
+
+1. Compare the statistics for "1 hour cold - Control" and "30 min NE - Control" to the coefficients for $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ in the coefficient table. The estimates, SE, and *t* are the same but the CIs and *p* values differ. The contrast function is using a different method ("satterthwaite") for computing the degrees of freedom and this results in a different value of the *t*-distribution tail area used to compute the CI and *p* value.
+
+The 
+```{r welch-t, echo=TRUE}
+test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
+       fig2a[treatment == "Control", diHOME],
+       var.equal = FALSE)
+
+test2 <- t.test(fig2a[treatment == "30 min NE", diHOME],
+       fig2a[treatment == "Control", diHOME],
+       var.equal = FALSE)
+
+test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
+       fig2a[treatment == "1 hour cold", diHOME],
+       var.equal = FALSE)
+```
+
+Notes
+
+1. the default `t.test` is the Welch t-test. However, I've included `var.equal = FALSE` so the method is transparent.
+
+Compare the contrast *p* values to the three Welch *t*-tests of all pairs of treatment levels in the fig2a experiment.
+
+```{r welch-t-table, echo = FALSE}
+y_cols <- c("contrast", "t.ratio", "p.value")
+lm_t <- fig2a_m3_pairs[, y_cols]
+colnames(lm_t)[2:3] <- c("t (gls lm)", "p (gls lm)")
+t_t <- data.table(contrast =
+                    c("1 hour cold - Control", 
+                      "30 min NE - Control",
+                      "30 min NE - 1 hour cold"),
+                  "t (welch t)" = c(test1$statistic,
+                                   test2$statistic,
+                                   test3$statistic),
+                  "p (welch t)" = c(test1$p.value,
+                                   test2$p.value,
+                                   test3$p.value))
+merge(lm_t, t_t, by = "contrast") %>%
+  kable() %>%
+  kable_styling()
+```
+
+The *t* and *p*-values computed from the GLS linear model and from the three, pairwise Welch *t*-tests are the same (to about the 6th decimal place). They are the same because each is estimating $\sigma^2$ separately for each group and not as the pooled (among two groups for *t*-test or three groups for the linear model) estimate and because they use the same degrees of freedom to compute the *p*-value.
+
+Let's summarize these comparisons
+
+1. Inference from a linear model using homogenous variance (the `lm` function) and from a Student's *t*-test are the same if there are only two levels in the treatment variable.
+2. Inference from a linear model using homogenous variance (the `lm` function) and from the series of pairwise, Student's *t*-tests differ when there are more than two levels in the treatment variable.
+3. Inference from a GLS linear model using heterogenous variance (the `gls` function) and from a Welch *t*-test are the same regardless of the number of levels in the treatment variable.
+
+Even though the linear model that models heterogeneity and the Welch *t*-test produce the same results, researchers should use the linear model because
+
+1. A linear modeling strategy encourages researchers to think about the effect and uncertainty in the effect and not just a *p*-value.
+2. The linear model is nearly infinitely flexible and expandible while the *t*-test has extremely limited flexibility (The Welch *t*-test is one way to expand the classical, Student's *t*-test).
+
+## The conditional response isn't Normal
+
+Of all the issues with inference from a linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome if all we care about is *p*-values. Confidence intervals computed using the normal distribution on non-normal data can be awkward, for example, the CIs might include impossible values such as negative counts or percent of cells expressing a certain marker above 100 %.
+
+Some alternative to a linear model assuming normal distribution include:
+
+1. Count data -- count data tend to be right skewed and groups with higher mean counts tend to have larger variance.
+* Generalized linear models using either a negative binomial or quasi-poisson distribution family are a good alternative to consider.
+* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
+* Log transformation of a count response is controversial at best. log transformations can be pretty good at making the response look more like it was sampled from a normal distribution (and can make variances more similar). But...If the counts include zero, researchers have to add a kludge factor (typically equal to 1) to all counts prior to transformation. The value of the kludge factor is arbitrary and matters (adding .1 gives different results than adding 1). A log transformation (or any transformation) raises interpretation problems. For the log transformation, the effect is the difference between the means of the log-transformed counts. I don't know what the magnitude of an effect on a log scale means biologically. If we backtransform this, the effect is the ratio of the geometric means of the two groups. A ratio effect is easy enough to interpret but do we really want to model the geometric and not the arithmetic means? Finally, log transformation does not specifically address either the shape of the distribution or the heterogeneity that often comes with the non-normal shape. A generalized linear model can specifically model both the shape and the variance.
+* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+2. Fraction (proportion) data -- For example, the number of cells expressing a certain marker relative to all counted cells in the sample. Fraction data have hard bounds at 0 and 1, or at 0 and 100 if converted to a percent. Fraction data tend to be right skewed if the mean is closer to zero and left skewed if the mean is closer to the upper bound.
+* Generalized linear model using a binomial distribution family with a logit link ("logistic regression") is a good alternative to consider. This model is used for Bernouili (success/fail) responses (for example the subject "lived" or "died"), where success is assigned the value 1 and fail is assigned the value 0. Using this model with proportion data is equivalent to assigning a 0 ("does not express marker") or 1 ("expresses marker") to all cells in the count.
+* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
+* arcsin transformation. See [The arcsine is asinine: the analysis of proportions in ecology] (https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/10-0340.1)
+* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+
+### Example 1 (fig6f) -- Linear models for non-normal count data
+
+Source article: [Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells](https://www.nature.com/articles/s41591-019-0633-x){target="_blank"}
+
+[Data source](https://www.nature.com/articles/s41591-019-0633-x#Sec37){target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6858591/){target="_blank"}
+
+```{r fig6f-import, echo=FALSE}
+# need data_folder and data_from from earlier chunk
+data_from <- "Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells"
+file_name <- "41591_2019_633_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- c("Sedentary", "Exercise")
+fig6f <- read_excel(file_path,
+                     sheet = "Figure 6f",
+                     range = "A7:B29",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "treatment",
+       value.name = "neutrophils") %>%
+  na.omit() # danger!
+
+treatment_levels <- melt_col_names
+fig6f[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+# neutrophils is count/10^6
+fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
+
+fig6f[1, neutrophil_count]
+#View(fig6f)
+```
+
+#### Linear model ("t-test") with non-normal count data
+
+```{r}
+m1 <- lm(neutrophil_count ~ treatment, data = fig6f)
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "trt.vs.ctrl") %>%
+  summary(infer = TRUE)
+```
+
+#### GLM with negative binomial family with non-normal count data
+
+```{r}
+m2 <- glmmTMB(neutrophil_count ~ treatment,
+              data = fig6f,
+              family = nbinom2())
+m2_emm <- emmeans(m2,
+                  specs = "treatment",
+                  type = "response")
+m2_pairs <- contrast(m2_emm,
+                     method = "trt.vs.ctrl",
+                     type = "response") %>%
+  summary(infer = TRUE)
+```
+
+```{r}
+gg1 <- ggplot_the_model(
+  m1,
+  m1_emm,
+  m1_pairs,
+  legend_position = "none",
+  y_label = "Neutrophil Count (/mL)",
+  effect_label = "Effect (/mL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.75,1)
+)
+
+gg2 <- ggplot_the_model(
+  m2,
+  m2_emm,
+  m2_pairs,
+  legend_position = "none",
+  y_label = "Neutrophil Count (/mL)",
+  effect_label = "Effect (/mL)",
+  palette = pal_okabe_ito_blue,
+  rel_heights = c(0.75,1),
+  effect_lims = c(0.35, 1.25)
+)
+
+plot_grid(gg1, gg2, nrow=2)
+```
+
+## Hidden Code
+### Importing and wrangling the fig1b data
+
+```{r fig1b-import-unhide, echo=FALSE}
+data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
+file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig1b <- read_excel(file_path,
+                     sheet = "Fig 1 b thur c",
+                     range = "A1:C20",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  clean_names() %>%
+  na.omit() # get rid of blank row
+
+setnames(fig1b,
+         old = names(fig1b),
+         new = c("sample", "diHOME", "bat_activity"))
+
+fig1b[, id := substr(sample, 1, 6)]
+fig1b[, treatment := ifelse(substr(sample, 8,8) ==
+                              "C", "cold", "saline")]
+fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
+
+#View(fig1b)
+```
+
+### Importing and wrangling the fig2a data
+
+```{r violations-fig2a-import-unhide}
+data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
+file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- paste("Animal", 1:6)
+fig2a <- read_excel(file_path,
+                     sheet = "Fig 2a",
+                     range = "A3:G6",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "id",
+       value.name = "diHOME") # cannot start a variable with number
+setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
+
+treatment_order <- c("Control", "1 hour cold", "30 min NE")
+fig2a[, treatment := factor(treatment, treatment_order)] # order levels
+
+#View(fig2a)
+```
+
+### Importing and wrangling the fig6f data
+
+```{r violations-fig6f-import-unhide, echo=TRUE}
+# need data_folder from earlier chunk
+data_from <- "Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells"
+file_name <- "41591_2019_633_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- c("Sedentary", "Exercise")
+fig6f <- read_excel(file_path,
+                     sheet = "Figure 6f",
+                     range = "A7:B29",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "treatment",
+       value.name = "neutrophils") %>%
+  na.omit() # danger!
+
+treatment_levels <- melt_col_names
+fig6f[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+# neutrophils is count/10^6
+fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
+
+fig6f[1, neutrophil_count]
+#View(fig6f)
+```

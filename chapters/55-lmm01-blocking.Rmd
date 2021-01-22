@@ -276,12 +276,14 @@ knitr::kable(tidy(m3, conf.int=TRUE)[2, 3:10],
              digits = c(0, 5, 5, 2, 2, 3, 3, 3))
 ```
 
-```{r, echo=FALSE}
-perc.m1 <- 1 - coef(summary(m3))["TreatmentTr","Std. Error"]/coef(summary(m1))["TreatmentTr","Std. Error"]
-perc.m2 <- 1 - coef(summary(m3))["TreatmentTr","Std. Error"]/coef(summary(m2))["TreatmentTr","Std. Error"]
+```{r, echo=FALSE, eval=FALSE}
+perc.m1 <- 1 - coef(summary(m3))["TreatmentTr","Std. Error"]/
+  coef(summary(m1))["TreatmentTr","Std. Error"]
+perc.m2 <- 1 - coef(summary(m3))["TreatmentTr","Std. Error"]/
+  coef(summary(m2))["TreatmentTr","Std. Error"]
 ```
 
-Note that the estimates of treatment effect do not differ among models. What does differ is the estimated standard error of the treatment effect, which is `r round(perc.m1*100, 0)`% smaller in the linear mixed model relative to that in the linear model, and `r round(perc.m2*100, 0)`% smaller in the linear mixed model relative to that in the linear model fit to the block means. This difference in SE propogates to the confidence intervals and *p*-values.
+Note that the estimates of treatment effect do not differ among models. What does differ is the estimated standard error of the treatment effect, which is 24.3 % smaller in the linear mixed model relative to that in the linear model, and 50.1 % smaller in the linear mixed model relative to that in the linear model fit to the block means. This difference in SE propogates to the confidence intervals and *p*-values.
 
 Let's explore this a wee bit more systematically using a simple, Monte Carlo simulation experiment. 5000 fake data sets were generated. Each data set simulated an experiment with a single treatment factor with two levels ("control" and "treatment"). The design is a randomized complete block with subsampling. There are 8 blocks and 3 subsamples in each treatment level per block. The treatment effect ($\beta_1$) is 1. The observation-specific (or "within-block") variance ($\sigma^2_{varepsilon}$) is 1. The ("among-block") variance of the random intercept ($\sigma^2_{\beta_0j}$) is 1 -- the same as the the within-block variance. The variance variance of the random slope ($\sigma^2_{\beta_1j}$), which is due to a variable response of the treatment among blocks, is $0.1^2$).
 
