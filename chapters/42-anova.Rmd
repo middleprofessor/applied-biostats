@@ -51,7 +51,7 @@ Here is an ANOVA table of the vole data:
 ```{r anova-vole, echo=FALSE}
 folder <- "Deleterious consequences of antioxidant supplementation on lifespan in a wild-derived mammal"
 filename <- "RSBL-2013-0432 vole data.xlsx"
-file_path <- paste(data_path, folder, filename, sep="/")
+file_path <- here(data_path, folder, filename)
 vole_wide <- data.table(read_excel(file_path, sheet="COLD VOLES LIFESPAN", range="a2:d98"))
 setnames(vole_wide, old=colnames(vole_wide), new=c("lifespan", "control", "vitamin_E", "vitamin_C"))
 vole <- na.omit(melt(vole_wide, measure.vars=c("control", "vitamin_E", "vitamin_C"), variable.name="treatment"))
@@ -71,7 +71,7 @@ The $p$-value in the ANOVA table acts as a decision rule: if $p < 0.05$ then it 
 ```{r anova-urchin, echo=FALSE}
 folder <- "Data from Temperature and CO2 additively regulate physiology, morphology and genomic responses of larval sea urchins"
 filename <- "urchin.txt"
-file_path <- paste(data_path, folder, filename, sep="/")
+file_path <- here(data_path, folder, filename)
 urchin <- fread(file_path)
 urchin[, CO2:=factor(ifelse(CO2==400,"CO2-", "CO2+"))]
 urchin[, Temp:=factor(ifelse(Temp==13, "Temp-", "Temp+"))]
@@ -319,8 +319,10 @@ Several observations are important.
 ```{r anova-unbalanced-type3, echo=FALSE}
 fit1a <- lm(Resp ~ Temp*CO2, data=urchin.missing, contrasts=con3)
 fit1b <- lm(Resp ~ CO2*Temp, data=urchin.missing, contrasts=con3)
-knitr::kable(Anova(fit1a, type="3")[2:4,], digits=c(2,1,2,5))
-knitr::kable(Anova(fit1b, type="3")[2:4,], digits=c(2,1,2,5))
+knitr::kable(Anova(fit1a, type="3")[2:4,], digits=c(2,1,2,5)) %>%
+  kableExtra::kable_styling()
+knitr::kable(Anova(fit1b, type="3")[2:4,], digits=c(2,1,2,5)) %>%
+  kableExtra::kable_styling()
 ```
 
 3. Order does not change the statistics in the coefficient table, even for unbalanced data:

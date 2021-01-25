@@ -1,6 +1,8 @@
 # Violations of independence, homogeneity, or Normality {#violations}
 
 ```{r violations-setup, echo=FALSE, warning=FALSE, message=FALSE}
+options(knitr.kable.NA = '')
+
 library(here)
 library(janitor)
 library(readxl)
@@ -522,34 +524,7 @@ Notes
 
 1. The major advantage of using a GLM for count data instead of the classical linear model is the increased power of a significance test and increased precision of estimates. And, CIs will reflect the asymmetry in the uncertainty, unlike the CIs of a classical linear model. However, researchers should gaurd against the slight increase in Type I error of a GLM.
 
-```{r violations-glm-count-simulation, echo=FALSE}
-sim_data_folder <- "sim_data"
-sim_fn <- "counts_t_test_alternative.Rds"
-sim_path <- here(sim_data_folder, sim_fn)
-p_values <- readRDS(sim_path)
-
-method_list <- c("lm", "gls", "glm_nb", "glm_qp", "lmp", "mww")
-by_list <- c("sim", "normal","type", "n", "theta1", "theta2")
-
-p_value_table <-
-  p_values[, lapply(.SD,
-                    function(x) sum(x < 0.05)/mean(n_sim)),
-           .SDcols = method_list,
-           by = by_list]
-
-p_value_table %>%
-  kable(digits = c(0,0,0,0,2,2,3,3,3,3,3,3),
-        caption = "Table of Type I error and Power computed from simulations of non-normal count data. The model columns are linear model, generalized least squares, GLM negative binomial, GLM quasipoisson, permutation, and Mann-Whitney-Wilcoxon. The values in the model columns are the frequency of simulated experiments with p < 0.05. Sample size is 10 when equal and 12, 8 when not equal. The effect ratio is 0.7 in the simulations of power.") %>%
-  kable_styling()
-```
-
-Table \@ref(tab:violations-glm-count-simulation) summarizes the results of a simulation to compare the performance of alternatives to a *t*-test. The simulated data were modeled to look like the [Figure 6f](#violations-6f) data above (Figure \@(fig:violations-glm-count-simulation-plot)). The methods are the classical linear model (lm) (equivalent to the *t*-test), GLS linear model (gls), negative binomial GLM (glm-nb), quasi-poisson GLM (glm-qp), permutation test (lmp), and Mann-Whitney-Wilcoxon test. Performance is based on the the *p*-values from the test. The frequency of $p < 0.05$ is given in the column for each method. If the simulation was run with no treatment effect, this frequency is the simulated Type I error, given the nominal error of $\alpha = 0.05$. Values less then 0.05 are conservative and values greater than 0.05 are liberal. If the simulation was run with a treatment effect, the frequency is the simulated power of the test.
-
-Over the limited parameter space of the non-normal distribution (the shape of the count distribution including the relationship between mean and variance, the sample size, the effect size), the negative binomial GLM has substantially higher power than the classical linear model, although this comes at some cost to inflated Type I error. Even with a Normal simulated distribution, the negative binomial GLM has higher power than the classical linear model, but again, at some cost to Type I error.
-
-In the simulations with a negative binomial distributed response, the quasipoisson GLM has consistently higher power than the classical linear model and excellent Type I error control. The performance of the permutation test is very similar to that of the quasipoisson GLM. In the simulations with a negative binomial distributed response, the GLS linear model has about the same power as the classical linear model. Perhaps surprisingly, the Mann-Whitney-Wilcoxon fails to outperform the classical linear model and even underperforms the classical linear in some parts of the parameter space.
-
-```{r violations-glm-count-simulation-plot, echo=FALSE, fig.caption = "(A) histogram of distribution used for simulation of non-normal count response (sampled from negative binomial distribution with mu and theta equal to the observed values in Fig. 6f). (B) An example of a sampled fake data set."}
+```{r violations-simulation-plot, echo=FALSE, fig.cap = "(A) histogram of distribution used for simulation of non-normal count response (sampled from negative binomial distribution with mu and theta equal to the observed values in Fig. 6f). (B) An example of a sampled fake data set."}
 n <- 5000
 count <- rnegbin(n,
               mu = 3633140,
@@ -585,6 +560,44 @@ gg2 <- ggstripchart(data = fake_data,
 
 plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
 ```
+
+
+```{r violations-glm-count-simulation, echo=FALSE}
+sim_data_folder <- "sim_data"
+sim_fn <- "counts_t_test_alternative.Rds"
+sim_path <- here(sim_data_folder, sim_fn)
+p_values <- readRDS(sim_path)
+
+method_list <- c("lm", "gls", "glm_nb", "glm_qp", "lmp", "mww")
+by_list <- c("sim", "normal","type", "n1", "n2", "theta1", "theta2")
+
+p_value_table <-
+  p_values[, lapply(.SD,
+                    function(x) sum(x < 0.05)/mean(n_sim)),
+           .SDcols = method_list,
+           by = by_list]
+
+p_value_table[, n := ifelse(n1 == n2,
+                            n1,
+                            paste(n1, n2, sep = ", "))]
+p_value_table[, theta := ifelse(theta1 == theta2,
+                                theta1,
+                                paste(theta1, theta2, sep = ", "))]
+
+print_cols <- c(c("sim", "normal","type", "n", "theta"),
+                method_list)
+
+p_value_table[, .SD, .SDcols = print_cols] %>%
+  kable(digits = c(0,0,0,0,2,2,3,3,3,3,3,3),
+        caption = "Table of Type I error and Power computed from simulations of non-normal count data. The model columns are linear model, generalized least squares, GLM negative binomial, GLM quasipoisson, permutation, and Mann-Whitney-Wilcoxon. The values in the model columns are the frequency of simulated experiments with p < 0.05. Sample size is 10 when equal and 12, 8 when not equal. The effect ratio is 0.7 in the simulations of power.") %>%
+  kable_styling()
+```
+
+Table \@ref(tab:violations-glm-count-simulation) summarizes the results of a simulation to compare the performance of alternatives to a *t*-test. The simulated data were modeled to look like the [Figure 6f](#violations-6f) (Figure \@ref(fig:violations-simulation-plot)). The methods are the classical linear model (lm) (equivalent to the *t*-test), GLS linear model (gls), negative binomial GLM (glm-nb), quasi-poisson GLM (glm-qp), permutation test (lmp), and Mann-Whitney-Wilcoxon test. Performance is based on the the *p*-values from the test. The frequency of $p < 0.05$ is given in the column for each method. If the simulation was run with no treatment effect, this frequency is the simulated Type I error, given the nominal error of $\alpha = 0.05$. Values less then 0.05 are conservative and values greater than 0.05 are liberal. If the simulation was run with a treatment effect, the frequency is the simulated power of the test.
+
+Over the limited parameter space of the non-normal distribution (the shape of the count distribution including the relationship between mean and variance, the sample size, the effect size), the negative binomial GLM has substantially higher power than the classical linear model, although this comes at some cost to inflated Type I error. Even with a Normal simulated distribution, the negative binomial GLM has higher power than the classical linear model, but again, at some cost to Type I error.
+
+In the simulations with a negative binomial distributed response, the quasipoisson GLM has consistently higher power than the classical linear model and excellent Type I error control. The performance of the permutation test is very similar to that of the quasipoisson GLM. In the simulations with a negative binomial distributed response, the GLS linear model has about the same power as the classical linear model. Perhaps surprisingly, the Mann-Whitney-Wilcoxon fails to outperform the classical linear model and even underperforms the classical linear in some parts of the parameter space.
 
 ## Hidden Code
 ### Importing and wrangling the fig1b data
