@@ -450,7 +450,7 @@ m2 <- glmmTMB(neutrophil_count ~ treatment,
 
 Notes
 
-1. We are using the function `glmmTMB`, which is allows fitting from multiple distribution families. Other than the addition of the `family` argument, the R code looks like that for the `lm` fit.
+1. The function `glmmTMB` allows fitting from multiple distribution families and works like the `lm` function with a few tweaks, including an argument for the distribution family.
 
 **inference**
 
@@ -514,11 +514,13 @@ plot_grid(gg1, gg2, nrow=2, labels = "AUTO")
 
 Notes
 
-1. Generalized linear models are covered more thoroughly in [Chapter](#counts).
+1. Generalized linear models are covered more thoroughly in Chapter \@ref(counts).
 2. The effect estimated from the GLM is not a difference but the ratio of the exercise group mean to the sedentary group mean. Both differences and ratios indicate how much bigger (or smaller) the mean of one group is compared to another but in a linear model "how much bigger" is a difference while in the glm here "how much bigger" is a multiple (or "times") -- the mean of the exercise group is .59X the mean of the sedentary group.
 3. The CIs for the means and for the effect are asymmetric in the GLM. The CIs from a 
 
 ### My data aren't normal, what is the best practice?
+
+1. The major advantage of using a GLM for count data instead of the classical linear model is the increased power of a significance test and increased precision of estimates. And, CIs will reflect the asymmetry in the uncertainty, unlike the CIs of a classical linear model. However, researchers should gaurd against the slight increase in Type I error of a GLM.
 
 ```{r violations-glm-count-simulation, echo=FALSE}
 sim_data_folder <- "sim_data"
@@ -537,11 +539,11 @@ p_value_table <-
 
 p_value_table %>%
   kable(digits = c(0,0,0,0,2,2,3,3,3,3,3,3),
-        caption = "Table of Type I error in simulation of non-normal count data. The model columns are linear model, generalized least squares, GLM negative binomial, GLM quasipoisson, permutation, and Mann-Whitney-Wilcoxon. The values in the model columns are the frequency of simulated experiments with p < 0.05. Sample size is 10 when equal and 12, 8 when not equal. The effect ratio is 2 in the simulations of power.") %>%
+        caption = "Table of Type I error and Power computed from simulations of non-normal count data. The model columns are linear model, generalized least squares, GLM negative binomial, GLM quasipoisson, permutation, and Mann-Whitney-Wilcoxon. The values in the model columns are the frequency of simulated experiments with p < 0.05. Sample size is 10 when equal and 12, 8 when not equal. The effect ratio is 0.7 in the simulations of power.") %>%
   kable_styling()
 ```
 
-Table \@ref(tab:violations-glm-count-simulation) summarizes the results of a simulation to compare the performance of alternatives to a *t*-test. The simulated data were modeled to look like the [Figure 6f](#violations-6f) data above. The methods are the classical linear model (lm) (equivalent to the *t*-test), GLS linear model (gls), negative binomial GLM (glm-nb), quasi-poisson GLM (glm-qp), permutation test (lmp), and Mann-Whitney-Wilcoxon test. Performance is based on the the *p*-values from the test. The frequency of $p < 0.05$ is given in the column for each method. If the simulation was run with no treatment effect, this frequency is the simulated Type I error, given the nominal error of $\alpha = 0.05$. Values less then 0.05 are conservative and values greater than 0.05 are liberal. If the simulation was run with a treatment effect, the frequency is the simulated power of the test.
+Table \@ref(tab:violations-glm-count-simulation) summarizes the results of a simulation to compare the performance of alternatives to a *t*-test. The simulated data were modeled to look like the [Figure 6f](#violations-6f) data above (Figure \@(fig:violations-glm-count-simulation-plot)). The methods are the classical linear model (lm) (equivalent to the *t*-test), GLS linear model (gls), negative binomial GLM (glm-nb), quasi-poisson GLM (glm-qp), permutation test (lmp), and Mann-Whitney-Wilcoxon test. Performance is based on the the *p*-values from the test. The frequency of $p < 0.05$ is given in the column for each method. If the simulation was run with no treatment effect, this frequency is the simulated Type I error, given the nominal error of $\alpha = 0.05$. Values less then 0.05 are conservative and values greater than 0.05 are liberal. If the simulation was run with a treatment effect, the frequency is the simulated power of the test.
 
 Over the limited parameter space of the non-normal distribution (the shape of the count distribution including the relationship between mean and variance, the sample size, the effect size), the negative binomial GLM has substantially higher power than the classical linear model, although this comes at some cost to inflated Type I error. Even with a Normal simulated distribution, the negative binomial GLM has higher power than the classical linear model, but again, at some cost to Type I error.
 
@@ -587,7 +589,7 @@ plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
 ## Hidden Code
 ### Importing and wrangling the fig1b data
 
-```{r fig1b-import-unhide, echo=FALSE}
+```{r fig1b-import-unhide, echo=TRUE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
