@@ -1,0 +1,625 @@
+# Simulations -- Count data (alternatives to a t-test) {#count-sim}
+
+```{r setup}
+library(here)
+library(data.table)
+library(readxl)
+
+library(MASS)
+library(lmPerm)
+library(nlme)
+library(glmmTMB)
+library(emmeans)
+
+library(knitr)
+library(kableExtra)
+
+here <- here::here
+```
+
+## Use data similar to Figure 6f from Example 1
+
+The simulated data are modeled to look like the [Figure 6f](#violations-6f) data used in Example 1 of the Violations chapter.
+
+```{r sim-counts-fig6f-import}
+data_folder <- "data"
+data_from <- "Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells"
+file_name <- "41591_2019_633_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# assuming mice are independent and not same mouse used for all three treatment
+melt_col_names <- c("Sedentary", "Exercise")
+fig6f <- read_excel(file_path,
+                     sheet = "Figure 6f",
+                     range = "A7:B29",
+                     col_names = TRUE) %>%
+  data.table() %>%
+  melt(measure.vars = melt_col_names,
+       variable.name = "treatment",
+       value.name = "neutrophils") %>%
+  na.omit() # danger!
+
+treatment_levels <- melt_col_names
+fig6f[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+# neutrophils is count/10^6
+fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
+
+# fig6f[1, neutrophil_count]
+#View(fig6f)
+```
+
+```{r sim-counts-fig6f-,1}
+m1 <- glmmTMB(neutrophil_count ~ treatment,
+              data = fig6f,
+              family = nbinom2(link = "log"))
+mu_cn_obs <- exp(coef(summary(m1))$cond["(Intercept)", "Estimate"])
+theta_obs <- sigma(m1) %>%
+  round(1)
+
+# compare with glm.nb, which is used for the simulation
+m2 <- glm.nb(neutrophil_count ~ treatment,
+              data = fig6f)
+mu_cn_obs
+m2$theta
+```
+
+## Functions
+
+```{r simulator}
+simulator <- function(n_sim = 1000,
+                      n_levels = c(10, 10),
+                      treatment_levels = c("cn", "tr"),
+                      mu_levels = c(10, 10),
+                      theta_levels = c(1, 1),
+                      sigma_levels = c(1,1),
+                      normal = FALSE,
+                      seed = 1){
+  
+  set.seed(seed)
+  
+  N <- sum(n_levels)
+  
+  mu_sim <- rep(mu_levels, n_levels)
+  theta_sim <- rep(theta_levels, n_levels)
+  sigma_sim <- rep(sigma_levels, n_levels)
+  
+  method_list <- c("lm", "gls", "glm_nb", "glm_qp", "lmp", "mww")
+  p_values <- matrix(as.numeric(NA),
+                     nrow = n_sim,
+                     ncol = length(method_list)) %>%
+    data.table()
+  colnames(p_values) <- method_list
+  
+  fake_counts <- matrix(as.numeric(NA),
+                        nrow = N,
+                        ncol = n_sim)
+  
+  if(normal == TRUE){
+    for(j in 1:n_sim){
+      fake_counts[, j] <- rnorm(N,
+                                mean = mu_sim,
+                                sd = sigma_sim) %>%
+        round(0)
+    }
+  }else{
+    for(j in 1:n_sim){
+      fake_counts[, j] <- rnegbin(N,
+                                  mu = mu_sim,
+                                  theta = theta_sim)
+    }
+  }
+  
+  for(j in 1:n_sim){
+    fake_data[, count := fake_counts[,j]]
+    m1 <- lm(count ~ treatment, data = fake_data)
+    m2 <- gls(count ~ treatment,
+              data = fake_data,
+              weights = varIdent(form = ~ 1 | treatment))
+    m2_pairs <- contrast(emmeans(m2, specs = "treatment"),
+                         method = "revpairwise") %>%
+      summary()
+    m3 <- glm.nb(count ~ treatment, data = fake_data)
+    m4 <- glm(count ~ treatment,
+                 data = fake_data,
+                 family = quasipoisson)
+    # m3 <- glmmTMB(count ~ treatment,
+    #                data = fake_data,
+    #                family = nbinom2(link = "log"))$cond
+    # m4 <- glmmTMB(count ~ treatment,
+    #                data = fake_data,
+    #                family = nbinom1(link = "log"))$cond
+    m5 <- lmp(count ~ treatment,
+              data = fake_data,
+              perm = "Exact",
+              settings = FALSE)
+    m6 <- wilcox.test(count ~ treatment,
+                      data = fake_data) 
+    p_values[j, lm := coef(summary(m1))[2, "Pr(>|t|)"]]
+    p_values[j, gls := m2_pairs[1, "p.value"]]
+    p_values[j, glm_nb := coef(summary(m3))[2, "Pr(>|z|)"]]
+    p_values[j, glm_qp := coef(summary(m4))[2, "Pr(>|t|)"]]
+    p_values[j, lmp := coef(summary(m5))[2, "Pr(Prob)"]]
+    p_values[j, mww := m6$p.value]
+  }
+  
+  return(p_values)
+}
+```
+
+```{r}
+binder <- function(
+  p_values,
+  sim_res,
+  sim_i,
+  n_levels_sim,
+  mu_levels_sim,
+  theta_levels_sim,
+  sigma_levels_sim,
+  normal_sim){
+  
+  sim_table <- data.table(
+    sim = sim_i,
+    n_sim = n_sim_i,
+    n1 = n_levels_sim[1],
+    n2 = n_levels_sim[2],
+    n = ifelse(n_levels_sim[1] == n_levels_sim[2],
+               "=",
+               "!="),
+    mu1 = mu_levels_sim[1],
+    mu2 = mu_levels_sim[2],
+    type = ifelse(mu_levels_sim[1] == mu_levels_sim[2],
+                  "type 1",
+                  "power"),
+    theta1 = theta_levels_sim[1],
+    theta2 = theta_levels_sim[2],
+    sigma1 = sigma_levels_sim[1],
+    sigma1 = sigma_levels_sim[2],
+    normal = normal_sim,
+    sim_res    
+  )
+  
+  p_values <- rbind(p_values, sim_table)
+  return(p_values)
+}
+
+```
+
+## Simulations
+
+```{r sim-counts-initialize}
+do_it <- FALSE
+p_values <- data.table(NULL)
+sim_i <- 0
+n_sim_i = 4000
+
+
+```
+
+### Type I, Pseudo-Normal distribution
+
+```{r, warning=FALSE, message=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(1000, 1000)
+theta_levels_sim <- c(NA, NA) # not used
+sigma_levels_sim <- c(100, 100)
+normal_sim <- TRUE
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Type I, neg binom, equal n
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs)
+theta_levels_sim <- c(theta_obs, theta_obs)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Type I, neg binom, equal n, small theta
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs)
+theta_levels_sim <- c(1, 1)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Type I, neg binom, unequal n
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(12, 8)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs)
+theta_levels_sim <- c(theta_obs, theta_obs)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Power, Pseudo-Normal distribution, equal n
+
+```{r, warning=FALSE, message=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(1000, 1100)
+theta_levels_sim <- c(NA, NA) # not used
+sigma_levels_sim <- c(100, 100)
+normal_sim <- TRUE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+  
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Power, neg binom, equal n
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs*.7)
+theta_levels_sim <- c(theta_obs, theta_obs)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Power, neg binom, small theta
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(10, 10)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs*.7)
+theta_levels_sim <- c(1, 1)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Power, neg binom, unequal n
+
+```{r, message=FALSE, warning=FALSE}
+
+sim_i <- sim_i + 1
+n_levels_sim <- c(12, 8)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs*.7)
+theta_levels_sim <- c(theta_obs, theta_obs)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Power, neg binom, unequal n, unequal theta
+
+What if the treatment affects the variance and the mean?
+
+```{r, message=FALSE, warning=FALSE}
+
+sim_i <- sim_i + 1
+n_levels_sim <- c(12, 8)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs*.7)
+theta_levels_sim <- c(1, theta_obs)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+### Type 1, neg binom, equal n, unequal theta
+
+What if the treatment affects the variance but not the mean?
+
+```{r, message=FALSE, warning=FALSE}
+sim_i <- sim_i + 1
+n_levels_sim <- c(12, 8)
+mu_levels_sim <- c(mu_cn_obs, mu_cn_obs)
+theta_levels_sim <- c(theta_obs, 1)
+sigma_levels_sim <- c(NA, NA) # not used
+normal_sim <- FALSE
+
+# fake_data has to be global for emmeans to run inside 
+# a function
+treatment_levels <- c("cn", "tr")
+fake_data <- data.table(
+  treatment = factor(rep(treatment_levels, n_levels_sim),
+                     levels = treatment_levels)
+)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_i,
+    n_levels = n_levels_sim,
+    mu_levels = mu_levels_sim,
+    theta_levels = theta_levels_sim, # not used
+    sigma_levels = sigma_levels_sim,
+    normal = normal_sim
+  )
+  p_values <- binder(p_values,
+                     sim_res,
+                     sim_i,
+                     n_levels_sim,
+                     mu_levels_sim,
+                     theta_levels_sim,
+                     sigma_levels_sim,
+                     normal_sim)
+#  apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+}
+
+```
+
+## Save it, Read it
+
+```{r}
+sim_data_folder <- "sim_data"
+sim_fn <- "counts_t_test_alternative.Rds"
+sim_path <- here(sim_data_folder, sim_fn)
+if(do_it == TRUE){
+  saveRDS(p_values, sim_path)
+}else{
+  p_values <- readRDS(sim_path)
+}
+
+```
+
+## Analysis
+
+```{r}
+method_list <- c("lm", "gls", "glm_nb", "glm_qp", "lmp", "mww")
+
+p_values[, lapply(.SD,
+                  function(x) sum(x < 0.05)/mean(n_sim)),
+         .SDcols = method_list,
+         by = c("sim", "normal","type", "n", "theta1", "theta2")] %>%
+  kable(digits = c(0,0,0,0,2,2,3,3,3,3,3,3)) %>%
+  kable_styling()
+
+```
+

@@ -1,6 +1,9 @@
 # Linear models with a single, categorical *X* ("t-tests" and "ANOVA") {#oneway}
 
 ```{r categorical-x-setup, echo=FALSE, warning=FALSE, message=FALSE}
+
+options(knitr.kable.NA = '')
+
 library(here)
 library(janitor)
 library(readxl)
@@ -918,21 +921,24 @@ m1_planned %>%
 ANOVA is Analysis of Variance. Researchers frequently use the term "ANOVA" as the name for an analysis of an experiment with single-factor with more than two groups. However, ANOVA is a general method of inference for complex experimental designs. ANOVA models and regression models are different ways of expressing the same underlying linear model.
 
 ```{r fig2a-anova-table, echo=FALSE, warning=FALSE, message=FALSE}
-# .I is a data.table function that returns the row number
-fig2a[, fake_id := paste("mouse", .I)]
+m1 <- lm(diHOME ~ treatment, data = fig2a)
+m1_anova <- anova(m1)
 
-m1_aov4 <- aov_4(diHOME ~ treatment + (1|fake_id),
-                 data = fig2a)
-
-m1_aov4_nice <- nice(m1_aov4)[1, -5]
-colnames(m1_aov4_nice)[1] <- "Term"
-
-m1_aov4_nice %>%
-  kable(digits = c(0,1,1,3),
+m1_anova %>%
+  kable(digits = c(0,1,1,3,3),
         caption = "ANOVA table for the Figure 2a (example 2) data.") %>%
   kable_styling()
 ```
-An ANOVA table for a single factor with more than two groups has a single *p*-value for the treatment term. The single *p*-value is the probability of sampling a value of *F* as large or larger than the observed *F* under the null (no true effects of either treatment and all specifications of the generating model are true). There is not much we can do with this number - we want to estimate the effect sizes and their uncertainty and we don't get this from an ANOVA table. Many textbooks, websites, and colleagues suggest to 1) fit the ANOVA, 2) check the *F*, and, if $F < 0.05$, 3) do "tests after an ANOVA". These tests after an ANOVA are the planned comparisons and post-hoc tests described above using the linear model. In classical ANOVA, the initial computation of the means and sums of squares was a logical first step to the decomposition of these sums of squares to compute the contrasts. With modern linear models using regression, the ANOVA first step is unnecessary and not recommended.
+
+Notes
+
+1. Do not confuse the statistics in an ANOVA table with those in a coefficient table.
+2. The ANOVA table \@ref(tab:fig2a-anova-table) has two rows. The first row contains the statistics for the factor $\texttt{treatment}$. The statistics address the null hypothesis "there is no effect of treatment -- all groups have the same population mean". This is a *p* value about the factor as a whole and not the individual comparisons of different groups within the factor.
+3. The second row contains the statistics for the error -- the residuals of the model.
+4. $\texttt{F value}$ is the test statistic. It is a ratio of variances, which is why this analysis is called Analysis of Variance. The numerator variance is the $\texttt{Mean Sq}$ of $\texttt{treatment}$. The numerator variance is the value in \texttt{Mean Sq}$ of $\texttt{treatment}$. The denominator variance is the value in \texttt{Mean Sq}$ of $\texttt{Residuals}$.
+5. $\texttt{Mean Sq}$ contains the **mean square** for each term (row) in the table. The mean square is a variance. Remember that the numerator of a variance is a sum of squared differences between observed and mean values. The numerator of $\texttt{Mean Sq}$ is the value in $\texttt{Sum Sq}$ from the same row. And, remember that the denominator of a variance is a degree of freedom. The denominator of $\texttt{Mean Sq}$ is the value in $\texttt{DF}$ from the same row. 
+
+An ANOVA table for a single factor with more than two groups has a single *p*-value for the treatment term. The single *p*-value is the probability of sampling a value of *F* as large or larger than the observed *F* under the null (no true effects of either treatment and all specifications of the generating model are true). There is not much we can do with this number - we want to estimate the effect sizes and their uncertainty and we don't get this from an ANOVA table. Many textbooks, websites, and colleagues suggest to 1) fit the ANOVA, 2) check the *F*, and, if $F < 0.05$, 3) do "tests after an ANOVA". These tests after an ANOVA are the planned comparisons and post-hoc tests described above using the linear model. In classical ANOVA, the initial computation of the cell means (means of treatment combinations) and sums of squares was a logical first step to the decomposition of these sums of squares to compute the contrasts. With modern linear models using regression, the ANOVA first step is unnecessary and not recommended.
 
 If your PI, manager, thesis committee, or journal editor insists that you do ANOVA, and you cannot convince them otherwise, here is how to generate an ANOVA table in R. Note that even though we are generating that table, the computation of the contrast table and all inference from that is not part of the ANOVA.
 
@@ -982,7 +988,7 @@ options(contrasts = c("contr.sum", "contr.poly"))
 If you're reading this book, you almost certainly don't want to do this because this code resets how R computes coefficients of linear models and SS of ANOVA tables. This will effect all future analysis until the contrasts are set to something else or a new R session is started. 
 4. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
 5. The coefficients of `m1_type3` will be different from `m1`. The intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology.
-5. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
+6. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
 
 **base R aov and anova**
 

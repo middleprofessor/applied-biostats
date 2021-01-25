@@ -1,4 +1,4 @@
-# Model Checking
+# Model Checking {#model-checking}
 
 ```{r model-check-setup, echo=FALSE, warning=FALSE, message=FALSE}
 # import an messaging
@@ -142,7 +142,7 @@ The two plots suggest two different approaches for model checking. First, we cou
 **Alert** Some textbooks that recommend formal hypothesis tests of normality recommend the inefficient, multiple testing on each group separately. This isn't wrong, it's just more work than it needs to be and also suffers from "multiple testing".
 </div> 
 
-### A Normal Q-Q plot is used to check for characteristic departures from Normality 
+### A Normal Q-Q plot is used to check for characteristic departures from Normality {#normal-qq}
 A Normal Q-Q plot is a scatterplot of
 
 1. **sample quantiles** on the *y* axis. The sample quantiles is the vector of $N$ residuals in rank order, from smallest (most negative) to largest (most positive). Sometimes this vector is standardized by dividing the residual by the standard deviation of the residuals (doing this makes no difference to the interpretation of the Q-Q plot).

@@ -30,7 +30,7 @@ rmd_files: ["index.Rmd",
 "chapters/57-longitudinal.Rmd",
 "chapters/60-glm01-counts.Rmd",
 "chapters/70-gls.Rmd",
-"chapters/80-supplements.Rmd",
+"simulations/simulation-glm-counts.Rmd",
 "chapters/92-R_resources.Rmd",
 "chapters/93-Getting_started_with_linear_modeling.Rmd"
 ]

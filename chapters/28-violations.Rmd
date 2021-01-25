@@ -1,4 +1,4 @@
-# Linear models with violations of independence, homogeneity, or Normality {#violations}
+# Violations of independence, homogeneity, or Normality {#violations}
 
 ```{r violations-setup, echo=FALSE, warning=FALSE, message=FALSE}
 library(here)
@@ -39,12 +39,13 @@ data_folder <- "data"
 
 ## Lack of independence {#oneway-paired-t}
 ### A paired t-test is a special case of a linear model for correlated data with two groups
+#### Example 1 (diHOME fig1b)
 
 The data from the experiment for Figure 1b of the [12,13-diHOME article](#oneway-data) are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) violates the "independent" sampling assumption for inference because there are two measures of the response in each individual.
 
 A "which test?" strategy points to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups.
 
-Here, I show empirically that a paired t-test is a special case of a **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. 
+Here, I show empirically that a paired t-test is a special case of a **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. Correlated error and linear mixed models are discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
 
 A good way to think about the model generating the data is
 
@@ -84,7 +85,7 @@ fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
 #View(fig1b)
 ```
 
-#### Fit a linear mixed model
+#### Fit the model
 
 ```{r fig1b-m1}
 # fit the model
@@ -96,7 +97,7 @@ fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
 3. `(1|id)` tells `lmer` to add $\texttt{id}$ as a random intercept.
 4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ if a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
 
-#### Inferences from the linear mixed model and paired t-test are the same when there are only two groups
+#### Inference
 
 Inference using the linear model with added random factor:
 
@@ -128,9 +129,10 @@ fig1b_ttest
 
 Notes
 
-1. The *t* and *p* values are the same because the paired *t*-test is a special case of the linear model.
+1. The *t* and *p* values from the linear model and from the *t*-tests are the same because the paired *t*-test is a special case of the linear model.
 
-### Example 2 -- more than two groups
+### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
+#### Example 2 (diHOME fig2a) -- more than two groups
 
 ```{r violations-fig2a-import, echo=FALSE, message=FALSE}
 file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
@@ -162,6 +164,8 @@ The linear model (in regression notation) is
 diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold\ + \beta_2 treatment\_NE\ + \varepsilon 
 \end{equation}
 
+#### Fit the model
+
 ```{r violoations-fig2a-m2}
 # fit the model
 fig2a_m2 <- lmer(diHOME ~ treatment + (1|id), data = fig2a)
@@ -171,7 +175,7 @@ Notes
 
 1. If a treatment factor has more than two groups, nothing special has to be done relative to a model with a treatment factor with only two groups.
 
-#### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
+#### Inference
 
 Inference using the linear model with added random factor:
 
@@ -223,6 +227,8 @@ Notes
 
 Heterogeneity of variance among treatment groups is a problem for inference, especially if the sample size is unequal among groups (statisticians tend to agree that heterogeneity is much more problematic than a non-normal response).
 
+#### A Welch t-test is a special case of a linear model for heterogeneity
+
 A "which test?" strategy points to a Welch's *t*-test in place of Student's *t*-test if there is heterogeneity of variances between treatment groups. A Welch t-test is infrequent in the experimental biology literature, perhaps because
 
 1. it is poorly known and it doesn't occur to researchers to use a test that models heterogeneity of variances.
@@ -234,6 +240,7 @@ Some statisticians argue that researchers should *always* use a Welch t-test ins
 
 Modeling variance heterogeneity is the focus of Chapter \@ref(gls) so the account here is brief. Heterogeneity can be modeled using a generalized least squares linear model with the `gls` function. The `weights` argument is used to model the variances using each group's sample variance. In this example, I use the data from the Figure 1b experiment, which can be compared to the analysis of the same data in Example 2 above.
 
+#### Fit the model
 ```{r fig2a_m3}
 # gls fails with missing data
 subdata <- fig2a[is.na(diHOME) == FALSE,] # omit rows with missing data
@@ -243,6 +250,8 @@ fig2a_m3 <- gls(diHOME ~ treatment,
 ```
 
 The model `fig2a_m3` uses variance computed in each group separately as the estimate of $\sigma$ for that group. The coefficient table of the GLS model is
+
+#### Inference from the linear model
 
 ```{r fig2a_m3_coef}
 fig2a_m3_coef <- cbind(coef(summary(fig2a_m3)),
@@ -281,7 +290,8 @@ Notes
 
 1. Compare the statistics for "1 hour cold - Control" and "30 min NE - Control" to the coefficients for $\texttt{treatment1 hour cold}$ and $\texttt{treatment30 min NE}$ in the coefficient table. The estimates, SE, and *t* are the same but the CIs and *p* values differ. The contrast function is using a different method ("satterthwaite") for computing the degrees of freedom and this results in a different value of the *t*-distribution tail area used to compute the CI and *p* value.
 
-The 
+#### Inference using Welch t-test
+
 ```{r welch-t, echo=TRUE}
 test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
        fig2a[treatment == "Control", diHOME],
@@ -299,6 +309,8 @@ test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
 Notes
 
 1. the default `t.test` is the Welch t-test. However, I've included `var.equal = FALSE` so the method is transparent.
+
+#### Compare inference from the linear model and Welch t-tests
 
 Compare the contrast *p* values to the three Welch *t*-tests of all pairs of treatment levels in the fig2a experiment.
 
@@ -336,24 +348,33 @@ Even though the linear model that models heterogeneity and the Welch *t*-test pr
 
 ## The conditional response isn't Normal
 
-Of all the issues with inference from a linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome if all we care about is *p*-values. Confidence intervals computed using the normal distribution on non-normal data can be awkward, for example, the CIs might include impossible values such as negative counts or percent of cells expressing a certain marker above 100 %.
+I often read that of all the issues with inference from a classical linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome -- we should be much more concerned about lack of independence and heterogeneity.
 
-Some alternative to a linear model assuming normal distribution include:
+1. The theoretical basis for this sentiment is the **central limit theorem**. In short, if we repeatedly 1) sample a non-normal distribution and 2) compute the sample mean, the distribution *of these resampled means* is approximately normal (the distribution converges to normal as the sample size increases). Because inferential statistics using a classical linear model assume a normal distribution of the means, inference from classical linear models are increasingly robust to non-normal distributions as the sample size increases. The main issue for applied statistics in experimental biology is the small sample sizes.
+2. Empirical results from simulations support the theory. Actual type I error using classical linear models with non-normal data tends to be close to the nominal (say, 0.05) level.
+3. That said, **generalized linear models that explicitly model the distribution have more power than classical linear models and this is a pretty good reason to use GLMs**.
+4. Confidence intervals computed using the normal distribution on non-normal data can be awkward, for example, the CIs might include impossible values such as negative counts or percent of cells expressing a certain marker above 100 %.
+
+The normality assumption of the classical linear model does not apply to the distribution of the response (*Y*) variable and certainly not to the distribution of the treatment (*X*) variable but to the *residuals of the fit model* (actually, it applies to the distribution of the means, but if the sampling distribution is normal then the means are normal). An equivalent way to think about this is that the normality assumption applies to the distribution of the response if all values of $X$ in the sample are the same -- this is known as the **conditional response**. Contrary to common practice by experimental biologists, and the advice of some textbooks, there is no good reason to use the *p*-value from a test of normality as a decision tool to use either a *t*-test or a non-parametric test like the Mann-Whitney-Wilcoxon. A test of normality for small samples will frequently  result in $p > 0.05$ ("normal"), even for fake data sampled from a nonnormal distribution, while a test with a large sample size will frequently result in $p < 0.05$ ("not-normal") even if a histogram of the residuals appears normal.
+
+A Normal Q-Q plot (Section \@ref(normal-qq)) is a useful tool for the decision to use some alternative to inference using a Normal assumption. If a Q-Q plot indicates that the residuals are far from expected for a normal distribution, then the researcher has several alternatives, the best choice of which partially depends on the goals of the analysis. Some alternative to a linear model assuming normal distribution include:
 
 1. Count data -- count data tend to be right skewed and groups with higher mean counts tend to have larger variance.
 * Generalized linear models using either a negative binomial or quasi-poisson distribution family are a good alternative to consider.
-* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* Bootstrap confidence intervals and permutation *p*-values are resampling techniques. Bootstrap confidence intervals are a good alternative if the sample size is much larger (say, > 40) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
 * A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
 * Log transformation of a count response is controversial at best. log transformations can be pretty good at making the response look more like it was sampled from a normal distribution (and can make variances more similar). But...If the counts include zero, researchers have to add a kludge factor (typically equal to 1) to all counts prior to transformation. The value of the kludge factor is arbitrary and matters (adding .1 gives different results than adding 1). A log transformation (or any transformation) raises interpretation problems. For the log transformation, the effect is the difference between the means of the log-transformed counts. I don't know what the magnitude of an effect on a log scale means biologically. If we backtransform this, the effect is the ratio of the geometric means of the two groups. A ratio effect is easy enough to interpret but do we really want to model the geometric and not the arithmetic means? Finally, log transformation does not specifically address either the shape of the distribution or the heterogeneity that often comes with the non-normal shape. A generalized linear model can specifically model both the shape and the variance.
-* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+* Classic non-parametric tests such as Mann-Whitney-Wilcoxon were invented when computers were not fast enough to perform permutation tests and before the development of Generalized Linear Models (and other modern methods). Since at least 1990, there are better alternatives to non-parametric tests.
 2. Fraction (proportion) data -- For example, the number of cells expressing a certain marker relative to all counted cells in the sample. Fraction data have hard bounds at 0 and 1, or at 0 and 100 if converted to a percent. Fraction data tend to be right skewed if the mean is closer to zero and left skewed if the mean is closer to the upper bound.
 * Generalized linear model using a binomial distribution family with a logit link ("logistic regression") is a good alternative to consider. This model is used for Bernouili (success/fail) responses (for example the subject "lived" or "died"), where success is assigned the value 1 and fail is assigned the value 0. Using this model with proportion data is equivalent to assigning a 0 ("does not express marker") or 1 ("expresses marker") to all cells in the count.
-* Bootstrap confidence intervals are okay if the sample size is much larger (say, > 50) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
+* Bootstrap confidence intervals and permutation *p*-values are resampling techniques. Bootstrap confidence intervals are a good alternative if the sample size is much larger (say, > 40) than typical in experimental biology. Permutation *p*-values are a good alternative regardless of sample size.
 * A GLS linear model to account for any heterogeneity in variance that typically accompanies non-normal data. This doesn't address the non-normal distribution but, again, heterogeneity is typically a much larger problem than non-normality.
 * arcsin transformation. See [The arcsine is asinine: the analysis of proportions in ecology] (https://esajournals.onlinelibrary.wiley.com/doi/full/10.1890/10-0340.1)
-* non-parametric tests such as Mann-Whitney-Wilcoxan tests. Non-parametric tests are (almost) entirely focused on *p*-values and are effectively limited to pairwise comparisons (no added covariates, or factorial experiments). The Mann-Whitney-Wilcoxan is only a test of a difference in the median between two groups under the assumption of equal dispersion. Non-parametric tests were invented during the pre-computer age when *p*-values were computed using pencil and paper. Since at least the mid 1980s, there are better alternatives to non-parametric tests.
+* Classic non-parametric tests such as Mann-Whitney-Wilcoxon were invented when computers were not fast enough to perform permutation tests and before the development of Generalized Linear Models (and other modern methods). Since at least 1990, there are better alternatives to non-parametric tests.
 
-### Example 1 (fig6f) -- Linear models for non-normal count data
+Generalized linear models that explicitly model the distribution of the response is covered in more detail in the chapter [Linear models for count data -- Generalized Linear Models I](#counts).
+
+### Example 1 (fig6f) -- Linear models for non-normal count data {#violations-6f}
 
 Source article: [Exercise reduces inflammatory cell production and cardiovascular inflammation via instruction of hematopoietic progenitor cells](https://www.nature.com/articles/s41591-019-0633-x){target="_blank"}
 
@@ -386,26 +407,69 @@ fig6f[, treatment := factor(treatment,
 # neutrophils is count/10^6
 fig6f[, neutrophil_count := round(neutrophils*10^6, 0)]
 
-fig6f[1, neutrophil_count]
+# fig6f[1, neutrophil_count]
 #View(fig6f)
 ```
 
-#### Linear model ("t-test") with non-normal count data
+#### Fit a Linear Model -- Inference assuming Normal conditional response
 
-```{r}
+**fit the model**
+
+```{r violations-fig6f-m1}
 m1 <- lm(neutrophil_count ~ treatment, data = fig6f)
+```
+
+**check the model**
+
+```{r violations-fig6f-check, warning = FALSE, message=FALSE}
+ggcheck_the_model(m1)
+```
+
+The left plot shows classic right skew. The right plot shows evidence for positive relationship between mean and variance. This suggest we fit a negative binomial or quasi-poisson model.
+
+**inference**
+
+```{r violations-fig6f-m1_pairs}
 m1_emm <- emmeans(m1, specs = "treatment")
 m1_pairs <- contrast(m1_emm,
                      method = "trt.vs.ctrl") %>%
   summary(infer = TRUE)
 ```
 
-#### GLM with negative binomial family with non-normal count data
+#### Fit a Generalized Linear Model -- inference assuming negative binomial conditional response
 
-```{r}
+Generalized linear models for count data are covered more thoroughly in the chapter [Linear models for count data -- Generalized Linear Models I](#counts).
+
+**fit the model**
+
+```{r violations-fig6f-m2}
 m2 <- glmmTMB(neutrophil_count ~ treatment,
               data = fig6f,
-              family = nbinom2())
+              family = nbinom2(link = "log"))
+```
+
+Notes
+
+1. We are using the function `glmmTMB`, which is allows fitting from multiple distribution families. Other than the addition of the `family` argument, the R code looks like that for the `lm` fit.
+
+**inference**
+
+```{r violations-fig6f-m1_coef}
+m2_coef <- coef(summary(m2))$cond
+
+m2_coef %>%
+  kable(digits = c(2,3,1,5)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. The `coef` function for a glmmTMB object is a list with several elements. the element $\texttt{\$cond}$" returns the coefficient table.
+2. $b_0$ ($\texttt{(intercept)}$) is the natural log of the mean of the reference ("sedentary") group.
+3. $b_1$ ($\texttt{(intercept)}$) is the difference of the natural log of the mean of exercise group mean and the natural log of the mean of the sedentary group mean.
+4. The coefficient values are on a **link scale**, which is the scale of the transformation of the group means in the GLM fit. The link transformation for this fit was `log` (the natural log transformation). In general, values on the **response scale** are more interpretable. $exp(b_0)$ is the modeled mean of the reference group on the response scale (because the model had no covariates, it is the sample mean of the reference group). $exp(b_1)$ is the **ratio** of the exercise to sedentary means. Remember: $exp(log(a) - log(b)) = a/b$
+
+```{r violations-fig6f-m2_pairs}
 m2_emm <- emmeans(m2,
                   specs = "treatment",
                   type = "response")
@@ -415,7 +479,13 @@ m2_pairs <- contrast(m2_emm,
   summary(infer = TRUE)
 ```
 
-```{r}
+Notes
+
+1. The argument `type = "response"` tells `emmeans` and `contrast` to return the estimates on the response (not link) scale. See the notes for the coefficient table above for a brief explanation of the link and response scale. For more detailed explanation, see the Chapter [Linear models for count data -- Generalized Linear Models I](#counts)
+
+#### Compare inference from the LM and GLM models 
+
+```{r violations-glm-plot, caption = "Response and effects plot of the A) linear model and B) generalized linear model."}
 gg1 <- ggplot_the_model(
   m1,
   m1_emm,
@@ -433,13 +503,85 @@ gg2 <- ggplot_the_model(
   m2_pairs,
   legend_position = "none",
   y_label = "Neutrophil Count (/mL)",
-  effect_label = "Effect (/mL)",
+  effect_label = "Relative Effect",
   palette = pal_okabe_ito_blue,
   rel_heights = c(0.75,1),
   effect_lims = c(0.35, 1.25)
 )
 
-plot_grid(gg1, gg2, nrow=2)
+plot_grid(gg1, gg2, nrow=2, labels = "AUTO")
+```
+
+Notes
+
+1. Generalized linear models are covered more thoroughly in [Chapter](#counts).
+2. The effect estimated from the GLM is not a difference but the ratio of the exercise group mean to the sedentary group mean. Both differences and ratios indicate how much bigger (or smaller) the mean of one group is compared to another but in a linear model "how much bigger" is a difference while in the glm here "how much bigger" is a multiple (or "times") -- the mean of the exercise group is .59X the mean of the sedentary group.
+3. The CIs for the means and for the effect are asymmetric in the GLM. The CIs from a 
+
+### My data aren't normal, what is the best practice?
+
+```{r violations-glm-count-simulation, echo=FALSE}
+sim_data_folder <- "sim_data"
+sim_fn <- "counts_t_test_alternative.Rds"
+sim_path <- here(sim_data_folder, sim_fn)
+p_values <- readRDS(sim_path)
+
+method_list <- c("lm", "gls", "glm_nb", "glm_qp", "lmp", "mww")
+by_list <- c("sim", "normal","type", "n", "theta1", "theta2")
+
+p_value_table <-
+  p_values[, lapply(.SD,
+                    function(x) sum(x < 0.05)/mean(n_sim)),
+           .SDcols = method_list,
+           by = by_list]
+
+p_value_table %>%
+  kable(digits = c(0,0,0,0,2,2,3,3,3,3,3,3),
+        caption = "Table of Type I error in simulation of non-normal count data. The model columns are linear model, generalized least squares, GLM negative binomial, GLM quasipoisson, permutation, and Mann-Whitney-Wilcoxon. The values in the model columns are the frequency of simulated experiments with p < 0.05. Sample size is 10 when equal and 12, 8 when not equal. The effect ratio is 2 in the simulations of power.") %>%
+  kable_styling()
+```
+
+Table \@ref(tab:violations-glm-count-simulation) summarizes the results of a simulation to compare the performance of alternatives to a *t*-test. The simulated data were modeled to look like the [Figure 6f](#violations-6f) data above. The methods are the classical linear model (lm) (equivalent to the *t*-test), GLS linear model (gls), negative binomial GLM (glm-nb), quasi-poisson GLM (glm-qp), permutation test (lmp), and Mann-Whitney-Wilcoxon test. Performance is based on the the *p*-values from the test. The frequency of $p < 0.05$ is given in the column for each method. If the simulation was run with no treatment effect, this frequency is the simulated Type I error, given the nominal error of $\alpha = 0.05$. Values less then 0.05 are conservative and values greater than 0.05 are liberal. If the simulation was run with a treatment effect, the frequency is the simulated power of the test.
+
+Over the limited parameter space of the non-normal distribution (the shape of the count distribution including the relationship between mean and variance, the sample size, the effect size), the negative binomial GLM has substantially higher power than the classical linear model, although this comes at some cost to inflated Type I error. Even with a Normal simulated distribution, the negative binomial GLM has higher power than the classical linear model, but again, at some cost to Type I error.
+
+In the simulations with a negative binomial distributed response, the quasipoisson GLM has consistently higher power than the classical linear model and excellent Type I error control. The performance of the permutation test is very similar to that of the quasipoisson GLM. In the simulations with a negative binomial distributed response, the GLS linear model has about the same power as the classical linear model. Perhaps surprisingly, the Mann-Whitney-Wilcoxon fails to outperform the classical linear model and even underperforms the classical linear in some parts of the parameter space.
+
+```{r violations-glm-count-simulation-plot, echo=FALSE, fig.caption = "(A) histogram of distribution used for simulation of non-normal count response (sampled from negative binomial distribution with mu and theta equal to the observed values in Fig. 6f). (B) An example of a sampled fake data set."}
+n <- 5000
+count <- rnegbin(n,
+              mu = 3633140,
+              theta = 6.6)
+gg1 <- gghistogram(data = data.frame(count = count),
+                   x = "count",
+                   bins = 30,
+                   fill = pal_okabe_ito_blue[1]) +
+  theme(axis.title.y = element_blank())
+#gg1
+
+set.seed(1)
+n <- 10
+cn <- rnegbin(n,
+              mu = 3633140,
+              theta = 6.6)
+tr <- rnegbin(n,
+              mu = 3633140*.7,
+              theta = 6.6)
+
+fake_data <- data.table(
+  treatment = rep(c("cn", "tr"), each = n),
+  count = c(cn, tr)
+)
+
+gg2 <- ggstripchart(data = fake_data,
+                   x = "treatment",
+                   y = "count",
+                   color = "treatment",
+                   palette = pal_okabe_ito_blue) +
+  theme(legend.position = "none")
+#gg2
+
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
 ```
 
 ## Hidden Code
