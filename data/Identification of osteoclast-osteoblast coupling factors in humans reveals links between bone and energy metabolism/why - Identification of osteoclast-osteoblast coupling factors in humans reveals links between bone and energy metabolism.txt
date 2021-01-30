@@ -1,0 +1,6 @@
+why downloaded?
+fig. 1 scatter - correlation
+fig. 2 scatter - correlation
+fig. 4 t-tests with lots of points
+fig 4e change from baseline with data
+fig 5 % change from baseline with raw data

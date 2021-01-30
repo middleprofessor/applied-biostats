@@ -16,6 +16,8 @@ library(emmeans) # get estimated marginal means and CIs, used for plot
 library(ggplot2) # ggplot environment
 library(ggpubr) # publication ready plots
 library(cowplot) # combine plots
+library(knitr)
+library(kableExtra)
 
 here <- here::here # make sure ``here` uses `here::here`
 
@@ -398,9 +400,9 @@ gg
 
 #### Wide to long -- Enteric nervous system data
 
-Source: [Rolig, A. S., Mittge, E. K., Ganz, J., Troll, J. V., Melancon, E., Wiles, T. J., … Guillemin, K. (2017). The enteric nervous system promotes intestinal health by constraining microbiota composition. PLOS Biology, 15(2), e2000689. ](https://doi.org/10.1371/journal.pbio.2000689)
+Source: [Rolig, A. S., Mittge, E. K., Ganz, J., Troll, J. V., Melancon, E., Wiles, T. J., … Guillemin, K. (2017). The enteric nervous system promotes intestinal health by constraining microbiota composition. PLOS Biology, 15(2), e2000689. ](https://doi.org/10.1371/journal.pbio.2000689){target="_blank"}
 
-[Source data](https://doi.org/10.1371/journal.pbio.2000689.s008)
+[Source data](https://doi.org/10.1371/journal.pbio.2000689.s008){target="_blank"}
 
 Let's import and reshape the data for figure 2d. Look at the excel file and the data in Fig. 2d. There is a single treament with four levels, but the authors have organized the data in each level in separate columns and used the column header as the level name.
 
@@ -454,11 +456,11 @@ To learn (instead of just copy and modify), it's best to do this in steps and no
 
 #### Wide to long -- bee data
 
-The example above is pretty easy, because the all columns in the original data frame are melted (stacked). Here is an example in which only a subset of columns are stacked. In addition, only a subset of the remaining columns are retained in the long format data frame. The data are from Panel A of supplement Fig. 8 (https://journals.plos.org/plosbiology/article/file?type=supplementary&id=info:doi/10.1371/journal.pbio.2003467.s019) from
+The example above is pretty easy, because the all columns in the original data frame are melted (stacked). Here is an example in which only a subset of columns are stacked. In addition, only a subset of the remaining columns are retained in the long format data frame. The data are from Panel A of supplement Fig. 8 (https://journals.plos.org/plosbiology/article/file?type=supplementary&id=info:doi/10.1371/journal.pbio.2003467.s019){target="_blank"} from
 
-Source: [Kešnerová, L., Mars, R.A., Ellegaard, K.M., Troilo, M., Sauer, U. and Engel, P., 2017. Disentangling metabolic functions of bacteria in the honey bee gut. PLoS biology, 15(12), p.e2003467.](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2003467)
+Source: [Kešnerová, L., Mars, R.A., Ellegaard, K.M., Troilo, M., Sauer, U. and Engel, P., 2017. Disentangling metabolic functions of bacteria in the honey bee gut. PLoS biology, 15(12), p.e2003467.](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2003467){target="_blank"}
 
-[Source data](https://doi.org/10.1371/journal.pbio.2003467.s001)
+[Source data](https://doi.org/10.1371/journal.pbio.2003467.s001){target="_blank"}
 
 ```{r}
 folder <- "Data from Disentangling metabolic functions of bacteria in the honey bee gut"
@@ -485,35 +487,67 @@ fig_s8a <- melt(fig_s8a_wide,
 
 #### Wide to long -- stacking multiple sets of columns
 
-This example comes from my lab, where a student measured sprint speed in each fish three times prior to treatment and three times following treatment. The wide format data looked something like this
+Article: [GPR109A mediates the effects of hippuric acid on regulating osteoclastogenesis and bone resorption in mice](https://www.nature.com/articles/s42003-020-01564-2#MOESM4){target="_blank"}
+
+[source data](https://www.nature.com/articles/s42003-020-01564-2#MOESM4){target="_blank"}
+
+The data are from Fig. 1b
 
 ```{r}
-set.seed(1)
-fd_wide <- data.table(fish_ID=paste0("fish",1:4),
-                      treatment=rep(c("cn", "tr"), each=2),
-                      length=rnorm(4, 12, 2),
-                      pre_1=rnorm(4, 50, 5),
-                      pre_2=rnorm(4, 50, 5),
-                      pre_3=rnorm(4, 50, 5),
-                      post_1=rnorm(4, 50, 5),
-                      post_2=rnorm(4, 50, 5),
-                      post_3=rnorm(4, 50, 5)
-                      )
-knitr::kable(fd_wide, digits=1)
+folder <- "GPR109A mediates the effects of hippuric acid on regulating osteoclastogenesis and bone resorption in mice"
+file_name <- "42003_2020_1564_MOESM4_ESM.xlsx"
+file_path <- here(data_folder, folder, file_name)
+
+fig1b_wide <- read_excel(file_path,
+                    sheet = "Fig. 1b",
+                    range = "C4:R9",
+                    col_names = FALSE) %>%
+  data.table()
+
+treatment_levels <- c("Wild type", "GPR109A-/-")
+treatment_abbrev <- c("wt", "ko")
+measures <- c("BV/TV", "Tb.Th", "Tb.Sp", "Tb.N", "BMD", "Cs.Th", "BV", "MA")
+new_colnames <- paste(rep(measures, each = 2),
+                              treatment_abbrev,
+                              sep = "_")
+setnames(fig1b_wide,
+         old = colnames(fig1b_wide),
+         new = new_colnames)
 ```
 
-To analyze the response (post-treatment sprint) adjusted for pre-treatment sprint, the three pre-treatment sprint measures need to be stacked into a single column and the three post-treatment measures need to be stacked into a single column. This is easy using `melt` from the data.table package.
+```{r echo = FALSE}
+fig1b_wide[1:5, ] %>%
+  kable() %>%
+  kable_styling()
+```
+
+To analyze each response, the two treatment levels for each measure need to be stacked into a single column. This is easy using `melt` from the data.table package. Add this to your chunk.
 
 ```{r}
-pre_cols <- paste("pre", 1:3, sep="_")
-post_cols <- paste("post", 1:3, sep="_")
-fd <- melt(fd_wide,
-           id.vars=c("fish_ID", "treatment", "length"),
-           measure.vars=list(pre_cols, post_cols),
-           variable.name="Order",
-           value.name=c("sprint_pre", "sprint_post"))
-knitr::kable(fd, digits=1)
+fig1b <- melt(fig1b_wide,
+              measure.vars = list(c("BV/TV_wt", "BV/TV_ko"),
+                                  c("Tb.Th_wt", "Tb.Th_ko"),
+                                  c("Tb.Sp_wt", "Tb.Sp_ko"),
+                                  c("Tb.N_wt", "Tb.N_ko"),
+                                  c("BMD_wt", "BMD_ko"),
+                                  c("Cs.Th_wt", "Cs.Th_ko"),
+                                  c("BV_wt", "BV_ko"),
+                                  c("MA_wt", "MA_ko")),
+              variable.name = "treatment_id",
+              value.name = measures)
+fig1b[, treatment := ifelse(treatment_id == 1,
+                            treatment_levels[1],
+                            treatment_levels[2])]
+fig1b[, treatment := factor(treatment,
+                            levels = treatment_levels)]
 ```
+
+```{r echo = FALSE}
+fig1b[1:5, ] %>%
+  kable() %>%
+  kable_styling()
+```
+
 
 ### Reshaping data -- Transpose (turning the columns into rows)
 #### Transpose -- PI3K inhibitors data

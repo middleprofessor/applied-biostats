@@ -52,7 +52,7 @@ pal_ito_seven <- friendly_pal("ito_seven") # ggpubfigs
 pal_okabe_ito <- colorblind_pal()(8)[2:8] # ggthemes
 ```
 
-In a Longitudinal experiment, the response is measured in the same set of individuals over multiple time points. For example, in a glucose tolerance test (GTT), plasma glucose levels are measured at 0, 15, 30, 60, and 120 minutes (or some variation of this) after glucose has been given to the individual. The initial measure (time 0) is the **baseline** measure and subsequent measures are post-baseline measures. In a pre-post experiment, there is a single post-baseline measure. This chapter is focuses on pre-post designs. The next chapter generalizes this information to longitudinal experiments with more than one post-baseline measure. For this chapter, I'll use $pre_i$ and $post_i$ for the baseline and post-baseline measures of the response variable of indiviual $i$. The change from baseline for individual $i$ is $change_i = post_i - pre_i$. The change from baseline is often called a **change score**.
+In a Longitudinal experiment, the response is measured in the same set of individuals over multiple time points. For example, in a glucose tolerance test (GTT), plasma glucose levels are measured at 0, 15, 30, 60, and 120 minutes (or some variation of this) after glucose has been given to the individual. The initial measure (time 0) is the **baseline** measure and subsequent measures are post-baseline measures. In a pre-post experiment, there is a single post-baseline measure. This chapter focuses on pre-post designs. The next chapter generalizes this information to longitudinal experiments with more than one post-baseline measure. For this chapter, I'll use $pre_i$ and $post_i$ for the baseline and post-baseline measures of the response variable of indiviual $i$. The change from baseline for individual $i$ is $change_i = post_i - pre_i$. The change from baseline is often called a **change score**.
 
 Imagine two versions of an experiment where researchers are interested in the effect of different intestinal microbiomes on body weight.
 
@@ -76,7 +76,7 @@ This distinction is important because the best practice linear model depends on 
 2. Model $\mathcal{M}_2$ -- "change-score model"
 * model formula: `change ~ treatment`
 * a linear model that estimates the effect as the coefficient of $treatment$, with the change score as the response. This is not the same as Model $\mathcal{M}_1$ as there is no covariate in the model.
-* **This is the best practice model if the expected difference at baseline is not zero**.
+* **This is the best practice model if there is no expectation of no expected difference at baseline**.
 
 These two models present vary different ways of thinking about what the treatment effect is. In the ANCOVA model, we think of the treatment effect as the difference between treated and control means at the post-baseline time. Because the post-baseline measure of individual *i* is partly determined by it's value at baseline, variation in baseline values partly masks the effect of treatment. By adding baseline value as a covariate in the model, this masking effect of initial variation is eliminated.
 

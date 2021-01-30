@@ -1,0 +1,3 @@
+GPR109A mediates the effects of hippuric acid on regulating osteoclastogenesis and bone resorption in mice
+
+Fig. 1 - ratio BV/TV with BV data to reconstruct TV.

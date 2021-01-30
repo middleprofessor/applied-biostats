@@ -55,16 +55,16 @@ Download the source data files and move to a new folder named "The cold-induced 
 
 Cold temperature and the neurotransmitter/hormone norepinephrine are known to stimulate increased thermogenesis in BAT cells. In this project,  the researchers probed the question "what is the pathway that mediates the effect of cold-exposure on BAT thermogenesis?". In the "discovery" component of this project, the researchers measured plasma levels of 88 lipids with known signaling properties in humans exposed to one hour of both normal (20 °C) and cold temperature (14 °C) temperature. Of the 88 lipids, 12,13-diHOME had the largest response to the cold treatment. The researchers followed this up with experiments on mice.
 
-### Example 1 -- two treatment levels ("groups")
+### Example 1 (fig3d) -- two treatment levels ("groups")
 Let's start with the experiment in Figure 3d, which was designed to measure the effect of 12,13-diHOME on plasma triglyceride level. If 12,13-diHOME stimulates BAT activity, then levels in the 12,13-diHOME mice should be less than levels in the control mice.
 
 ####  Step 1 -- Understand the experiment design
 
-**response variable**: $\texttt{serum_tg}$, a continuous variable.
+**Response variable**: $\texttt{serum_tg}$, A measure of serum triglycerides (mg/dl). $\texttt{serum_tg}$ is a continuous variable.
 
-**treatment variable**: $\texttt{treatment}$, with levels: "Vehicle", "12,13-diHOME" (the control or "Vehicle" mice were injected with saline). Coded as a factor.
+**Factor variable**: $\texttt{treatment}$, with levels: "Vehicle", "12,13-diHOME" (the control or "Vehicle" mice were injected with saline). Coded as a factor.
 
-**design**: single, categorical *X*
+**Design**: single, categorical *X*
 
 #### Step 2 -- import
 

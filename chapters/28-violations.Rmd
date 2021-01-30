@@ -41,13 +41,29 @@ data_folder <- "data"
 
 ## Lack of independence {#oneway-paired-t}
 ### A paired t-test is a special case of a linear model for correlated data with two groups
-#### Example 1 (diHOME fig1b)
+#### Example 1 (fig1b)
 
-The data from the experiment for Figure 1b of the [12,13-diHOME article](#oneway-data) are the plasma concentrations of 12,13-diHOME in humans in response to either saline or one-hour cold challenge. The response variable ($\texttt{diHOME}$) violates the "independent" sampling assumption for inference because there are two measures of the response in each individual.
+[Lynes, M.D., Leiria, L.O., Lundh, M., Bartelt, A., Shamsi, F., Huang, T.L., Takahashi, H., Hirshman, M.F., Schlein, C., Lee, A. and Baer, L.A., 2017. The cold-induced lipokine 12, 13-diHOME promotes fatty acid transport into brown adipose tissue. Nature medicine, 23(5), pp.631-637.](https://www.nature.com/articles/nm.4297){target="_blank"}
 
-A "which test?" strategy points to a paired *t*-test in place of Student's *t*-test if there is a lack of independence between the two groups.
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5699924/pdf/nihms916046.pdf){target="_blank"}
 
-Here, I show empirically that a paired t-test is a special case of a **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. Correlated error and linear mixed models are discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
+[Data source](https://www.nature.com/articles/nm.4297#Sec14){target="_blank"}
+
+The data are from the experiment for Figure 1b of the [12,13-diHOME article](#oneway-data) from the previous chapter. 
+
+**Response variable** -- $\texttt{diHOME}$: concentration (pmol per ml) of the putative lipokine 12,13 di-HOME. This is a continuous variable.
+
+**Factor variable** -- $\texttt{treatment}$, with levels: "saline" and "cold". Coded as a factor.
+
+**Blocking variable** -- *id*: identification code of the individual human.
+
+**Design** -- Blocked. Plasma concentrations of 12,13-diHOME were measured two times in each individual, after injection with saline and after a 1 hour cold exposure.
+
+The consequence of the two measures in each human is **correlated error**. In **blocked designs** like this, the correlated error arises because we expect measures within a block (the individual for the fig1b experiment) to be more similar to each other than to measures from other blocks. A blocked design is a powerful experimental method to reduce uncertainty in estimates of differences among means -- and, consequently, the power of a statistical test. The paired *t*-test exploits this design while the classic Student's *t*-test ignores it.
+
+Mulitple response measures per individual violates the "independent" sampling assumption for inference. If there is a lack of independence between the two groups, a "which test?" strategy points to a paired *t*-test in place of Student's *t*-test.
+
+Here, I show empirically that a paired t-test is a special case of a kind of **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. Correlated error and linear mixed models are discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
 
 A good way to think about the model generating the data is
 
@@ -59,7 +75,7 @@ diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold + \varepsilon
 2. $\beta_{0_i}$ is the expected difference between the expected value of diHome in human $i$ given a saline treatment and the expected value of diHome in humans given a saline treatment. $\beta_{0_i}$ is a kind of **random effect**
 3. $\beta_0 + \beta_{0_i}$ is the expected value of diHome in human $i$ given a saline treatment. It is the **random intercept** for human $i$.
 
-Importantly, if the random effect ($\beta_{0_i}$) isn't modeled, then variation in this component is picked up by the model error $e$. Consequently, the error component **is correlated** because the subsets of $e$ from the same individual are expected to have more similar values to each other than to that from other individuals. Correlated error is discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
+Importantly, if the random effect ($\beta_{0_i}$) isn't modeled, then variation in this component is picked up by the model error $e$. Consequently, the error component **is correlated** because the subsets of $e$ from the same individual are expected to have more similar values to each other than to that from other individuals. Correlated error is discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm). Importantly, if the random effect isn't modeled, the increased variance of $e$ decreases precision of the estimate. Consequently, CIs are wider and significance tests have less power.
 
 ```{r fig1b-import, echo=FALSE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
@@ -94,10 +110,10 @@ fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
 fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
 ```
 
-1. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table fig1b.
-2. We are now using the function `lmer()` from the lme4 package (loaded with package lmerTest)
-3. `(1|id)` tells `lmer` to add $\texttt{id}$ as a random intercept.
-4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ if a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
+1. The function `lmer()` from the lme4 package allows the addition of random factors to the model formula. Otherwise, the function works like the `lm` function.
+2. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table fig1b.
+3. Random factors are added embedded within parentheses. A random intercept is added using the formula `(1|factor)` where $\texttt{factor}$ is the names of the column of the data containing the random factor.
+4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ is a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
 
 #### Inference
 
@@ -132,6 +148,8 @@ fig1b_ttest
 Notes
 
 1. The *t* and *p* values from the linear model and from the *t*-tests are the same because the paired *t*-test is a special case of the linear model.
+
+#### A blocked design (paired t-test) is more efficient
 
 ### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
 #### Example 2 (diHOME fig2a) -- more than two groups

@@ -1,12 +1,581 @@
 # Issues in inference {#issues}
 
-## Pre-post designs (change from baseline)
+```{r issues-setup, echo=FALSE}
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+
+library(nlme)
+library(MASS)
+library(betareg)
+library(emmeans)
+library(DHARMa)
+
+library(ggpubr)
+library(knitr)
+library(kableExtra)
+
+here <- here::here
+
+ggplot_the_model_path <- here("R/ggplot_the_model.R")
+source(ggplot_the_model_path)
+
+clean_names <- janitor::clean_names
+
+data_folder <- "data"
+```
+
+
+## Comparing change from baseline
+
+```{r issues-fig4c-import, echo=FALSE, warning=FALSE, message=FALSE}
+data_from <- "Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism"
+file_name <- "41467_2019_14003_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig4c_type <- c("text", rep("numeric", 8))
+fig4c <- read_excel(file_path,
+                   sheet = "Fig4C and 4E",
+                   range = "A3:I48",
+                   col_names = FALSE,
+                   col_types <- fig4c_type) %>%
+  data.table()
+
+# DPP4 (ng/mL), GLP-1 (pM),	Glucose (mmol/L),	Insulin (uIU/mL)
+measures <- c("DPP4", "GLP1", "Glucose", "Insulin")
+# post is 3 months post treatment
+period <- c("baseline", "post")
+new_colnames <- paste(rep(measures, 2),
+                      rep(period, each = 4),
+                      sep = "_")
+
+old_colnames <- colnames(fig4c)
+setnames(fig4c,
+         old = old_colnames,
+         new = c("treatment",
+                 new_colnames))
+
+treatment_levels <- c("Placebo", "Denosumab")
+fig4c[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+fig4c[, id := paste0("human_", .I)] # .I inserts row number
+#View(fig4c)
+```
+
+```{r issues-fig4c_long, echo=FALSE}
+fig4c_long <- melt(fig4c,
+                  id.vars = c("id", "treatment"),
+                  measure.vars = c("DPP4_baseline", "DPP4_post"),
+                  variable.name = "time",
+                  value.name = "dpp4")
+
+fig4c_long[, time := substr(as.character(time),
+                             6,
+                             nchar(as.character(time)))]
+fig4c_long[, time := factor(time,
+                             levels = c("baseline", "post"))]
+
+# View(fig4c_fake)
+```
+
+
+```{r issues-fig4c-fig, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = "Serum DPP4 levels at baseline and 3 months in two groups. (A) The actual experiment: the two treatment levels are randomly allocated to treatment at baseline. We are interested in the effect of DMAB at 3 months and use the baseline measure to increase precision. (B) A thought experiment: the two treatment levels are different groups at baseline. We give DMAB to both groups at baseline to estimate the difference in response."}
+
+dodge_width <- 0.25
+fig4c_long[, xpos := ifelse(time == "baseline",
+                           as.integer(treatment) - dodge_width,
+                           as.integer(treatment) + dodge_width)]
+fig4c_long[, xpos := xpos + rnorm(.N, sd = .05)]
+
+gg1 <- ggplot(data = fig4c_long,
+             aes(x = xpos,
+                 y = dpp4,
+                 color = time)) +
+  geom_point() +
+  geom_line(aes(group = id),
+            color = "gray") +
+  scale_x_continuous(breaks = c(1, 2),
+                     labels = treatment_levels) +
+  ylab("DPP4 (ng/mL)") +
+  
+  theme_pubr() +
+  coord_cartesian(xlim = c(0.6, 2.4)) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme(legend.position = "none",
+        axis.title.x = element_blank()) +
+  
+  annotate(geom = "text",
+           label = rep(c("baseline", "3 months"), 2),
+           x = c((1 - dodge_width),
+                 (1 + dodge_width),
+                 (2 - dodge_width),
+                 (2 + dodge_width)),
+           y = 200) +
+
+  
+  NULL
+
+# gg1
+
+gg2 <- gg1 +
+   scale_x_continuous(breaks = c(1, 2),
+                      labels = c("WT", "KO"))
+
+suppressWarnings(plot_grid(gg1, gg2, ncol = 2, labels = "AUTO"))
+
+```
+
+It is very common in a **pre-post** experiment, to measure a variable both before ($pre$) and after ($post$) some condition is applied and then the compare the **change score** ($post - pre$) between the groups using a $t$-test or one-way ANOVA (or a non-parametric equivalent such as Mann-Whitney-Wilcoxon). The linear model form of the *t*-test is
+
+\begin{equation}
+post-pre = \beta_0 + \beta_1 treatment
+\end{equation}
+
+This is often called the **change score model**. A similar analysis is a *t*-test or ANOVA using the percent change from baseline as the response:
+
+\begin{equation}
+\frac{post-pre}{pre}*100 = \beta_0 + \beta_1 treatment
+\end{equation}
+
+The best practice for how to estimate the treatment effect depends very much on when the treatment is applied relative to the baseline ($pre$) measure. Consider the two experiments in Figure \@ref(fig:issues-fig4c-fig)
+
+1. In \@ref(fig:issues-fig4c-fig)A, the individuals are randomized into the "Placebo" and the "Denosumab" groups prior to the baseline measurement. Plasma DPP4 is measured at baseline and three months after treatment is initiated. The treatment is "Denosumab" and we want to compare this to "Placebo"
+
+2. In \@ref(fig:issues-fig4c-fig)B, the individuals are randomly sampled from two groups (wild type and knockout), DPP4 is measured at baseline without Denosumab and then both groups are given Denosumab and measured again three months later. The treatment is "knockout" and we want to compare this to "wild type" in the two different conditions.
+
+The best practice for Design 2 is the change score model given above (or equivalents discussed below). The best practice for Design 1 is not the change score model but a linear model in which the baseline measure is added as a covariate.
+
+\begin{equation}
+post = \beta_0 + \beta_1 treatment + \beta_2 baseline
+\end{equation}
+
+This model is commonly known as the **ANCOVA model** (Analysis of Covariance) even if no ANOVA table is generated. The explanation for this best practice is given below, in the section [regression to the mean](#issues-regression-to-mean). The ANCOVA linear model is common in clinical medicine and pharmacology, where researchers are frequently warned about regression to the mean from statisticians. By contrast, the ANCOVA linear model is rare in basic science experimental biology.
+
+The analysis of linear models with added covariates is the focus of the chapter [Linear models with added covariates](#covariates). The analysis of pre-post experiments is covered in more detail in the chapter [Linear models for longitudinal experiments -- I. pre-post designs](#pre-post)
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Alert! If the individuals are sampled from the same population and treatment is randomized at baseline, do not test for a difference in means of the response variable at baseline and then use the ANCOVA linear model if $p > 0.05$ and the change score model $p < 0.05$. The decision of ANCOVA vs. change score is only a function of the expectation of the difference in means at baseline.
+
+1. If the individuals are sampled from the same population and treatment is randomized at baseline, the expected difference at baseline is zero. Use the ANCOVA linear model.
+2. If the individuals are sampled from the two populations because the treatment was applied prior to baseline, we cannot expect the difference at baseline to be zero (even if the treatment is magic). Use the change score model (or equivalents).
+</div>
+
+### Example 1 (DPP4 fig4c)
+
+source: [Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism](https://www.nature.com/articles/s41467-019-14003-6){target="_blank"} 
+
+The data in the left panel of Figure \@ref(fig:issues-fig4c-fig) are from an experiment to estimate the effect of Denosumab on the plasma levels of the enzyme [DPP4](https://en.wikipedia.org/wiki/Dipeptidyl_peptidase-4){target="_blank"} in humans. [Denosumab](https://en.wikipedia.org/wiki/Denosumab){target="_blank"} is a monocolonal antibody that inhibits osteoclast maturation and survival. Osteoclasts secrete the enzyme DPP4.
+
+#### For the ANCOVA linear model, the data need to be in wide format
+
+In the ANCOVA linear model, the baseline measure is added as a covariate and thought of as a separate variable and not a "response". This makes sense -- how could it be a "response" to treatment when the treatment hasn't been applied? This means the baseline and post-baseline measures of DPP4 have to be in separate columns of the data (Table \@ref(tab:issues-fig4c-view).
+
+```{r issues-fig4c-view, echo=FALSE}
+show_cols <- c("treatment", "DPP4_baseline", "DPP4_post", "id")
+head(fig4c[, .SD, .SDcols = show_cols]) %>%
+  kable(caption = "First six rows of the DPP4 data in wide format showing the baseline and post-baseline measures of DPP4 as separate variables.") %>%
+  kable_styling()
+```
+
+#### Fit the ANCOVA model
+
+```{r issues-dpp4-m1}
+m1 <- lm(DPP4_post ~ treatment + DPP4_baseline,
+         data = fig4c)
+```
+
+#### Inference
+
+**The coefficient table**
+
+```{r issues-dpp4-coef}
+m1_coef <- cbind(coef(summary(m1)),
+                 confint(m1))
+
+m1_coef %>%
+  kable(digits = c(1,2,2,4,1,1)) %>%
+  kable_styling()
+```
+Notes
+
+1. Here, we care only about the $\texttt{treatmentDenosumab}$ row. This is the estimated effect of Denosumab on serum DPP4 *adjusted* for baseline (do not use the word "control" as the baseline values were not controlled in any manipulative sense).
+2. Chapter [Linear models with added covariates](#covariates) explains the interpretation of these coefficients in more detail.
+
+**The emmeans table**
+```{r issues-dpp4-emm}
+m1_emm <- emmeans(m1, specs = "treatment")
+
+m1_emm %>%
+  summary() %>%
+  kable(digits = c(1,2,2,0,1,1)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. The means are conditional on treatment *and* a value of $\texttt{DPP4_baseline}$. `emmeans` uses the grand mean of $\texttt{DPP4_baseline}$ to compute the conditional means. The conditional means are *adjusted* for baseline DPP4. Note that these means *are not* equal to the sample means.
+
+**The contrast table**
+
+```{r issues-dpp4-pairs}
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+m1_pairs %>%
+  kable(digits = c(1,3,2,0,1,1,1,3)) %>%
+  kable_styling()
+```
+Notes
+
+1. As in the coefficient table, the contrast is the estimated effect of Denosumab on serum DPP4. It is the difference in means *adjusted* (not controlled!) for baseline values.
+
+```{r issues-dpp4-fig4c, fig.cap = "Estimated effect of Denosumab on serum DPP4 relative to placebo."}
+ggplot_the_model(m1,
+                 m1_emm,
+                 m1_pairs,
+                 y_label = "Serum DPP4 (ng/mL)",
+                 effect_label = "Effect (ng/mL)",
+                 palette = pal_okabe_ito_blue,
+                 legend_position = "none")
+```
+
+Notes
+
+1. The treatment means in Figure \@ref(fig:issues-dpp4-fig4c) are conditional means adjusted for the baseline measure and are, therefore, not equal to the sample means. The estimated effect *is* the difference between the conditional means and not the sample means and the inferential statistics (CI, *p*-value) are based on this difference between the conditional and not the sample means.
+
+### What if the data in example 1 were from from an experiment where the treatment was applied prior to the baseline measure?
+
+```{r issues-fig4c_fake, echo = FALSE}
+# create fake genotype factor
+fig4c_fake <- fig4c
+genotype_levels <- c("wt", "ko")
+fig4c_fake[, genotype := genotype_levels[as.integer(treatment)]]
+fig4c_fake[, genotype := factor(genotype,
+                                levels = genotype_levels)]
+
+```
+
+#### Fit the change score model
+
+```{r issues-fig4c_fake_m1}
+m1 <- lm(DPP4_post - DPP4_baseline ~ genotype,
+         data = fig4c_fake)
+m1_emm <- emmeans(m1, specs = "genotype")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise")
+m1_pairs %>%
+  kable() %>%
+  kable_styling()
+```
+
+Notes
+
+1. The change score is created on the LHS of the model formula. Alternatively, the change score could be created as a variable in the `fig4c_fake` data.table using `fig4c_fake[, change := DPP4_post - DPP4_baseline]`. Making the change in the model formula shows the flexibility of the model formula method of fitting linear models in R.
+
+#### Rethinking a change score as an interaction
+
+```{r issues-fig4c_fake_long, echo = FALSE}
+fig4c_fake_long <- melt(fig4c_fake,
+                  id.vars = c("id", "genotype"),
+                  measure.vars = c("DPP4_baseline", "DPP4_post"),
+                  variable.name = "time",
+                  value.name = "dpp4")
+
+fig4c_fake_long[, time := substr(as.character(time),
+                             6,
+                             nchar(as.character(time)))]
+fig4c_fake_long[, time := factor(time,
+                             levels = c("baseline", "post"))]
+# create fake genotype factor
+```
+
+If the treatment is randomized at baseline, a researcher should focus on the effect of treatment (the difference between the post-basline measures), adjusted for the baseline measures. The addition of the baseline variable as a covariate increases the precision of the treatment effects and the power of the significance test.
+
+If the treatment is generated prior to baseline, a researcher should focus on the difference in the response to the condition, which is
+
+\begin{equation}
+effect = (post_{ko} - pre_{ko}) - (post_{wt} - pre_{wt})
+\end{equation}
+
+This is the difference in change scores, which is a difference of differences. This difference of differences is the **interaction effect** between the genotype ("wt" or "ko") and the time period of the measurement of DPP4 (baseline or post-baseline). The more usual way to estimate interaction effects is a **linear model with two crossed factors**, which is covered in more detail in the chapter # [Linear models with two categorical X -- Factorial designs ("two-way ANOVA")](#factorial). The interaction effect (equal to the difference among the mean of the change scores) can be estimated with the model
+
+\begin
+dpp4 = \beta_0 + \beta_1 genotype_{ko} + \beta_2 time_{post} + \beta_3 genotype_{ko} time_{post}
+\end
+
+The R script for this looks like this
+
+```{r}
+m2_fixed <- lm(dpp4 ~ genotype*time,
+                  data = fig4c_fake_long)
+```
+
+This model has two factors ($\texttt{genotype}$ and $\texttt{time}$), each with two levels. The two levels of $\texttt{time}$ are "pre" and "post". $genotype_{ko}$ is an indicator variable for "ko" and $time_{post}$ is an indicator variable for "post"
+
+Don't fit this model -- the data violate the independence assumption! This violation arises because $\texttt{dpp4}$ is measured twice in each individual and both these measures are components of the response (both $\texttt{dpp4}$ measures are stacked into a single column). This violation doesn't arise in the ANCOVA linear model because the baseline measures are a covariate and not a response (remember that the independence assumption only applies to the response variable).
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Alert! It is pretty common to see this model fit to pre-post and other longitudinal data. The consequence of the violation is invalid (too large) degrees of freedom for computing standard errors and *p*-values. This is a kind of pseudoreplication.
+</div>
+
+To model the correlated error due to the two measures per individual, we use a linear mixed model using $\texttt{id}$ as the added random factor. Linear mixed models were introduced in the [Violations of independence, homogeneity, or Normality](#violations) chapter and are covered in more detail in the [Models with random factors -- Blocking and pseudoreplication ](#lmm) chapter.
+
+```{r issues-fig4c_fake_m2}
+m2 <- lmer(dpp4 ~ genotype*time + (1|id),
+           data = fig4c_fake_long)
+m2_emm <- emmeans(m2,
+                  specs = c("genotype", "time"),
+                  lmer.df = "Satterthwaite")
+m2_ixn <- contrast(m2_emm,
+                   interaction = "revpairwise")
+m2_ixn %>%
+  kable() %>%
+  kable_styling()
+
+```
+Notes
+
+1. This is the same result as that for the change score score model.
+2. The interaction effect is one of the coefficients in the model but to get the same CIs as those in the change score model, we need to use Satterthwaite's formula for the degrees of freedom. We pass this to the `emmeans` function using `lmer.df = "Satterthwaite"`
+3. The interaction contrast is computed using the `contrast` function but using `interaction = "revpairwise"` instead of `method = "revpairwise"`.
+
+#### The linear mixed model estimates additional effects that we might want
+
+While the linear mixed model and change score model give the same result for the effect of treatment in response to the different conditions, the linear mixed model estimates additional effects that may be of interest. I use a real example (Example 2) to demonstrate this.
+
+### Example 2
+
+Source: [AlSiraj, Y., Chen, X., Thatcher, S.E., Temel, R.E., Cai, L., Blalock, E., Katz, W., Ali, H.M., Petriello, M., Deng, P. and Morris, A.J., 2019. XX sex chromosome complement promotes atherosclerosis in mice. Nature communications, 10(1), pp.1-13.](https://www.nature.com/articles/s41467-019-10462-z){target="_blank"}
+
+```{r issues-xxmice, echo=FALSE}
+data_from <- "XX sex chromosome complement promotes atherosclerosis in mice"
+file_name <- "41467_2019_10462_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+fig1c_1 <- read_excel(file_path,
+                         sheet = "Figure 1C",
+                         range = "C3:G6",
+                         col_names = FALSE) %>%
+  data.table()
+setnames(fig1c_1,
+         old = colnames(fig1c_1),
+         new = paste("mouse", 1:5))
+fig1c_1[, time := rep(c("baseline", "week_1"), each = 2)]
+fig1c_1[, sex := rep(c("female", "male"), 2)]
+
+fig1c_2 <- read_excel(file_path,
+                         sheet = "Figure 1C",
+                         range = "I3:M6",
+                         col_names = FALSE) %>%
+  data.table()
+setnames(fig1c_2,
+         old = colnames(fig1c_2),
+         new = paste("mouse", 6:10))
+fig1c_2[, time := rep(c("baseline", "week_1"), each = 2)]
+fig1c_2[, sex := rep(c("female", "male"), 2)]
+
+fig1c <- rbind(data.table(chromosome = "xx",
+                          melt(fig1c_1,
+                               id.vars = c("sex", "time"),
+                               variable.name = "id",
+                               value.name = "fat_mass")),
+               data.table(chromosome = "xy",
+                          melt(fig1c_2,
+                               id.vars = c("sex", "time"),
+                               variable.name = "id",
+                               value.name = "fat_mass")))
+# id is not unique
+fig1c[, id := paste(sex, id, sep="_")] # now it is
+
+fig1c[, treatment := paste(sex, chromosome, sep = "_")]
+# unique(fig1c$treatment)
+# "female_xx" "male_xx"   "female_xy" "male_xy"
+treatment_levels <- c("female_xx", "female_xy", "male_xx", "male_xy")
+fig1c[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+fig1c_wide <- dcast(fig1c, chromosome + sex + id + treatment ~ time, value.var = "fat_mass")
+fig1c_wide[, percent_change := (week_1 - baseline)/baseline*100]
+
+```
+
+
+```{r issues-xxmice-init-plot, echo = FALSE}
+# unique(fig1c$time)
+# "baseline" "week_1"
+facet_labels <- c("Baseline", "Week 1")
+names(facet_labels) <- unique(fig1c$time)
+
+ggstripchart(data = fig1c,
+             x = "treatment",
+             y = "fat_mass",
+             color = "chromosome",
+             palette = pal_okabe_ito_blue) +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none") +
+  scale_x_discrete(label = c("FXX", "FXY", "MXX", "MXY")) +
+  ylab("Fat mass (g)") +
+  facet_grid(. ~ time,
+             labeller = labeller(time = facet_labels)) +
+  NULL
+  
+```
+The experiments in this paper were designed to measure the independent effects of the sex chromosome complement (X or y) and gonads on phenotypic variables related to fat storage, fat metabolism, and cardiovascular disease.
+
+**Response variable** -- $\texttt{fat_mass}$. Fat mass was measured in each mouse at baseline (exposed to the standard chow diet) and after one week on a western diet.
+
+**Fixed factor** -- The design is two crossed factors (sex chromosome complement and gonad type) each with two levels but here I collapse the four treatment combinations into a single factor $\texttt{treatment}$ with four levels: "female_xx", "female_xy", "male_xx", "male_xy". Male and female are not the typical sex that is merely observed but are constructed by the presence or absence of *SRY* on an autosome using the Four Core Genotype mouse model. *SRY* determines the gonad that develops (ovary or testis). Females do not have the autosome with *SRY*. Males do. Similarly, the chromosome complement is not observed but manipulated. In "xx", neither chromosome has *SRY* as the natural condition because there are two X chromosomes. In "xy", *SRY* has been removed from the Y chromosome.
+
+**Random factor** $\texttt{id}$. The identification of the individual mouse.
+
+**Planned comparisons**
+
+1. "female_xy" - "female_xx" at baseline (chow diet)
+2. "male_xx" - "male_xy" at baseline (chow diet)
+3. "female_xy" - "female_xx" at one week (western diet)
+4. "male_xx" - "male_xy" at one week (western diet)
+5. the interaction contrast (3 - 1) which addresses, is the effect of the chromosome complement in females conditional on diet
+6. the interaction contrast (4 - 2) which addresses, is the effect of the chromosome complement in males conditional on diet
+
+#### Fit the change score model
+
+The change score model only estimates planned comparisons 5 and 6.
+
+```{r}
+m1 <- lm(week_1 - baseline ~ treatment,
+         data = fig1c_wide)
+
+```
+
+**Inference from the change score model**
+
+```{r}
+m1_emm <- emmeans(m1, specs = "treatment")
+
+m1_planned <- contrast(m1_emm,
+                       method = "revpairwise",
+                       adjust = "none") %>%
+  summary(infer = TRUE)
+
+m1_planned[c(1, 6),] %>%
+  kable() %>%
+  kable_styling()
+```
+#### Using the linear mixed model to compute all six planned comparisons
+
+```{r}
+m2 <- lmer(fat_mass ~ treatment*time + (1|id), data = fig1c)
+
+```
+
+```{r}
+m2_emm <- emmeans(m2,
+                  specs = c("treatment", "time"),
+                  lmer.df = "Satterthwaite")
+```
+
+Notes
+
+1. important to add "Satterthwaite" argument
+
+**interaction contrasts**
+
+The interaction contrasts estimate planned comparisons 5 and 6.
+
+```{r}
+m2_ixn <- contrast(m2_emm,
+         interaction = c("revpairwise"),
+         by = NULL,
+         adjust = "none") %>%
+  summary(infer = TRUE)
+
+m2_planned_ixn <- m2_ixn[c(1,6), ] %>%
+  data.table()
+
+m2_planned_ixn %>%
+  kable() %>%
+  kable_styling()
+```
+**Simple effects**
+
+The simple effects estimate planned comparisons 1-4.
+
+```{r}
+# get simple effects from model
+
+m2_pairs <- contrast(m2_emm,
+         method = c("revpairwise"),
+         simple = "each",
+         combine = TRUE,
+         adjust = "none") %>%
+  summary(infer = TRUE)
+
+# reduce to planned contrasts
+m2_planned_simple <- m2_pairs[c(1,6,7,12),] %>%
+  data.table()
+
+# clarify contrast
+m2_planned_simple[, contrast := paste(time, contrast, sep = ": ")]
+
+# dump first two cols
+keep_cols <- names(m2_planned_simple)[-(1:2)]
+m2_planned_simple <- m2_planned_simple[, .SD, .SDcols = keep_cols]
+
+m2_planned_simple %>%
+  kable(digits = c(1,3,3,1,2,2,2,5)) %>%
+  kable_styling()
+```
+
+We can combine the six planned comparisons into a single table.
+
+```{r}
+# create contrast table for ixns
+m2_planned_ixn[, contrast := paste0("ixn: ", treatment_revpairwise)]
+
+# dump first two cols
+# dump first two cols
+keep_cols <- names(m2_planned_ixn)[-(1:2)]
+m2_planned_ixn <- m2_planned_ixn[, .SD, .SDcols = keep_cols]
+
+# row bind -- smart enought to recognize column order
+m2_planned <- rbind(m2_planned_simple,
+                    m2_planned_ixn)
+
+m2_planned %>%
+  kable(digits = c(1,2,2,1,2,2,2,5)) %>%
+  kable_styling()
+```
+
+### Regression to the mean {#issues-regression-to-mean}
 
 ## Longitudinal designs
 
+## Glucose tolerance curves
+
 ## Comparing responses normalized to a standard
 
-## Comparing responses that are ratios
+## Comparing ratios
+
+1. The ratio is a density (count per length/area/volume) or a rate (count/time).
+* Example: number of marked cells per area of tissue.
+* Best practice: GLM for count data with an **offset** in the model, where an offset is the denominator of the ratio.
+2. The ratio is relative to a standard ("normalized").
+Example: expression of focal mRNA relative to expression of a standard mRNA that is thought not to be affected by treatment.
+Best practice: GLM for count data with an **offset** in the model, where an offset is the denominator of the ratio.
+3. The ratio is a proportion (or percent).
+* Example: Number of marked cells per total number of cells.
+* Best practice: GLM logistic.
+4. The ratio is relative to a whole and both the thing in the numerator and the thing in the denominator grow (**allometric data**).
+* Example: adipose mass relative to total lean body mass.
+* Best practice: ANCOVA linear model.
+* **Alert!** -- It has been known for more than 100 years, and repeatedly broadcasted, that inference from ratios of allometric data range from merely wrong (the inferred effect size is biased) to absurd (the direction of the inferred effect is opposite that of the true effect). 
+
+### The ratio is a density
+
+## Don't do this stuff
+
+1. Normalize so all control values are 1.
 
 ## Researcher degrees of freedom
 

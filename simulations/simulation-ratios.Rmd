@@ -1,0 +1,214 @@
+---
+title: "ratios"
+author: "Jeffrey A. Walker"
+date: "1/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+
+library(emmeans)
+library(MASS)
+
+library(knitr)
+library(kableExtra)
+
+```
+
+## The ratio is a density (count per the amount of space sampled). Example, Number of marked cells per area. -> GLM for count with offset, where offset is the denominator of the ratio.
+
+```{r deni faj=ke data, warning=FALSE, message=FALSE}
+N <- 100
+set.seed(1)
+mu_per_area <- 1
+fake_data <- data.table(
+  area = rnorm(N, mean = 100, sd = 5))
+fake_data[, count := rnegbin(N,
+                             mu = mu_per_area*area,
+                             theta = 1)]
+fake_data[, ratio := count/area]
+m1 <- lm(count ~ 1, data = fake_data)
+m2 <- lm(ratio ~ 1, data = fake_data)
+gg1 <- ggcheck_the_qq(m1)
+gg2 <- ggcheck_the_qq(m2)
+
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+
+```
+
+```{r}
+gg1 <- gghistogram(
+  data = data.table(x = rnegbin(10^4, mu = 100, theta = 1)),
+  x = "x",
+  bins = 30,
+  fill = pal_okabe_ito_blue[1]
+)
+
+gg2 <- gghistogram(
+  data = data.table(x = rnegbin(10^4, mu = 100, theta = 5)),
+  x = "x",
+  bins = 30,
+  fill = pal_okabe_ito_blue[1]
+)
+
+gg3 <- gghistogram(
+  data = data.table(x = rnegbin(10^4, mu = 100, theta = 10)),
+  x = "x",
+  bins = 30,
+  fill = pal_okabe_ito_blue[1]
+)
+
+gg4 <- gghistogram(
+  data = data.table(x = rnegbin(10^4, mu = 100, theta = 20)),
+  x = "x",
+  bins = 30,
+  fill = pal_okabe_ito_blue[1]
+)
+
+
+
+plot_grid(gg1, gg2, gg3, gg4, nrow = 2)
+```
+```{r two ways to model}
+n_levels <- c(10, 10)
+N <- sum(n_levels)
+mean_area <- rep(c(100, 100), n_levels)
+sd_area <- rep(c(10, 10), n_levels)
+mu_per_area <- rep(c(1, 2), n_levels)
+theta_sim <- rep(c(1, 1), n_levels)
+fake_data <- data.table(NULL)
+fake_data[, treatment := rep(c("cn", "tr"), n_levels)]
+fake_data[, area := rnorm(N, mean = mean_area, sd = sd_area)]
+fake_data[, count := rnegbin(N,
+                             mu = mu_per_area * area,
+                             theta = theta_sim)]
+fake_data[, count_per_area := count/area]
+```
+
+
+```{r two ways to model}
+m_lm <- lm(count_per_area ~ treatment,
+           data = fake_data)
+m_glm <- glm.nb(count ~ offset(log(area)) + treatment,
+                data = fake_data)
+```
+
+
+```{r}
+coef(summary(m_lm))
+coef(summary(m_glm))
+```
+```{r}
+b <- coef(m_glm)
+exp(b[1])
+mean(fake_data[treatment == "cn", count_per_area])
+exp(b[1] + b[2])
+mean(fake_data[treatment == "tr", count_per_area])
+```
+
+
+```{r two ways to model}
+emmeans(m_lm, specs = "treatment")
+emmeans(m_glm, specs = "treatment", type = "response")
+```
+
+
+```{r two ways to model}
+```
+
+```{r simulate_density, warning = FALSE, message = FALSE}
+simulate_density <- function(
+  n_sim = 1000,
+  n_levels = c(10, 10),
+  mean_area_levels = c(100, 100),
+  sd_area_levels = c(10, 10),
+  mu_per_area_levels = c(1, 2), # count per area
+  theta_levels = c(1, 1)
+){
+  N <- sum(n_levels)
+  mean_area <- rep(mean_area_levels, n_levels)
+  sd_area <- rep(sd_area_levels, n_levels)
+  mu_per_area <- rep(mu_per_area_levels, n_levels)
+  theta_sim <- rep(theta_levels, n_levels)
+  
+  method_list <- c("lm", "glm_nb")
+  p_values <- matrix(as.numeric(NA),
+                     nrow = n_sim,
+                     ncol = length(method_list)) %>%
+    data.table()
+  colnames(p_values) <- method_list
+  
+  # fake_data defined globally
+  # fake_data[, treatment := rep(c("cn", "tr"), n_levels)]
+  for(iter in 1:n_sim){
+    fake_data[, area := rnorm(N, mean = mean_area, sd = sd_area)]
+    fake_data[, count := rnegbin(N,
+                                 mu = mu_per_area * area,
+                                 theta = theta_sim)]
+    fake_data[, count_per_area := count/area]
+    m_lm <- lm(count_per_area ~ treatment,
+               data = fake_data)
+    m_glm <- glm.nb(count ~ offset(log(area)) + treatment,
+                    data = fake_data)
+    p_values[iter, lm := coef(summary(m_lm))[2, "Pr(>|t|)"]]
+    p_values[iter, glm_nb := coef(summary(m_glm))[2, "Pr(>|z|)"]]
+  }
+  return(p_values)
+}
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+set.seed(1)
+n_sim_i <- 1000
+n_levels_sim = c(10, 10)
+mean_area_levels_sim = c(100, 100)
+sd_area_levels_sim = c(10, 10)
+mu_per_area_levels_sim = c(1, 2.5) # count per area
+theta_levels_sim = c(1, 1)
+
+fake_data <- data.table(
+  treatment = rep(c("cn", "tr"), n_levels_sim)
+)
+
+sim_res <- simulate_density(
+  n_sim = n_sim_i,
+  n_levels = n_levels_sim,
+  mean_area_levels = mean_area_levels_sim,
+  sd_area_levels = sd_area_levels_sim,
+  mu_per_area_levels = mu_per_area_levels_sim,
+  theta_levels = theta_levels_sim
+)
+
+apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+
+```
+```{r, warning=FALSE, message=FALSE}
+set.seed(1)
+n_sim_i <- 1000
+n_levels_sim = c(10, 10)
+mean_area_levels_sim = c(100, 100)
+sd_area_levels_sim = c(10, 10)
+mu_per_area_levels_sim = c(1, 1.5) # count per area
+theta_levels_sim = c(10, 10)
+
+fake_data <- data.table(
+  treatment = rep(c("cn", "tr"), n_levels_sim)
+)
+
+sim_res <- simulate_density(
+  n_sim = n_sim_i,
+  n_levels = n_levels_sim,
+  mean_area_levels = mean_area_levels_sim,
+  sd_area_levels = sd_area_levels_sim,
+  mu_per_area_levels = mu_per_area_levels_sim,
+  theta_levels = theta_levels_sim
+)
+
+apply(sim_res, 2, function(x) sum(x < 0.05)/n_sim_i)
+```
+
+

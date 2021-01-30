@@ -1,4 +1,4 @@
-# Linear models with an added covariate ("ANCOVA") {#covariates}
+# Linear models with added covariates ("ANCOVA") {#covariates}
 
 ```{r setup-ancova, echo=FALSE, warnng=FALSE, message=FALSE}
 library(here)
