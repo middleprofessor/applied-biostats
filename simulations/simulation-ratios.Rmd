@@ -18,7 +18,7 @@ library(kableExtra)
 
 ## The ratio is a density (count per the amount of space sampled). Example, Number of marked cells per area. -> GLM for count with offset, where offset is the denominator of the ratio.
 
-```{r deni faj=ke data, warning=FALSE, message=FALSE}
+```{r denistyfake data, warning=FALSE, message=FALSE}
 N <- 100
 set.seed(1)
 mu_per_area <- 1

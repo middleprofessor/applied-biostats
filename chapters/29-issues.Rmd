@@ -1,6 +1,10 @@
 # Issues in inference {#issues}
 
-```{r issues-setup, echo=FALSE}
+```{r issues-setup, echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+
 library(here)
 library(janitor)
 library(readxl)
@@ -11,10 +15,13 @@ library(MASS)
 library(betareg)
 library(emmeans)
 library(DHARMa)
+library(mvtnorm) # need for fake mouse
+library(Hmisc) #trap.rule
 
 library(ggpubr)
 library(knitr)
 library(kableExtra)
+library(equatiomatic)
 
 here <- here::here
 
@@ -24,10 +31,12 @@ source(ggplot_the_model_path)
 clean_names <- janitor::clean_names
 
 data_folder <- "data"
+
+minus <- "\u2013"
 ```
 
 
-## Comparing change from baseline
+## Comparing change from baseline (pre-post) {#issues-pre-post}
 
 ```{r issues-fig4c-import, echo=FALSE, warning=FALSE, message=FALSE}
 data_from <- "Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism"
@@ -76,7 +85,7 @@ fig4c_long[, time := substr(as.character(time),
 fig4c_long[, time := factor(time,
                              levels = c("baseline", "post"))]
 
-# View(fig4c_fake)
+# View(fig4c_long)
 ```
 
 
@@ -125,40 +134,58 @@ gg2 <- gg1 +
 suppressWarnings(plot_grid(gg1, gg2, ncol = 2, labels = "AUTO"))
 
 ```
+In a **longitudinal experiment**, the response variable is measured on the same individuals both before (baseline) and after (post-baseline) some condition is applied. Experiments in which only one post-baseline measure is taken are known as pre-post experiments. For simplicity, I call the baseline measure $\texttt{pre}$ and the post-baseline measure $\texttt{post}$.
 
-It is very common in a **pre-post** experiment, to measure a variable both before ($pre$) and after ($post$) some condition is applied and then the compare the **change score** ($post - pre$) between the groups using a $t$-test or one-way ANOVA (or a non-parametric equivalent such as Mann-Whitney-Wilcoxon). The linear model form of the *t*-test is
+Researchers often analyze pre-post data by comparing the **change score** ($\texttt{post} - \texttt{pre}$) between the groups using a $t$-test or one-way ANOVA (or a non-parametric equivalent such as Mann-Whitney-Wilcoxon). The linear model form of the *t*-test is
 
-\begin{equation}
-post-pre = \beta_0 + \beta_1 treatment
-\end{equation}
+```{r echo=FALSE, eval=FALSE}
+fd <- data.table(
+  treatment = c("cn", "tr"),
+  pre = c(0,1),
+  post = c(0,2)
+)
+fit <- lm(post - pre ~ treatment, data = fd)
+extract_eq(fit, intercept = "beta")
+```
+$$
+\texttt{post} - \texttt{pre} = \beta_{0} + \beta_{1}(\texttt{treatment}_{\texttt{tr}}) + \varepsilon
+$$
 
-This is often called the **change score model**. A similar analysis is a *t*-test or ANOVA using the percent change from baseline as the response:
+This is the **change score model**. A similar analysis is a *t*-test or ANOVA using the percent change from baseline as the response:
 
-\begin{equation}
-\frac{post-pre}{pre}*100 = \beta_0 + \beta_1 treatment
-\end{equation}
+$$
+\frac{\texttt{post} - \texttt{pre}}{\texttt{pre}} \times 100 = \beta_{0} + \beta_{1}(\texttt{treatment}_{\texttt{tr}}) + \varepsilon
+$$
 
-The best practice for how to estimate the treatment effect depends very much on when the treatment is applied relative to the baseline ($pre$) measure. Consider the two experiments in Figure \@ref(fig:issues-fig4c-fig)
+The best practice for how to estimate the treatment effect depends very much on when the treatment is applied relative to the baseline ($\texttt{pre}$) measure. Consider the two experiments in Figure \@ref(fig:issues-fig4c-fig)
 
-1. In \@ref(fig:issues-fig4c-fig)A, the individuals are randomized into the "Placebo" and the "Denosumab" groups prior to the baseline measurement. Plasma DPP4 is measured at baseline and three months after treatment is initiated. The treatment is "Denosumab" and we want to compare this to "Placebo"
+1. In \@ref(fig:issues-fig4c-fig)A, the individuals are randomized into the "Placebo" and the "Denosumab" groups. Plasma DPP4 is measured at baseline, the treatment is applied, and, three months later, plasma DPP4 is re-measured. The treatment is "Denosumab" and we want to compare this to "Placebo". The key feature of this design is the individuals are from the same initial group and have been treated the same up until the baseline measure. Consequently, the expected difference in means for any measure at baseline is zero.
 
-2. In \@ref(fig:issues-fig4c-fig)B, the individuals are randomly sampled from two groups (wild type and knockout), DPP4 is measured at baseline without Denosumab and then both groups are given Denosumab and measured again three months later. The treatment is "knockout" and we want to compare this to "wild type" in the two different conditions.
+2. In \@ref(fig:issues-fig4c-fig)B, the treatment of interest (knockout) was applied prior to baseline, DPP4 is measured at baseline without Denosumab and then both groups are given Denosumab and measured again three months later. The treatment is not Denosumab but "knockout" and we want to compare this to "wild type" in the two different conditions. The key here is that individuals are randomly sampled from two different groups (wild type and knockout). Consequently, we cannot expect the expected difference in means for any measure at baseline to be zero. 
 
 The best practice for Design 2 is the change score model given above (or equivalents discussed below). The best practice for Design 1 is not the change score model but a linear model in which the baseline measure is added as a covariate.
 
-\begin{equation}
-post = \beta_0 + \beta_1 treatment + \beta_2 baseline
-\end{equation}
+$$
+\texttt{post} = \beta_{0} + \beta_{1}(\texttt{treatment}_{\texttt{tr}}) + \beta_{2}(\texttt{pre}) + \varepsilon
+$$
 
-This model is commonly known as the **ANCOVA model** (Analysis of Covariance) even if no ANOVA table is generated. The explanation for this best practice is given below, in the section [regression to the mean](#issues-regression-to-mean). The ANCOVA linear model is common in clinical medicine and pharmacology, where researchers are frequently warned about regression to the mean from statisticians. By contrast, the ANCOVA linear model is rare in basic science experimental biology.
-
-The analysis of linear models with added covariates is the focus of the chapter [Linear models with added covariates](#covariates). The analysis of pre-post experiments is covered in more detail in the chapter [Linear models for longitudinal experiments -- I. pre-post designs](#pre-post)
+This model is commonly known as the **ANCOVA model** (Analysis of Covariance) even if no ANOVA table is generated. The explanation for this best practice is given below, in the section [regression to the mean](#issues-regression-to-mean). The ANCOVA linear model is common in clinical medicine and pharmacology, where researchers are frequently warned about regression to the mean from statisticians. By contrast, the ANCOVA linear model is rare in basic science experimental biology. The analysis of linear models with added covariates is the focus of the chapter [Linear models with added covariates](#covariates).
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-Alert! If the individuals are sampled from the same population and treatment is randomized at baseline, do not test for a difference in means of the response variable at baseline and then use the ANCOVA linear model if $p > 0.05$ and the change score model $p < 0.05$. The decision of ANCOVA vs. change score is only a function of the expectation of the difference in means at baseline.
+Alert! If the individuals are sampled from the same population and treatment is randomized at baseline, do not test for a difference in means of the response variable at baseline and then use the ANCOVA linear model if $p > 0.05$ and the change score model $p < 0.05$. The best practice is only a function of the design, which leads to the expectation of the difference in means at baseline.
+</div>
 
-1. If the individuals are sampled from the same population and treatment is randomized at baseline, the expected difference at baseline is zero. Use the ANCOVA linear model.
-2. If the individuals are sampled from the two populations because the treatment was applied prior to baseline, we cannot expect the difference at baseline to be zero (even if the treatment is magic). Use the change score model (or equivalents).
+1. If the individuals are sampled from the same population and treatment is randomized at baseline, the expected difference at baseline is zero.
+* Use the ANCOVA linear model.
+* What can go wrong if we use the change score model? [Regression to the mean](#issues-regression-to-mean).
+2. If the individuals are sampled from the two populations because the treatment was applied prior to baseline, we cannot expect the difference at baseline to be zero (even if the treatment is magic).
+* Use the change score model.
+* What can go wrong if we use the ANCOVA linear model? Two things. First, the ANCOVA linear model computes a biased estimate of the true effect, meaning that as the sample size increases the estimate does not converge on the true value but the true value plus some bias. Second, the change score has more power than the ANCOVA linear model under the assumption of sampling from different populations at baseline.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Alert! Researchers also use two-way ANOVA or repeated measures ANOVA to analyze data like these. Two-way ANOVA is invalid because the multiple measures on each individual violates the independence assumption. Repeated measures ANOVA will give equivalent results for a pre-post experiment but not for better practice methods that are available when there are more than one post-baseline measure.
+
+The better practice methods are linear models for correlated error, including GLS and linear mixed models. For a pre-post design, these models give equivalent results to the change score model *but also* allows the estimate of additional effects of interest (see below). For more detail on the analysis of pre-post experiments, see the [Linear models for longitudinal experiments -- I. pre-post designs](#pre-post) chapter.
 </div>
 
 ### Example 1 (DPP4 fig4c)
@@ -274,7 +301,7 @@ Notes
 
 1. The change score is created on the LHS of the model formula. Alternatively, the change score could be created as a variable in the `fig4c_fake` data.table using `fig4c_fake[, change := DPP4_post - DPP4_baseline]`. Making the change in the model formula shows the flexibility of the model formula method of fitting linear models in R.
 
-#### Rethinking a change score as an interaction
+#### Rethinking a change score as an interaction {#issues-interaction}
 
 ```{r issues-fig4c_fake_long, echo = FALSE}
 fig4c_fake_long <- melt(fig4c_fake,
@@ -293,23 +320,29 @@ fig4c_fake_long[, time := factor(time,
 
 If the treatment is randomized at baseline, a researcher should focus on the effect of treatment (the difference between the post-basline measures), adjusted for the baseline measures. The addition of the baseline variable as a covariate increases the precision of the treatment effects and the power of the significance test.
 
-If the treatment is generated prior to baseline, a researcher should focus on the difference in the response to the condition, which is
+If the treatment is generated prior to baseline, a researcher should focus on the difference in the change from baseline to post-baseline, which is
 
-\begin{equation}
+$$
 effect = (post_{ko} - pre_{ko}) - (post_{wt} - pre_{wt})
-\end{equation}
+$$
 
 This is the difference in change scores, which is a difference of differences. This difference of differences is the **interaction effect** between the genotype ("wt" or "ko") and the time period of the measurement of DPP4 (baseline or post-baseline). The more usual way to estimate interaction effects is a **linear model with two crossed factors**, which is covered in more detail in the chapter # [Linear models with two categorical X -- Factorial designs ("two-way ANOVA")](#factorial). The interaction effect (equal to the difference among the mean of the change scores) can be estimated with the model
 
-\begin
-dpp4 = \beta_0 + \beta_1 genotype_{ko} + \beta_2 time_{post} + \beta_3 genotype_{ko} time_{post}
-\end
+```{r echo=FALSE, eval=FALSE}
+fit <- lm(dpp4 ~ genotype*time,
+          data = fig4c_fake_long)
+extract_eq(fit, intercept = "beta")
+```
+
+$$
+\texttt{dpp4} = \beta_{0} + \beta_{1}(\texttt{genotype}_{\texttt{ko}}) + \beta_{2}(\texttt{time}_{\texttt{post}}) + \beta_{3}(\texttt{genotype}_{\texttt{ko}} \times \texttt{time}_{\texttt{post}}) + \epsilon
+$$
 
 The R script for this looks like this
 
 ```{r}
 m2_fixed <- lm(dpp4 ~ genotype*time,
-                  data = fig4c_fake_long)
+               data = fig4c_fake_long)
 ```
 
 This model has two factors ($\texttt{genotype}$ and $\texttt{time}$), each with two levels. The two levels of $\texttt{time}$ are "pre" and "post". $genotype_{ko}$ is an indicator variable for "ko" and $time_{post}$ is an indicator variable for "post"
@@ -335,6 +368,7 @@ m2_ixn %>%
   kable_styling()
 
 ```
+
 Notes
 
 1. This is the same result as that for the change score score model.
@@ -345,7 +379,7 @@ Notes
 
 While the linear mixed model and change score model give the same result for the effect of treatment in response to the different conditions, the linear mixed model estimates additional effects that may be of interest. I use a real example (Example 2) to demonstrate this.
 
-### Example 2
+### Example 2 (XX males fig1c)
 
 Source: [AlSiraj, Y., Chen, X., Thatcher, S.E., Temel, R.E., Cai, L., Blalock, E., Katz, W., Ali, H.M., Petriello, M., Deng, P. and Morris, A.J., 2019. XX sex chromosome complement promotes atherosclerosis in mice. Nature communications, 10(1), pp.1-13.](https://www.nature.com/articles/s41467-019-10462-z){target="_blank"}
 
@@ -442,7 +476,7 @@ The experiments in this paper were designed to measure the independent effects o
 
 The change score model only estimates planned comparisons 5 and 6.
 
-```{r}
+```{r issues-fig1c-m1}
 m1 <- lm(week_1 - baseline ~ treatment,
          data = fig1c_wide)
 
@@ -450,7 +484,7 @@ m1 <- lm(week_1 - baseline ~ treatment,
 
 **Inference from the change score model**
 
-```{r}
+```{r issues-fig1c-planned}
 m1_emm <- emmeans(m1, specs = "treatment")
 
 m1_planned <- contrast(m1_emm,
@@ -459,17 +493,17 @@ m1_planned <- contrast(m1_emm,
   summary(infer = TRUE)
 
 m1_planned[c(1, 6),] %>%
-  kable() %>%
+  kable(digits = c(1,2,2,1,2,2,2,3)) %>%
   kable_styling()
 ```
 #### Using the linear mixed model to compute all six planned comparisons
 
-```{r}
+```{r issues-fig1c-m2}
 m2 <- lmer(fat_mass ~ treatment*time + (1|id), data = fig1c)
 
 ```
 
-```{r}
+```{r issues-fig1c-m2_emm}
 m2_emm <- emmeans(m2,
                   specs = c("treatment", "time"),
                   lmer.df = "Satterthwaite")
@@ -477,13 +511,13 @@ m2_emm <- emmeans(m2,
 
 Notes
 
-1. important to add "Satterthwaite" argument
+1. important to add `lmer.df = "Satterthwaite"` argument
 
 **interaction contrasts**
 
 The interaction contrasts estimate planned comparisons 5 and 6.
 
-```{r}
+```{r issues-fig1c-m2_ixn}
 m2_ixn <- contrast(m2_emm,
          interaction = c("revpairwise"),
          by = NULL,
@@ -494,14 +528,18 @@ m2_planned_ixn <- m2_ixn[c(1,6), ] %>%
   data.table()
 
 m2_planned_ixn %>%
-  kable() %>%
+  kable(digits = c(1,1,2,2,1,2,2,2,3)) %>%
   kable_styling()
 ```
+Notes
+
+1. These are same results as those using the change scores.
+
 **Simple effects**
 
 The simple effects estimate planned comparisons 1-4.
 
-```{r}
+```{r issues-fig1c-m2_pairs}
 # get simple effects from model
 
 m2_pairs <- contrast(m2_emm,
@@ -529,11 +567,10 @@ m2_planned_simple %>%
 
 We can combine the six planned comparisons into a single table.
 
-```{r}
+```{r issues-fig1c-m2-planned}
 # create contrast table for ixns
 m2_planned_ixn[, contrast := paste0("ixn: ", treatment_revpairwise)]
 
-# dump first two cols
 # dump first two cols
 keep_cols <- names(m2_planned_ixn)[-(1:2)]
 m2_planned_ixn <- m2_planned_ixn[, .SD, .SDcols = keep_cols]
@@ -549,9 +586,674 @@ m2_planned %>%
 
 ### Regression to the mean {#issues-regression-to-mean}
 
-## Longitudinal designs
+Regression to the mean is the phenomenon that if an extreme value is sampled, the next sample will likely be less extreme -- it is closer to the mean. This makes sense. If we randomly sample a single human male and that individual is 6'10" (about four standard deviations above the mean), the height of the next human male that we randomly sample will almost certainly be closer to the mean (about 5'10" in the united states). This phenomenon also applies to sampling a mean. If we randomly sample five human males and the mean height in the group is 5'6" (about 3 SEM below the mean), the mean height of the next sample of five human males that we measure will almost certainly be closer to the mean. And, this phenomenon applies to sampling a difference in means. If we randomly sample two groups of five human males and the difference between the mean heights is 5.7" (about 3 SED), then the difference in mean height in the next sample of two groups of human males that we measure will almost certainly be closer to zero.
 
-## Glucose tolerance curves
+```{r explore, echo=FALSE, eval=FALSE}
+mu <- 70
+sigma <- 3
+n = 5
+se <- sigma/sqrt(n)
+se
+70 - 3*se
+sed <- sqrt((se^2*n + se^2*n)/n)
+sed
+sqrt(sigma^2/n + sigma^2/n)
+3*sed
+```
+How does regression to the mean apply to the analysis of change scores in a pre-post experiment? Consider an experiment where the response is body weight in mice. In a pre-post experiment, mice are randomized to treatment group at baseline. Weight is measured at baseline and at post-baseline. We expect the difference in means at baseline to be zero. If there is no treatment effect, we expect the difference in means at post-baseline to be zero. Because of sampling error there is a difference in weight at baseline. Do we expect the mean difference to be the same post-baseline? No. Even if taken after only 1 hour, the post-baseline weight of each mouse would not equal the baseline weight because of variation in water intake and loss, food intake, fecal weight, and other variables that affect body weight (this is a within-mouse variance). There is a correlation between the pre and post measures -- individual mice that weigh more than the mean at baseline will generally weigh more than the mean at post-baseline. But, the bigger this within-mouse variance (or, the longer the time difference between baseline and post-baseline), the smaller this correlation. The consequence is that all these uncontrolled variables contribute to the sampling variance of the means and the difference in means at baseline and post-baseline. If the difference is unusually large at baseline *because of these uncontrolled factors contribution to within mouse variance*, we expect the difference at post-baseline to be less large -- there is regression to the mean (Figure \@ref(fig:issues-rtm-plot)A). This regression to the mean between the baseline and post-baseline measures will emerge as a treatment by time interaction, or, equivalently, a difference in the mean change score between treatments (Figure \@ref(fig:issues-rtm-plot)B).
+
+```{r issues-rtm-fake_data, echo=FALSE}
+n_iter <- 1000
+n <- 6
+np1 <- n + 1
+N <- n*2
+mu <- 30
+beta_1 <- 5
+sigma_among <- 2
+sigma_within <- sigma_among/2
+rho <- sigma_among/(sigma_among + sigma_within)
+max_baseline_d <- -9999
+
+time_levels <- c("pre", "post")
+treatment_levels <- c("cn","tr")
+fake_data <- data.table(
+  treatment = rep(rep(treatment_levels, each = n), 2),
+  time = rep(time_levels, each = n*2),
+  id = rep(paste0("mouse_0", 1:N), 2)
+)
+fake_data[, time := factor(time,
+                           levels = time_levels)]
+fake_data[, treatment := factor(treatment,
+                                levels = treatment_levels)]
+diff_pre <- numeric(n_iter)
+diff_post <- numeric(n_iter)
+ixn <- numeric(n_iter)
+ixn_p <- numeric(n_iter)
+p_ancova <- numeric(n_iter)
+p_change <- numeric(n_iter)
+seed_i <- 0
+for(i in 1:n_iter){
+  seed_i <- seed_i + 1
+  set.seed(seed_i)
+  # the contribution to variance due to individual differences
+  mu_i <- rnorm(N, mean = mu, sd = sigma_among)
+  
+  # the contribution to variance due to variation within individual
+  mu_i_pre <- rnorm(N, sd = sigma_within)
+  mu_i_post <- rnorm(N, sd = sigma_within)
+  
+  pre <- mu_i + mu_i_pre
+  post <- mu_i + beta_1 + mu_i_post
+  fake_data[, weight := c(pre, post)]
+  fit <- lm(weight ~ treatment*time, data = fake_data)
+  diff_pre[i] <- mean(pre[np1:N]) - mean(pre[1:n])
+  diff_post[i] <- mean(post[np1:N]) - mean(post[1:n])
+  ixn[i] <- coef(summary(fit))[4, "Estimate"]
+  ixn_p[i] <- coef(summary(fit))[4, "Pr(>|t|)"]
+  
+  fake_data_wide <- dcast(fake_data,
+                          id + treatment ~ time,
+                          value.var = "weight")
+  fake_data_wide[, change := post-pre]
+  fake_data_wide[, percent := (post-pre)/pre*100]
+  p_ancova[i] <- coef(summary(lm(post ~ treatment + pre,
+                  data = fake_data_wide)))[2, "Pr(>|t|)"]
+  p_change[i] <- coef(summary(lm(change ~ treatment,
+                  data = fake_data_wide)))[2, "Pr(>|t|)"]
+  
+}
+
+diverge_list <- which(abs(diff_pre) < 0.1 & abs(diff_post) > 1)
+converge_list <- which(abs(diff_pre) > 1 & abs(diff_post) < 0.1)
+p_list <- which(p_ancova > 0.1 & p_change < 0.01)
+keep <- intersect(converge_list, p_list)
+
+max_seed_con <- which(abs(ixn) == max(abs(ixn)[converge_list]))
+
+# convergence ixn
+set.seed(max_seed_con)
+mu_i <- rnorm(N, mean = mu, sd = sigma_among)
+# the contribution to variance due to variation within individual
+mu_i_pre <- rnorm(N, sd = sigma_within)
+mu_i_post <- rnorm(N, sd = sigma_within)
+pre <- mu_i + mu_i_pre
+post <- mu_i + beta_1 + mu_i_post
+fake_data[, weight := c(pre, post)]
+fake_data_wide <- dcast(fake_data,
+                        id + treatment ~ time,
+                        value.var = "weight")
+fake_data_wide[, change := post-pre]
+fake_data_wide[, percent := (post-pre)/pre*100]
+# coef(summary(lm(post ~ treatment + pre,
+#                 data = fake_data_wide)))
+# coef(summary(lm(change ~ treatment,
+#                 data = fake_data_wide)))
+# coef(summary(lm(percent ~ treatment,
+#                 data = fake_data_wide)))
+
+
+# not much we can do about divergence so limit to convergence
+
+fake_means <- fake_data[, .(weight = mean(weight)),
+                        by = c("time", "treatment")]
+
+```
+
+```{r issues-rtm-plot, echo = FALSE, fig.cap = "Regression to the mean. The individual values in (A) are fake data sampled from a normal distribution with true mean equal to 30 at baseline (gray line) or 35 at post-baseline(gray line). The unusually large different in means at baseline is an extreme event. Consequently, the difference at post-baseline is much smaller. This regression to the mean is easily visualized by the lines that converge at the post-baseline value. (B) The results of a linear model (or *t*-test) fit to the data in (A) using change scores as the response variable. The apparent treatment effect is due to regression to the mean."}
+dodge_width <- 0.4
+jitter_width <- .2
+gg1 <- ggplot(data = fake_data,
+             aes(x = time,
+                 y = weight,
+                 color = treatment,
+                 group = treatment)) +
+  
+  # individual points and lines
+  geom_point(position = position_jitterdodge(
+    dodge.width = dodge_width,
+    jitter.width = jitter_width
+  )) +
+  
+  # geom_line(position = position_dodge(
+  #             width = dodge_width),
+  #           alpha = 0.3) +
+  
+  # group mean points and lines
+  geom_point(data = fake_means,
+             aes(group = treatment),
+             size = 3,
+             position = position_dodge(dodge_width)) +
+  
+  geom_line(data = fake_means,
+             aes(group = treatment),
+            position = position_dodge(dodge_width)) +
+  
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  geom_segment(aes(x = .8,
+                   y = mu,
+                   xend = 1.2,
+                   yend = mu
+               ),
+               color = "gray") +
+
+  geom_segment(aes(x = 1.8,
+                   y = mu + beta_1,
+                   xend = 2.2,
+                   yend = mu + beta_1
+               ),
+               color = "gray") +
+ 
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+
+# gg
+
+m1 <- lm(change ~ treatment, data = fake_data_wide)
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise")
+gg2 <- ggplot_the_response(m1,
+                           m1_emm,
+                           m1_pairs,
+                           palette = pal_okabe_ito_blue,
+                           y_label = "weight (change from baseline)")
+
+plot_grid(gg1, gg2, ncol = 2, align = "h", axis = "tb")
+```
+
+## Longitudinal designs with more than one-post baseline measure
+
+A rigorous analysis of longitudinal data typically requires sophisticated statistical models but for many purposes, longitudinal data can be analyzed with simple statistical models using **summary statistics** of the longitud data. Summary statistics include the slope of a line for a response that is fairly linear or the Area Under the Curve (AUC) for humped responses.
+
+### Area under the curve (AUC) {#issues-auc}
+
+An AUC (Area under the curve) is a common and simple summary statistic for analyzing data from a glucose tolerance test and many other longitudinal experiments. Here I use the AUC of glucose tolerance tests (GTT) as an example.
+
+#### AUC and iAUC
+
+Let's generate and plot fake GTT data for a single individual in order to clarify some AUC measurements and define new ones.
+
+```{r issues-auc-fake-data, echo=TRUE}
+fake_auc <- data.table(
+  time = c(0, 15, 30, 60, 120),
+  glucose = c(116, 268, 242, 155, 121)
+)
+fake_auc[, glucose_change := glucose - glucose[1]]
+```
+
+```{r echo=FALSE, eval=FALSE}
+time <- fake_auc$time
+glucose <- fake_auc$glucose
+change <- fake_auc$glucose_change
+glucose_post <- trap.rule(time, glucose)/120
+glucose_change <- trap.rule(time, change)/120
+glucose_change_check <- glucose_post - glucose[1]
+glucose_post_2 <- trap.rule(time, c(0, glucose[2:5]))/120
+glucose_change_2 <- trap.rule(time, c(0, glucose[2:5]))/120 - glucose[1]
+glucose_post
+glucose_change
+glucose_change_check
+glucose_post_2
+glucose_change_2
+```
+
+```{r issues-auc-plot, echo=FALSE, fig.cap = "Glucose tolerance curve measures for the fake GTT data. A. Glucose values for an individual, B. The glucose values shifted so the baseline value is zero. The post-baseline values are change scores (glucose - baseline), or change from baseline. The filled area is the AUC in (A) and the iAUC in (B). The dashed line is the mean glucose over the post-baseline period (starting at 15 minutes) in (A) and the mean change from baseline over the full period in (B)."}
+
+glucose_0 <- fake_auc$glucose[1]
+auc <- trap.rule(x = fake_auc$time,
+                 y = fake_auc$glucose)
+auc_post <- trap.rule(x = fake_auc$time[-1],
+                              y = fake_auc$glucose[-1])
+auc_change <- trap.rule(x = fake_auc$time,
+                              y = fake_auc$glucose_change)
+glucose_post <- auc/(fake_auc$time[5] -
+                               fake_auc$time[1])
+glucose_post_2 <- auc_post/(fake_auc$time[5] -
+                             fake_auc$time[2])
+glucose_change <- auc_change/(fake_auc$time[5] -
+                               fake_auc$time[1])
+
+gg1 <- ggscatter(data = fake_auc,
+                 x = "time",
+                 y = "glucose",
+                 color = pal_okabe_ito_blue[1]) +
+  geom_line(color = pal_okabe_ito_blue[1]) +
+  geom_area(fill = pal_okabe_ito_blue[2],
+            alpha = 0.3) +
+  geom_hline(yintercept = glucose_post,
+             linetype = "dashed") +
+  annotate(geom = "text",
+           label = "mean glucose over\npost-baseline period",
+           x = 90,
+           y = 195) +
+  scale_x_continuous(breaks = fake_auc$time) +
+  coord_cartesian(ylim = c(0,300)) +
+  NULL
+#gg1
+
+gg2 <- ggscatter(data = fake_auc,
+                 x = "time",
+                 y = "glucose_change",
+                 color = pal_okabe_ito_blue[1]) +
+  geom_line(color = pal_okabe_ito_blue[1]) +
+  geom_area(fill = pal_okabe_ito_blue[2],
+            alpha = 0.3) +
+  geom_hline(yintercept = glucose_change,
+             linetype = "dashed") +
+  annotate(geom = "text",
+           label = "mean change over\nfull period",
+           x = 90,
+           y = 80) +
+  scale_x_continuous(breaks = fake_auc$time) +
+  ylab(paste("glucose change\n(glucose", minus, "baseline)")) +
+  coord_cartesian(ylim = c(0, 300)) +
+  
+  NULL
+# gg2
+
+plot_grid(gg1, gg2, ncol = 2)
+```
+
+**AUC** -- The glucose tolerance curve for an individual is a connected set of straight lines that serves as a proxy for the continuous change of glucose over the period (Figure \@ref(fig:issues-auc-plot)A). The AUC is the area under this set of straight lines (Figure \@ref(fig:issues-auc-plot)A) and is conveniently computed as the sum of the areas of each of the connected trapezoids created by the connected lines.
+
+**iAUC** -- the incremental AUC (iAUC) is the baseline-zeroed AUC. It can be visualized as the area under the connected lines that have been rigidly shifted down so that the baseline value is zero (Figure \@ref(fig:issues-auc-plot)B). The iAUC is computed using the trapezoid rule after first subtracting the individual's baseline value from all of the individual's values (including the baseline).
+
+#### Rethinking the iAUC as a change-score {#issues-iauc-change-score}
+
+The baseline-zeroed values of glucose used to compute iAUC are **change scores** from the baseline measure. This makes the iAUC a change score -- it is the AUC minus the area under the baseline.
+
+#### Rethinking a *t*-test of the AUC as a *t*-test of the glucuose concentration averaged over the test period
+
+The glucose concentration averaged over the post-baseline period for an individual is $glucose_{gtt-post} = \frac{AUC}{Period}$. Importantly, a *t*-test of $glucose_{gtt-post}$ is equivalent to a *t*-test of $AUC$ because the mean glucose values are simply the AUC values times the same constant (the test period) for all individuals. 
+
+#### Rethinking a *t*-test of the iAUC as a *t*-test of the change from baseline (change score) averaged over the test period
+
+The change from baseline (change score) averaged over the test period for an individual is $glucose_{gtt-change} = \frac{iAUC}{Period}$. As above, a *t*-test of $glucose_{gtt-change}$ is equivalent to a *t*-test of $iAUC$ because the $glucose_{gtt-change}$ values are simply the iAUC values times the same constant (the test period) for all individuals. 
+
+#### Rethinking AUC as a pre-post design.
+
+We can now rethink data used to construct an AUC as a pre-post design using the baseline value ($glucose_0$) as a measure of $pre$,  $glucose_{gtt-post}$ as a measure of $post$ and $glucose_{gtt-change}$ as a measure of $post - pre$ (note that $glucose_{gtt-change} = glucose_{gtt-post} - glucose_0$). And, we can use the principles outlined in [Comparing change from baseline (pre-post)](#issues-pre-post) above to determine best practices.
+
+#### Best practice strategies for analyzing AUC {#issues-auc-best}
+
+1. If the treatment was applied prior to the baseline measure, then use the change score model (Or use the linear mixed model if you want to estimate the effect at baseline). **This is the most common kind of design in the experimental biology literature**
+    a. `glucose_gtt_post - glucose_0 ~ treatment`
+    b. `iauc ~ treatment`. The *t* and *p* values are equivalent to those in 1a
+    c. `glucose ~ treatment*time + (1|id)`. This is a linear mixed model that allows the computation of both the effect of treatment at baseline and the effect of treatment on the change in the response to the condition (the interaction effect). This is *not* a LMM of the glucose values at all time periods but a pre-post LMM with the values of $\texttt{glucose_0}$ and $\texttt{glucose_gtt_post}$ stacked in the data column $\texttt{glucose}$. The *t* and *p* values for the interaction effect are equivalent to those in 1a and 1b.
+2. If treatment is randomized at baseline, use the ANCOVA linear model.
+    a. `glucose_post ~ treatment + glucose_0`.
+    b. `auc ~ treatment + glucose_0`. The *t* and *p* values are equivalent to those in 2a but the units of the response or the effect.
+
+#### The difference in iAUC between groups is an interaction effect. This is an important recognition.
+
+```{r issues-figxxx-import, echo=FALSE}
+# BCAA catabolism in brown fat controls energy homeostasis through SLC25A44
+# Gut intraepithelial T cells calibrate metabolism and accelerate cardiovascular disease
+
+data_from <- "BCAA catabolism in brown fat controls energy homeostasis through SLC25A44"
+filename <- "41586_2019_1503_MOESM8_ESM.xlsx"
+file_path <- here(data_folder, data_from, filename)
+times <- c(0, 15, 30, 60, 90, 120)
+n_times <- length(times)
+full_period <- times[n_times] - times[1]
+
+time_cols <- paste0("glucose_", times)
+
+bcaa_wide <- read_excel(file_path,
+                        sheet = "Fig2g",
+                        range = "A2:G30") %>%
+  data.table()
+colnames(bcaa_wide) <- c("id", time_cols)
+bcaa_wide[, id := factor(id)]
+treatment_levels <- c("Control", "BckdhaUcp1 KO")
+bcaa_wide[, treatment := factor(ifelse(substr(id,1,1) == "C",
+                                       treatment_levels[1],
+                                       treatment_levels[2]),
+                                levels = treatment_levels)]
+
+Y <- bcaa_wide[, .SD, .SDcols = time_cols] %>%
+  as.matrix()
+
+bcaa_wide[, auc := apply(Y, 1, trap.rule, x = times)] #check
+bcaa_wide[, iauc := apply(Y - Y[,1], 1, trap.rule, x = times)]
+bcaa_wide[, glucose_gtt_post := auc/full_period]
+bcaa_wide[, glucose_gtt_change := iauc/full_period]
+#bcaa_wide[, glucose_gtt_change2 := glucose_gtt_post - glucose_0]
+
+time_cols <- c("glucose_0", "glucose_gtt_post")
+bcaa_long <- melt(bcaa_wide, 
+                    id.vars = c("treatment", "id"),
+                    measure.vars = time_cols,
+                    variable.name = "time",
+                    value.name = "glucose")
+bcaa_long[, time_fac := factor(time)]
+bcaa_long[, time := times[as.integer(time)]]
+
+```
+
+```{r issues-something-different-fit, echo=FALSE}
+m1 <- lmer(glucose ~ time_fac*treatment + (1|id), data = bcaa_long)
+m1_coef <- coef(summary(m1))
+m1_emm <- emmeans(m1, specs = c("time_fac", "treatment"),
+                   lmer.df = "Satterthwaite")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     simple = "each",
+                     combine = TRUE,
+                     adjust = "none")
+# m1_coef
+```
+
+
+```{r issues-something-different-build-plot, echo=FALSE}
+m1_emm_dt <- summary(m1_emm) %>%
+  data.table
+b <- m1_coef[, "Estimate"]
+fudge <- 0.0
+nudge <- -0.05
+bracket_table <- data.table(
+  x = c(1 + nudge, 2 - nudge*.87, 2 - nudge*1.15),
+  y = c(b[1], b[1] + b[2], b[1] + b[2] + b[3] + fudge),
+  xend = c(1 + nudge, 2 - nudge*.9, 2 - nudge*1.1),
+  yend = c(b[1] + b[3], b[1] + b[2] + b[3] - fudge, b[1] + b[2] + b[3] + b[4])
+)
+gg_something_different <- ggplot(data = m1_emm_dt,
+             aes(x = time_fac,
+                 y = emmean,
+                 color = treatment)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  scale_x_discrete(labels = c("baseline", "post-baseline")) +
+  ylab("glucose (mg/dL)") +
+  
+  geom_line(aes(group = treatment)) +
+  
+  # additive point
+  geom_point(aes(
+    x = 2,
+    y = b[1] + b[2] + b[3]),
+    size = 3,
+    color = pal_okabe_ito_blue[2],
+    alpha = 0.1) +
+  
+  # additive line
+  geom_segment(aes(
+    x = 1,
+    y = b[1] + b[3],
+    xend = 2,
+    yend = b[1] + b[2] + b[3]),
+    color = pal_okabe_ito_blue[2],
+    linetype = "dashed",
+    alpha = 0.2
+  ) +
+  
+  # annotations
+  geom_segment(data = bracket_table,
+    aes(x = x,
+    y = y,
+    xend = xend,
+    yend = yend),
+    color = "black"
+  ) +
+
+  annotate(
+    geom = "text",
+    x = c(.73, 2.27, 2.3),
+    y = c(b[1] + 0.5*b[3],
+          b[1] + b[2] + .5*b[3],
+          b[1] + b[2] + b[3] + .5*b[4]),
+    label = c("estimated effect\nat baseline",
+              "more of the same",
+              "something different")
+  ) +
+
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        legend.title = element_blank()) +
+  
+  NULL
+
+# gg_something_different
+```
+
+If the treatment was not randomized at baseline, then the potential effects in a glucose tolerance test are:
+
+1. the effect of treatment at baseline, which is a measure of what is going on independent of added glucose. This is the baseline effect.
+2. the effect of glucose infusion, which is a measure of the physiological response during the absorptive state. This effect in each treatment level are the change scores. Researchers typically are not interested in this effect (we know glucose levels rise then fall).
+3. the difference in the change from baseline to the new condition (glucose infusion), which is equivalent to the difference in the change scores. This is the interaction effect. An interaction effect is evidence that the difference between treatment and control during the post-baseline (absorptive state) period is not *more of the same* difference occurring at baseline (fasted state) but *something different* (Figure \@ref(fig:issues-gg-something-different-plot)).
+
+```{r issues-gg-something-different-plot, echo = FALSE, fig.cap="Effects in a glucose tolerance data in an experiment in which the treatment is not randomized at baseline. \"something different is the interaction effect\". It is the difference in the change from baseline (or the difference in the change scores)."}
+gg_something_different
+```
+
+iAUC is a change score (see [Rethinking the iAUC as a change-score](#issues-iauc-change-score) above). Recall (or re-read) from section \@ref(issues-interaction) above that the difference in the mean change-score between two groups is the interaction effect of the linear model with two factors $\texttt{treatment}} ("cn" and "tr") and $\texttt{time}} ("pre" and "post") and their interaction.
+
+$$
+\texttt{glucose} = \beta_0 + \beta_1 (\texttt{treatment}_\texttt{tr}) + \beta_2 (\texttt{time}_\texttt{post}) + \beta_3 (\texttt{treatment}_\texttt{tr} \times \texttt{time}_\texttt{post}) + \varepsilon
+$$
+
+This means a *t*-test of iAUC is equivalent to the*t*-test of the interaction effect of treatment by time.
+
+This recognition adds an important perspective to the controversy of using iAUC in the analysis of glucose tolerance curves. iAUC is often used in place of AUC to "adjust" for baseline variation in glucose with the belief that this adjustment makes the AUC measure independent of (uncorrelated with) baseline glucose. As [Allison et al.](https://care.diabetesjournals.org/content/18/2/245.short){target="_blank"} note, a change score doesn't do this for us. The correct way to adjust for baseline variation is adding the baseline measure as a covariate in the linear model (Section \@ref(issues-pre-post) above).
+
+$$
+\texttt{glucose_mean_post} = \beta_0 + \beta_1 (\texttt{treatment}_\texttt{tr}) + \beta_2 (\texttt{glucose_0}) + \varepsilon
+$$
+
+Nevertheless, in a pre-post design, if the treatment is applied prior to the baseline measure, it is the interaction effect that we want as the measure of the treatment effect and not the difference between post-baseline means conditional on (adjusted for) baseline. That is we want the change score model and not the ANCOVA linear model.
+
+#### Issues in the analysis of designs where the treatment is applied prior to the baseline measure
+
+Almost all glucose tolerance tests in the experimental biology literature have designs where the treatment (genotype, diet, exercise) was applied prior to the baseline measure and we cannot expect the difference in means to be zero at baseline. In these, it is common, but far from standard, for researchers to analyze the data using *t* tests or post-hoc tests with the AUC adjusted for baseline as the response. This is equivalent to the recommended linear model in 1b.
+
+Two common alternative analyses with potential consequences that can severely mislead the researcher because of conflated effects are
+
+1. Separate *t* tests at each time point.
+2. *t* test/post-hoc tests of $\texttt{auc}$ (the standard AUC)
+
+The reason that these can mislead is because the results **conflate the baseline effect and the interaction effect** (Figure \@ref(fig:issues-gg-something-different-plot)). Both the baseline effect and the interaction effect are of physiological interest. The difference in the mean of the AUC combines these two effects. The difference in the means at any post-baseline time point combines these two effects. A *t*-test of the AUC or separate *t*-tests at the post-baseline time points conflate these effects. The conflated results muddle the physiology. If a researcher wants to simply conclude "The knockout causes glucose intolerance" then the full AUC is okay but the researcher should recognize that this is the question they are trying to answer. But if a researcher is asking, "is the difference between treatment groups in the absorptive (post-baseline) state something different, or more of the same, as the difference between treatment groups in the fasted (baseline) state?", then the researcher should avoid *t*-tests of the AUC or the separate *t*-tests at post-baseline times.
+
+Two common, alternative analyses that can mislead because of model assumptions that are more severely violated than best practice models are
+
+3. two-way ANOVA with treatment and time as the factors, followed by post-hoc tests. The advantage of this analysis is the ability to estimate the effect at baseline *and* the interaction effect. But, the correlated error due to the multiple measures on each individual violates the independence assumption. Inference from this model will generally be optimisitic -- the CIs will be too narrow and the *p*-values too small. This is an example of pseudoreplication. The correlated error can be modeled with a GLS linear model or a Linear Mixed Model.
+4. repeated measures ANOVA with treatment and time as the factors, followed by post-hoc tests. Like the two-way ANOVA, a repeated measures ANOVA can be used to estimate both the baseline and interaction effects. Unlike the two-way ANOVA, a repeated measures ANOVA models the correlated error. But the model for the correlated error is too unrealistic. The better alternatives for modeling the correlated error are the GLS linear model or the Linear Mixed Model.
+
+#### Example 1 -- Treatment applied prior to baseline
+
+Source: [Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis](https://idp.nature.com/authorize/casa?redirect_uri=https://www.nature.com/articles/s41586-019-1156-9&casa_token=vnFIQyig4UoAAAAA:3hBrakzgGdZ7hYaUBmTHj7dyD2PxQp6iCQXmTJNeFQnIETrRhg_gZwVDPwteGOOf3sFxS9M_Tfa45w4t)
+
+Source data: Fig. 3f
+
+```{r issues-fig3f-import, echo=FALSE, message=FALSE}
+data_from <- "Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis"
+file_name <- "41586_2019_1156_MOESM5_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig3f_wide <- read_excel(file_path,
+                    sheet = "Figure 3f",
+                    range = "H2:M15",
+                    col_names = FALSE) %>%
+  data.table()
+
+time_cols <- c(0, 30, 60, 90, 120)
+setnames(fig3f_wide,
+         old = names(fig3f_wide),
+         new = c("id", 
+                 paste0("time_", time_cols)))
+
+treatment_levels <- c("WT", "KO")
+fig3f_wide[, treatment := factor(substr(id, 1, 2),
+                                 treatment_levels)]
+
+fig3f_wide[, glucose_0 := time_0]
+
+times <- c(0, 30, 60, 90, 120)
+n_times <- length(times)
+period_full <- times[n_times] - times[1]
+period_post <- times[n_times] - times[2]
+
+time_cols <- paste0("time_", times)
+Y <- fig3f_wide[, .SD, .SDcols = time_cols] %>%
+  as.matrix()
+
+# auc
+fig3f_wide[, auc := apply(Y, 1, trap.rule, x = times)]
+
+# mean response over full period
+fig3f_wide[, glucose_gtt_post := auc/period_full]
+
+# auc of the change. Equal to iauc of le Floch
+fig3f_wide[, iauc := apply(Y - Y[,1], 1, trap.rule, x = times)]
+
+# mean change over full period
+fig3f_wide[, glucose_gtt_change := iauc/period_full]
+
+fig3f_long <- melt(fig3f_wide,
+                   id.vars = c("id", "treatment"),
+                   measure.vars = c("glucose_0", "glucose_gtt_post"),
+                   variable.name = "time",
+                   value.name = "glucose")
+
+fig3f_long_2 <- melt(fig3f_wide,
+                   id.vars = c("id", "treatment"),
+                   measure.vars = time_cols,
+                   variable.name = "time_fac",
+                   value.name = "glucose")
+fig3f_long_2[, time_fac := factor(time_fac,
+                                  levels = time_cols)]
+fig3f_long_2[, time := times[as.integer(time_fac)]]
+fig3f_long_2[, time_x := time +
+               (as.integer(treatment)*2-3)]
+
+
+# View(fig3f_wide)
+
+```
+
+##### An initial plot
+
+```{r echo=FALSE, warning=FALSE}
+
+gg <- ggscatter(data = fig3f_long_2,
+                   x = "time_x",
+                   y = "glucose",
+                   color = "treatment",
+                palette = pal_okabe_ito_blue) +
+  scale_x_continuous(breaks = times) +
+  NULL
+gg
+```
+
+##### Inference
+
+**change-score linear model** ([model 1a](#issues-auc-best)), which estimates the interaction effect (the effect of treatment on the difference in the change from baseline to post-baseline).
+
+```{r issues-3f-m1, echo = TRUE}
+m1 <- lm(glucose_gtt_post - glucose_0 ~ treatment,
+         data = fig3f_wide)
+
+m1_emm <- emmeans(m1, specs = "treatment")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+m1_pairs %>%
+  kable(digits = 3) %>%
+  kable_styling()
+# increased digits to compare with lmm below
+```
+Notes
+
+1. The estimate is not the average difference over the period but the difference in the average change from baseline. The knockout has an average change from baseline that is 48.3 mg/dL larger than the average change from baseline of the wildtype. Over the period, blood glucose in the knockout is 48.3 mg/dL larger than the expected difference if the only mechanisms generating a difference post-baseline are the same as the mechanisms generating the differences at baseline.
+2. This is equivalent to a *t* test of the AUC adjusted for baseline ($\texttt{iauc})
+
+```{r}
+m1_t <- t.test(iauc ~ treatment,
+       data = fig3f_wide,
+       var.equal = TRUE) %>%
+  tidy()
+
+m1_t[1, c(1, 4:8)]
+```
+
+Notes
+
+1. The estimate of the effect is the average change from baseline over the period times the period. Can anyone look at this number and claim with sincerity, wow that is huge!. The estimate from the change-score model, which is simply the difference in the average change from baseline over the period is a number that should be interpretable.
+2. The change-score model (or the analysis of the AUC adjusted for baseline) does not estimate the effect of treatment at baseline (the effect in the fasted state). Researchers probably want this. For this we need a linear model with correlated error such as a linear mixed model.
+
+**Linear mixed model** ([model 1c](#issues-auc-best)), which estimates the interaction effect and the baseline effect.
+
+```{r issues-3f-m2, echo = TRUE}
+m2 <- lmer(glucose ~ treatment*time + (1|id),
+           data = fig3f_long)
+m2_emm <- emmeans(m2,
+                  specs = c("treatment", "time"),
+                  lmer.df = "Satterthwaite")
+m2_pairs <- contrast(m2_emm,
+                     method = "revpairwise",
+                     simple = "each",
+                     combine = TRUE,
+                     adjust = "none") %>%
+  summary(infer = TRUE)
+m2_ixn <- contrast(m2_emm,
+                   interaction = "trt.vs.ctrl",
+                   adjust = "none") %>%
+  summary(infer = TRUE)
+
+m2_pairs %>%
+  kable(digits = 3) %>%
+  kable_styling()
+
+m2_ixn %>%
+  kable(digits = 3) %>%
+  kable_styling()
+# increased digits to compare to change-score model above
+```
+
+Notes
+
+1. The treatment effect at baseline is in the first row of the `m2_pairs` contrast table from the linear mixed model.
+2. The interaction effect (the effect of treatment on the change from baseline) is in the `m2_ixn` contrast table from the linear mixed model. The estimate, SE, confidence intervals, *t*-value, and *p*-value are the same as those from the change score model in `m1_pairs`.
+
+##### A *t* test of the AUC or separate *t*-tests at each time point result in ambiguous inference
+
+**t-test of the AUC**
+
+```{r}
+m3_t <- t.test(auc ~ treatment,
+       data = fig3f_wide,
+       var.equal = TRUE) %>%
+  tidy()
+
+m3_t[1, c(1, 4:8)]
+```
+
+**Separate t-tests at each time point**
+
+```{r}
+m4_t0 <- t.test(time_0 ~ treatment, data = fig3f_wide, var.equal = TRUE)
+m4_t30 <- t.test(time_30 ~ treatment, data = fig3f_wide, var.equal = TRUE)
+m4_t60 <- t.test(time_60 ~ treatment, data = fig3f_wide, var.equal = TRUE)
+m4_t90 <- t.test(time_90 ~ treatment, data = fig3f_wide, var.equal = TRUE)
+m4_t120 <- t.test(time_120 ~ treatment, data = fig3f_wide, var.equal = TRUE)
+
+m4_t <- data.table(
+  Time = times,
+  p.value = c(m4_t0$p.value,
+              m4_t30$p.value,
+              m4_t60$p.value,
+              m4_t90$p.value,
+              m4_t120$p.value
+  )
+)
+
+m4_t %>%
+  kable %>%
+  kable_styling()
+```
 
 ## Comparing responses normalized to a standard
 
@@ -599,4 +1301,271 @@ p_table
 #Conspicuously, the *p*-value for the "1 hour cold - Control" contrast is 0.039, which is "significant" using the conventional 
 
 ```
+
+## Hidden code
+### Import Fig4c data
+
+
+```{r issues-fig4c-import-show, echo=TRUE, warning=FALSE, message=FALSE}
+data_from <- "Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism"
+file_name <- "41467_2019_14003_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig4c_type <- c("text", rep("numeric", 8))
+fig4c <- read_excel(file_path,
+                   sheet = "Fig4C and 4E",
+                   range = "A3:I48",
+                   col_names = FALSE,
+                   col_types <- fig4c_type) %>%
+  data.table()
+
+# DPP4 (ng/mL), GLP-1 (pM),	Glucose (mmol/L),	Insulin (uIU/mL)
+measures <- c("DPP4", "GLP1", "Glucose", "Insulin")
+# post is 3 months post treatment
+period <- c("baseline", "post")
+new_colnames <- paste(rep(measures, 2),
+                      rep(period, each = 4),
+                      sep = "_")
+
+old_colnames <- colnames(fig4c)
+setnames(fig4c,
+         old = old_colnames,
+         new = c("treatment",
+                 new_colnames))
+
+treatment_levels <- c("Placebo", "Denosumab")
+fig4c[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+fig4c[, id := paste0("human_", .I)] # .I inserts row number
+#View(fig4c)
+```
+
+```{r issues-fig4c_long-show, echo=TRUE}
+fig4c_long <- melt(fig4c,
+                  id.vars = c("id", "treatment"),
+                  measure.vars = c("DPP4_baseline", "DPP4_post"),
+                  variable.name = "time",
+                  value.name = "dpp4")
+
+fig4c_long[, time := substr(as.character(time),
+                             6,
+                             nchar(as.character(time)))]
+fig4c_long[, time := factor(time,
+                             levels = c("baseline", "post"))]
+
+# View(fig4c_long)
+```
+
+### XX males fig1c
+
+```{r issues-xxmice-show, echo=TRUE}
+data_from <- "XX sex chromosome complement promotes atherosclerosis in mice"
+file_name <- "41467_2019_10462_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+fig1c_1 <- read_excel(file_path,
+                         sheet = "Figure 1C",
+                         range = "C3:G6",
+                         col_names = FALSE) %>%
+  data.table()
+setnames(fig1c_1,
+         old = colnames(fig1c_1),
+         new = paste("mouse", 1:5))
+fig1c_1[, time := rep(c("baseline", "week_1"), each = 2)]
+fig1c_1[, sex := rep(c("female", "male"), 2)]
+
+fig1c_2 <- read_excel(file_path,
+                         sheet = "Figure 1C",
+                         range = "I3:M6",
+                         col_names = FALSE) %>%
+  data.table()
+setnames(fig1c_2,
+         old = colnames(fig1c_2),
+         new = paste("mouse", 6:10))
+fig1c_2[, time := rep(c("baseline", "week_1"), each = 2)]
+fig1c_2[, sex := rep(c("female", "male"), 2)]
+
+fig1c <- rbind(data.table(chromosome = "xx",
+                          melt(fig1c_1,
+                               id.vars = c("sex", "time"),
+                               variable.name = "id",
+                               value.name = "fat_mass")),
+               data.table(chromosome = "xy",
+                          melt(fig1c_2,
+                               id.vars = c("sex", "time"),
+                               variable.name = "id",
+                               value.name = "fat_mass")))
+# id is not unique
+fig1c[, id := paste(sex, id, sep="_")] # now it is
+
+fig1c[, treatment := paste(sex, chromosome, sep = "_")]
+# unique(fig1c$treatment)
+# "female_xx" "male_xx"   "female_xy" "male_xy"
+treatment_levels <- c("female_xx", "female_xy", "male_xx", "male_xy")
+fig1c[, treatment := factor(treatment,
+                            levels = treatment_levels)]
+
+fig1c_wide <- dcast(fig1c, chromosome + sex + id + treatment ~ time, value.var = "fat_mass")
+fig1c_wide[, percent_change := (week_1 - baseline)/baseline*100]
+
+```
+
+### Generation of fake data to illustrate regression to the mean
+
+```{r issues-rtm-fake_data-show, echo=TRUE}
+n_iter <- 1000
+n <- 6
+np1 <- n + 1
+N <- n*2
+mu <- 30
+beta_1 <- 5
+sigma_among <- 2
+sigma_within <- sigma_among/2
+rho <- sigma_among/(sigma_among + sigma_within)
+max_baseline_d <- -9999
+
+time_levels <- c("pre", "post")
+treatment_levels <- c("cn","tr")
+fake_data <- data.table(
+  treatment = rep(rep(treatment_levels, each = n), 2),
+  time = rep(time_levels, each = n*2),
+  id = rep(paste0("mouse_0", 1:N), 2)
+)
+fake_data[, time := factor(time,
+                           levels = time_levels)]
+fake_data[, treatment := factor(treatment,
+                                levels = treatment_levels)]
+diff_pre <- numeric(n_iter)
+diff_post <- numeric(n_iter)
+ixn <- numeric(n_iter)
+ixn_p <- numeric(n_iter)
+p_ancova <- numeric(n_iter)
+p_change <- numeric(n_iter)
+seed_i <- 0
+for(i in 1:n_iter){
+  seed_i <- seed_i + 1
+  set.seed(seed_i)
+  # the contribution to variance due to individual differences
+  mu_i <- rnorm(N, mean = mu, sd = sigma_among)
+  
+  # the contribution to variance due to variation within individual
+  mu_i_pre <- rnorm(N, sd = sigma_within)
+  mu_i_post <- rnorm(N, sd = sigma_within)
+  
+  pre <- mu_i + mu_i_pre
+  post <- mu_i + beta_1 + mu_i_post
+  fake_data[, weight := c(pre, post)]
+  fit <- lm(weight ~ treatment*time, data = fake_data)
+  diff_pre[i] <- mean(pre[np1:N]) - mean(pre[1:n])
+  diff_post[i] <- mean(post[np1:N]) - mean(post[1:n])
+  ixn[i] <- coef(summary(fit))[4, "Estimate"]
+  ixn_p[i] <- coef(summary(fit))[4, "Pr(>|t|)"]
+  
+  fake_data_wide <- dcast(fake_data,
+                          id + treatment ~ time,
+                          value.var = "weight")
+  fake_data_wide[, change := post-pre]
+  fake_data_wide[, percent := (post-pre)/pre*100]
+  p_ancova[i] <- coef(summary(lm(post ~ treatment + pre,
+                  data = fake_data_wide)))[2, "Pr(>|t|)"]
+  p_change[i] <- coef(summary(lm(change ~ treatment,
+                  data = fake_data_wide)))[2, "Pr(>|t|)"]
+  
+}
+
+diverge_list <- which(abs(diff_pre) < 0.1 & abs(diff_post) > 1)
+converge_list <- which(abs(diff_pre) > 1 & abs(diff_post) < 0.1)
+p_list <- which(p_ancova > 0.1 & p_change < 0.01)
+keep <- intersect(converge_list, p_list)
+
+max_seed_con <- which(abs(ixn) == max(abs(ixn)[converge_list]))
+
+# convergence ixn
+set.seed(max_seed_con)
+mu_i <- rnorm(N, mean = mu, sd = sigma_among)
+# the contribution to variance due to variation within individual
+mu_i_pre <- rnorm(N, sd = sigma_within)
+mu_i_post <- rnorm(N, sd = sigma_within)
+pre <- mu_i + mu_i_pre
+post <- mu_i + beta_1 + mu_i_post
+fake_data[, weight := c(pre, post)]
+fake_data_wide <- dcast(fake_data,
+                        id + treatment ~ time,
+                        value.var = "weight")
+fake_data_wide[, change := post-pre]
+fake_data_wide[, percent := (post-pre)/pre*100]
+# coef(summary(lm(post ~ treatment + pre,
+#                 data = fake_data_wide)))
+# coef(summary(lm(change ~ treatment,
+#                 data = fake_data_wide)))
+# coef(summary(lm(percent ~ treatment,
+#                 data = fake_data_wide)))
+
+
+# not much we can do about divergence so limit to convergence
+
+fake_means <- fake_data[, .(weight = mean(weight)),
+                        by = c("time", "treatment")]
+```
+
+# Import fig3f
+
+```{r issues-fig3f-import-show, echo=TRUE, message=FALSE}
+data_from <- "Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis"
+file_name <- "41586_2019_1156_MOESM5_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+fig3f_wide <- read_excel(file_path,
+                    sheet = "Figure 3f",
+                    range = "H2:M15",
+                    col_names = FALSE) %>%
+  data.table()
+
+time_cols <- c(0, 30, 60, 90, 120)
+setnames(fig3f_wide,
+         old = names(fig3f_wide),
+         new = c("id", 
+                 paste0("time_", time_cols)))
+
+treatment_levels <- c("WT", "KO")
+fig3f_wide[, treatment := factor(substr(id, 1, 2),
+                                 treatment_levels)]
+
+fig3f_wide[, glucose_0 := time_0]
+
+times <- c(0, 30, 60, 90, 120)
+n_times <- length(times)
+period_full <- times[n_times] - times[1]
+period_post <- times[n_times] - times[2]
+
+time_cols <- paste0("time_", times)
+Y <- fig3f_wide[, .SD, .SDcols = time_cols] %>%
+  as.matrix()
+
+# auc
+fig3f_wide[, auc := apply(Y, 1, trap.rule, x = times)]
+
+# mean response over full period
+fig3f_wide[, glucose_gtt_post := auc/period_full]
+
+# auc of the change. Equal to iauc of le Floch
+fig3f_wide[, iauc := apply(Y - Y[,1], 1, trap.rule, x = times)]
+
+# mean change over full period
+fig3f_wide[, glucose_gtt_change := iauc/period_full]
+
+# View(fig3f_wide)
+```
+
+**convert fig3f to long format for LMM
+
+```{r issues-gtt-2-import, echo=FALSE, message=FALSE}
+fig3f_long <- melt(fig3f_wide,
+                   id.vars = c("id", "treatment"),
+                   measure.vars = c("glucose_0", "glucose_gtt_post"),
+                   variable.name = "time",
+                   value.name = "glucose")
+
+```
+
+
 

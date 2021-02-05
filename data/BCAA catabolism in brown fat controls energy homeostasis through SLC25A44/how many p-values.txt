@@ -1,0 +1,31 @@
+BCAA catabolism...
+1b	2	exp1	2 x 2 group comparison of means, paired-t
+1c	1	exp1	bivariate regression
+1d	20	exp1	correlations
+1e	20	exp1	2x20 multiple responses, unpaired-t
+1g	1	exp2	2x longitudinal measures, rmanova of main treatment
+1i	2	exp3	2x3 longitudinal, 2 sig. p-values given but unknown how many measured
+2b	1	exp4	2x8 longitudinal, rmanova of main treatment
+2c	2	exp5	2x longitudinal, rmanova of main treatment
+2d	1	exp6	2x7 longitudinal, rmanova of main treatment
+2e	5	exp7	2x5 multiple response, unpaired-t
+2f	1	exp8	2x longitudinal, rmanova of main treatment
+2g	5	exp9	2x6 longitudinal, 1 rmanova main + 5 unpaired-t following
+2h	4	exp10	2x5 longitudinal, 1 rmanova main + 4 unpaired-t following
+2i	1	exp11	2x1	unpaired-t
+2j	1	exp12	2x1	unpaired-t
+3b	2	exp1	1x2 multiple responses, bivariate regression
+3d	10	exp13	2x10 multiple responses, unpaired-t
+3e	7	exp13	2x7 multiple responses, unpaired-t
+3f	1	exp14	2x3 longitudinal, 2-way anova
+4a	3	exp15	2x3	multiple response, unpaired-t
+4d	2	exp16	2x 2x longitudinal multiple response, rmanova
+4e	1	exp17	2 x longitudinal, rmanova
+4f	3	exp18	2 x 3 multiple responses, unpaired-t
+4g	2	exp19	2 x 3 longitudinal, rmanova + unpaired-t
+4h	3	exp20	1x4, anova + tukey
+4i	2	exp21	2x2 factorial, anova + tukey
+
+main paper
+21 experiments (different sets of humans or mice)
+103 tests

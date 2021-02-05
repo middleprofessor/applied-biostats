@@ -1,0 +1,14 @@
+title: Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis
+why downloaded?
+
+Nature 2019
+
+fig 1d longitudinal address "when does it become different"
+fig 3 - t-test + gtt + temp v time
+fig 3d - 2 x 1, longitudinal of body weigh v time
+ - good to address "when do they become different"
+fig 3f - GTT with nicely parallel lines in treatment and control (big diff at baseline maintained throughout) raises question of what is the question with GTT?
+fig 4a 2 x 2
+fig 4d t-test
+fig 6e 2 x 1 longitudinal of body temp v time
+fig 6 3 x 1, n = 4

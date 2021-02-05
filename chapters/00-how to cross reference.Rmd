@@ -5,6 +5,12 @@ date: "1/21/2021"
 output: html_document
 ---
 
+# figures
+
+referencing figures constructed *after* the reference works. Sweet!
+
+# sections
+
 If using \@ref do NOT include the #. If using []() DO use the #.
 
 without "#"

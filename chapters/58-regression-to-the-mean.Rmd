@@ -27,42 +27,61 @@ where $Treatment$ is a dummy variable for a two-level factor. A pre-treatment me
 The reason why a researcher should not model a change score ($\Delta Y$) as a function of $Treatment$ without $Y_{pre}$ as a covariate is a phenomenon called **regression to the mean**. To explain regression to the mean, I use fake data simulated to model the results from an important study on gut microbiomes. In this study, the authors (Turnbaugh et al. xxx) showed that mice with feces from obese (genotype *ob/ob*) donors had higher weight gain than mice with feces from lean (genotype *+/+*) donors, presumably because of the differences in microbial communities between the donor types (shown elsewhere in their paper). To support the inference of a large difference in weight change, they illustrated the percent change in each treatment level in their Fig 3C, which is replicated here using simulated data generated to match the original summary statistics (Figure \@ref(fig:ancova-mouseplot1)). 
 
 ```{r ancova-mouse, echo=FALSE}
-# create fake data using available summary statistics from paper. Use a while
-# loop to generate a new data set each loop and check how close the summary
-# statistics of the fake data are to those of the Turnbaugh data. If all stats
+# create fake data using available summary statistics from paper.
+# Use a while loop to generate a new data set each loop and 
+# check how close the summary statistics of the fake data are
+# to those of the Turnbaugh data. If all stats
 # are within tolerance, keep and plot
 
-# create data.table of Turnbaugh mouse body fat data. Numbers are from paper.
+# "mouse" is a table of summary statistics of the +/+
+# and ob/ob groups reconstructed from data in Turnbaugh
 mouse <- data.table(treatment = c('+/+', 'ob/ob'),
                     n = c(10, 9),
-                    percent = c(.27, .47),
+                    percent = c(.27, .47), # fraction not percent
                     change = c(.86, 1.3),
                     se_percent = c(0.036, 0.083),
                     se_change = c(0.1, 0.2)
                     )
-mouse[, init:=change/percent]
-mouse[, final:=init+change]
-mouse[, sd:=sqrt(se_change^2*n/2)] # sample sd, assume homogenous pre/post
+mouse[, init := change/percent]
+mouse[, final := init + change]
+# sample sd, assume homogenous pre/post
+mouse[, sd := sqrt(se_change^2*n/2)]
+
 # reorder columns
 mouse <- mouse[, .SD, .SDcols=c('treatment', 'n', 'init', 'final', 'sd', 'change', 'percent', 'se_change', 'se_percent')]
 
 # compute some statistics for later use
-init_diff <- (mouse[2, init] - mouse[1, init])/sqrt(mean(mouse[,sd^2]))
-final_diff <- (mouse[2, final] - mouse[1, final])/sqrt(mean(mouse[,sd^2]))
+init_diff <- (mouse[2, init] - mouse[1, init]) /
+  sqrt(mean(mouse[, sd^2]))
+final_diff <- (mouse[2, final] - mouse[1, final]) /
+  sqrt(mean(mouse[, sd^2]))
+
 # generate replica fake data
 
-percent.lean <- mouse[treatment=='+/+', percent]
-percent.obese <- mouse[treatment=='ob/ob', percent]
-percent.lean.se <- mouse[treatment=='+/+', se_percent]
-percent.obese.se <- mouse[treatment=='ob/ob', se_percent]
+percent.lean <- mouse[treatment == '+/+', percent]
+percent.obese <- mouse[treatment == 'ob/ob', percent]
+percent.lean.se <- mouse[treatment == '+/+', se_percent]
+percent.obese.se <- mouse[treatment == 'ob/ob', se_percent]
 
 # parameters for model
-Sigma_ii <- mean(mouse[, sd^2]) # variances for both init and final
-sigma <- sqrt(Sigma_ii) # standard deviations
-rho <- 0.4 # pre-post correlation. I have no idea what the actual value is.
-mu <- mean(mouse[, init]) # initial weight
-delta <- mean(mouse[, change]) # delta is the post - pre effect for control
-tau <- 0 # tau is the treatment effect (on top of delta)
+# variances for both init and final
+Sigma_ii <- mean(mouse[, sd^2])
+
+# standard deviations
+sigma <- sqrt(Sigma_ii)
+
+# pre-post correlation. I have no idea what the actual value is.
+rho <- 0.4
+
+# initial weight
+mu <- mean(mouse[, init])
+
+# delta is the post - pre effect for the control group
+delta <- mean(mouse[, change]) 
+
+# tau is the treatment effect (on top of delta)
+tau <- 0
+
 Sigma <- matrix(c(c(Sigma_ii, rho*Sigma_ii), c(rho*Sigma_ii, Sigma_ii)), nrow=2)
 N <- sum(mouse[, n])
 
@@ -74,34 +93,41 @@ while(done==FALSE){
   # create pre-post mouse weights that are correlated
   treatment <- rep(c('+/+','ob/ob'), mouse[,n])
   weights <- rmvnorm(n=N, mean=c(mu, mu+delta), sigma=Sigma)
-  weights[treatment=='ob/ob', 2] <- weights[treatment=='ob/ob', 2] + tau
-  fake_mouse <- data.table(ID=factor(1:N),
-                   treatment=factor(treatment, c('+/+','ob/ob')),
-                   init=weights[,1],
-                   final=weights[,2])
-  fake_mouse[, change:=final-init]
-  fake_mouse[, percent:=change/init]
-  fake_mouse_sum <- fake_mouse[, .(final=mean(final),
-                   percent_change=mean(percent), 
-                   se=sd(percent)/sqrt(.N), 
-                   cs=mean(change), 
-                   se.change=sd(change)/sqrt(.N)), 
-               by=treatment]
+  weights[treatment == 'ob/ob', 2] <- 
+    weights[treatment == 'ob/ob', 2] + tau
+  fake_mouse <- data.table(ID = factor(1:N),
+                   treatment = factor(treatment, c('+/+','ob/ob')),
+                   init = weights[,1],
+                   final = weights[,2])
+  fake_mouse[, change := final-init]
+  fake_mouse[, percent := change/init]
+  fake_mouse_sum <- fake_mouse[, .(final = mean(final),
+                   percent_change = mean(percent), 
+                   se = sd(percent)/sqrt(.N), 
+                   cs = mean(change), 
+                   se.change = sd(change)/sqrt(.N)), 
+               by = treatment]
   fake_mouse_sum
-  if(abs(fake_mouse_sum[treatment=='ob/ob', final] - fake_mouse_sum[treatment=='+/+', final]) < 0.04 &
-     abs(fake_mouse_sum[treatment=='ob/ob', percent_change] - percent.obese) < 0.02 &
-     abs(fake_mouse_sum[treatment=='+/+', percent_change] - percent.lean) < 0.02 &
-     abs(fake_mouse_sum[treatment=='ob/ob', se] - percent.obese.se) < 0.02 &
-     abs(fake_mouse_sum[treatment=='+/+', se] - percent.lean.se) < 0.01 ){
+  if(abs(fake_mouse_sum[treatment == 'ob/ob', final] - 
+         fake_mouse_sum[treatment=='+/+', final]) < 0.04 &
+     abs(fake_mouse_sum[treatment == 'ob/ob', percent_change] -
+         percent.obese) < 0.02 &
+     abs(fake_mouse_sum[treatment == '+/+', percent_change] -
+         percent.lean) < 0.02 &
+     abs(fake_mouse_sum[treatment == 'ob/ob', se] -
+         percent.obese.se) < 0.02 &
+     abs(fake_mouse_sum[treatment == '+/+', se] -
+         percent.lean.se) < 0.01 ){
     done <- TRUE
   }else{
-  seed <- seed+1
+    seed <- seed+1
   }
 }
 
-fake_mouse_sum[, percent_change:=percent_change*100]
-fake_mouse_sum[, se:=se*100]
-fake_mouse[, percent:=percent*100]
+fake_mouse_sum[, percent_change := percent_change*100]
+fake_mouse_sum[, se := se*100]
+fake_mouse[, percent := percent*100]
+
 ```
 
 ```{r ancova-mouseplot1, echo=FALSE, fig.cap="Figure 3c of Turnbaugh *et al* 2006. This figure was generated with simulated data matching the summary statistics given in Turnbaugh *et al* 2006", fig.small = TRUE}

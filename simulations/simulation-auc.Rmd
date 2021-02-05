@@ -1,0 +1,521 @@
+---
+title: "simulation -- area under the curve"
+author: "Jeffrey A. Walker"
+date: "1/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(here)
+
+library(nlme)
+library(lmerTest)
+library(emmeans)
+library(MASS)
+library(mvtnorm)
+library(Hmisc) # auc using trap.rule, probably faster than my code
+
+library(knitr)
+library(kableExtra)
+
+here <- here::here
+
+
+```
+
+Rho is the conditional error correlation matrix.
+```{r simulation functions}
+  rho.1.2 <- 0.5
+  rho.1.p <- 0.6
+  rho.max.max <- 0.8
+  rho.max.min <- 0.7
+  
+fake_Rho <- function(p=5,
+                     rho.base.2 = 0.6, # cor(t_0, t_1)
+                     rho.base.p = 0.5, # cor(t_0, t_p)
+                     rho.max.max = 0.8, # cor(t_p-1, t_p)
+                     rho.max.min = 0.7, # cor(t_1, t_2)
+                     rho.min = 0.5){
+  # rho.base.2 and rho.base.p control the correlations of baseline with post-baseline measures. These tend to be lower than the correlations among post-baseline measures, generally between 0 and 0.5
+  # rho.max.max and rho.max.min control the maximum post-baseline correlations. In general the correlations are highest beteween succesive times and are highest between final two times, which is rho.max.max. rho.max.min is the correlation between time 2 and 3. The correlations drop to rho.min.
+  
+  Rho_fake <- matrix(1, nrow=p, ncol=p)
+  for(i in 1:(p-1)){
+    cells <- p - i
+    row.max <- (cells-1)/(p-2-1)*rho.max.min +
+      (1-(cells-1)/(p-2-1))*rho.max.max
+    inc <- -(row.max - rho.min)/(p - 2 -1)
+    for(j in (i+1):p){
+      if(i==1){
+        Rho_fake[i,j] <- (j-2)/(p-2)*rho.base.p +
+          (1-(j-2)/(p-2))*rho.base.2
+        Rho_fake[j,i] <- Rho_fake[i,j]
+      }else{
+        Rho_fake[i,j] <- row.max + inc*(cells - (p-j+1))
+        Rho_fake[j,i] <- Rho_fake[i,j]
+      }
+    }
+  }
+  return(Rho_fake)
+}
+```
+
+
+```{r}
+# x - the time points. Weights constructed from these
+# y - the values that we want to compute the mean
+weighted_mean <- function(x, y){
+  p <- length(x)
+  pm1 <- p-1
+
+  x_0 <- c(0, (x[2:p] - x[1:pm1]))
+  x_1 <- c((x[2:p] - x[1:pm1]), 0)
+  weights <- (x_0 + x_1)/2
+  
+  w_mean <- (weights %*% y)/sum(weights)
+  return(w_mean)
+}
+
+```
+
+```{r}
+# about the variables
+  n_sim = 4000 # number of iterations in simulation
+  n_levels = c(10, 10) # sample size fore each group
+  treatment_levels = c("cn", "tr") # names of groups - don't change
+  R_max = c(0.6, 0.8) # baseline max, non-baseline max for the matrix of correlations between time points. See the information on constructing Rho
+  times = c(0, 15, 30, 60, 120) # measurement time periods (minutes)
+  mu = c(150, 150, 150, 150, 150) # glucose for cn at baseline carried over for each time. These should all be the same
+  beta_time = c(0, 80, 80, 50, 0) # effect of glucose at each post-baseline time. Baseline included in vector - should be zero. add to mu. This is what creates the curve for cn
+  beta_trt = c(20, 20, 20, 20, 20) # effect of treatment at baseline (carried over to all times). Add this to mu + beta_time. This creates the curve for tr if there is no differential response to glucose.
+  beta_ixn = c(0, 20, 20, 20, 10) # differential effect of glucose for tr. Add this to mu + beta_time + beta_trt. This creates the curve for tr. The first value should be zero because ixn doesn't add to this.
+  sigma = c(10, 25, 25, 25, 25) # sd of sample at each time
+  seed_i = 1 # seed
+
+simulator <- function(
+  n_sim = 4000,
+  n_levels = c(10, 10),
+  treatment_levels = c("cn", "tr"),
+  R_max = c(0.6, 0.8), 
+  times = c(0, 15, 30, 60, 120),
+  mu = c(150, 150, 150, 150, 150),
+  beta_time = c(0, 80, 80, 50, 0),
+  beta_trt = c(20, 20, 20, 20, 20),
+  beta_ixn = c(0, 20, 20, 20, 10),
+  sigma = c(10, 25, 25, 25, 25),
+  seed_i = 1
+){
+  set.seed(seed_i)
+  p <- length(mu)
+  N <- sum(n_levels)
+  baseline_max <- R_max[1]
+  non_baseline_max <- R_max[2]
+  R <- fake_Rho(p,
+                rho.base.2 = baseline_max,
+                rho.base.p = 3/4*baseline_max,
+                rho.max.max = non_baseline_max,
+                rho.max.min = 7/8*non_baseline_max,
+                rho.min = 5/8*non_baseline_max)
+  
+  R_0 <- R[,1] # correlation of each time with time0
+  R_0[1] <- 0 # don't add this component to first beta
+  Sigma <- diag(sigma)%*%R%*%diag(sigma)
+  
+  # period durations
+  n_times <- length(times)
+  full_period <- times[n_times] - times[1]
+  post_period <- times[n_times] - times[2]
+
+    # init fake data matrix
+  fake_data <- data.table(
+    treatment = factor(rep(c("cn", "tr"), each = n_levels))
+    )
+  fake_data[, id:=factor(1:.N)]
+  
+  param_list <- c("r_obs",
+                  "b_tr_0",
+                  "b_change",
+                  "b_ancova",
+                  "b_ancova_post_full",
+                  "b_ancova_post")
+  method_list <- c("change", "change_post", "ancova", "ancova_post_full", "ancova_post")
+  res <- matrix(as.numeric(NA),
+                 nrow = n_sim,
+                 ncol = length(c(param_list, method_list))) %>%
+    data.table()
+  colnames(res) <- c(param_list, method_list)
+
+  for(iter in 1:n_sim){
+    Y <- rbind(rmvnorm(n_levels[1],
+                       mu + beta_time,
+                       Sigma),
+               rmvnorm(n_levels[2],
+                       mu + beta_time + beta_trt + beta_ixn,
+                       Sigma))
+    Y1 <- matrix(c(Y[, 1],
+                   rep(0, N*(n_times-1))),
+                 ncol = n_times)
+    fake_data[, glucose_0 := Y[,1]]
+    fake_data[, auc := apply(Y, 1, trap.rule,
+                             x = times)]  
+    fake_data[, auc_post_full := apply(Y-Y1, 1, trap.rule,
+                                  x = times)]
+    fake_data[, auc_post := apply(Y[, -1], 1, trap.rule,
+                                  x = times[-1])]
+    fake_data[, auc_change := apply(Y-Y[,1], 1, trap.rule,
+                                    x = times)]
+    fake_data[, auc_change_post := apply((Y-Y[,1])[,-1], 1, trap.rule,
+                                         x = times[-1])]
+    
+    # convert to means over the period
+    fake_data[, glucose_mean := auc/full_period]
+    fake_data[, glucose_mean_post_full := auc_post_full/full_period]
+    fake_data[, glucose_mean_post := auc_post/post_period]
+    fake_data[, glucose_change := auc_change/full_period]
+    fake_data[, glucose_change_post := auc_change_post/post_period]
+    
+    
+    # compute correlated response
+    fake_data[, glucose_0_res := glucose_0 - mean(glucose_0), by = treatment]
+    fake_data[, auc_res := auc - mean(auc), by = treatment]
+    res[iter, r_obs := cor(fake_data[, glucose_0_res], fake_data[, auc_res])]
+    
+    # change score full period
+    m1 <- lm(glucose_change ~ treatment,
+             data = fake_data)
+    # change score post period
+    m2 <- lm(glucose_change_post ~ treatment,
+             data = fake_data)
+    # ANCOVA LM full period
+    m3 <- lm(glucose_mean ~ glucose_0 + treatment,
+             data = fake_data)
+    # ANCOVA LM post period
+    m4 <- lm(glucose_mean_post_full ~ glucose_0 + treatment,
+             data = fake_data)
+     # ANCOVA LM post period
+    m5 <- lm(glucose_mean_post ~ glucose_0 + treatment,
+             data = fake_data)
+   
+    m1_coef <- coef(summary(m1))
+    m2_coef <- coef(summary(m2))
+    m3_coef <- coef(summary(m3))
+    m4_coef <- coef(summary(m4))
+    m5_coef <- coef(summary(m5))
+    
+    res[iter, b_tr_0 := mean(fake_data[treatment == "tr", glucose_0]) -
+      mean(fake_data[treatment == "cn", glucose_0])]
+    res[iter, b_change := m1_coef["treatmenttr", "Estimate"]]
+    res[iter, b_ancova := m3_coef["treatmenttr", "Estimate"]]
+    res[iter, b_ancova_post_full := m4_coef["treatmenttr", "Estimate"]]
+    res[iter, b_ancova_post := m5_coef["treatmenttr", "Estimate"]]
+    
+    res[iter, change := m1_coef["treatmenttr", "Pr(>|t|)"]]
+    res[iter, change_post := m2_coef["treatmenttr", "Pr(>|t|)"]]
+    res[iter, ancova := m3_coef["treatmenttr", "Pr(>|t|)"]]
+    res[iter, ancova_post_full := m4_coef["treatmenttr", "Pr(>|t|)"]]
+    res[iter, ancova_post := m5_coef["treatmenttr", "Pr(>|t|)"]]
+  }
+  
+  return(res)
+
+}
+
+
+```
+
+
+# Global variables
+
+```{r}
+do_it <- TRUE
+sim_i <- 0 # this will increment up
+n_sim_g = 4000
+n_levels_g = c(10, 10)
+treatment_levels_g = c("cn", "tr")
+R_max_g = c(0.6, 0.8)
+times_g = c(0, 15, 30, 60, 120)
+mu_g = c(150, 150, 150, 150, 150)
+beta_time_g = c(0, 80, 80, 50, 0)
+beta_trt_i = c(20, 20, 20, 20, 20) # local
+beta_ixn_i = c(0, 20, 20, 20, 10) # local
+sigma_g = c(10, 25, 25, 25, 25)
+seed_g = 1
+
+p_values <- data.table(NULL)
+method_list <- c("change",
+                 "change_post",
+                 "ancova",
+                 "ancova_post_full",
+                 "ancova_post")
+
+```
+
+# randomized at baseline -- Type I
+
+```{r}
+sim_i <- sim_i + 1
+baseline <- "randomized"
+test <- "type I"
+beta_trt_i = c(0, 0, 0, 0, 0)
+beta_ixn_i = c(0, 0, 0, 0, 0)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_g,
+    n_levels = n_levels_g,
+    treatment_levels = treatment_levels_g,
+    R_max = R_max_g,
+    times = times_g,
+    mu = mu_g,
+    beta_time = beta_time_g,
+    beta_trt = beta_trt_i,
+    beta_ixn = beta_ixn_i,
+    sigma = sigma_g,
+    seed_i = seed_g
+  )
+  p_values <- rbind(p_values,
+                    data.table(
+                      sim = sim_i,
+                      baseline = baseline,
+                      test = test,
+                      sim_res
+                    ))
+  apply(sim_res[, .SD, .SDcols = method_list],
+        2,
+        function(x) sum(x < 0.05)/n_sim_g)
+}
+
+```
+
+# randomized at baseline -- Power
+
+```{r}
+sim_i <- sim_i + 1
+baseline <- "randomized"
+test <- "power"
+beta_trt_i = c(0, 0, 0, 0, 0)
+beta_ixn_i = c(0, 20, 20, 20, 10)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_g,
+    n_levels = n_levels_g,
+    treatment_levels = treatment_levels_g,
+    R_max = R_max_g,
+    times = times_g,
+    mu = mu_g,
+    beta_time = beta_time_g,
+    beta_trt = beta_trt_i,
+    beta_ixn = beta_ixn_i,
+    sigma = sigma_g,
+    seed_i = 2
+  )
+  p_values <- rbind(p_values,
+                    data.table(
+                      sim = sim_i,
+                      baseline = baseline,
+                      test = test,
+                      sim_res
+                    ))
+  apply(sim_res[, .SD, .SDcols = method_list],
+        2,
+        function(x) sum(x < 0.05)/n_sim_g)
+  trap.rule(times,beta_ixn_i)/(times[5] - times[1]) # treatment effect
+  trap.rule(times,beta_ixn_i)/(times[5] - times[2]) # treatment effect
+  trap.rule(times[-1],beta_ixn_i[-1])/(times[5] - times[2]) # treatment effect
+  mean(sim_res$b_change)
+  mean(sim_res$b_ancova)
+  mean(sim_res$b_ancova_post_full)
+  mean(sim_res$b_ancova_post)
+  qplot(x = b_tr_0,
+        y = b_ancova,
+        data = sim_res)
+  qplot(x = b_tr_0,
+        y = b_ancova_post,
+        data = sim_res)
+  coef(summary(lm(b_ancova ~ b_tr_0,
+        data = sim_res)))
+  coef(summary(lm(b_ancova_post ~ b_tr_0,
+        data = sim_res)))
+
+}
+
+```
+
+# Different groups at baseline -- Type I
+
+```{r}
+sim_i <- sim_i + 1
+baseline <- "different"
+test <- "type I"
+beta_trt_i = c(20, 20, 20, 20, 20)
+beta_ixn_i = c(0, 0, 0, 0, 0)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_g,
+    n_levels = n_levels_g,
+    treatment_levels = treatment_levels_g,
+    R_max = R_max_g,
+    times = times_g,
+    mu = mu_g,
+    beta_time = beta_time_g,
+    beta_trt = beta_trt_i,
+    beta_ixn = beta_ixn_i,
+    sigma = sigma_g,
+    seed_i = seed_g
+  )
+  p_values <- rbind(p_values,
+                    data.table(
+                      sim = sim_i,
+                      baseline = baseline,
+                      test = test,
+                      sim_res
+                    ))
+  apply(sim_res[, .SD, .SDcols = method_list],
+        2,
+        function(x) sum(x < 0.05)/n_sim_g)
+}
+
+```
+
+# Different groups at baseline -- Power
+
+```{r}
+sim_i <- sim_i + 1
+baseline <- "different"
+test <- "power"
+beta_trt_i = c(20, 20, 20, 20, 20)
+beta_ixn_i = c(0, 20, 20, 20, 10)
+
+if(do_it == TRUE){
+  sim_res <- simulator(
+    n_sim = n_sim_g,
+    n_levels = n_levels_g,
+    treatment_levels = treatment_levels_g,
+    R_max = R_max_g,
+    times = times_g,
+    mu = mu_g,
+    beta_time = beta_time_g,
+    beta_trt = beta_trt_i,
+    beta_ixn = beta_ixn_i,
+    sigma = sigma_g,
+    seed_i = seed_g
+  )
+  p_values <- rbind(p_values,
+                    data.table(
+                      sim = sim_i,
+                      baseline = baseline,
+                      test = test,
+                      sim_res
+                    ))
+  apply(sim_res[, .SD, .SDcols = method_list],
+        2,
+        function(x) sum(x < 0.05)/n_sim_g)
+
+  trap.rule(times,beta_ixn_i)/(times[5] - times[1]) # treatment effect
+  trap.rule(times,beta_ixn_i)/(times[5] - times[2]) # treatment effect
+  trap.rule(times[-1],beta_ixn_i[-1])/(times[5] - times[2]) # treatment effect
+  mean(sim_res$b_change)
+  mean(sim_res$b_ancova)
+  mean(sim_res$b_ancova_post_full)
+  mean(sim_res$b_ancova_post)
+}
+
+```
+# read/write
+
+```{r}
+sim_data_folder <- "sim_data"
+sim_fn <- "auc.Rds"
+sim_path <- here(sim_data_folder, sim_fn)
+if(do_it == TRUE){
+  saveRDS(p_values, sim_path)
+}else{
+  p_values <- readRDS(sim_path)
+}
+
+```
+
+# table
+```{r}
+p_values[, lapply(.SD,
+                  function(x) sum(x < 0.05)/mean(n_sim_g)),
+         .SDcols = method_list,
+         by = c("sim", "baseline","test")] %>%
+  kable(digits = c(1,1,1,3,3,3,3)) %>%
+  kable_styling()
+
+```
+# correlated response
+```{r}
+p_values[, .(lower = quantile(r_obs, 0.1),
+             median = quantile(r_obs, 0.5),
+             upper = quantile(r_obs, 0.9)),
+         by = .(baseline, test)]
+# same each sim because restarted seed each sim so using same random error
+```
+# sim 1 results
+
+Conditional bias in the estimation of the treatment effect (b_ixn) when the treatment is randomized at baseline, and the consequence of this on p-values. The consequence on p-values for this parameterization (E(r) = 0.67) is way too trivial to care for empirical reasons.
+
+```{r}
+qplot(x = b_tr_0, y = b_tr_change, data = p_values[sim == 1])
+qplot(x = abs(b_tr_0), y = change, data = p_values[sim == 1]) +
+  geom_smooth()
+
+fit <- lm(change ~ r_obs + abs(b_tr_0), data = p_values[sim == 1])
+coef(summary(fit))
+```
+
+# sim 2 results
+
+```{r}
+beta_ixn_i <- c(0, 20, 20, 20, 10) # for sim 2
+trap.rule(times,beta_ixn_i)/(times[5] - times[1])
+mean(p_values[sim == 2, b_tr_change])
+mean(p_values[sim == 2, b_tr_ancova])
+qplot(x = b_tr_0, y = b_tr_change, data = p_values[sim == 2]) +
+  geom_smooth()
+qplot(x = abs(b_tr_0), y = change, data = p_values[sim == 2]) +
+  geom_smooth()
+
+
+```
+# sim 3 results
+
+```{r}
+qplot(x = b_tr_0, y = b_tr_change, data = p_values[sim == 3])
+qplot(x = b_tr_0, y = b_tr_change, data = p_values[sim == 3])
+
+qplot(x = abs(b_tr_0), y = change, data = p_values[sim == 3]) +
+  geom_smooth()
+
+fit <- lm(change ~ r_obs + abs(b_tr_0), data = p_values[sim == 3])
+coef(summary(fit))
+fit <- lm(change_post ~ r_obs + abs(b_tr_0), data = p_values[sim == 3])
+coef(summary(fit))
+
+```
+
+# sim 4 results
+
+```{r}
+beta_ixn_i <- c(0, 20, 20, 20, 10) # for sim 4
+trap.rule(times,beta_ixn_i)/(times[5] - times[1])
+mean(p_values[sim == 4, b_tr_change])
+mean(p_values[sim == 4, b_tr_ancova])
+qplot(x = b_tr_0, y = b_tr_change, data = p_values[sim == 4]) +
+  geom_smooth()
+qplot(x = b_tr_0, y = b_tr_ancova, data = p_values[sim == 4]) +
+  geom_smooth()
+qplot(x = abs(b_tr_0), y = change, data = p_values[sim == 4]) +
+  geom_smooth()
+qplot(x = abs(b_tr_0), y = ancova, data = p_values[sim == 4]) +
+  geom_smooth()
+
+```
+
