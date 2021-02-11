@@ -800,7 +800,7 @@ glucose_post_2
 glucose_change_2
 ```
 
-```{r issues-auc-plot, echo=FALSE, fig.cap = "Glucose tolerance curve measures for the fake GTT data. A. Glucose values for an individual, B. The glucose values shifted so the baseline value is zero. The post-baseline values are change scores (glucose - baseline), or change from baseline. The filled area is the AUC in (A) and the iAUC in (B). The dashed line is the mean glucose over the post-baseline period (starting at 15 minutes) in (A) and the mean change from baseline over the full period in (B)."}
+```{r issues-auc-plot, echo=FALSE, fig.cap = "Glucose tolerance curve measures for the fake GTT data. A. Glucose values for an individual, B. The glucose values shifted so the baseline value is zero. The post-baseline values are change scores (glucose - baseline), or change from baseline. The filled area is the AUC in (A) and the iAUC in (B). The dashed line is the mean glucose over the test period in (A) and the mean change from baseline over the test period in (B)."}
 
 glucose_0 <- fake_auc$glucose[1]
 auc <- trap.rule(x = fake_auc$time,
@@ -826,7 +826,7 @@ gg1 <- ggscatter(data = fake_auc,
   geom_hline(yintercept = glucose_post,
              linetype = "dashed") +
   annotate(geom = "text",
-           label = "mean glucose over\npost-baseline period",
+           label = "mean glucose over\ntest period",
            x = 90,
            y = 195) +
   scale_x_continuous(breaks = fake_auc$time) +
@@ -844,7 +844,7 @@ gg2 <- ggscatter(data = fake_auc,
   geom_hline(yintercept = glucose_change,
              linetype = "dashed") +
   annotate(geom = "text",
-           label = "mean change over\nfull period",
+           label = "mean change over\ntest period",
            x = 90,
            y = 80) +
   scale_x_continuous(breaks = fake_auc$time) +
@@ -948,17 +948,26 @@ m1_pairs <- contrast(m1_emm,
 ```
 
 
-```{r issues-something-different-build-plot, echo=FALSE}
+```{r issues-something-different-build-plot, echo=FALSE, eval=FALSE}
 m1_emm_dt <- summary(m1_emm) %>%
   data.table
-b <- m1_coef[, "Estimate"]
+b <- m1_coef[, "Estimate"] 
+
 fudge <- 0.0
 nudge <- -0.05
 bracket_table <- data.table(
-  x = c(1 + nudge, 2 - nudge*.87, 2 - nudge*1.15),
-  y = c(b[1], b[1] + b[2], b[1] + b[2] + b[3] + fudge),
-  xend = c(1 + nudge, 2 - nudge*.9, 2 - nudge*1.1),
-  yend = c(b[1] + b[3], b[1] + b[2] + b[3] - fudge, b[1] + b[2] + b[3] + b[4])
+  x = c(1 + nudge,
+        2 - nudge*.87,
+        2 - nudge*1.15),
+  y = c(b[1],
+        b[1] + b[2],
+        b[1] + b[2] + b[3] + fudge),
+  xend = c(1 + nudge,
+           2 - nudge*.87,
+           2 - nudge*1.15),
+  yend = c(b[1] + b[3],
+           b[1] + b[2] + b[3] - fudge,
+           b[1] + b[2] + b[3] + b[4])
 )
 gg_something_different <- ggplot(data = m1_emm_dt,
              aes(x = time_fac,
@@ -1016,6 +1025,11 @@ gg_something_different <- ggplot(data = m1_emm_dt,
   
   NULL
 
+image_path <- here("images", "issues-something_different.png")
+ggsave(image_path,
+       width = 7,
+       height = 5,
+       units = "in")
 # gg_something_different
 ```
 
@@ -1025,8 +1039,11 @@ If the treatment was not randomized at baseline, then the potential effects in a
 2. the effect of glucose infusion, which is a measure of the physiological response during the absorptive state. This effect in each treatment level are the change scores. Researchers typically are not interested in this effect (we know glucose levels rise then fall).
 3. the difference in the change from baseline to the new condition (glucose infusion), which is equivalent to the difference in the change scores. This is the interaction effect. An interaction effect is evidence that the difference between treatment and control during the post-baseline (absorptive state) period is not *more of the same* difference occurring at baseline (fasted state) but *something different* (Figure \@ref(fig:issues-gg-something-different-plot)).
 
-```{r issues-gg-something-different-plot, echo = FALSE, fig.cap="Effects in a glucose tolerance data in an experiment in which the treatment is not randomized at baseline. \"something different is the interaction effect\". It is the difference in the change from baseline (or the difference in the change scores)."}
-gg_something_different
+```{r issues-gg-something-different-plot, echo = FALSE, out.width="80%", fig.cap="Effects in a glucose tolerance data in an experiment in which the treatment is not randomized at baseline. \"something different is the interaction effect\". It is the difference in the change from baseline (or the difference in the change scores)."}
+
+image_path <- here("images", "issues-something_different.png")
+
+knitr::include_graphics(image_path)
 ```
 
 iAUC is a change score (see [Rethinking the iAUC as a change-score](#issues-iauc-change-score) above). Recall (or re-read) from section \@ref(issues-interaction) above that the difference in the mean change-score between two groups is the interaction effect of the linear model with two factors $\texttt{treatment}} ("cn" and "tr") and $\texttt{time}} ("pre" and "post") and their interaction.
@@ -1507,7 +1524,7 @@ fake_means <- fake_data[, .(weight = mean(weight)),
                         by = c("time", "treatment")]
 ```
 
-# Import fig3f
+### Import fig3f
 
 ```{r issues-fig3f-import-show, echo=TRUE, message=FALSE}
 data_from <- "Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis"
