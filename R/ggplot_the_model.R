@@ -1,4 +1,4 @@
-## ----setup, include=TRUE-------------------------------------------------
+## ----setup, include=TRUE--------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
 
 # wrangling
@@ -39,12 +39,12 @@ pal_okabe_ito_4 <- pal_okabe_ito[c(5,6,7,2)]
 
 
 
-## ----odd-even------------------------------------------------------------
+## ----odd-even-------------------------------------------------------
 odd <- function(x) x%%2 != 0
 even <- function(x) x%%2 == 0
 
 
-## ----remove-parentheses--------------------------------------------------
+## ----remove-parentheses---------------------------------------------
 remove_parentheses <- function(x){
   if(substr(x, 1, 1) == "("){
     x <- substr(x, 2, nchar(x))
@@ -56,7 +56,7 @@ remove_parentheses <- function(x){
 }
 
 
-## ----ggcheck_the_qq, warning = FALSE-------------------------------------
+## ----ggcheck_the_qq, warning = FALSE--------------------------------
 ggcheck_the_qq = function(m1,
                    line = "robust",
                    n_boot = 200){
@@ -163,7 +163,7 @@ ggcheck_the_qq = function(m1,
 }
 
 
-## ----ggcheck_the_spreadlevel---------------------------------------------
+## ----ggcheck_the_spreadlevel----------------------------------------
 ggcheck_the_spreadlevel <- function(m1,
                    n_boot = 200){
   n <- nobs(m1)
@@ -218,7 +218,7 @@ ggcheck_the_spreadlevel <- function(m1,
 }
 
 
-## ----ggcheck_the_model---------------------------------------------------
+## ----ggcheck_the_model----------------------------------------------
 ggcheck_the_model <- function(m1){
   gg1 <- ggcheck_the_qq(m1)
   gg2 <- ggcheck_the_spreadlevel(m1)
@@ -226,7 +226,7 @@ ggcheck_the_model <- function(m1){
 }
 
 
-## ----emm_table-----------------------------------------------------------
+## ----emm_table------------------------------------------------------
 emm_table <- function(fit_emm){
   table_out <- data.table(summary(fit_emm))
   if("response" %in% colnames(table_out)){
@@ -245,7 +245,7 @@ emm_table <- function(fit_emm){
 }
 
 
-## ----effects_table-------------------------------------------------------
+## ----effects_table--------------------------------------------------
 effects_table <- function(fit_pairs,
                           digits = 2,
                           accuracy = 1e-04,
@@ -294,7 +294,7 @@ effects_table <- function(fit_pairs,
 
 
 
-## ----pvalue_table--------------------------------------------------------
+## ----pvalue_table---------------------------------------------------
 pvalue_table <- function(fit_pairs){
   if(is.data.frame(fit_pairs) == TRUE){
     pairs_dt <- data.table(fit_pairs)
@@ -396,7 +396,7 @@ pvalue_table <- function(fit_pairs){
 
 
 
-## ----response-plot-------------------------------------------------------
+## ----response-plot--------------------------------------------------
 response_plot <- function(
   fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm, # data frame with means, error
@@ -551,13 +551,13 @@ response_plot <- function(
 }
 
 
-## ----plot_pvalues--------------------------------------------------------
+## ----plot_pvalues---------------------------------------------------
 plot_pvalues <- function(
       gg,
       fit_emm,
       fit_pairs,
       contrast_rows,
-      p_pos
+      y_pos = NULL
 ){
   fit_emm_dt <- emm_table(fit_emm)
   pvalue_table_dt <- pvalue_table(fit_pairs)
@@ -607,9 +607,9 @@ plot_pvalues <- function(
       pvalue_table_dt[, x_max_col := gg_data[rowb, x]]
     }
     
-    if(is.null(p_pos)){
+#    if(is.null(p_pos)){
       p_pos <- 1:length(contrast_rows)
-    }
+ #   }
     
     # get min/max y
     y_range <- ggplot_build(gg)$layout$panel_params[[1]]$y.range
@@ -617,7 +617,13 @@ plot_pvalues <- function(
     min_y <- y_range[1]
 
     increment <- 0.08*(max_y - min_y)
-    y_position <- max_y + increment*p_pos
+    if(is.null(y_pos)){
+      y_position <- max_y + increment*p_pos
+    }else{
+      y_position <- y_pos
+    }
+    
+    
     gg <- gg + 
       stat_pvalue_manual(pvalue_table_dt[contrast_rows],
                          label = "p",
@@ -628,8 +634,7 @@ plot_pvalues <- function(
                          tip.length = 0.01)
     
     # make sure ylim includes p-value
-    y_hi <- max_y + 0.05*(max_y - min_y) +
-      increment*max(p_pos)
+    y_hi <- max(y_position)
     y_lo <- min_y - 0.05*(max_y - min_y)
     gg <- gg + coord_cartesian(ylim = c(y_lo, y_hi))
   }
@@ -642,7 +647,7 @@ plot_pvalues <- function(
 }
 
 
-## ----ggplot_the_response-------------------------------------------------
+## ----ggplot_the_response--------------------------------------------
 ggplot_the_response <- function(
  fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm,
@@ -655,7 +660,7 @@ ggplot_the_response <- function(
   dodge_width = 0.8,
   adjust = 0.5,
   contrast_rows = "all",
-  p_pos = NULL,
+  y_pos = NULL,
   palette = pal_okabe_ito,
   legend_position = "top",
   flip_horizontal = FALSE,
@@ -686,7 +691,7 @@ ggplot_the_response <- function(
       fit_emm = fit_emm,
       fit_pairs = fit_pairs,
       contrast_rows = contrast_rows,
-      p_pos = p_pos
+      y_pos = y_pos
     )
   }
   
@@ -695,7 +700,7 @@ ggplot_the_response <- function(
 }
 
 
-## ----old_ggplot_the_response---------------------------------------------
+## ----old_ggplot_the_response----------------------------------------
 old_ggplot_the_response <- function(
   fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm,
@@ -919,7 +924,7 @@ old_ggplot_the_response <- function(
 
 
 
-## ----ggplot_the_effects--------------------------------------------------
+## ----ggplot_the_effects---------------------------------------------
 ggplot_the_effects <- function(fit,
                        fit_pairs,
                        contrast_rows = "all",
@@ -998,7 +1003,7 @@ ggplot_the_effects <- function(fit,
 }
 
 
-## ----ggplot_the_model----------------------------------------------------
+## ----ggplot_the_model-----------------------------------------------
 ggplot_the_model <- function(fit,
                            fit_emm,
                            fit_pairs,
@@ -1011,7 +1016,7 @@ ggplot_the_model <- function(fit,
                            adjust = 0.5,
                            contrast_rows = "all",
                            show_p = TRUE,
-                           p_pos = NULL,
+                           y_pos = NULL,
                            palette = pal_okabe_ito,
                            legend_position = "bottom",
                            flip_horizontal = TRUE,
@@ -1049,7 +1054,7 @@ ggplot_the_model <- function(fit,
 }
 
 
-## ----plot_treatments-----------------------------------------------------
+## ----plot_treatments------------------------------------------------
 plot_treatments <- function(gg,
                             x_levels,
                             text_size = 5){
@@ -1100,7 +1105,7 @@ plot_treatments <- function(gg,
 
 
 
-## ----ggplot_the_treatments-----------------------------------------------
+## ----ggplot_the_treatments------------------------------------------
 ggplot_the_treatments <- function(
   gg,
   x_levels,
@@ -1129,6 +1134,6 @@ ggplot_the_treatments <- function(
 }
 
 
-## ----output-as-R-file----------------------------------------------------
+## ----output-as-R-file-----------------------------------------------
 #knitr::purl("0.1-ggplot_the_model.Rmd")
 

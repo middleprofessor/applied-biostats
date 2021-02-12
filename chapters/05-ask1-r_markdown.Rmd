@@ -532,7 +532,6 @@ fig_2e_gg <- ggplot_the_response(
   wrap_col=NULL,
   y_label = "Post-baseline glucose (mmol per l)",
   contrast_rows = "all",
-  p_pos = c(2,3,1,1),
   palette = pal_okabe_ito_4,
 )
 

@@ -24,6 +24,7 @@ library(data.table)
 # analysis packages
 library(emmeans)
 library(car) # qqplot, spreadlevel
+library(afex)
 
 # graphing an tabling packages
 library(ggplot2) # ggplot environment
@@ -260,7 +261,8 @@ We need to control for any (KO/Rest - WT/Rest) effect using the contrast:
 ### Fit the linear model
 
 ```{r twoway-exp2j_m1, echo=TRUE}
-exp2j_m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+exp2j_m1 <- lm(glucose_uptake ~ stimulation * genotype,
+               data = exp2j)
 
 ```
 
@@ -363,7 +365,7 @@ ggplot_the_response(
 )
 ```
 
-## Understanding the linear model with crossed factors 1 (Why the interaction effect is necessary in experiments with distinct treatment and control effects)
+## Understanding the linear model with crossed factors 1
 
 Researchers in experimental biology report almost exclusively the *p*-values of the simple effects (Table \@ref(tab:twoway-factorial-table)) in data from factorial experiments. These can be computed even if the data are flattened into a single "treatment" factor. But it is the interaction effect that is necessary to make many of the inferences made by the researchers. To see why, we need to understand what the coefficients in the coefficient table are.
 
@@ -875,6 +877,44 @@ image_path <- here("images", "twoway-scenarios.png")
 knitr::include_graphics(image_path)
 ```
 
+### For pairwise comparisons, it doesn't matter if you analyze the data with a factorial or a flattened linear model
+
+Compare
+
+```{r two-exp2j-factorial-pairwise}
+m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+
+m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
+
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     adjust = "tukey") %>%
+  summary(infer = TRUE)
+
+m1_pairs %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+  
+```
+
+```{r two-exp2j-flattened-pairwise}
+m2 <- lm(glucose_uptake ~ treatment, data = exp2j)
+
+m2_emm <- emmeans(m2, specs = c("treatment"))
+
+m2_pairs <- contrast(m2_emm,
+                     method = "revpairwise",
+                     adjust = "tukey") %>%
+  summary(infer = TRUE)
+
+m2_pairs %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+  
+```
+
+But, this equivalence is somewhat beside the point, which is, in an experiment with crossed factors, we should analyze the data using a linear model with crossed factors, as this allows us to estimate the interaction effect.
+
 ## Example 2: Estimation of the effect of background condition on an effect ("it depends") (XX mice)
 
 ```{r twoway-exp3e-import, message=FALSE, echo=FALSE}
@@ -967,7 +1007,7 @@ exp3e_m1 <- lm(lesian_area ~ sex*chromosome, data = exp3e)
 
 ### Check the model
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, warning=FALSE}
 ggcheck_the_model(exp3e_m1)
 ```
 
@@ -1079,46 +1119,45 @@ exp3e_m1_plot <- ggplot_the_model(
 )
 exp3e_m1_plot
 ```
-## Understanding the linear model with crossed factors 2 (When to care about conditional effects and when to simplify the model)
+
+## Understanding the linear model with crossed factors 2
 
 ### Conditional and marginal means
 
-```{r factorial-conditional-means, echo=FALSE, message=FALSE}
+```{r twoway-conditional-means, echo=FALSE, message=FALSE}
 options(knitr.kable.NA = '')
-ycols <- c("group", names(m1_emm))
 
-m1_emm_dt <- emmeans(m1, specs=c("hac", "indole")) %>%
+fit <- copy(exp3e_m1)
+factors <- c("sex", "chromosome")
+fit_emm <- emmeans(fit, specs = factors) %>%
   summary() %>%
   data.table()
 
-m1_emm_hac <- emmeans(m1, specs=c("hac")) %>%
+fit_emm_1 <- emmeans(fit, specs = factors[1]) %>%
   summary() %>%
   data.table()
 
-m1_emm_indole <- emmeans(m1, specs=c("indole")) %>%
+fit_emm_2 <- emmeans(fit, specs = factors[2]) %>%
   summary() %>%
   data.table()
 
+col_1 <- c(fit_emm[sex == "Female", emmean],
+           fit_emm_1[sex == "Female", emmean])
+col_2 <- c(fit_emm[sex == "Male", emmean],
+           fit_emm_1[sex == "Male", emmean])
 
-hac_0 <- c(m1_emm_dt[hac == "HAC-", emmean],
-           m1_emm_hac[hac == "HAC-", emmean])
-hac_1 <- c(m1_emm_dt[hac == "HAC+", emmean],
-           m1_emm_hac[hac == "HAC+", emmean])
-indole_means <- c(m1_emm_indole[, emmean], NA)
-
-means_table <- data.frame("HAC-" = hac_0,
-                          "HAC+" = hac_1,
-                          "mean" = indole_means)
-row.names(means_table) <- c("Indole-", "Indole+","mean")
-
+means_table <- data.frame("Female" = col_1,
+                          "Male" = col_2,
+                          "mean" = c(fit_emm_2[, emmean], NA))
+row.names(means_table) <- c("XX", "XY","mean")
 
 bgc1 <- pal_okabe_ito[1]
 bgc2 <- pal_okabe_ito[2]
 
 knitr::kable(means_table, 
              digits = 3,
-             col.names = c("HAC-", "HAC+", "mean"),
-             caption = "Conditional (white background) and marginal (color background) means from full factorial model fit to ABA data") %>%
+             col.names = c("Female", "Male", "mean"),
+             caption = "Conditional (white background) and marginal (color background) means from full factorial model fit to lesian area data") %>%
   kable_styling(full_width = FALSE) %>%
   # row_spec(row = 0,
   #          bold = F) %>%
@@ -1134,52 +1173,51 @@ knitr::kable(means_table,
 
 ```
 
-The conditional means from model \@ref(eq:factorial-full) are shown in the upper left $2 \times 2$ block (white background) of Table \@ref(tab:factorial-conditional-means). These means are conditional on the level of $hac$ and $indole$. The values in the last row and column are the **marginal means**, which are the means of the associated row or column cells (these values are in the margins of the table). More generally, *marginal* refers to a statistic averaged across multiple levels of another variable. The marginal means of $indole$ (orange background) are the means of the `Indole+` and `Indole-` rows. The marginal means of $hac$ (blue background) are the means of the `HAC+` and `HAC-` columns.
+The conditional means from the fit model are shown in the upper left $2 \times 2$ block (white background) of Table \@ref(tab:twoway-conditional-means). These means are conditional on the level of $\texttt{sex}$ and $\texttt{chromosome}$. The values in the last row and column are the **marginal means**, which are the means of the associated row or column cells (these values are in the margins of the table). More generally, *marginal* refers to a statistic averaged across multiple levels of another variable. The marginal means of the $\texttt{chromosome}$ levels (orange background) are the means of the "XX" and "XY" rows. The marginal means of the $\texttt{sex}$ levels (blue background) are the means of the "Female" and "Male" columns.
 
 ### Simple (conditional) effects
 
-In a factorial experiment with crossed A and B factors, there is an effect of factor A (relative to the reference, or another level of factor A) for each of the *p* levels of factor B. And, there is an effect of factor B (relative to the reference, or another level of factor B) for each of the *m* levels of factor A.
+In a factorial experiment with crossed A and B factors, there is an effect of factor A (relative to the reference, or another level of factor A) for each of the *p* levels of factor B. And, there is an effect of factor B (relative to the reference, or another level of factor B) for each of the *m* levels of factor A. These effects of one factor at each of the levels of the other factor are called the **simple effects**. I prefer **conditional effects**, since the value of the effect is conditional on the level of the other factor.
 
-For the maize defense response experiment, there is an Indole effect at `hac = HAC-` and a different effect at `hac = HAC+`. Similarly, there is a HAC effect at `indole = Indole-` and a different effect at `indole = Indole+`. These effects, or **contrasts** (differences in modeled means), are called the **simple effects**. I prefer **conditional effects**, since the value of the effect is conditional on the level factor of the other factor.
+For the maize defense response experiment, there is an chromosome effect at `sex = Female` and a different effect at `sex = Male`. Similarly, there is a sex effect at `chromosome = XX` and a different effect at `chromosome = XY`.
 
-```{r, echo=FALSE}
-m1_emm <- emmeans(m1, specs=c("hac", "indole"))
-m1_pairs <- contrast(m1_emm,
-                        method = "revpairwise",
-                        adjust = "none",
-                        simple = "each",
-                        combine = TRUE)
-knitr::kable(m1_pairs, 
-             digits=c(1,1,1,1,2,1,1,5),
-             caption = "Conditional (or \"simple\") effects of the factorial model.") %>%
-  kable_styling()
-```
-
-The first two rows are the conditional effects of $hac$ in each of the levels of $Indole$. The last two rows are the conditional effects of $Indole$ in each of the levels of $hac$.
-
-```{r factorial-simple-effects, echo = FALSE}
-options(knitr.kable.NA = '')
-ycols <- c("group", names(m1_emm))
-
-m1_emm <- emmeans(m1, specs=c("hac", "indole"))
-m1_pairs_dt <- contrast(m1_emm,
+```{r twoway-conditional-effects, echo=FALSE}
+exp3e_m1_emm <- emmeans(fit, specs = factors)
+exp3e_m1_pairs <- contrast(exp3e_m1_emm,
                         method = "revpairwise",
                         adjust = "none",
                         simple = "each",
                         combine = TRUE) %>%
+  summary(infer = TRUE)
+knitr::kable(exp3e_m1_pairs, 
+             digits=c(1,1,1,3,3,1,3,3,3,5),
+             caption = "Conditional (or \"simple\") effects of the factorial model.") %>%
+  kable_styling()
+```
+
+The first two rows are the conditional effects of $\texttt{sex}$ in each of the levels of $\texttt{chromosome}$. The last two rows are the conditional effects of $\texttt{chromosome}$ in each of the levels of $\texttt{sex}$.
+
+To help understand conditional effects, I add these to the $m \times p$ table of treatment combination means (Table \@ref(tab:twoway-simple-effects)). The values in the right-side column (orange) are the conditional effects of $\texttt{sex}$ at each level of $\texttt{chromosome}$ These values are the difference of the means in the associated row. For example, the conditional effect of $\texttt{sex}$ when `chromosome = XY` is 0.124 (second value in orange column). The values in the bottom row (blue) are the conditional effects of $\texttt{chromosome}$ at each level of $\texttt{sex}$. These values are the difference of the means in the associated column. For example, the conditional effect of $\texttt{chromosome}$ when `sex = Female` is -0.29 (first value in blue row). Note that the first conditional effect for each factor has a corresponding row in the table of coefficients of the fit model because these are the effects for that factor at the reference level of the other factor.
+
+```{r twoway-simple-effects, echo = FALSE}
+options(knitr.kable.NA = '')
+factors <- c("sex", "chromosome")
+
+exp3e_m1_emm_dt <- exp3e_m1_emm %>%
   summary() %>%
   data.table()
+exp3e_m1_pairs_dt <- data.table(exp3e_m1_pairs)
 
-hac_0 <- c(m1_emm_dt[hac == "HAC-", emmean],
-           m1_pairs_dt[hac == "HAC-", estimate])
-hac_1 <- c(m1_emm_dt[hac == "HAC+", emmean],
-           m1_pairs_dt[hac == "HAC+", estimate])
-hac_diffs <- c(m1_pairs_dt[1:2, estimate], NA)
+col_1 <- c(exp3e_m1_emm_dt[sex == "Female", emmean],
+           exp3e_m1_pairs_dt[sex == "Female", estimate])
+col_2 <- c(exp3e_m1_emm_dt[sex == "Male", emmean],
+           exp3e_m1_pairs_dt[sex == "Male", estimate])
+col_diffs <- c(exp3e_m1_pairs_dt[1:2, estimate], NA)
 
-simple_table <- data.frame("HAC-" = hac_0,
-                          "HAC+" = hac_1,
-                          "simple" = hac_diffs)
-row.names(simple_table) <- c("Indole-", "Indole+","simple")
+simple_table <- data.frame("Female" = col_1,
+                          "Male" = col_2,
+                          "simple" = col_diffs)
+row.names(simple_table) <- c("XX", "XY","simple")
 
 
 
@@ -1188,8 +1226,8 @@ bgc2 <- pal_okabe_ito[2]
 
 knitr::kable(simple_table, 
              digits = 3,
-             col.names = c("HAC-", "HAC+", "simple"),
-             caption = "Conditonal (\"simple\") effects of HAC (orange background) and Indole (blue background) on ABA concentration. The conditional means of each combination of the factor levels are in the cells with the white background. The simple effect is the difference in the means of the associated row or column.") %>%
+             col.names = c("Female", "Male", "simple"),
+             caption = "Conditional (\"simple\") effects of sex (orange background) and chromosome (blue background) on lesian area. The conditional means of each combination of the factor levels are in the cells with the white background. The simple effect is the difference in the means of the associated row or column.") %>%
   kable_styling(full_width = FALSE) %>%
   # row_spec(row = 0,
   #          bold = F) %>%
@@ -1206,32 +1244,37 @@ knitr::kable(simple_table,
 
 ```
 
-One way to understand conditional effects is by using the $m \times p$ table of treatment combination means (Table \@ref(factorial-simple-effects)). The values in the right-side column (orange) are the conditional effects of HAC at each level of Indole. These values are the difference of the means in the associated row. For example, the conditional effect of $hac$ when `indole = Indole-` is 13.297 (first value in orange column). The values in the bottom row (blue) are the conditional effects of Indole at each level of HAC. These values are the difference of the means in the associated column. For example, the conditional effect of $indole$ when `hac = HAC+` is 21.594 (second value in blue row). Note that the first conditional effect for each factor has a corresponding row in the table of coefficients of the fit model.
-
 ### Marginal effects
 
 The average of the conditional effects for a factor are the **marginal effects**, or the **main effects** in ANOVA terminology.
 
-```{r factorial-main, echo=FALSE, warning=FALSE, message=FALSE}
+```{r twoway-marginal-effects, echo=FALSE, message=TRUE, warning=TRUE}
+emmeans(exp3e_m1, specs = "sex") %>%
+  contrast(method = "revpairwise")
+emmeans(exp3e_m1, specs = "chromosome") %>%
+  contrast(method = "revpairwise")
+```
+I'm showing the full output from the emmeans package output to highlight the message that these effects are averaged over levels of the other factor. What isn't displayed here (but is if you run this) is the warning that the inference "may be misleading" because of the interaction effect in the linear model. This is a healthy warning that I follow up on below.
 
-m1_hac_dt <- emmeans(m1, specs = "hac") %>%
-  contrast(
-    method = "revpairwise") %>%
-  summary() %>%
+In Table \@ref(tab:twoway-main), I add the marginal effects to the table of conditional effects from above (Table \@ref(tab:twoway-simple-effects))
+
+```{r twoway-main, echo=FALSE, warning=FALSE, message=FALSE}
+exp3e_m1_sex <- emmeans(exp3e_m1, specs = "sex") %>%
+  contrast(method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
   data.table()
 
-m1_indole_dt <- emmeans(m1, specs = "indole") %>%
-  contrast(
-    method = "revpairwise") %>%
-  summary() %>%
+exp3e_m1_chrom <- emmeans(exp3e_m1, specs = "chromosome") %>%
+  contrast(method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
   data.table()
 
 marginal_table <- copy(simple_table)
 
 marginal_table <- rbind(marginal_table, marginal =
-                        c(NA, NA, m1_hac_dt[1, estimate]))
+                        c(NA, NA, exp3e_m1_sex[1, estimate]))
 marginal_table <- cbind(marginal_table,
-                        marginal = c(NA, NA, m1_indole_dt[1, estimate], NA))
+                        marginal = c(NA, NA, exp3e_m1_chrom[1, estimate], NA))
 
 orange_color <- pal_okabe_ito[1]
 blue_color <- pal_okabe_ito[2]
@@ -1239,8 +1282,8 @@ gray_color <- ggsci::pal_jco(alpha = 0.6)(9)[3]
 
 knitr::kable(marginal_table, 
              digits = 3,
-             col.names = c("HAC-", "HAC+", "simple", "marginal"),
-             caption = "Marginal effects of HAC (orange) and Indole (blue) on ABA concentration. Simple effects are in grey cells. The conditional means of each combination of the factor levels are in the white cells.") %>%
+             col.names = c("Female", "Male", "simple", "marginal"),
+             caption = "Marginal effects of sex (orange) and chromosome (blue) on lesian area. Simple effects are in grey cells. The conditional means of each combination of the factor levels are in the white cells.") %>%
   kable_styling(full_width = FALSE) %>%
   # row_spec(row = 0,
   #          bold = F) %>%
@@ -1257,44 +1300,48 @@ knitr::kable(marginal_table,
 
 ```
 
-<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-Be careful with reporting marginal effects. In this example, the simple effects of HAC are very different for the `Indole-` and `Indole+` treatment levels and the mean of these two effects may not be especially relevant to the question that we are pursuing. If the simple effects of a factor are similar, then it may make more sense to report the marginal effect.
-</div> 
-
 ### The additive model
 
-Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large. The maize ABA response is a good example of marginal effects that would be highly misleading to present without further comment.
+Marginal effects can be useful for summarizing a general trend, but, like any average, might not be especially meaningful if there is large heterogeneity of the simple effects, which occurs when the interaction effect is large.
 
-If an interaction effect is small, then it can be useful to estimate the effects of the two factors as if the interaction were equal to zero.
+If an interaction effect is small, and we want to summarize the results as general trends ("sex does this, chromosome does that"), then the best practice strategy is to refit a new linear model that estimates the effects of the two factors as if the interaction were equal to zero.
 
+$$
 \begin{equation}
-aba = \beta_0 + \beta_1 hac_{HAC^+} + \beta_2 indole_{Indole^+} + \varepsilon
-(\#eq:factorial-reduced)
+\texttt{lesian_area} = \beta_0 + \beta_1 \texttt{sex}_\texttt{Male} + \beta_2 \texttt{chromosome}_\texttt{XY} + \varepsilon
+(\#eq:twoway-reduced)
 \end{equation}
+$$
 
-This is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is a *product* of other terms. In R, this model is
+Model \@ref{eq:twoway-reduced} is a **reduced model** because one of the terms has been removed from the model. This particular reduced model is often referred to as the **additive model**, since it excludes the interaction term, which is non-additive effect (the indicator variable is the product of two "main" indicator variables). In R, this model is
 
-```{r}
-m2 <- lm(aba ~ hac + indole, data = fig1)
+```{r twoway-exp3e_m2}
+exp3e_m2 <- lm(lesian_area ~ sex + chromosome, data = exp3e)
 ```
 
 The model coefficients of the additive model are
 
-```{r factorial-reduced-model, echo=FALSE}
-m2_coef <- cbind(coef(summary(m2)),
-        confint(m2))
-knitr::kable(m2_coef, 
-             digits=c(2,2,1,3),
+```{r twoway-exp3e-m2-coef, echo=FALSE}
+exp3e_m2_coef <- cbind(coef(summary(exp3e_m2)),
+                 confint(exp3e_m2))
+
+knitr::kable(exp3e_m2_coef, 
+             digits=c(3,3,2,3, 3, 3),
              caption = "Model coefficients of additive model.") %>%
   kable_styling()
 
 ```
+Explainer
+
+1. $\texttt{sexMale}$ is the average of the two conditional effects of "Male" (one at `chromosome = "XX"` and one at `chromosome = "XY`).
+2. $\texttt{chromosomeXY}$ is the average of the two conditional effects of "XY" (one at `sex = "Female"` and one at `sex = "Male`).
+3. $\texttt{(Intercept)}$ is the expected value without the added $\texttt{sexMale}$ or  $\texttt{chromosomeXY}$ effects. This is a very abstract "average" of Female/XX and is not the average value in the Female/XX group.
 
 The conditional effects of the reduced model are
 
-```{r, echo=FALSE}
-m2_emm <- emmeans(m2, specs=c("hac", "indole"))
-m2_pairs <- contrast(m2_emm,
+```{r twoway-exp3e-m2-pairs, echo=FALSE}
+exp3e_m2_emm <- emmeans(exp3e_m2, specs = c("sex", "chromosome"))
+exp3e_m2_pairs <- contrast(exp3e_m2_emm,
                  method = "revpairwise",
                  adjust = "none",
                  simple = "each",
@@ -1302,25 +1349,84 @@ m2_pairs <- contrast(m2_emm,
   summary(infer = TRUE)
 
 
-knitr::kable(m2_pairs,
-             digits = c(1,1,1,5,2,1,2,2,2,5),
+knitr::kable(exp3e_m2_pairs,
+             digits = c(1,1,1,5,3,1,3,3,2,5),
              caption = "Conditional effects of additive model.") %>%
   kable_styling()
 
 ```
 
-The table shows that, in an additive model, all conditional effects for one factor are the same for each level of the other factor. This makes sense. If the model fit is additive, the interaction effect is set to zero by the model and there cannot be differences in conditional effects among the contrasts at each of the levels of the other factor (otherwise, there would be an interaction). Also note that the conditional effects xxx. Probably a better way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically computes marginal effects.
+Explainer
 
-Compare the table of marginal effects of the additive model to the table of marginal effects of the full model. The estimates are the same but the *t*-values and *p*-values differ because of different degrees of freedom (the full model estimates one more parameter, the interaction effect). The estimate is the same only if the design is balanced, which means that each combination of treatment levels has the same sample size *n*.
+1. In an additive model, all conditional effects for one factor are the same for each level of the other factor. This makes sense. If the model fit is additive, the interaction effect is set to zero by the model and there cannot be differences in conditional effects among the contrasts at each of the levels of the other factor (otherwise, there would be an interaction). A more sensible way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically estimates marginal effects.
+2. Compare the table of marginal effects of the additive model to the table of marginal effects of the full model. The estimates for the chromosome effect are the same but the *t*-values and *p*-values differ because of different degrees of freedom (the full model estimates one more parameter, the interaction effect). The estimates for the sex effect are not the same between the two tables because of an imbalance of sample size. In the computation of the marginal effect of chromosome, the two simple effects both have sample size of 5 and 4. But in the computation of the marginal effect of sex, one simple effect has sample size of 5 and 5 while the other has a simple effect of 4 and 4.
 
 ### Reduce models for the right reason
 
 Unless one factor truly has no effect, there will always be an interaction. As stated above, interactions are ubiquitous. If an interaction is small, it can make sense to drop the interaction term and re-fit an additive model to estimate marginal effects in order to present a simplified picture of what is going on, with the recognition that these estimates are smoothing over the heterogenity in conditional (simple) effects that truly exist.
 
-Aided and abetted by statistics textbooks for biologists, there is a long history of researchers dropping an interaction effect because the interaction $p>0.05$. Don't do this. It doesn't make any sense.
+Aided and abetted by statistics textbooks for biologists, there is a long history of researchers dropping an interaction effect because the interaction $p>0.05$. A good rule of thumb is, don't make model decisions based on *p*-values. It doesn't make any sense.
 
-1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if the interaction were $p=0.051$ vs. $p=0.049$, given that these two p-values are effectively identical?
+1. The $p$-value is an arbitrary dichotomization of a continuous variable. Would it make sense to behave differently if the interaction were $p=0.06$ vs. $p=0.04$, given that these two p-values are effectively identical?
 2. A $p$-value is not evidence that an effect is zero, or "doesn't exist", or even that an effect is "trivially small". This is because $p$-values are a function of measurement error, sampling error, and sample size, in addition to effect size.
+
+The interaction *p*-value for the lesion-area data is 0.078. Should we refit the additive model and report a simpler story of "a" chromosome effect and "a" sex effect? This reduced model isn't invalid and it is useful. Some considerations. 
+
+1. there is certainly a real interaction between these two factors and this interaction reflects interesting biology.
+2. For this example, I might report both -- the additive effect in the main paper (since the big chromosome complement effect is the story) and the conditional effects in the supplement, which might further work on investigating the underlying biology. Or maybe two sets of *p*-values on the plot? There are lots of unexplored ways to provide more "ways" of looking at the results.
+3. Regardless, for this example, I would not avoid reporting the interaction effect and the conditional effects somewhere. The estimated interaction effect (0.14 mm$^2$) is moderately large relative to the four simple effects. It's much bigger than the marginal effect of sex (Table \@ref(tab:twoway-exp3e-m2-pairs)) and about 2/3 the size of the marginal effect of chromosome (Table \@ref(tab:twoway-exp3e-m2-pairs)).
+4. A response plot of both models (Figure \@ref(fig:twoway-additive-plot)) can help understanding and the decision of which model to report.
+
+```{r twoway-additive-plot, echo=FALSE, fig.cap = "A. Conditional means and p-values of conditional effects. B. Marginal means and p-values of marginal effects."}
+gg1 <- ggplot_the_response(exp3e_m1,
+                    exp3e_m1_emm,
+                    exp3e_m1_pairs,
+                    palette = pal_okabe_ito_blue,
+                    y_label = expression(paste("Lesian area (", mm^2, ")")),
+                    y_pos = c(.76, .8, .72, .72)
+                    )
+gg2 <- ggplot_the_response(exp3e_m2,
+                    exp3e_m2_emm,
+                    exp3e_m2_pairs,
+                    palette = pal_okabe_ito_blue,
+                    y_label = expression(paste("Lesian area (", mm^2, ")")),
+                    y_pos = c(.76, .8, .72, .72)
+                    )
+plot_grid(gg1, gg2, ncol=2, labels = "AUTO")
+```
+
+### The marginal means of an additive linear model with two factors can be weird
+
+To better understand the marginal effects computed from the additive model, let's compare the emmeans table of the factorial and additive models.
+
+```{r twoway-exp3e_m1_emm, echo=FALSE}
+exp3e_m1_emm %>%
+  summary() %>%
+  kable(digits = c(3), caption = "Conditional means of the lesian area data computed from the factorial model.") %>%
+  kable_styling()
+```
+
+```{r twoway-exp3e_m2_emm, echo=FALSE}
+exp3e_m2_emm %>%
+  summary() %>%
+  kable(digits = c(3), caption = "Marginal means of the lesian area data computed from the additive model.") %>%
+  kable_styling()
+```
+
+Explainer
+
+1. The means in the conditional means table (Table \@ref(tab:twoway-exp3e_m1_emm)) are equal to the sample means. These are conditional on $\texttt{sex}$ and $\texttt{chromosome}$.
+2. The means in the marginal means table (Table \@ref(tab:twoway-exp3e_m2_emm)) are not equal to the sample means. These are modeled means of the four groups from a model in which there is no interaction effect, so all conditional effects for one factor are the same for each level of the other factor. If you take the difference of Male - Female for both the XX and the XY groups, these will be the same. All data has some measured interaction (even if there is no true interaction. But remember, interaction is ubiquitous in biology). The larger this interaction, the more weird the marginal means because these are less compatible with the data.
+
+```{r twoway-explore, echo=FALSE, eval=FALSE}
+exp3e[, .(N = .N), by = treatment]
+exp3e_m1_emm
+exp3e_m2_coef
+# (Intercept) is not the mean of Female/XX. What is it?
+# sexMale is effect of Male adjusted for chromosome. Adjusted means averaging over the chromosome effects. This is the simple average over the effects, not weighted by n.
+# chromosomeXY is effect of XY adjusted for sex. Adjusted means averaging over the sex effects. This is the simple average over the effects, not weighted by n.
+
+```
 
 ## Example 3: Estimation of synergy ("More than the sum of the parts") (plant root growth)
 
@@ -1549,7 +1655,8 @@ plot_grid(gg_effect,
           axis = "lr",
           rel_heights = c(0.5,1))
 ```
-## Understanding the linear model with crossed factors 3 (The interaction effect is the measure of synergy)
+
+## Understanding the linear model with crossed factors 3
 
 ### A factorial model adds an interaction effect to the coefficients table
 
@@ -1705,10 +1812,19 @@ image_path <- here("images", "twoway-synergy.png")
 knitr::include_graphics(image_path)
 ```
 
-### The biological interpretation of an interaction effect
+## Two-way ANOVA
+### ANOVA table of Experiment 2j
 
-The biological reasons causing interaction effects are highly variable but lets consider how interactions *might* arise in the context of the ABA defense response to HAC and Indole. Additive effects (no interaction) may occur when combined treatments act independently of each other. This might occur in the Maize ABA response if the signaling path from HAC reception to ABA secretion and Indole reception to ABA secretion occur in different cells or by different signaling pathways and activity in either pathway has no influence on the other. Positive, or **synergistic** interaction effects may occur when combined treatments augment each other's ability to affect the response. This could occur in the Maize ABA response if an active signaling path from one of the volatile compound to ABA secretion makes the signaling path from the other compound to ABA secretion more sensitive to that compound. Negative, or **antagonistic** interaction effects may occur when combined treatments interfere with each other's ability to affect the response. This could occur in the Maize ABA response if an active signaling path from one of the volatile compound to ABA secretion inhibits the signaling path from the other compound to ABA secretion. Negative interaction effects could also occur if there is a simple threshold response and all it takes is either the HAC or the Indole signaling pathway to activate the response.
+```{r twoway-exp2j-anova, message=FALSE}
+exp2j[, fake_id := paste("mouse", .I)]
 
+m1_aov4 <- aov_4(glucose_uptake ~ stimulation * genotype + (1|fake_id),
+           data = exp2j)
+
+anova(m1_aov4)[, c(1, 2, 3, 4, 6)] %>%
+  kable(digits = c(1, 1, 2, 2, 5)) %>%
+  kable_styling()
+```
 
 ## Working in R
 ### Model formula
@@ -1732,6 +1848,9 @@ m2_coef <- coef(summary(m2))
 m2_coef %>%
   kable(digits = c(1,2,2,5))
 ```
+#### Practice safe ANOVA
+
+If you want an ANOVA table to match that in Graphpad Prism or JMP, then you need a table computed from Type III sum of squares. If using a linear model to compute the ANOVA (remember that ANOVA was developed without fitting linear models), then the linear model needs to be fit using a model matrix constructed with indicator variables using effects coding. There are two safe ways to do this in R
 
 ## Hidden Code
 ### Import exp2j (Example 1)

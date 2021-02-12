@@ -617,7 +617,7 @@ m1_response_plot
 
 **contrast_rows = "all"** controls which rows of fit_pairs to use for *p*-value brackets. Use "none" to hide.
 
-**p_pos = NULL** manual control of the y-coordinates for p-value brackets
+**y_pos = NULL** manual control of the y-coordinates for p-value brackets
 
 **palette = pal_okabe_ito** allows control of the color palette. The default pal_okabe_ito palette is a color blind palette.
 
@@ -696,7 +696,7 @@ m1_plot
 
 **contrast_rows = "all"** same as for `ggplot_the_response`
 
-**p_pos = NULL** same as for `ggplot_the_response`
+**y_pos = NULL** same as for `ggplot_the_response`
 
 **palette = pal_okabe_ito** same as for `ggplot_the_response`
 
