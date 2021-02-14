@@ -1,18 +1,3 @@
----
-title: "Models   two (or more) categorical X variables -- Factorial designs"
-author: "Jeffrey A. Walker"
-date: "11/13/2020"
-output:
-  BiocStyle::html_document:
-    toc: true
-    toc_depth: 3
-    toc_float: true
-    fig_caption: yes
-    number_sections: true
-    code_folding: show
-    includes:
-      before_body: copyright.html
----
 # Linear models with two categorical $X$ -- Factorial linear models ("two-way ANOVA") {#factorial}
 
 ```{r twoway-setup, echo=FALSE, warning=FALSE, message=FALSE}
@@ -171,9 +156,9 @@ file_name <- "41586_2020_1992_MOESM4_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
 treatment_levels  <- c("WT Rest",
-                       "WT Stimulation",
+                       "WT Active",
                        "KO Rest",
-                       "KO Stimulation")
+                       "KO Active")
 exp2j_wide <- read_excel(file_path,
                          sheet = "2j",
                          range = "A5:D13",
@@ -193,7 +178,7 @@ exp2j[, c("genotype", "stimulation") := tstrsplit(treatment,
                                                   fixed = TRUE)]
 
 genotype_levels <- c("WT", "KO")
-stimulation_levels <- c("Rest", "Stimulation")
+stimulation_levels <- c("Rest", "Active")
 exp2j[, genotype := factor(genotype,
                            levels = genotype_levels)]
 exp2j[, stimulation := factor(stimulation,
@@ -208,7 +193,7 @@ exp2j[, stimulation := factor(stimulation,
 **Research question** There are two ways to think about the question -- both produce the same answer.
 
 1. How much does TLR9 knockout inhibit the expected increase of glucose uptake following electrical stimulation? The expected increase comes from the contrast of the positive and negative controls. Call this the knockout-induced stimulation effect. 
-2. How much does TLR9 knockout inhibit glucose uptake during muscle stimulation compared to effect of TLR9 knockuot during muscle rest? Call this the **stimulation-induced TLR9 effect**. 
+2. How much does TLR9 knockout inhibit glucose uptake during muscle stimulation compared to effect of TLR9 knockuot during muscle rest? Call this the **stimulation-induced TLR9-/- effect**. 
 
 **Response variable** $\texttt{glucose_uptake}$ (nmol per mg protein per 15 min) -- the rate of glucose transported into the cell.
 
@@ -217,20 +202,20 @@ exp2j[, stimulation := factor(stimulation,
 * "WT" (reference level) -- C57BL/6J mice with intact TLR gene (TLR+/+)
 * "KO" -- TLR-/- mice on a C57BL/6J background
 
-**Factor 2** $\texttt{activity}$ ("Rest", "Stimulation") -- Two levels:
+**Factor 2** $\texttt{stimulation}$ ("Rest", "Active") -- Two levels:
 
 * "Rest" (reference level) -- muscle that has not been stimulated.
-* "Stimulation" -- electrical stimulation of muscle to induce contraction and contractile-related cell changes
+* "Active" -- electrical stimulation of muscle to induce contraction and contractile-related cell changes
 
 These two factors create the three control treatments and the one focal treatment:
 
 * WT/Rest -- **Negative control**. Expect non-exercise (low) level uptake.
 
-* WT/Stimulation -- **Positive control**. Expect high level uptake.
+* WT/Active -- **Positive control**. Expect high uptake.
 
-* KO/Rest -- **Method control**. Unsure of KO effect on uptake, which is why we need this control.
+* KO/Rest -- **Method control**. Unsure of KO effect on uptake in Rest, which is why we need this control.
 
-* KO/Stimulation -- **Focal treatment**. At about same level of KO/Rest if TLR9-/- completely inhibits electrical stimulation of glucose uptake
+* KO/Active -- **Focal treatment**. At about same level of KO/Rest if TLR9-/- completely inhibits electrical stimulation of glucose uptake
 
 **Design** -- $2 \times 2$, that is, two crossed factors each with two levels. This results in four groups, each with a unique combination of the levels from each factor.
 
@@ -240,23 +225,23 @@ The two ways of framing the research question suggest either of the following se
 
 **Set 1**: How much does TLR9 knockout inhibit the expected increase of glucose uptake during stimulation?
 
-1. (KO/Stimulation - KO/Rest) -- effect of Stimulation in KO mice. This is our **treatment contrast**. If TLR9 is necessary for glucose uptake, then this should be zero. If positive, there are non-TLR9 paths.
+1. (KO/Active - KO/Rest) -- effect of Stimulation in KO mice. This is our **treatment contrast**. If TLR9 is necessary for glucose uptake, then this should be zero. If positive, there are non-TLR9 paths.
  
-2. (WT/Stimulation - WT/Rest) -- This is the **control (or reference) contrast** -- it is what we know based on prior knowledge and what we want to compare the treatment effect to. This should be positive based on prior knowledge.
+2. (WT/Active - WT/Rest) -- This is the **control (or reference) contrast** -- it is what we know based on prior knowledge and what we want to compare the treatment effect to. This should be positive based on prior knowledge.
 
 We need to control for the expected increase in 2 using the contrast:
 
-3. (KO/Stimulation - KO/Rest) - (WT/Stimulation - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the knockout-induced stimulation effect.
+3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the knockout-induced stimulation effect.
 
-**Set 2**: What is stimulation-induced TLR9 effect?
+**Set 2**: What is stimulation-induced TLR9-/- effect?
 
-1. (KO/Stimulation - WT/Stimulation) -- effect of KO during muscle stimulation. This is our **treatment effect**. If TLR9 is necessary for glucose uptake, then this should be big and negative.
+1. (KO/Active - WT/Active) -- effect of KO during muscle stimulation. This is our **treatment effect**. If TLR9 is necessary for glucose uptake, then this should be big and negative.
  
 2. (KO/Rest - WT/Rest) -- effect of KO when the muscle is not stimulated. This is the **control (or reference) effect**. If TLR9-/- KO has non-muscle-stimulation paths to glucose uptake, this will be something other than zero.
 
 We need to control for any (KO/Rest - WT/Rest) effect using the contrast:
 
-3. (KO/Stimulation - WT/Stimulation) - (KO/Rest - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the stimulation-induced TLR9 effect.
+3. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the stimulation-induced TLR9-/- effect.
 
 ### Fit the linear model
 
@@ -299,9 +284,9 @@ ko_stim <- c(0,0,0,1)
 
 # contrasts are the difference in the vectors created above
 # these planned contrasts are described above
-# 1. (KO/Stimulation - KO/Rest) # treatment
-# 2. (WT/Stimulation - WT/Rest) # control
-# 3. (KO/Stimulation - KO/Rest) - (WT/Stimulation - WT/Rest) Interaction
+# 1. (KO/Active - KO/Rest) # treatment
+# 2. (WT/Active - WT/Rest) # control
+# 3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) Interaction
 
 exp2j_m1_planned <- contrast(
   exp2j_m1_emm,
@@ -369,7 +354,7 @@ ggplot_the_response(
 
 Researchers in experimental biology report almost exclusively the *p*-values of the simple effects (Table \@ref(tab:twoway-factorial-table)) in data from factorial experiments. These can be computed even if the data are flattened into a single "treatment" factor. But it is the interaction effect that is necessary to make many of the inferences made by the researchers. To see why, we need to understand what the coefficients in the coefficient table are.
 
-### What the coefficients are
+### What the coefficients are {#twoway-what-coefs-are}
 
 To understand the coefficients, it helps to use the means in the emmeans table to construct a factorial table of the cell means
 
@@ -382,7 +367,7 @@ labels <- round(values,2)
 dt <- data.table(
     " " = row_names,
     Rest = labels[1:2],
-    Stimulation = labels[3:4]
+    Active = labels[3:4]
 )
 
 
@@ -399,8 +384,8 @@ The linear model fit to the $\texttt{exp2j}$ data is
 
 $$
 \begin{align}
-\texttt{glucose_uptake} &= \beta_{0} + \beta_{1}(\texttt{genotype}_{\texttt{KO}}) + \beta_{2}(\texttt{stimulation}_{\texttt{Stimulation}}) \ + \\
-&\quad \ \beta_{3}(\texttt{genotype}_{\texttt{KO}} : \texttt{stimulation}_{\texttt{Stimulation}}) + \varepsilon\
+\texttt{glucose_uptake} &= \beta_{0} + \beta_{1}(\texttt{genotype}_{\texttt{KO}}) + \beta_{2}(\texttt{stimulation}_{\texttt{Active}}) \ + \\
+&\quad \ \beta_{3}(\texttt{genotype}_{\texttt{KO}} : \texttt{stimulation}_{\texttt{Active}}) + \varepsilon\
 \end{align}
 $$
 
@@ -417,11 +402,11 @@ Explainer
 1. Understand what the rows of the coefficient table are. There are four parameters in the fit linear model -- the rows are the statistics for the estimates of these parameters. These estimates are the **coefficients** of the model.
 2. The $\texttt{(Intercept)}$ ($b_0$) is the mean $\texttt{glucose_uptake}$ of the reference level, which was set to the WT/Rest group (Figure \@ref(fig:twoway-what-coefs-are)). This is the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans).
 3. The $\texttt{genotypeKO}$ coefficient ($b_1$) is the estimate of the **the added effect of knocking out TLR9 when the stimulation factor is at its reference level**, and so is the mean in the lower left cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the KO/Rest group is $b_0 + b_1$.
-4. The $\texttt{stimulationStimulation}$ coefficient ($b_2$) is the estimate of the **the added effect of Stimulation when the genotype factor is at its reference level**, and so is the mean in the upper right cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the WT/Stimulation group is $b_0 + b_2$.
-5. The $\texttt{genotypeKO:stimulationStimulation}$ coefficient ($b_3$) is the estimate of the interaction effect between $\texttt{genotype}$ and $\texttt{stimulation}$. It is *not* the mean in the lower right cell minus the mean in the upper left cell. Instead, **it is the mean in the lower right cell minus the expected mean in the lower right cell if the genotype and activity treatment effects were additive**. The expected additive-mean in the lower right cell (KO/Stimulation) is $b_0 + b_1 + b_2$. The mean of KO/stimulation is $b_0 + b_1 + b_2 + b_3$ (Figure \@ref(fig:twoway-what-coefs-are)).
-6. The interaction effect is a **non-additive effect**. Think about this. Adding the "Stimulation" alone adds 3.45 nmol glucose per protein per 15 min to the uptake rate of the reference. Adding "KO" alone adds 0.78 glucose per protein per 15 min to the uptake rate of the reference. If these effects were purely additive, then adding both Stimulation and KO to the reference rate should result in a mean of 6.75 + 3.45 + 0.78 = 10.98 glucose per protein per 15 min. The modeled mean for KO/Stimulation is 8.67 glucose per protein per 15 min. The difference observed - additive is 8.67 - 10.98 = -2.31 glucose per protein per 15 min. Compare this difference to the interaction coefficient in the coefficient table.
-7. Reinforce your understanding of "non-additive" in item 5. The interaction is a non-additive effect because the mean of the combined treatment is something different than if we were to just add the KO and Stimulation effects. But this effect is additive in the linear model. This is what linear models are -- a reference mean plus the sum of a bunch of effects.
-8. Understand what these rows **are not**. The $\texttt{stimulationStimulation}$ row is not the same as the "stimulation" term in a Type III ANOVA table (the ANOVA table produced in GraphPad Prism or JMP). The *p*-values will be different because the *p*-values are testing different hypotheses. In the coefficient table, the $\texttt{stimulationStimulation}$ *p*-value is testing the difference of the means of WT/Stimulation and WT/Rest. The stimulation term in a Type III ANOVA table is testing if there is an overall stimulation effect, which is estimated as the average of the two stimulation contrasts (WT/Stimulation - WT/Rest) and (KO/Stimulation - KO/Rest). The average of these two contrasts is not often of interest (but sometimes is -- see below).
+4. The $\texttt{stimulationActive}$ coefficient ($b_2$) is the estimate of the **the added effect of Stimulation when the genotype factor is at its reference level**, and so is the mean in the upper right cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the WT/Active group is $b_0 + b_2$.
+5. The $\texttt{genotypeKO:stimulationActive}$ coefficient ($b_3$) is the estimate of the interaction effect between $\texttt{genotype}$ and $\texttt{stimulation}$. It is *not* the mean in the lower right cell minus the mean in the upper left cell. Instead, **it is the mean in the lower right cell minus the expected mean in the lower right cell if the genotype and activity treatment effects were additive**. The expected additive-mean in the lower right cell (KO/Active) is $b_0 + b_1 + b_2$. The mean of KO/stimulation is $b_0 + b_1 + b_2 + b_3$ (Figure \@ref(fig:twoway-what-coefs-are)).
+6. The interaction effect is a **non-additive effect**. Think about this. Adding the Stimulation alone adds 3.45 nmol glucose per protein per 15 min to the uptake rate of the reference. Adding "KO" alone adds 0.78 glucose per protein per 15 min to the uptake rate of the reference. If these effects were purely additive, then adding both Stimulation and KO to the reference rate should result in a mean of 6.75 + 3.45 + 0.78 = 10.98 glucose per protein per 15 min. The modeled mean for KO/Active is 8.67 glucose per protein per 15 min. The difference observed - additive is 8.67 - 10.98 = -2.31 glucose per protein per 15 min. Compare this difference to the interaction coefficient in the coefficient table.
+7. Reinforce your understanding of "non-additive" in item 5. The interaction is a non-additive effect because the mean of the combined treatment is something different than if we were to just add the KO and Active effects. But this effect is additive in the linear model. This is what linear models are -- a reference mean plus the sum of a bunch of effects.
+8. Understand what these rows **are not**. The $\texttt{stimulationActive}$ row is not the same as the "stimulation" term in a Type III ANOVA table (the ANOVA table produced in GraphPad Prism or JMP). The *p*-values will be different because the *p*-values are testing different hypotheses. In the coefficient table, the $\texttt{stimulationActive}$ *p*-value is testing the difference of the means of WT/Active and WT/Rest. The stimulation term in a Type III ANOVA table is testing if there is an overall stimulation effect, which is estimated as the average of the two stimulation contrasts (WT/Active - WT/Rest) and (KO/Active - KO/Rest). The average of these two contrasts is not often of interest (but sometimes is -- see below).
 
 ```{r twoway-what-coefs-are-build, echo=FALSE, eval=FALSE}
 exp2j_m1_emm_dt <- summary(exp2j_m1_emm) %>%
@@ -452,6 +437,13 @@ gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
                  y = emmean,
                  color = stimulation)) +
   
+  # add individual points in the backgound
+  geom_jitter(data = exp2j,
+             aes(y = glucose_uptake,
+                 color = stimulation),
+             alpha = .3,
+             width = 0.1) +
+  
   geom_hline(yintercept = b[1],
              linetype = "dashed",
              color = "black",
@@ -462,7 +454,7 @@ gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
   scale_color_manual(values = pal_okabe_ito_blue) +
 #  scale_x_discrete(labels = c("WT", "TLR9-/-")) +
   ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
-  coord_cartesian(ylim = c(5.5, 11.5)) +
+  coord_cartesian(ylim = c(5.0, 11.5)) +
   
   geom_line(aes(group = stimulation),
             position = pd) +
@@ -483,8 +475,9 @@ gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
     x = 2 + dodge_width/4,
     y = b[1] + b[2] + b[3]),
     size = 3,
+    shape = 21,
     color = pal_okabe_ito_blue[2],
-    alpha = 0.1) +
+    fill = "white") +
   
   theme_pubr() +
   theme(axis.title.x = element_blank(),
@@ -501,8 +494,8 @@ gg_ixn_explainer <- gg_ixn_explainer_base +
     x = c(2.07, 2.07),
     y = c(b[1] + b[2] + b[3],
           b[1] + b[2] + b[3] + b[4]),
-    label = c("Expected mean of\nKO/Stimulation if\ninteraction is 0.0",
-              "mean of\nKO/Stimulation"),
+    label = c("Expected mean of\nKO/Active if\ninteraction is 0.0",
+              "mean of\nKO/Active"),
     hjust = 0,
     size = 3,
     color = "darkgray"
@@ -562,7 +555,7 @@ knitr::include_graphics(image_path)
 
 ### The interaction effect is something different
 
-Item 6 in the coefficient table explainer stated "The interaction is a non-additive effect because the mean of the combined treatment is **something different** than if we were to just add the KO and Stimulation effects. The something different is the interaction effect. If the interaction effect were zero, the expected effect of stimulation in the KO mice would be the same as the expected effect of stimulation in the WT mice (Figure \@ref(fig:twoway-something-different). This would suggest the underlying physiological changes between Rest and Stimulation in the KO mice is "more of the same" physiological changes in the WT mice. But, because of the interaction, the underlying physiological changes between Rest and Stimulation in the KO mice is "something different" to that of physiological changes in the WT mice (Figure \@ref(fig:twoway-something-different)).
+Item 6 in the coefficient table explainer stated "The interaction is a non-additive effect because the mean of the combined treatment is **something different** than if we were to just add the KO and Active effects. The something different is the interaction effect. If the interaction effect were zero, the expected effect of stimulation in the KO mice would be the same as the expected effect of stimulation in the WT mice (Figure \@ref(fig:twoway-something-different). This would suggest the underlying physiological changes between Rest and Active in the KO mice is "more of the same" physiological changes in the WT mice. But, because of the interaction, the underlying physiological changes between Rest and Active in the KO mice is "something different" to that of physiological changes in the WT mice (Figure \@ref(fig:twoway-something-different)).
 
 The biological reasons causing interaction effects are highly variable and are what makes Biology fun. Additive effects (no interaction) may occur when combined treatments act independently of each other. This might occur in the glucose uptake response if knocking out TLR9 opens a path to glucose uptake that is different from and independent of the paths activated by electrial stimulation. Positive, or **synergistic** interaction effects may occur when combined treatments augment each other's ability to affect the response (see Example 3 below). This could occur in the glucose uptake response if knocking out TLR9 opens a path to glucose uptake that is different the paths activated by electrial stimulation but also makes the paths activated by stimulation more sensitive to stimulation. Negative, or **antagonistic** interaction effects may occur when combined treatments interfere with each other's ability to affect the response. This could occur in the glucose uptake response if TLR9 is on the path from stimulation to glucose uptake. Knocking out TLR9 interferes with this path. If TLR9 is required, we'd expect the interaction effect to be the same magnitude but opposite sign of the control effect -- that is, complete antagonism of the control effect. Previous experiments suggested this negative interaction. The measurement of this effect was the purpose of experiment $\texttt{exp2j}$.
 
@@ -640,13 +633,13 @@ knitr::include_graphics(image_path)
 
 ### Why we want to compare the treatment effect to a control effect
 
-The purpose of the experiment is to infer a TLR9 role in the regulation of muscle-stimulated glucose transport, that is, a **stimulation-induced TLR9 effect**. If TLR9 is in the pathway from muscle activity to glucose transport, we expect some kind of recovery to baseline (Rest) values in the KO/Stimulation group. But TLR9 may also (or alternatively) have a role in non-stimulation-induced glucose uptake.
+The purpose of the experiment is to infer a TLR9 role in the regulation of muscle-stimulated glucose transport, that is, a **stimulation-induced TLR9-/- effect**. If TLR9 is in the pathway from muscle activity to glucose transport, we expect some kind of recovery to baseline (Rest) values in the KO/Active group. But TLR9 may also (or alternatively) have a role in non-stimulation-induced glucose uptake.
 
-How do we make an inference about a stimulation-induced TLR9 effect using this experiment? Researchers typically look at the **treatment effect**
+How do we make an inference about a stimulation-induced TLR9-/- effect using this experiment? Researchers typically look at the **treatment effect**
 
-(KO/Stimulation - WT/Stimulation)
+(KO/Active - WT/Active)
 
-and conclude a stimulation-induced TLR9 effect if it's big (and negative)
+and conclude a stimulation-induced TLR9-/- effect if it's big (and negative)
 
 If the treatment effect is the correct contrast for inference, why bother with the measures of glucose uptake during Rest? The reason the treatment effect alone is the wrong contrast for inferring the *stimulation-induced* TLR9 effect is because it is confounded by the **control effect**, which is the contrast (KO/Rest - WT/Rest) (Figure \@ref(fig:twoway-what-we-want)).
 
@@ -715,7 +708,7 @@ ggsave(image_path,
 gg_what_we_want
 ```
 
-```{r twoway-what-we-want, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9 effect"}
+```{r twoway-what-we-want, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
 image_path <- here("images", "twoway-what-we-want.png")
 
 knitr::include_graphics(image_path)
@@ -723,15 +716,15 @@ knitr::include_graphics(image_path)
 
 To unconfound the inference, subtract the confounder:
 
-(KO/Stimulation - WT/Stimulation) - (KO/Rest - WT/Rest)
+(KO/Active - WT/Active) - (KO/Rest - WT/Rest)
 
-This is the interaction effect. Consequences of interpreting the treatment effect KO/Stimulation - WT/Stimulation as the stimulation-induced TLR9 effect are highlighted in Figure \@ref(fig:twoway-scenarios). In these plots, the data are those from $\texttt{exp2j}$ but with the values in the KO groups shifted up or down to create the scenarios.
+This is the interaction effect. Consequences of interpreting the treatment effect KO/Active - WT/Active as the stimulation-induced TLR9-/- effect are highlighted in Figure \@ref(fig:twoway-scenarios). In these plots, the data are those from $\texttt{exp2j}$ but with the values in the KO groups shifted up or down to create the scenarios.
 
-Scenario 1. The positive control has big effect AND KO has no effect during rest AND the stimulation-induced TLR9 effect is equal in magnitude but opposite direction to the Stimulation effect in WT (Figure \@ref(fig:twoway-scenarios)A). The stimulation-induced TLR9 effect is conspicuous from the plot, if our sample means are close to the true means and we have high precision. The simple effect measures the stimulation-induced TLR9 effect correctly -- but this is because the  simple effect is equal in magnitude (but opposite sign) to the interaction effect. Many experiments in the literature are pretty similar to this scenario.
+Scenario 1. The positive control has big effect AND KO has no effect during rest AND the stimulation-induced TLR9-/- effect is equal in magnitude but opposite direction to the Active effect in WT (Figure \@ref(fig:twoway-scenarios)A). The stimulation-induced TLR9-/- effect is conspicuous from the plot, if our sample means are close to the true means and we have high precision. The simple effect measures the stimulation-induced TLR9-/- effect correctly -- but this is because the  simple effect is equal in magnitude (but opposite sign) to the interaction effect. Many experiments in the literature are pretty similar to this scenario.
 
-Scenario 2. The positive control has big effect AND KO has a negative effect during rest BUT there is zero stimulation-induced TLR9 effect -- that is, the interaction is zero (Figure \@ref(fig:twoway-scenarios)B). There is an effect of KO during Stimulation but this effect is no different that that occuring during Rest. So this cannot be a *contraction induced* TLR9 effect. Simple effect 1 *inflates* the effect.
+Scenario 2. The positive control has big effect AND KO has a negative effect during rest BUT there is zero stimulation-induced TLR9-/- effect -- that is, the interaction is zero (Figure \@ref(fig:twoway-scenarios)B). There is an effect of KO during stimulation but this effect is no different that that occuring during Rest. So this cannot be a *contraction induced* TLR9 effect. Simple effect 1 *inflates* the effect.
 
-Scenario 3. The positive control has big effect AND KO has a positive effect during rest AND there is a stimulation-induced TLR9 effect that is equal to that in scenario 1 (Figure \@ref(fig:twoway-scenarios)C). The positive effect of KO during Rest masks the stimulation-induced TLR9 effect. The simple effect *underestimates* the stimulation-induced TLR9 effect. This is similar to what is happening in Experiment 2j.
+Scenario 3. The positive control has big effect AND KO has a positive effect during rest AND there is a stimulation-induced TLR9-/- effect that is equal to that in scenario 1 (Figure \@ref(fig:twoway-scenarios)C). The positive effect of KO during Rest masks the stimulation-induced TLR9-/- effect. The simple effect *underestimates* the stimulation-induced TLR9-/- effect. This is similar to what is happening in Experiment 2j.
 
 ```{r twoway-scenarios-build, echo = FALSE, eval=FALSE}
 
@@ -801,7 +794,7 @@ b <- exp2j_m1_coef[, "Estimate"]
 # scenario 1 - ixn = - effect
 fake_exp2j[, scen1 := glucose_uptake]
 fake_exp2j[treatment == "KO Rest", scen1 := scen1 - b[3]]
-fake_exp2j[treatment == "KO Stimulation", scen1 := scen1 - (b[2]+b[3]+b[4])]
+fake_exp2j[treatment == "KO Active", scen1 := scen1 - (b[2]+b[3]+b[4])]
 
 m1 <- lm(scen1 ~ genotype * stimulation, data = fake_exp2j)
 m1_emm <- emmeans(m1, specs = c("genotype", "stimulation"))
@@ -816,11 +809,11 @@ gg1 <- gg_plot_it(m1, m1_emm, m1_pairs)
 b2 <- 1
 b3 <- -0.5
 fake_exp2j[, scen2 := glucose_uptake]
-fake_exp2j[treatment == "WT Stimulation",
+fake_exp2j[treatment == "WT Active",
            scen2 := scen2 - (1-b2)*b[2]]
 fake_exp2j[treatment == "KO Rest",
            scen2 := scen2 - b[3] + b3*b2*b[2]]
-fake_exp2j[treatment == "KO Stimulation",
+fake_exp2j[treatment == "KO Active",
            scen2 := scen2 - (b[2]+b[3]+b[4]) + b3*b2*b[2] + b[2]]
 
 m2 <- lm(scen2 ~ genotype * stimulation, data = fake_exp2j)
@@ -836,11 +829,11 @@ gg2 <- gg_plot_it(m2, m2_emm, m2_pairs)
 b2 <- 1
 b3 <- 0.5 # relative to b2
 fake_exp2j[, scen3 := glucose_uptake]
-fake_exp2j[treatment == "WT Stimulation",
+fake_exp2j[treatment == "WT Active",
            scen3 := scen3 - (1-b2)*b[2]]
 fake_exp2j[treatment == "KO Rest",
            scen3 := scen3 - b[3] + b3*b2*b[2]]
-fake_exp2j[treatment == "KO Stimulation",
+fake_exp2j[treatment == "KO Active",
            scen3 := scen3 - (b[2]+b[3]+b[4]) + b3*b2*b[2]]
 
 m3 <- lm(scen3 ~ genotype * stimulation, data = fake_exp2j)
@@ -871,7 +864,7 @@ gg_scenarios
 
 ```
 
-```{r twoway-scenarios, echo=FALSE, out.width="100%", fig.cap = "Scenarios to show the consequence of inferring the stimulation-induced TLR9 effect from the simple effect (KO/Stimulation - WT/Stimulation). The simple effect and interaction effect lines extend from the KO/Stimulation mean to either the KO/Rest mean (simple) or the expected mean of KO/Stimulation if the two factors were additive (interaction)."}
+```{r twoway-scenarios, echo=FALSE, out.width="100%", fig.cap = "Scenarios to show the consequence of inferring the stimulation-induced TLR9-/- effect from the simple effect (KO/Active - WT/Active). The simple effect and interaction effect lines extend from the KO/Active mean to either the KO/Rest mean (simple) or the expected mean of KO/Active if the two factors were additive (interaction)."}
 image_path <- here("images", "twoway-scenarios.png")
 
 knitr::include_graphics(image_path)
@@ -1122,7 +1115,7 @@ exp3e_m1_plot
 
 ## Understanding the linear model with crossed factors 2
 
-### Conditional and marginal means
+### Conditional and marginal means {#twoway-marginal-means}
 
 ```{r twoway-conditional-means, echo=FALSE, message=FALSE}
 options(knitr.kable.NA = '')
@@ -1154,10 +1147,10 @@ row.names(means_table) <- c("XX", "XY","mean")
 bgc1 <- pal_okabe_ito[1]
 bgc2 <- pal_okabe_ito[2]
 
-knitr::kable(means_table, 
-             digits = 3,
-             col.names = c("Female", "Male", "mean"),
-             caption = "Conditional (white background) and marginal (color background) means from full factorial model fit to lesian area data") %>%
+kable(means_table, 
+      digits = 3,
+      col.names = c("Female", "Male", "mean"),
+      caption = "Conditional (white background) and marginal (color background) means from full factorial model fit to lesian area data") %>%
   kable_styling(full_width = FALSE) %>%
   # row_spec(row = 0,
   #          bold = F) %>%
@@ -1169,11 +1162,11 @@ knitr::kable(means_table,
               background = c("white", "white", bgc2)) %>%
   column_spec(column = 2, 
               background = c("white", "white", bgc2))
- 
+
 
 ```
 
-The conditional means from the fit model are shown in the upper left $2 \times 2$ block (white background) of Table \@ref(tab:twoway-conditional-means). These means are conditional on the level of $\texttt{sex}$ and $\texttt{chromosome}$. The values in the last row and column are the **marginal means**, which are the means of the associated row or column cells (these values are in the margins of the table). More generally, *marginal* refers to a statistic averaged across multiple levels of another variable. The marginal means of the $\texttt{chromosome}$ levels (orange background) are the means of the "XX" and "XY" rows. The marginal means of the $\texttt{sex}$ levels (blue background) are the means of the "Female" and "Male" columns.
+The conditional means from the fit model are shown in the upper left $2 \times 2$ block (white background) of Table \@ref(tab:twoway-conditional-means). These means are conditional on the level of $\texttt{sex}$ and $\texttt{chromosome}$. For the linear model with two crossed factor here (with no continuous covariates), these conditional means are equal to the sample means of the treatment. The values in the last row and column are the **marginal means**, which are the means of the associated row or column cells (these values are in the margins of the table). More generally, *marginal* refers to a statistic averaged across multiple levels of another variable. The marginal means of the $\texttt{chromosome}$ levels (orange background) are the means of the "XX" and "XY" rows. The marginal means of the $\texttt{sex}$ levels (blue background) are the means of the "Female" and "Male" columns. Note that the marginal means are simple averages across cell means and not weighted averages where the weights are the sample size used to compute the conditional (cell) means.
 
 ### Simple (conditional) effects
 
@@ -1244,7 +1237,7 @@ knitr::kable(simple_table,
 
 ```
 
-### Marginal effects
+### Marginal effects {#twoway-marginal-effects}
 
 The average of the conditional effects for a factor are the **marginal effects**, or the **main effects** in ANOVA terminology.
 
@@ -1361,7 +1354,7 @@ Explainer
 1. In an additive model, all conditional effects for one factor are the same for each level of the other factor. This makes sense. If the model fit is additive, the interaction effect is set to zero by the model and there cannot be differences in conditional effects among the contrasts at each of the levels of the other factor (otherwise, there would be an interaction). A more sensible way of thinking about this is, it doesn't make sense to compute or discuss conditional effects in an additive model. Instead, an additive model automatically estimates marginal effects.
 2. Compare the table of marginal effects of the additive model to the table of marginal effects of the full model. The estimates for the chromosome effect are the same but the *t*-values and *p*-values differ because of different degrees of freedom (the full model estimates one more parameter, the interaction effect). The estimates for the sex effect are not the same between the two tables because of an imbalance of sample size. In the computation of the marginal effect of chromosome, the two simple effects both have sample size of 5 and 4. But in the computation of the marginal effect of sex, one simple effect has sample size of 5 and 5 while the other has a simple effect of 4 and 4.
 
-### Reduce models for the right reason
+### Reduce models for the right reason {#twoway-reduce}
 
 Unless one factor truly has no effect, there will always be an interaction. As stated above, interactions are ubiquitous. If an interaction is small, it can make sense to drop the interaction term and re-fit an additive model to estimate marginal effects in order to present a simplified picture of what is going on, with the recognition that these estimates are smoothing over the heterogenity in conditional (simple) effects that truly exist.
 
@@ -1465,6 +1458,7 @@ fig1[, hac := factor(hac)] # levels in correct order
 fig1[, indole := factor(indole)] # levels in correct order
 # View(fig1)
 ```
+
 ### Analysis
 
 #### Examine the data
@@ -1806,24 +1800,260 @@ ggsave(image_path,
 gg_add
 ```
 
-```{r twoway-synergy, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9 effect"}
+```{r twoway-synergy, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
 image_path <- here("images", "twoway-synergy.png")
 
 knitr::include_graphics(image_path)
 ```
 
 ## Two-way ANOVA
-### ANOVA table of Experiment 2j
 
-```{r twoway-exp2j-anova, message=FALSE}
+Let's use the glucose uptake experiment (Example 1) to explore the ANOVA table.
+
+### How to read a two-way ANOVA table
+
+```{r twoway-anova-explainer, echo = FALSE, message=FALSE, warning=FALSE}
+
 exp2j[, fake_id := paste("mouse", .I)]
-
-m1_aov4 <- aov_4(glucose_uptake ~ stimulation * genotype + (1|fake_id),
-           data = exp2j)
-
-anova(m1_aov4)[, c(1, 2, 3, 4, 6)] %>%
-  kable(digits = c(1, 1, 2, 2, 5)) %>%
+exp2j_aov4 <- aov_4(glucose_uptake ~ stimulation * genotype + (1|fake_id),
+                 data = exp2j)
+afex_options(round_ps = 4)
+exp2j_aov4_nice <- nice(exp2j_aov4, 
+                        MSE = FALSE,
+                        sig_symbols = rep("", 4))[,-4]  
+exp2j_aov4_nice %>%
+  kable(caption = "ANOVA table of glucose uptake experiment (Example 1).") %>%
   kable_styling()
+
+# type3 <- list(stimulation = contr.sum, genotype = contr.sum)
+# m1_type3 <- lm(glucose_uptake ~ stimulation * genotype,
+#                data = exp2j,
+#                contrasts = type3)
+# m1_aov <- Anova(m1_type3, type="3")[2:5,]
+# m1_aov_dt <- data.table(term = row.names(m1_aov),
+#                         m1_aov)
+# m1_aov_dt[, MSE := get("Sum Sq")/Df]
+# y_cols <- c("term", "Sum Sq", "Df", "MSE", "F value", "Pr(>F)")
+# m1_aov_dt <- m1_aov_dt[, .SD, .SDcols = y_cols]
+# new_cols <- c("", "Sum Sq", "df", "MSE", "F value", "Pr(>F)")
+# setnames(m1_aov_dt, old = names(m1_aov_dt), new = new_cols)
+# 
+# m1_aov_dt %>%
+#   kable(digits = c(1,2,1,2,2,5)) %>%
+#   kable_styling()
+
+
+```
+
+Explainer
+
+1. This ANOVA table is computed using Type III sum of squares and should match the output from most statistics software including Graphpad Prism. The relevance of this is addressed below.
+2. In general, an ANOVA table has a row for each term in the underlying linear model. ANOVA is a method for decomposing the total variance into batches and each of these terms is a batch. For the linear model with two crossed factors, there is a term for each factor and a term for the interaction. $\texttt{stimulation}$ and $\texttt{genotype}$ are the **main** (or 1st order) effects. $\texttt{stimulation:genotype}$ is the interaction (or 2nd order) effect. These terms are the row names of the table.
+3. Some ANOVA functions in R also include a row for the variance of the residuals from the fit model. This row can be useful for learning what the values in ANOVA table are but only one statistic from the row (the residual df) is especially useful for reporting. In Table \@ref(tab:twoway-anova-explainer), this residual df is included in the statistics for each term.
+4. Many ANOVA tables contain additional SS (sum of squares) and MSE (mean square error) columns. The MSE is the variance of the term and used to compute the *F* statistic. The SS is used to compute the MSE. Since these columns are used for computation but not reporting, Table \@ref(tab:twoway-anova-explainer) excludes these.
+5. **df** (Degree of freedom) -- If the term is a factor, the df will equal the number of levels ($k$) for the factor minus 1. Think of it this way: the contribution of the variance due to a factor is a function of the variability of the $k$ level means around the grand mean. How many degrees of independent variation do these level means have, given that we know the grand mean? The answer is $k-1$ -- once the values of $k-1$ level means are written down, the $k$th level mean has no freedom to vary; its value has to be $k\bar{\bar{Y}} - \sum_i^{k-1}{Y_i}$. For an interaction term, the df is the product of the df of each of the factors in the interaction.
+6. **F** (*F*-value or *F*-ratio) -- This is the test statistic. It is the ratio of the MSE for the term divided by the MSE of the residual (this is strictly true for only "Fixed effects" ANOVA, which we have here).
+7. **p.value** -- the *p*-value for the test statistic. *F* is compared to an *F*-distribution, which is a distribution of *F*-values under the null.
+
+### What do the main effects in an ANOVA table mean?
+
+Both wet-bench and ecology/evolution experimental biologists do ANOVA. For whatever reason, wet-bench experimental biologists rarely report statistics from ANOVA tables (wet-bench biologists do report "tests after ANOVA" but in modern computing, post-hoc tests and ANOVA tables are both computed from the underlying regression model. The ANOVA is not necessary for any inference, a point I return to below).
+
+It is very common in the ecology/evolution literature to see the researchers to state something like "We found an effect of stimulation on glucose uptake ($F_{1,25} = 26.9$, $p < 0.0001$)". Thinking of a main effect term in an ANOVA table as (an effect) can be misleading. What does "an effect" mean? There are two effects of $\texttt{stimulation}$ in this experiment, one in the wildtype mice and one in the TLR9-/- mice. 
+
+Main effects in ANOVA tables are about average effects. A main effect in a two-way ANOVA table is an "overall" marginal effect. Recall that a marginal effect of the level of Factor A is the average of the conditional effects at each level of B (Section \@ref(twoway-marginal-effects)). For a $2 \times 2$ table, there is only one marginal effect for each factor and, as a consquence, the *p* value for the main effect term of $\textt{stimulation}$ in the ANOVA table (Table \@ref(tab:twoway-anova-table)) is equak to the *p*-value of the marginal effect of $\textt{stimulation}$ in the contrast table (Table \@ref(tab:twoway-marginal-table)). The "main term" effect of stimulation is illustrated in Figure \@ref(twoway-main-1).
+
+```{r twoway-anova-table, echo=FALSE}
+anova(exp2j_aov4)[, -c(3,5)] %>%
+  kable(caption = "Reprinting the ANOVA table of the glucose uptake experiment (Example 1) to show more decimal places of the p-value.",
+        digits = c(1,1,2,7)) %>%
+  kable_styling()
+```
+
+```{r twoway-marginal-table, echo = FALSE, message=FALSE}
+exp2j_aov4_emm_stim <- emmeans(exp2j_aov4, specs = "stimulation")
+contrast(exp2j_aov4_emm_stim,
+         method = "revpairwise") %>%
+  summary(infer = TRUE) %>%
+  kable(digits = c(1,2,3,1,2,2,3,7),
+        format.args = list(scientific = FALSE),
+        caption = "Marginal effect of stimulation on glucose uptake.") %>%
+  kable_styling()
+
+```
+
+Again, main effects in ANOVA tables are about average effects. Is the average effect what we want to report? The answer is, it depends. It does *not* depend on the *p*-value of the interaction (the answer in many textbooks and websites) although the *p*-value is, perhaps, not irrelevant. Rather, it depends on the research question motivating the experiment. The research question in Experiment 2j specifically predicted a different treatment (KO/Active - KO/Rest) and control effect (WT/Active - WT/Rest). The average of these two effects isn't of interest. Any inference about the average effect of stimulation (the *p*-value from the ANOVA table or the marginal effect size or CIs) doesn't answer any question motivating the experiment. A more general discussion of when we might be interested in the main effect term of an ANOVA table (or better, marginal effects) was in section xxx and below in section xxx.
+
+```{r twoway-main-base, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+type3 <- list(stimulation = contr.sum, genotype = contr.sum)
+exp2j_aov <- lm(glucose_uptake ~ stimulation * genotype,
+                     data = exp2j,
+                     contrasts = type3)
+exp2j_aov_emm <- emmeans(exp2j_aov, specs = c("stimulation", "genotype")) %>%
+  summary() %>%
+  data.table()
+exp2j_aov_stim <- emmeans(exp2j_aov, specs = "stimulation") %>%
+  summary() %>%
+  data.table()
+
+exp2j_aov_geno <- emmeans(exp2j_aov, specs = "genotype") %>%
+  summary() %>%
+  data.table()
+
+b <- coef(exp2j_aov)
+dodge_width <- 0.0
+pd <- position_dodge(dodge_width)
+
+nudge <- 0.05
+bracket_table <- data.table(
+  x = c(1 + nudge,
+        2 - nudge,
+        2 - nudge),
+  y = c(b[1],
+        b[1],
+        b[1] + b[2] + b[3]),
+  xend = c(1 + nudge,
+           2 - nudge,
+           2 - nudge),
+  yend = c(b[1] + b[2],
+           b[1] + b[3],
+           b[1] + b[2] + b[3] + b[4])
+)
+
+dodge_width <- 0.0
+pd <- position_dodge(dodge_width)
+gg_main_base <- ggplot(data = exp2j_aov_emm,
+             aes(x = genotype,
+                 y = emmean,
+                 color = stimulation)) +
+  
+  # add individual points in the background
+  geom_jitter(data = exp2j,
+             aes(y = glucose_uptake,
+                 color = stimulation),
+             alpha = .3,
+             width = 0.1) +
+  
+  # grand mean line
+  geom_segment(x = 0.75,
+               y = b[1],
+               xend = 2.25,
+               yend = b[1],
+             linetype = "dashed",
+             color = "gray") +
+  # annotate(geom = "text",
+  #          label = "grand mean",
+  #          x = .5,
+  #          y = b[1],
+  #          hjust = 0) +
+ 
+  # conditional means
+  geom_point(size = 3,
+             position = pd) +
+  
+  scale_color_manual(values = pal_okabe_ito_blue) +
+#  scale_x_discrete(labels = c("WT", "TLR9-/-")) +
+  ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
+  coord_cartesian(ylim = c(5.0, 11.5)) +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        legend.title = element_blank()) +
+  
+  NULL
+
+# gg_main_base
+```
+
+```{r twoway-main-1-build, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+exp2j_aov_stim[, genotype := c(1.5, 1.5)]
+
+gg_main_1 <- gg_main_base +
+  
+  # marginal means
+  geom_point(data = exp2j_aov_stim,
+             aes(y = emmean),
+             size = 3,
+             shape = 21) +
+  
+  # annotations
+  annotate(
+    geom = "text",
+    label = c("marginal means"),
+    x = c(1.5),
+    y = 10
+  ) +
+  
+  # effect lines
+  geom_segment(
+    data = data.table(
+      x = c(1 - nudge, 1.5 + nudge, 2 + nudge),
+      y = c(b[1] + b[2] + b[3] + b[4], # wt rest
+            b[1] + b[2],
+            b[1] + b[2] - b[3] - b[4]), # ko rest
+      xend = c(1 - nudge, 1.5 + nudge, 2 + nudge),
+      yend = c(b[1] - b[2] + b[3] - b[4], #wt stim
+            b[1] - b[2],
+            b[1] - b[2] - b[3] + b[4]) # ko stim
+    ),
+    aes(x = x,
+    y = y,
+    xend = xend,
+    yend = yend),
+    color = "black") +
+  
+  # effect annotations
+  annotate(geom = "text",
+           label = c("effect of\nstimulation\nin WT"),
+           x = c(.7),
+           y = c(11)) +
+  geom_curve(x = .7,
+             y = 10.3,
+             xend = 1 - nudge*1.2,
+             yend = 9,
+             arrow = arrow(length = unit(0.03, "npc")),
+             color = "black",
+             curvature = 0.3) +
+
+  annotate(geom = "text",
+           label = c("effect of\nstimulation\nin KO"),
+           x = c(2.3),
+           y = c(11)) +
+  geom_curve(x = 2.3,
+             y = 10.3,
+             xend = 2 + nudge*1.2,
+             yend = 8.3,
+             arrow = arrow(length = unit(0.03, "npc")),
+             color = "black",
+             curvature = -0.3) +
+
+  annotate(geom = "text",
+           label = c("mean effect of\nstimulation"),
+           x = c(1.75),
+           y = c(11.5)) +
+  geom_curve(x = 1.75,
+             y = 11.0,
+             xend = 1.5 + nudge*1.2,
+             yend = 8.6,
+             arrow = arrow(length = unit(0.03, "npc")),
+             color = "black",
+             curvature = -0.2) +
+  
+  NULL
+
+image_path <- here("images", "twoway-main-1.png")
+ggsave(image_path,
+       width = 7,
+       height = 5,
+       units = "in")
+gg_main_1
+```
+
+```{r twoway-main-1, echo=FALSE, out.width="80%", fig.cap = "The main effect of stimulation in the ANOVA table tests the average of the conditional effects of stimulation. The average of the conditional effects is the difference between the marginal means of Active and of Rest."}
+
+image_path <- here("images", "twoway-main-1.png")
+
+knitr::include_graphics(image_path)
 ```
 
 ## Working in R
@@ -1862,9 +2092,9 @@ file_name <- "41586_2020_1992_MOESM4_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
 treatment_levels  <- c("WT Rest",
-                       "WT Stimulation",
+                       "WT Active",
                        "KO Rest",
-                       "KO Stimulation")
+                       "KO Active")
 exp2j_wide <- read_excel(file_path,
                          sheet = "2j",
                          range = "A5:D13",
@@ -1884,7 +2114,7 @@ exp2j[, c("genotype", "stimulation") := tstrsplit(treatment,
                                                   fixed = TRUE)]
 
 genotype_levels <- c("WT", "KO")
-stimulation_levels <- c("Rest", "Stimulation")
+stimulation_levels <- c("Rest", "Active")
 exp2j[, genotype := factor(genotype,
                            levels = genotype_levels)]
 exp2j[, stimulation := factor(stimulation,
