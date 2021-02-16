@@ -26,6 +26,20 @@ here <- here::here
 clean_names <- janitor::clean_names
 data_folder <- "data"
 minus <- "\u2013"
+
+fmt_p_value_2 <- function(p, digits = 0.0001){
+  p_char <- ifelse(p < 0.06 | is.na(p),
+                   scales::pvalue(p,
+                                  accuracy = ifelse(
+                                    (10^-(ceiling(-log10(p)) + 1)) < digits,
+                                    digits,
+                                    (10^-(ceiling(-log10(p)) + 1)))),
+                   scales::pvalue(p, accuracy = 0.01))
+}
+fmt_p_value_rmd <- function(x, digits = 0.0001){
+  return(sapply(x, fmt_p_value_2, digits))
+}
+
 ```
 
 ## A linear model with crossed factors estimates interaction effects
@@ -137,7 +151,7 @@ $$
 
 I refer to this as a **flattened** model (the table of treatment combinations has been flattened into a single row). Pairwise tests between treatments from a factorial analysis and a flattened analysis are the same. What differs is the interaction effect is not estimated in the flattened analysis (look at the two equations). This is a critical difference. The interaction effect is the necessary statistic to make many of the claims reported in the experimental biology literature.
 
-## Example 1 -- Estimation of a treatment effect relative to a control effect ("Something different")  (TLR9-/- mice)
+## Example 1 -- Estimation of a treatment effect relative to a control effect ("Something different")  (Experiment 2j glucose uptake data)
 
 To introduce a linear model with crossed factors (categorical $X$ variables), I'll use data from a set of experiments designed to measure the effect of the toll-like receptor protein TLR9 on the activation of excercise-induced AMP-activated protein kinase (AMPK) and downstream sequelae of this activation, including glucose transport (from outside to inside the cell) by skeletal muscle cells.
 
@@ -870,45 +884,7 @@ image_path <- here("images", "twoway-scenarios.png")
 knitr::include_graphics(image_path)
 ```
 
-### For pairwise comparisons, it doesn't matter if you analyze the data with a factorial or a flattened linear model
-
-Compare
-
-```{r two-exp2j-factorial-pairwise}
-m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
-
-m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
-
-m1_pairs <- contrast(m1_emm,
-                     method = "revpairwise",
-                     adjust = "tukey") %>%
-  summary(infer = TRUE)
-
-m1_pairs %>%
-  kable(digits = c(3)) %>%
-  kable_styling()
-  
-```
-
-```{r two-exp2j-flattened-pairwise}
-m2 <- lm(glucose_uptake ~ treatment, data = exp2j)
-
-m2_emm <- emmeans(m2, specs = c("treatment"))
-
-m2_pairs <- contrast(m2_emm,
-                     method = "revpairwise",
-                     adjust = "tukey") %>%
-  summary(infer = TRUE)
-
-m2_pairs %>%
-  kable(digits = c(3)) %>%
-  kable_styling()
-  
-```
-
-But, this equivalence is somewhat beside the point, which is, in an experiment with crossed factors, we should analyze the data using a linear model with crossed factors, as this allows us to estimate the interaction effect.
-
-## Example 2: Estimation of the effect of background condition on an effect ("it depends") (XX mice)
+## Example 2: Estimation of the effect of background condition on an effect ("it depends") (Experiment 3e lesian area data)
 
 ```{r twoway-exp3e-import, message=FALSE, echo=FALSE}
 
@@ -1247,7 +1223,7 @@ emmeans(exp3e_m1, specs = "sex") %>%
 emmeans(exp3e_m1, specs = "chromosome") %>%
   contrast(method = "revpairwise")
 ```
-I'm showing the full output from the emmeans package output to highlight the message that these effects are averaged over levels of the other factor. What isn't displayed here (but is if you run this) is the warning that the inference "may be misleading" because of the interaction effect in the linear model. This is a healthy warning that I follow up on below.
+I'm showing the full output from the emmeans package output to highlight the warning that the inference "may be misleading" because of the interaction effect in the linear model. This is a healthy warning that I follow up on below.
 
 In Table \@ref(tab:twoway-main), I add the marginal effects to the table of conditional effects from above (Table \@ref(tab:twoway-simple-effects))
 
@@ -1421,11 +1397,11 @@ exp3e_m2_coef
 
 ```
 
-## Example 3: Estimation of synergy ("More than the sum of the parts") (plant root growth)
+## Example 3: Estimation of synergy ("More than the sum of the parts") (Experiment 1a ABA data)
 
-This chapter uses data from an experiment measuring the effect of two defense signals on the defense response in Maize plants. In response to herbivory from insects, maize, and other plants, release multiple, chemical signals into the air (chemicals that evaporate into the air are known as volatile compounds). These chemicals signal the plant, and neighboring plants, to secrete anti-herbivory hormones, including abcisic acid and jasmonic acid. The researchers investigated the effects of two volatile compounds, (Z)‐3‐hexenyl acetate (HAC) and Indole, on the defense response both each without the other and in combination.
+To explain what synergy is and why it is estimated by the interaction effect, this example uses data from an experiment measuring the effect of two defense signals on the defense response in Maize plants. In response to herbivory from insects, maize, and other plants, release multiple, chemical signals into the air (chemicals that evaporate into the air are known as volatile compounds). These chemicals signal the plant, and neighboring plants, to secrete anti-herbivory hormones, including abcisic acid and jasmonic acid. The researchers investigated the effects of two volatile compounds, (Z)‐3‐hexenyl acetate (HAC) and Indole, on the defense response both each without the other and in combination.
 
-The example data come from Figure 1a, which is the effect of HAC and Indole on tissue concentrations of the hormone abcisic acid (ABA). The design is fully crossed with two factors, each with two levels: $hac$, with levels "HAC-" and "HAC+", and $indole$, with levels ("Indole-" and "Indole+").
+The example data come from Figure 1a, which is the effect of HAC and Indole on tissue concentrations of the hormone abcisic acid (ABA). The design is fully crossed with two factors, each with two levels: $\texttt{hac}$, with levels "HAC-" and "HAC+", and $\texttt{indole}$, with levels ("Indole-" and "Indole+").
 
 ```{r factorial-2way-table, echo = FALSE, message=FALSE, warning=FALSE}
 df <- data.frame("HAC-" = c("Control", "Indole"),
@@ -1806,6 +1782,140 @@ image_path <- here("images", "twoway-synergy.png")
 knitr::include_graphics(image_path)
 ```
 
+## Issues in infernce
+### For pairwise comparisons, it doesn't matter if you analyze the data with a factorial or a flattened linear model
+
+Compare the pairwise comparisons of the Experiment 2j glucose uptake data using a factorial linear model and a flattened linear model.
+
+Factorial:
+
+```{r two-exp2j-factorial-pairwise}
+m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+
+m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
+
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     adjust = "tukey") %>%
+  summary(infer = TRUE)
+
+m1_pairs %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+  
+```
+
+Flattened:
+
+```{r two-exp2j-flattened-pairwise}
+m2 <- lm(glucose_uptake ~ treatment, data = exp2j)
+
+m2_emm <- emmeans(m2, specs = c("treatment"))
+
+m2_pairs <- contrast(m2_emm,
+                     method = "revpairwise",
+                     adjust = "tukey") %>%
+  summary(infer = TRUE)
+
+m2_pairs %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+  
+```
+
+But, this equivalence is somewhat beside the point, which is, in an experiment with crossed factors, we should analyze the data using a linear model with crossed factors, as this allows us to estimate the interaction effect.
+
+### Adjusting *p*-values for multiple tests {#twoway-multiple-tests}
+
+Inflated Type I error in pairwise tests is a concern among some statisticians and many reviewers, readers, and colleagues. It is not the frequency of individual tests that is inflated in a batch of pairwise tests but the "family-wise" error rate -- given the four simple-effect tests or the six pairwise tests in a $2 \times 2$ design, what is the frequency of at least one Type I error within this batch of tests.
+
+```{r twoway-exp2j-p-adjust, echo = FALSE}
+p_methods <- c("Tukey-all", "Tukey", "Bonferroni",
+               "Holm", "MvT", "FDR", "None")
+
+p_mat <- matrix(as.numeric(NA), nrow = 4, ncol = length(p_methods))
+colnames(p_mat) <- p_methods
+
+m1_pairs <- contrast(exp2j_m1_emm,
+                     method = "revpairwise") %>%
+  summary() %>%
+  dplyr::slice(c(1,6,2,5))
+p_mat[, "Tukey-all"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE,
+         adjust = "tukey") %>%
+  summary()
+p_mat[, "Tukey"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE) %>%
+  summary()
+p_mat[, "Bonferroni"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE,
+         adjust = "holm"
+) %>%
+  summary()
+p_mat[, "Holm"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE,
+         adjust = "mvt") %>%
+  summary()
+p_mat[, "MvT"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE,
+         adjust = "fdr") %>%
+  summary()
+p_mat[, "FDR"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- contrast(exp2j_m1_emm,
+         method = "revpairwise",
+         simple = "each",
+         combine = TRUE,
+         adjust = "none") %>%
+  summary()
+p_mat[, "None"] <- m1_pairs[, "p.value"]
+
+m1_pairs <- data.table(m1_pairs)
+m1_pairs[1:2, contrast := paste(stimulation, contrast, sep = ": ")]
+m1_pairs[3:4, contrast := paste(genotype, contrast, sep = ": ")]
+y_cols <- c("contrast", "estimate")
+m1_pairs <- cbind(m1_pairs[, .SD, .SDcols = y_cols], data.table(p_mat))
+m1_pairs %>%
+  kable(digits = c(1,2,3,3,3,3,3,3,3),
+        caption = "P-values from seven different methods of adjustment. The Tukey-all p-value is from all six pairwise comparisons. All other p-values are from the four simple effects.") %>%
+  kable_styling() %>%
+  row_spec(2, background = pal_okabe_ito[1])
+```
+
+Table \@ref(tab:twoway-exp2j-p-adjust) shows *p*-values adjusted using seven different methods (including no adjustment) for the Experiment 2j glucose uptake data.
+
+1. **Bonferroni** -- The Bonferroni adjustment assumes independence among the tests. This isn't true for posthoc tests because every contrast includes a group that is in other tests (that is, the different contrasts have common data). The consequence of the correlation among the tests is that the Bonferroni adjustment is too conservative (the actual rate of Type I error will be smaller than the nominal rate).
+2. **Tukey HSD** -- The Tukey adjustment corrects for the expected correlation among the tests.
+3. **Holm** -- The Holm variant of the Bonferroni adjustment has increased power relative to the Bonferroni but does explicitly account for correlated tests. It's type I error rate is too conservative.
+4. **Mvt** -- The multivariate t adjustment corrects for the empirically measured correlation.
+5. **FDR** -- The FDR adjustment does not attempt to correct for Type I error but for the False Discovery Rate. The difference between these concepts is important. One can have a Fisherian world-view that rejects controlling for Type I error as something to be done, and find the FDR logically satisfying.
+
+Further thoughts on multiple adjustment, focussing on the highlighted row in the table.
+
+1. The most transparent best practice is to report all, unadjusted *p*-values. Reporting all unadjusted *p*-values allows a reader to compute whatever adjustment they deem appropriate for the question they are addressing. Reporting all *p*-values could overwhelm the principal message of a figure. Instead, report focal (planned comparison) *p*-values in the figure and a table of all *p*-values in the supplement. There should be a table of these for every experiment in the supplement. This point raises the question of what "all" means. In some designs, "all" could mean all treatment vs. control comparisons. In others, "all" could mean all pairwise comparisons. In others, "all" could mean all pairwise comparisons and all interactions.
+2. In a Fisherian world-view of *p*-values, there just isn't any real difference in inference between $p = 0.02$ (no adjustment) and $p = 0.086$ (Tukey adjustment from all pairwise comparisons). Fisher expected decisions based on multiple replications of the experiment, all (or nearly) with $p < 0.05$. From a Fisherian-world-view, then, we have bigger how-to-do-science issues than multiple testing if we are making decisions entirely on $p = 0.02$ versus $p = 0.086$.
+3. From a Neyman-Pearson testing world-view, what is important is the family of tests. Using all six pairwise comparisons or all four simple effects as the family because this is how the software assigned it is rather mindless statistics. Many statisticians in favor of "family-wise error control" distinguish between planned and unplanned ("post-hoc") comparisons with no adjustment for planned ("we have distinct hypotheses for each of these tests") comparisons and adjustment for post-hoc ("is there a difference anywhere in this set of tests") comparisons. The FDR was invented for "is there a difference anywhere in this set of tests" kinds of questions.
+
 ## Two-way ANOVA
 
 Let's use the glucose uptake experiment (Example 1) to explore the ANOVA table.
@@ -2059,26 +2169,114 @@ knitr::include_graphics(image_path)
 ## Working in R
 ### Model formula
 
-A full-factorial model with two factors is specified in the model formula as `y ~ A*B` where $texttt{A}$ is the first factor, and $texttt{B}$ is the second factor. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
+A linear model with two crossed factors is specified in the model formula as `y ~ A*B` where $\texttt{A}$ is the first factor, and $\texttt{B}$ is the second factor. R expands this formula to `y ~ 1 + A + B + A:B` where the colon indicates an interaction (multiplicative) effect.
 
-```{r }
-m1 <- lm(aba ~ hac * indole, data = fig1)
-m1_coef <- coef(summary(m1))
-  
-m1_coef %>%
-  kable(digits = c(1,2,2,3))
+```{r twoway-working-m1}
+m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+
+coef(summary(m1)) %>%
+  kable(digits = c(2,3,2,6)) %>%
+  kable_styling()
+```
+The order of the factors in the model formula doesn't matter for the coefficients, the estimated marginal means, or the contrasts. It can matter for ANOVA (more on this below) but not "tests after ANOVA".
+
+```{r twoway-working-m1_b}
+m1_b <- lm(glucose_uptake ~ genotype * stimulation, data = exp2j)
+
+coef(summary(m1_b)) %>%
+  kable(digits = c(2,3,2,6)) %>%
+  kable_styling()
 ```
 
 The additive model is specified by the formula `y ~ A + B`
 
-```{r urchin-additive}
-m2 <- lm(aba ~ hac + indole, data = fig1)
-m2_coef <- coef(summary(m2))
-  
-m2_coef %>%
-  kable(digits = c(1,2,2,5))
+```{r twoway-working-m2}
+m2 <- lm(glucose_uptake ~ stimulation + genotype, data = exp2j)
+coef(summary(m2)) %>%
+  kable(digits = c(2,3,2,6)) %>%
+  kable_styling()
+
 ```
-#### Practice safe ANOVA
+### Using the emmeans function
+#### Conditional means table
+
+```{r twoway-emm}
+# model m1 fit above
+# m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+
+m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
+m1_emm
+```
+
+Notes
+
+1. Printing the `emmeans` object displays useful information. Here, this information includes the confidence level used. If the object is printed using `kable() %>% kable_styling()` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+2. `emmeans` computes the modeled means of all combinations of the levels of the factor variables specified in `specs`.
+3. If there are two factor variables in the model, and both are passed to `specs`, then the modeled means of all combinations of the levels of the two variables are computed. If only one factor variable is passed, then the marginal means (averaged over all levels of the missing factor) are computed (see below).
+
+#### Marginal means
+
+```{r twoway-working-emm_stimulation, message=TRUE, warning=TRUE}
+m1_emm_stimulation <- emmeans(m1, specs = c("stimulation"))
+m1_emm_stimulation
+```
+Notes
+
+1. In a model with two crossed factors, `y ~ A * B`, the marginal means of the levels of $\texttt{A}$, averaged over all levels of $\texttt{B}$ are computed by setting `specs =` to $\texttt{A}$ only.
+2. Remember that the `specs` argument sets the values of the predictors for which we want a mean. By excluding $\texttt{B}$, we don't get the means of the levels of $\texttt{A}$ at each level of $\texttt{B}$ but averaged across the levels of $\texttt{B}$.`emmeans` "knows" to average across the levels of $\texttt{B}$ because $\texttt{B}$ is in the model.
+
+### Contrasts
+#### All pairwise effects
+
+```{r twoway-working-pairs}
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise",
+                     adjust = "tukey",
+                     level = 0.95) %>%
+  summary(infer = TRUE) # add the 95% CIs
+
+m1_pairs
+```
+
+Notes
+
+1. Note that printing the `contrast` object displays useful information, including the method of adjustment for multiple tests. If the object is printed using `kable() %>% kable_styling()` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+2. The `method` argument is used to control the set of contrasts that are computed. See below.
+3. The `adjust` argument controls if and how to adjust for multiple tests. Each `method` has a default adjustment method. See below.
+4. The `level` argument controls the percentile boundaries of the confidence interval. The default is 0.95. Including this argument with this value makes this level transparent.
+
+#### Simple effects
+
+```{r twoway-working-simple}
+m1_simple <- contrast(m1_emm,
+                     method = "revpairwise",
+                     simple = "each",
+                     combine = TRUE,
+                     adjust = "fdr") %>%
+  summary(infer = TRUE) # add the 95% CIs
+
+m1_simple %>%
+#  mutate(p.value = fmt_p_value_rmd(p.value)) %>%
+  kable(digits = c(1,1,1,2,3,1,2,2,2,4)) %>%
+  kable_styling()
+```
+
+#### Interaction effects
+
+```{r}
+m1_ixn <- contrast(m1_emm,
+                     interaction = "revpairwise",
+                     adjust = "none") %>%
+  summary(infer = TRUE) # add the 95% CIs
+
+m1_ixn %>%
+  kable(digits = c(1,1,2,3,1,2,2,2,4)) %>%
+  kable_styling()
+```
+
+#### Adjustment for multiple tests
+
+### Practice safe ANOVA
 
 If you want an ANOVA table to match that in Graphpad Prism or JMP, then you need a table computed from Type III sum of squares. If using a linear model to compute the ANOVA (remember that ANOVA was developed without fitting linear models), then the linear model needs to be fit using a model matrix constructed with indicator variables using effects coding. There are two safe ways to do this in R
 

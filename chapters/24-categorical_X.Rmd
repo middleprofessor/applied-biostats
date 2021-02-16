@@ -828,7 +828,7 @@ m1_emm
 
 Notes
 
-1. Note that printing the `emmeans` object displays useful information. Here the information, this information includes the confidence level used. If the object is printed using `kable` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+1. Note that printing the `emmeans` object displays useful information. Here, this information includes the confidence level used. If the object is printed using `kable` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
 2. `emmeans` computes the modeled means of all combinations of the levels of the factor variables specified in `specs`.
 3. If there are two factor variables in the model, and both are passed to `specs`, then the modeled means of all combinations of the levels of the two variables are computed. If only one factor variable is passed, then the marginal means (averaged over all levels of the missing factor) are computed. This will become more clear in the chapter "Models for two (or more) categorical X variables".
 4. If there are continuous covariates in the model, the modeled means are computed at the average values of these covariates. These covariates do not need to be passed to the `specs` argument.
@@ -847,7 +847,7 @@ m1_planned
 ```
 Notes
 
-1. Note that printing the `contrast` object displays useful information, including the confidence level used and the method of adjustment for multiple tests. If the object is printed using `kable` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
+1. Note that printing the `contrast` object displays useful information, including the confidence level used and the method of adjustment for multiple tests. If the object is printed using `kable() %>% kable_styling()` (as in the "Inference" and "Understanding" sections above), only the table is printed and the additional information is lost.
 2. The `method` argument is used to control the set of contrasts that are computed. See below.
 3. The `adjust` argument controls if and how to adjust for multiple tests. Each `method` has a default adjustment method. See below.
 4. The `level` argument controls the percentile boundaries of the confidence interval. The default is 0.95. Including this argument with this value makes this level transparent.
@@ -872,13 +872,15 @@ m1_tukey
 
 #### Adjustment for multiple tests
 
+See the Section \@ref(twoway-multiple-tests) in the chapter "Linear models with two categorical $X$ -- Factorial linear models" for a more thorough explanation of the *p*-value adjustment for multiple tests that arise if an experiment has more than two treatment groups. Here, I just outline choices available in the `emmeans::contrast` function.
+
 1. "none" -- no adjustment
 2. "dunnettx" -- [Dunnett's test](https://en.wikipedia.org/wiki/Dunnett%27s_test){target="_blank"} is a method used when comparing all treatments to a single control.
-3. "tukey" -- [Tukey's HSD method](https://en.wikipedia.org/wiki/Tukey%27s_range_test){target="_blank"} is a method used to compare all pairwise comparisons. One might use this in an exploratory experiment.
+3. "tukey" -- [Tukey's HSD method](https://en.wikipedia.org/wiki/Tukey%27s_range_test){target="_blank"} is a method used to compare all pairwise comparisons.
 4. "bonferroni" -- [Bonferroni](https://en.wikipedia.org/wiki/Bonferroni_correction){target="_blank"} is a general purpose method to compare any set of multiple tests. The test is conservative. A better method is "holm"
 5. "holm" -- [Holm-Bonferroni](https://en.wikipedia.org/wiki/Holm–Bonferroni_method){target="_blank"} is a general purpose method like the Bonferroni but is more powerful.
 6. "fdr" -- controls the [false discovery rate](https://en.wikipedia.org/wiki/False_discovery_rate){target="_blank"} not the Type I error rate for a family of tests. One might use this in an exploratory experiment.
-7. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables. One might use this in an exploratory experiment.
+7. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables.
 
 #### Planned comparisons using custom contrasts
 

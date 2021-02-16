@@ -1,0 +1,69 @@
+---
+title: "post-hoc inflation"
+author: "Jeffrey A. Walker"
+date: "2/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+n_sim <- 5000
+n <- 8
+treatment_levels <- c("cn", "tr")
+n_treat <- length(treatment_levels)
+genotype_levels <- c("wt", "ko")
+n_geno <- length(genotype_levels)
+fake_data <- data.table(
+  treatment = rep(rep(treatment_levels, each = n), n_geno),
+  genotype = rep(genotype_levels, each = n*n_treat)
+)
+p_none <- matrix(as.numeric(NA), nrow = 6, ncol = n_sim)
+p_bonf <- matrix(as.numeric(NA), nrow = 6, ncol = n_sim)
+p_holm <- matrix(as.numeric(NA), nrow = 6, ncol = n_sim)
+p_tuk <- matrix(as.numeric(NA), nrow = 6, ncol = n_sim)
+for(sim_i in 1:n_sim){
+  fake_data[, y := rnorm(n*n_treat*n_geno)]
+  fit <- lm(y ~ genotype*treatment, data = fake_data)
+  
+  fit_emm <- emmeans(fit, specs = c("genotype", "treatment"))
+  
+  fit_pairs <- fit_emm %>%
+    contrast(method = "revpairwise",
+             adjust = "none") %>%
+    summary()
+  p_test <- fit_pairs$p.value
+  p_none[, sim_i] <- p_test
+  
+  p_bonf[, sim_i] <- p.adjust(p_test, "bonferroni")
+  p_holm[, sim_i] <- p.adjust(p_test, "holm")
+  
+  fit_pairs <- fit_emm %>%
+    contrast(method = "revpairwise",
+             adjust = "tukey") %>%
+    summary()
+  p_test <- fit_pairs$p.value
+  p_tuk[, sim_i] <- p_test
+  
+}
+
+# overall type I doesn't suggest that correlation among p inflates typeI
+sum(p_none < 0.05)/(n_sim*6)
+# frequency of batches with at least 1 type I is less than expected given indepedent data. This is point of Tukey
+1 - (1 - 0.05)^6
+sum(apply(p_none, 2, function(x) ifelse(sum(x < 0.05) > 0, 1, 0)) > 0)/n_sim
+sum(apply(p_bonf, 2, function(x) ifelse(sum(x < 0.05) > 0, 1, 0)) > 0)/n_sim
+sum(apply(p_holm, 2, function(x) ifelse(sum(x < 0.05) > 0, 1, 0)) > 0)/n_sim
+sum(apply(p_tuk, 2, function(x) ifelse(sum(x < 0.05) > 0, 1, 0)) > 0)/n_sim
+
+```
+
+
