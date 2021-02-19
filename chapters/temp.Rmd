@@ -1,0 +1,54 @@
+---
+title: "Untitled"
+author: "Jeffrey A. Walker"
+date: "2/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r flowchart, echo=FALSE, fig.height = 700/72, fig.cap = "A small flow chart demo of the flowchart strategy of statistical analysis. This chart covers a very small subset of potential paths that could be built from an introductory biostatistics textbook."}
+
+generate_it <- TRUE
+if(generate_it == TRUE){
+  DiagrammeR::mermaid("
+graph TB
+    a[I want to compare group means] --> b{How many groups?}
+    b --> c((only 2))
+    b --> d((more then 2))
+    c --> e{are my data normal?}
+    e --> f((yes))
+    e --> g((no))
+    f --> h{are samples in group 1<br>independent of those in<br>group 2?}
+    h --> i((yes))
+    h --> j((no))
+    i --> k[independent sample t-test]
+    j --> l[paired t-test]
+
+")
+}else{
+  image_path <- here::here("images","flowchart.png")
+  knitr::include_graphics(image_path)
+}
+```
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

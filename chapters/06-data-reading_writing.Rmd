@@ -525,14 +525,15 @@ To analyze each response, the two treatment levels for each measure need to be s
 
 ```{r}
 fig1b <- melt(fig1b_wide,
-              measure.vars = list(c("BV/TV_wt", "BV/TV_ko"),
-                                  c("Tb.Th_wt", "Tb.Th_ko"),
-                                  c("Tb.Sp_wt", "Tb.Sp_ko"),
-                                  c("Tb.N_wt", "Tb.N_ko"),
-                                  c("BMD_wt", "BMD_ko"),
-                                  c("Cs.Th_wt", "Cs.Th_ko"),
-                                  c("BV_wt", "BV_ko"),
-                                  c("MA_wt", "MA_ko")),
+              measure.vars = list(
+                c("BV/TV_wt", "BV/TV_ko"),
+                c("Tb.Th_wt", "Tb.Th_ko"),
+                c("Tb.Sp_wt", "Tb.Sp_ko"),
+                c("Tb.N_wt", "Tb.N_ko"),
+                c("BMD_wt", "BMD_ko"),
+                c("Cs.Th_wt", "Cs.Th_ko"),
+                c("BV_wt", "BV_ko"),
+                c("MA_wt", "MA_ko")),
               variable.name = "treatment_id",
               value.name = measures)
 fig1b[, treatment := ifelse(treatment_id == 1,
@@ -745,9 +746,86 @@ qplot(x = time,
 
 
 ### Wrangling columns
+
 #### Creating new columns that are functions of values in existing columnes
+
 #### Change the reference level of a factor
+
 #### Converting a single column with all combinations of a 2 x 2 factorial experiment into two columns, each containing the two levels of a factor
+
+##### Example 1 (tstrspl)
+
+The example data are analyzed in the chapter [Linear models with two categorical $X$ -- Factorial linear models ("two-way ANOVA")](#factorial)
+
+Article source: [TLR9 and beclin 1 crosstalk regulates muscle AMPK activation in exercise](https://www.nature.com/articles/s41586-020-1992-7){target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7047589/){target="_blank"}
+
+The data are from Figure 2j.
+
+[Data source](https://www.nature.com/articles/s41586-020-1992-7#Sec27){target="_blank"}
+
+```{r fig2j-import, echo=TRUE}
+data_from <- "TLR9 and beclin 1 crosstalk regulates muscle AMPK activation in exercise"
+file_name <- "41586_2020_1992_MOESM4_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+treatment_levels  <- c("WT Resting",
+                       "WT Active",
+                       "Tlr9-/- Resting",
+                       "Tlr9-/- Active")
+exp2j_wide <- read_excel(file_path,
+                         sheet = "2j",
+                         range = "A5:D13",
+                         col_names = TRUE) %>%
+  data.table()
+
+colnames(exp2j_wide) <- treatment_levels
+
+exp2j <- melt(exp2j_wide,
+              measure.vars = treatment_levels,
+              variable.name = "treatment",
+              value.name = "glucose_uptake") %>%
+  na.omit() # danger!
+
+exp2j[, c("genotype", "stimulation") := tstrsplit(treatment,
+                                                  " ",
+                                                  fixed = TRUE)]
+
+genotype_levels <- c("WT", "Tlr9-/-")
+stimulation_levels <- c("Resting", "Active")
+exp2j[, genotype := factor(genotype,
+                           levels = genotype_levels)]
+exp2j[, stimulation := factor(stimulation,
+                              levels = stimulation_levels)]
+# View(exp2j)
+```
+
+1. Melting the wide data creates a column $\texttt{treatment}$ containing the column names of the wide data. The column type is character (often called "string" because each the variable is a string of characters). We want to split the string at the space, and put the first part into one new column and the second part into a second new column.
+2. The `tstrsplit()` function from the data.table package does this split for us. The first argument is the name of the column that contains the strings that we want to split. The second argument is the character that we want to split on. `c("genotype", "stimulation")` before `:=` sets the names of the new columns containing. This is a really elegant solution.
+3. I replaced the original column names of initial import for several reasons:
+* "Electrical Stimulation" is too long and will make the coefficient names unwieldy. This could be shortened to "Stimulation", but...
+* I don't want a factor name to include a level with the same name. I like the factor name $\texttt{stimulation}$, so I I renamed the level "Electrical Stimulation" to "Active".
+* We are splitting the column names using the space character " " and two of the original column names have two spaces, the 2nd inside what should be a single level ("Electrical Stimulation")
+* The read_excel function removed a space in the last column name, which is read as "Tlr9-/-Electrical Stimulation".
+
+Here is a peek at the data prior to melting wide to long
+
+```{r data-fig2j_wide-peek, echo = FALSE}
+exp2j_wide[1:5,] %>%
+  kable %>%
+  kable_styling
+```
+
+And a peek of the first three and last three rows after the melt.
+
+```{r data-fig2j_long-peek, echo = FALSE}
+exp2j[c(1:3,27:29),] %>%
+  kable %>%
+  kable_styling
+```
+
+##### Example 2
 
 Source: [Tauriello, D., Palomo-Ponce, S., Stork, D. et al. TGFβ drives immune evasion in genetically reconstituted colon cancer metastasis. Nature 554, 538–543](2018) doi:10.1038/nature25492
 
@@ -787,7 +865,7 @@ tumor[, apdl1:=factor(apdl1, apd_levels)]
 
 ```
 
-A way to check the results to make sure that our conversion is correct is to compute the sampel size for the 2 x 2 combinations, but include the original treatment column in the `by` list.
+A way to check the results to make sure that our conversion is correct is to compute the sample size for the 2 x 2 combinations, but include the original treatment column in the `by` list.
 
 ```{r}
 tumor[!is.na(num_positive_per_mm), .(N=.N), by=.(treatment, gal, apdl1)]

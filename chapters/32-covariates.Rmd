@@ -28,7 +28,6 @@ library(lazyWeave) # pretty pvalues
 library(broom)
 
 library(mvtnorm)
-library(harrellplot)
 
 here <- here::here
 data_folder <- "data"

@@ -26,19 +26,53 @@ here <- here::here
 clean_names <- janitor::clean_names
 data_folder <- "data"
 minus <- "\u2013"
+```
 
-fmt_p_value_2 <- function(p, digits = 0.0001){
-  p_char <- ifelse(p < 0.06 | is.na(p),
-                   scales::pvalue(p,
-                                  accuracy = ifelse(
-                                    (10^-(ceiling(-log10(p)) + 1)) < digits,
-                                    digits,
-                                    (10^-(ceiling(-log10(p)) + 1)))),
-                   scales::pvalue(p, accuracy = 0.01))
-}
-fmt_p_value_rmd <- function(x, digits = 0.0001){
-  return(sapply(x, fmt_p_value_2, digits))
-}
+```{r twoway-fig-sizes, echo=FALSE}
+dpi <- 72
+# width of bookdown page is 800 pix
+# width of standard bookdown fig is 560 pix or 70% of page
+std_width <- 560/dpi
+full_width <- 800/dpi
+small_width <- 400/dpi
+
+# standard aspect ratio is .7 so
+std_ar <- .7
+response_ar <- .8 # for use with response plots with p-values
+effect_ar <- 0.6 # for effects
+harrell_ar <- 1 # for harrell effect & response plots
+
+# heights
+std_height <- std_width*std_ar
+
+# out.width percents
+out.width_std <- paste0(std_width/full_width*100, "%")
+out.width_small <- paste0(small_width/full_width*100, "%")
+
+```
+
+
+```{r functions-coeffs}
+  
+  # X <- model.matrix(m1)
+  # y_col <- insight::find_response(m1)
+  # y <- model.frame(m1)[, y_col]
+  # b <- (solve(t(X)%*%X)%*%t(X)%*%y)[,1]
+
+  emm_b <- function(m1_emm){
+    # works only for 2 x 2 and specs have to be in
+    # same order as model
+    if(!is.data.frame(m1_emm)){
+      m1_emm <- summary(m1_emm)
+    }
+    mu <- m1_emm[, "emmean"]
+    b <- c(mu[1],
+            mu[2] - mu[1],
+            mu[3] - mu[1],
+            mu[4])
+    b[4] <- b[4] - (b[1]+b[2]+b[3])
+    return(b)
+  }
 
 ```
 
@@ -200,7 +234,7 @@ exp2j[, stimulation := factor(stimulation,
 # View(exp2j)
 ```
 
-### Understand the experimental design
+### Understand the experimental design {#twoway-understand1}
 
 **Background**. Exercise (muscle activity) stimulates AMPK activated glucose uptake (transport from outside to inside the muscle cell). Instead of natural exercise, which can stimulate multiple systems, the researchers directly activate the muscle with electrical stimulation.
 
@@ -237,7 +271,7 @@ These two factors create the three control treatments and the one focal treatmen
 
 The two ways of framing the research question suggest either of the following sets of contrasts. Both ways of framing generate a **treatment** contrast that includes the focal treatment and a **control contrast** that does not include the focal treatment. The question pursued by the experiment is addressed with the contrast of the treatment and control contrasts, which is is the estimate of the interaction effect. There is no difference in inference between the two ways of framing the question -- the interaction effects are equivalent. The two framings simply give two different ways of viewing an interaction effect.
 
-**Set 1**: How much does TLR9 knockout inhibit the expected increase of glucose uptake during stimulation?
+**Framing 1**: How much does TLR9 knockout inhibit the expected increase of glucose uptake during stimulation?
 
 1. (KO/Active - KO/Rest) -- effect of Stimulation in KO mice. This is our **treatment contrast**. If TLR9 is necessary for glucose uptake, then this should be zero. If positive, there are non-TLR9 paths.
  
@@ -247,7 +281,7 @@ We need to control for the expected increase in 2 using the contrast:
 
 3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the knockout-induced stimulation effect.
 
-**Set 2**: What is stimulation-induced TLR9-/- effect?
+**Framing 2**: What is stimulation-induced TLR9-/- effect?
 
 1. (KO/Active - WT/Active) -- effect of KO during muscle stimulation. This is our **treatment effect**. If TLR9 is necessary for glucose uptake, then this should be big and negative.
  
@@ -265,21 +299,21 @@ exp2j_m1 <- lm(glucose_uptake ~ stimulation * genotype,
 
 ```
 
-### Inference
+### Inference {#twoway-exp2j-inf}
 
 **The coefficient table**
 ```{r twoway-exp2j_m1_coef, echo=TRUE}
-exp2j_m1_coef <- cbind(coef(summary(exp2j_m1)),
-                         confint(exp2j_m1))
+exp2j_m1_coef <- tidy(exp2j_m1, conf.int = TRUE)
+
 exp2j_m1_coef %>%
-  kable(digits = c(2,3,1,4,2,2)) %>%
+  kable(digits = c(1,2,3,1,4,2,2)) %>%
   kable_styling()
 ```
 **emmeans table**
 
 ```{r twoway-exp2j_m1_emm, echo=TRUE}
 exp2j_m1_emm <- emmeans(exp2j_m1,
-                          specs = c("genotype", "stimulation"))
+                          specs = c("stimulation", "genotype"))
 exp2j_m1_emm %>%
   kable(digits = c(1,1,2,3,1,2,2)) %>%
   kable_styling()
@@ -292,9 +326,9 @@ exp2j_m1_emm %>%
 # exp2j_m1_emm # print in console to get row numbers
 # set the mean as the row number from the emmeans table
 wt_rest <- c(1,0,0,0)
-ko_rest <- c(0,1,0,0)
-wt_stim <- c(0,0,1,0)
-ko_stim <- c(0,0,0,1)
+wt_active <- c(0,1,0,0)
+ko_rest <- c(0,0,1,0)
+ko_active <- c(0,0,0,1)
 
 # contrasts are the difference in the vectors created above
 # these planned contrasts are described above
@@ -305,8 +339,8 @@ ko_stim <- c(0,0,0,1)
 exp2j_m1_planned <- contrast(
   exp2j_m1_emm,
   method = list(
-    "(KO/Stim - KO/Rest)" = c(ko_stim - ko_rest),
-    "(WT/Stim - WT/Rest)" = c(wt_stim - wt_rest)
+    "(KO/Active - KO/Rest)" = c(ko_active - ko_rest),
+    "(WT/Active - WT/Rest)" = c(wt_active - wt_rest)
   ),
   adjust = "none"
 ) %>%
@@ -336,31 +370,34 @@ exp2j_m1_planned %>%
 
 ### Plot the model
 
-```{r twoway-exp2j-plot, echo = TRUE}
+```{r twoway-exp2j-plot, echo=TRUE, eval=TRUE, fig.width=small_width, fig.asp = harrell_ar, dev.args = list(type = "cairo-png")}
 ggplot_the_model(
   exp2j_m1,
   exp2j_m1_emm,
   exp2j_m1_planned,
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
-#  y_label = expression(paste("Glucose uptake (", mm^2, ")")),
-  y_label = expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")")),
-  effect_label = expression(paste("Effect (nmol mg ", protein^-1, "15 ", min^-1, ")")),
-  contrast_rows = "all"
+  y_label = "Glucose uptake\n(nmol per mg protein\nper 15 min)",
+  effect_label = "Difference in glucose uptake",
+  contrast_rows = c(2,1,3),
+  rel_heights = c(0.5,1),
 )
-
 ```
-Alternative plot
-
-```{r twoway-exp2j-altplot, echo=TRUE, eval=FALSE}
+```{r twoway-exp2j-altplot, echo=TRUE, eval=TRUE, , fig.width=small_width, fig.asp = response_ar, dev.args = list(type = "cairo-png")}
+exp2j_m1_pairs <- contrast(exp2j_m1_emm,
+                           method = "revpairwise",
+                           simple = "each",
+                           combine = TRUE,
+                           adjust = "none") %>%
+  summary(infer = TRUE)
 ggplot_the_response(
   exp2j_m1,
   exp2j_m1_emm,
-  exp2j_m1_planned,
+  exp2j_m1_pairs[c(3,2,4),],
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
-  y_label = "p-TBC1D1/Total p-TBC1D1 (normalized)",
-  contrast_rows = 1:2
+  y_label = "Glucose uptake\n(nmol per mg protein\nper 15 min)",
+  y_pos = c(13.2, 13.6, 13.2)
 )
 ```
 
@@ -398,8 +435,8 @@ The linear model fit to the $\texttt{exp2j}$ data is
 
 $$
 \begin{align}
-\texttt{glucose_uptake} &= \beta_{0} + \beta_{1}(\texttt{genotype}_{\texttt{KO}}) + \beta_{2}(\texttt{stimulation}_{\texttt{Active}}) \ + \\
-&\quad \ \beta_{3}(\texttt{genotype}_{\texttt{KO}} : \texttt{stimulation}_{\texttt{Active}}) + \varepsilon\
+\texttt{glucose_uptake} &= \beta_{0} + \beta_{1}(\texttt{stimulation}_{\texttt{Active}}) + \beta_{2}(\texttt{genotype}_{\texttt{KO}}) \ + \\
+&\quad \ \beta_{3}(\texttt{stimulation}_{\texttt{Active}} : \texttt{genotype}_{\texttt{KO}}) + \varepsilon\
 \end{align}
 $$
 
@@ -415,46 +452,29 @@ Explainer
 
 1. Understand what the rows of the coefficient table are. There are four parameters in the fit linear model -- the rows are the statistics for the estimates of these parameters. These estimates are the **coefficients** of the model.
 2. The $\texttt{(Intercept)}$ ($b_0$) is the mean $\texttt{glucose_uptake}$ of the reference level, which was set to the WT/Rest group (Figure \@ref(fig:twoway-what-coefs-are)). This is the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans).
-3. The $\texttt{genotypeKO}$ coefficient ($b_1$) is the estimate of the **the added effect of knocking out TLR9 when the stimulation factor is at its reference level**, and so is the mean in the lower left cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the KO/Rest group is $b_0 + b_1$.
-4. The $\texttt{stimulationActive}$ coefficient ($b_2$) is the estimate of the **the added effect of Stimulation when the genotype factor is at its reference level**, and so is the mean in the upper right cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the WT/Active group is $b_0 + b_2$.
-5. The $\texttt{genotypeKO:stimulationActive}$ coefficient ($b_3$) is the estimate of the interaction effect between $\texttt{genotype}$ and $\texttt{stimulation}$. It is *not* the mean in the lower right cell minus the mean in the upper left cell. Instead, **it is the mean in the lower right cell minus the expected mean in the lower right cell if the genotype and activity treatment effects were additive**. The expected additive-mean in the lower right cell (KO/Active) is $b_0 + b_1 + b_2$. The mean of KO/stimulation is $b_0 + b_1 + b_2 + b_3$ (Figure \@ref(fig:twoway-what-coefs-are)).
+3. The $\texttt{stimulationActive}$ coefficient ($b_2$) is the estimate of the **the added effect of Stimulation when the genotype factor is at its reference level**, and so is the mean in the upper right cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the WT/Active group is $b_0 + b_2$.
+4. The $\texttt{genotypeKO}$ coefficient ($b_1$) is the estimate of the **the added effect of knocking out TLR9 when the stimulation factor is at its reference level**, and so is the mean in the lower left cell minus the mean in the upper left cell in Table \@ref(tab:twoway-exp2j-cellmeans). This coefficient is not a mean -- it is a difference of means (Figure \@ref(fig:twoway-what-coefs-are)). The mean of the KO/Rest group is $b_0 + b_1$.
+5. The $\texttt{stimulationActive:genotypeKO}$ coefficient ($b_3$) is the estimate of the interaction effect between $\texttt{genotype}$ and $\texttt{stimulation}$. It is *not* the mean in the lower right cell minus the mean in the upper left cell. Instead, **it is the mean in the lower right cell minus the expected mean in the lower right cell if the genotype and activity treatment effects were additive**. The expected additive-mean in the lower right cell (KO/Active) is $b_0 + b_1 + b_2$. The mean of KO/stimulation is $b_0 + b_1 + b_2 + b_3$ (Figure \@ref(fig:twoway-what-coefs-are)).
 6. The interaction effect is a **non-additive effect**. Think about this. Adding the Stimulation alone adds 3.45 nmol glucose per protein per 15 min to the uptake rate of the reference. Adding "KO" alone adds 0.78 glucose per protein per 15 min to the uptake rate of the reference. If these effects were purely additive, then adding both Stimulation and KO to the reference rate should result in a mean of 6.75 + 3.45 + 0.78 = 10.98 glucose per protein per 15 min. The modeled mean for KO/Active is 8.67 glucose per protein per 15 min. The difference observed - additive is 8.67 - 10.98 = -2.31 glucose per protein per 15 min. Compare this difference to the interaction coefficient in the coefficient table.
 7. Reinforce your understanding of "non-additive" in item 5. The interaction is a non-additive effect because the mean of the combined treatment is something different than if we were to just add the KO and Active effects. But this effect is additive in the linear model. This is what linear models are -- a reference mean plus the sum of a bunch of effects.
 8. Understand what these rows **are not**. The $\texttt{stimulationActive}$ row is not the same as the "stimulation" term in a Type III ANOVA table (the ANOVA table produced in GraphPad Prism or JMP). The *p*-values will be different because the *p*-values are testing different hypotheses. In the coefficient table, the $\texttt{stimulationActive}$ *p*-value is testing the difference of the means of WT/Active and WT/Rest. The stimulation term in a Type III ANOVA table is testing if there is an overall stimulation effect, which is estimated as the average of the two stimulation contrasts (WT/Active - WT/Rest) and (KO/Active - KO/Rest). The average of these two contrasts is not often of interest (but sometimes is -- see below).
 
-```{r twoway-what-coefs-are-build, echo=FALSE, eval=FALSE}
+```{r twoway-what-coefs-are-build, echo=FALSE, eval=TRUE}
+b <- emm_b(exp2j_m1_emm)
 exp2j_m1_emm_dt <- summary(exp2j_m1_emm) %>%
   data.table
-b <- coef(exp2j_m1)
-
-fudge <- 0.0
-nudge <- -0.05
-bracket_table <- data.table(
-  x = c(1 + nudge,
-        2 - nudge,
-        2 - nudge),
-  y = c(b[1],
-        b[1],
-        b[1] + b[2] + b[3] + fudge),
-  xend = c(1 + nudge,
-           2 - nudge,
-           2 - nudge),
-  yend = c(b[1] + b[2],
-           b[1] + b[3] - fudge,
-           b[1] + b[2] + b[3] + b[4])
-)
 
 dodge_width <- 0.0
 pd <- position_dodge(dodge_width)
 gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
-             aes(x = genotype,
+             aes(x = stimulation,
                  y = emmean,
-                 color = stimulation)) +
+                 color = genotype)) +
   
   # add individual points in the backgound
   geom_jitter(data = exp2j,
              aes(y = glucose_uptake,
-                 color = stimulation),
+                 color = genotype),
              alpha = .3,
              width = 0.1) +
   
@@ -470,13 +490,13 @@ gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
   ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
   coord_cartesian(ylim = c(5.0, 11.5)) +
   
-  geom_line(aes(group = stimulation),
+  geom_line(aes(group = genotype),
             position = pd) +
   
   # additive line
   geom_segment(aes(
     x = 1 + dodge_width/4,
-    y = b[1] + b[2],
+    y = b[1] + b[3],
     xend = 2 + dodge_width/4,
     yend = b[1] + b[2] + b[3]),
     color = pal_okabe_ito_blue[2],
@@ -499,13 +519,12 @@ gg_ixn_explainer_base <- ggplot(data = exp2j_m1_emm_dt,
   
   NULL
 
-
 gg_ixn_explainer <- gg_ixn_explainer_base +
 
   # additive annotation
   annotate(
     geom = "text",
-    x = c(2.07, 2.07),
+    x = c(2.13, 2.13),
     y = c(b[1] + b[2] + b[3],
           b[1] + b[2] + b[3] + b[4]),
     label = c("Expected mean of\nKO/Active if\ninteraction is 0.0",
@@ -515,27 +534,13 @@ gg_ixn_explainer <- gg_ixn_explainer_base +
     color = "darkgray"
   ) +
 
-  # coefficient bracket
-  geom_segment(data = bracket_table,
-    aes(x = x,
-    y = y,
-    xend = xend,
-    yend = yend),
-    color = "black"
-  ) +
 
   # coefficient labels
   annotate(
     geom = "text",
-    x = c(.52, .9, 2.1, 2.1),
-    y = c(b[1] + 0.2,
-          b[1] + 0.5*b[2],
-          b[1] + 0.5*b[3],
-          b[1] + b[2] + b[3] + .5*b[4]),
-    label = c("b[0]",
-              "b[1]",
-              "b[2]",
-              "b[3]"),
+    x = c(.52),
+    y = c(b[1] + 0.2),
+    label = c("b[0]"),
     parse = TRUE,
   ) +
 
@@ -550,21 +555,60 @@ gg_ixn_explainer <- gg_ixn_explainer_base +
 
   NULL
 
-image_path <- here("images", "twoway-what_coefs_are.png")
-ggsave(image_path,
-       width = 7,
-       height = 5,
-       units = "in")
+nudge <- 0.05
+tip_length <- 0.01
 
-gg_ixn_explainer
+gg_ixn_explainer <- gg_ixn_explainer +
+  geom_bracket(x = 2 + nudge,
+               y = b[1],
+               yend = b[1]+b[2],
+               tip.length = tip_length,
+               label = "b[1]",
+               text.size = 4,
+               text.hjust = 0,
+               text.vjust = 0.33,
+               parse = TRUE,
+               color = "black") +
+  geom_bracket(x = 1 - nudge,
+               y = b[1],
+               yend = b[1]+b[3],
+               tip.length = -tip_length,
+               label = "b[2]",
+               text.size = 4,
+               text.nudge_x = -0.02,
+               text.hjust = 1,
+               parse = TRUE,
+               color = "black") +
+  geom_bracket(x = 2 + 2*nudge,
+               y = b[1]+b[2]+b[3],
+               yend = b[1]+b[2]+b[3]+b[4],
+               tip.length = tip_length,
+               label = "b[3]",
+               text.size = 4,
+               text.hjust = 0,
+               parse = TRUE,
+               color = "black") +
+NULL
+
+# image_path <- here("images", "twoway-what_coefs_are.png")
+# ggsave(image_path,
+#        width = std_width,
+#        height = std_width*std_ar,
+#        units = "in")
+# 
+# gg_ixn_explainer
 
 ```
 
-```{r twoway-what-coefs-are, echo=FALSE, out.width="80%", fig.cap = "The coefficients of a linear model with two crossed factors, explained."}
 
-image_path <- here("images", "twoway-what_coefs_are.png")
 
-knitr::include_graphics(image_path)
+```{r twoway-what-coefs-are, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "The coefficients of a linear model with two crossed factors, explained."}
+
+# image_path <- here("images", "twoway-what_coefs_are.png")
+# knitr::include_graphics(image_path)
+
+gg_ixn_explainer
+
 ```
 
 ### The interaction effect is something different
@@ -573,76 +617,73 @@ Item 6 in the coefficient table explainer stated "The interaction is a non-addit
 
 The biological reasons causing interaction effects are highly variable and are what makes Biology fun. Additive effects (no interaction) may occur when combined treatments act independently of each other. This might occur in the glucose uptake response if knocking out TLR9 opens a path to glucose uptake that is different from and independent of the paths activated by electrial stimulation. Positive, or **synergistic** interaction effects may occur when combined treatments augment each other's ability to affect the response (see Example 3 below). This could occur in the glucose uptake response if knocking out TLR9 opens a path to glucose uptake that is different the paths activated by electrial stimulation but also makes the paths activated by stimulation more sensitive to stimulation. Negative, or **antagonistic** interaction effects may occur when combined treatments interfere with each other's ability to affect the response. This could occur in the glucose uptake response if TLR9 is on the path from stimulation to glucose uptake. Knocking out TLR9 interferes with this path. If TLR9 is required, we'd expect the interaction effect to be the same magnitude but opposite sign of the control effect -- that is, complete antagonism of the control effect. Previous experiments suggested this negative interaction. The measurement of this effect was the purpose of experiment $\texttt{exp2j}$.
 
-```{r twoway-something-different-build, echo=FALSE, eval=FALSE}
-b <- coef(exp2j_m1)
+```{r twoway-something-different-build, echo=FALSE, eval=TRUE}
 nudge <- 0.05
-x_pos <- c(1- nudge,
-           2 + 2*nudge,
-           2 + nudge,
-           2 - nudge,
-           2 + 2*nudge)
-bracket_table <- data.table(
-  x = x_pos,
-  y = c(b[1],
-        b[1],
-        b[1] + b[3], # additive diff
-        b[1] + b[3], # actual diff
-        b[1] + b[2] + b[3]), # something diff
-  xend = x_pos,
-  yend = c(b[1] + b[2], # b2
-           b[1] + b[3], # b3
-           b[1] + b[2] + b[3], # additive diff
-           b[1] + b[2] + b[3] + b[4], # actual diff
-           b[1] + b[2] + b[3] + b[4]) # something diff
-)
-
-x_pos_text <- x_pos + c(-.45, 0.02, 0.02, -0.3, 0.02)
-
+tip_length <- 0.01
 gg_something_different <- gg_ixn_explainer_base +
-    # coefficient bracket
-  geom_segment(data = bracket_table,
-    aes(x = x,
-    y = y,
-    xend = xend,
-    yend = yend),
-    color = "black"
-  ) +
+  geom_bracket(x = 2 + nudge,
+               y = b[1],
+               yend = b[1] + b[2]-0.05,
+               tip.length = tip_length,
+               label = "1. what stimulation\ndoes in WT",
+               text.size = 3,
+               text.hjust = 0,
+               text.vjust = 0.25,
+               color = "black") +
+  geom_bracket(x = 1 - nudge,
+               y = b[1],
+               yend = b[1] + b[3],
+               tip.length = -tip_length,
+               label = "2. what KO\ndoes in Rest",
+               text.nudge_x = -0.02,
+               text.size = 3,
+               text.hjust = 1,
+               color = "black") +
+  geom_bracket(x = 2 + 1*nudge,
+               y = b[1]+b[2]+0.05,
+               yend = b[1]+b[2]+b[3],
+               tip.length = tip_length,
+               label = "3. expected\n difference if\n more of 1 & 2",
+               text.size = 3,
+               text.hjust = 0,
+               text.vjust = 0.6,
+               color = "black") +
+  geom_bracket(x = 2 + 2*nudge,
+               y = b[1]+b[2],
+               yend = b[1]+b[2]+b[3]+b[4],
+               tip.length = tip_length,
+               label = "4. observed\ndifference",
+               text.size = 3,
+               text.hjust = 0,
+               color = "black") +
+  geom_bracket(x = 2.4,
+               y = b[1]+b[2]+b[3]+b[4],
+               yend = b[1]+b[2]+b[3],
+               tip.length = tip_length,
+               label = "5. something\ndifferent",
+               text.size = 3,
+               text.hjust = 0,
+               text.vjust = 0.5,
+               color = "black") +
+  expand_limits(x = 2.75) +
+  NULL  
 
-  #  labels
-  annotate(
-    geom = "text",
-    x = x_pos_text,
-    y = c(
-      b[1] + 0.5*b[2],
-      b[1] + 0.5*b[3],
-      b[1] + b[3] + 0.5*(sum(b) - sum(b[c(1,3)])),
-      b[1] + b[3] + 0.5*(sum(b) - sum(b[c(1,3)])),
-      b[1] + b[2] + b[3] + .5*b[4]),
-    label = c(
-      "1. what stimulation\ndoes in WT",
-      "2. what KO does\nin Rest",
-      "3. expected difference\nif more of 1 & 2",
-      "4. observed\ndifference",
-      "5. something\ndifferent"),
-    hjust = 0
-  ) +
-  
-  NULL
+# image_path <- here("images", "twoway-something-different.png")
+# ggsave(image_path,
+#        width = 7,
+#        height = 5,
+#        units = "in")
+# 
+# gg_something_different
 
-image_path <- here("images", "twoway-something-different.png")
-ggsave(image_path,
-       width = 7,
-       height = 5,
-       units = "in")
-
-
-gg_something_different
 ```
 
-```{r twoway-something-different, echo=FALSE, out.width="80%", fig.cap = "The interaction is something different, not more of the same."}
-image_path <- here("images", "twoway-something-different.png")
+```{r twoway-something-different, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "The interaction is something different, not more of the same. To get the observed difference (4), take the expected difference (3) and add something different (5)."}
+# image_path <- here("images", "twoway-something-different.png")
+# knitr::include_graphics(image_path)
 
-knitr::include_graphics(image_path)
+gg_something_different
+
 ```
 
 ### Why we want to compare the treatment effect to a control effect
@@ -657,75 +698,56 @@ and conclude a stimulation-induced TLR9-/- effect if it's big (and negative)
 
 If the treatment effect is the correct contrast for inference, why bother with the measures of glucose uptake during Rest? The reason the treatment effect alone is the wrong contrast for inferring the *stimulation-induced* TLR9 effect is because it is confounded by the **control effect**, which is the contrast (KO/Rest - WT/Rest) (Figure \@ref(fig:twoway-what-we-want)).
 
-```{r twoway-what-we-want-build, echo=FALSE, eval=FALSE}
-b <- coef(exp2j_m1)
-nudge <- 0.04
-x_pos <- c(2 + nudge,
-           2, # wrong diff
-           2 + nudge)
-bracket_table <- data.table(
-  x = x_pos,
-  y = c(b[1],
-        b[1] + b[2] + b[3] + b[4], # wrong diff
-        b[1] + b[2] + b[3]), # something diff
-  xend = x_pos,
-  yend = c(b[1] + b[3], # b3
-           b[1] + b[2], # wrong diff
-           b[1] + b[2] + b[3] + b[4]) # something diff
-)
-
-x_pos_text <- x_pos + c(0.02, -0.39, 0.02)
+```{r twoway-what-we-want-build, echo=FALSE, eval=TRUE}
+b <- emm_b(exp2j_m1_emm)
+nudge <- 0.05
+tip_length <- 0.01
 
 gg_what_we_want <- gg_ixn_explainer_base +
-  
-  #  bracket
-  geom_segment(data = bracket_table,
-    aes(x = x,
-    y = y,
-    xend = xend,
-    yend = yend),
-    color = "black"
-  ) +
-
-  #  labels
-  annotate(
-    geom = "text",
-    x = x_pos_text,
-    y = c(
-      b[1] + 0.5*b[3],
-      b[1] + 0.85*b[2],
-      b[1] + b[2] + b[3] + .4*b[4]),
-    label = c(
-      "1. what KO does\nin Rest (confounder)",
-      "2. wrong contrast\n(confounded by 1)",
-      "3. correct contrast\n(unconfounded by 1)"),
-    hjust = 0,
-    size = 3.5
-  ) +
-  
-  # b2 baseline
-  geom_segment(x = 1,
-               y = b[1]+b[2],
-               xend = 2,
-               yend = b[1]+b[2],
-               linetype = "dashed",
-               color = "gray") +
+  geom_bracket(x = 1 - nudge,
+               y = b[1],
+               yend = b[1] + b[3],
+               tip.length = -tip_length,
+               label = "1. what KO does\nin Rest (confounder)",
+               text.nudge_x = -0.02,
+               text.size = 3,
+               text.hjust = 1,
+               color = "black") +
+  geom_bracket(x = 2 + 2*nudge,
+               y = b[1] + b[2],
+               yend = b[1] + b[2] + b[3] + b[4],
+               tip.length = tip_length,
+               label = "2. wrong contrast\n(confounded by 1)",
+               text.size = 3,
+               text.hjust = 0,
+               text.vjust = 0.5,
+               color = "black") +
+  geom_bracket(x = 2 + 1*nudge,
+               y = b[1]+b[2]+b[3],
+               yend = b[1]+b[2]+b[3]+b[4],
+               tip.length = tip_length,
+               label = "3. correct contrast\n(unconfounded by 1)",
+               text.size = 3,
+               text.hjust = 0,
+               text.vjust = 0.1,
+               color = "black") +
   
   NULL
 
-image_path <- here("images", "twoway-what-we-want.png")
-ggsave(image_path,
-       width = 7,
-       height = 5,
-       units = "in")
+# image_path <- here("images", "twoway-what-we-want.png")
+# ggsave(image_path,
+#        width = 7,
+#        height = 5,
+#        units = "in")
+# 
+# gg_what_we_want
 
-gg_what_we_want
 ```
 
-```{r twoway-what-we-want, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
-image_path <- here("images", "twoway-what-we-want.png")
-
-knitr::include_graphics(image_path)
+```{r twoway-what-we-want, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
+# image_path <- here("images", "twoway-what-we-want.png")
+# knitr::include_graphics(image_path)
+gg_what_we_want
 ```
 
 To unconfound the inference, subtract the confounder:
@@ -740,25 +762,16 @@ Scenario 2. The positive control has big effect AND KO has a negative effect dur
 
 Scenario 3. The positive control has big effect AND KO has a positive effect during rest AND there is a stimulation-induced TLR9-/- effect that is equal to that in scenario 1 (Figure \@ref(fig:twoway-scenarios)C). The positive effect of KO during Rest masks the stimulation-induced TLR9-/- effect. The simple effect *underestimates* the stimulation-induced TLR9-/- effect. This is similar to what is happening in Experiment 2j.
 
-```{r twoway-scenarios-build, echo = FALSE, eval=FALSE}
+```{r twoway-scenarios-build, echo = FALSE, eval=TRUE}
 
 gg_plot_it <- function(fit,
                        fit_emm,
                        fit_pairs){
-  b <- coef(fit)
+  b <- emm_b(fit_emm)
 
   x_pos <- c(2.5, 3)
-  y_pos <- c(b[1] + b[3], b[1] + b[2] + b[3])
-  
-  bracket_table <- data.table(
-    x = x_pos,
-    y = y_pos,
-    xend = x_pos,
-    yend = c(b[1] + b[2] + b[3] + b[4], # wrong diff
-             b[1] + b[2] + b[3] + b[4]) # something diff
-  )
-  
-  x_pos_text <- x_pos + c(-0.43, 0.02)
+  y_pos <- c(b[1] + b[2], b[1] + b[2] + b[3])
+  nudge_x <- .12
   
   gg <- ggplot_the_response(fit,
                             fit_emm,
@@ -769,21 +782,32 @@ gg_plot_it <- function(fit,
                             contrast_rows = "none") +
     coord_cartesian(xlim = c(0.5, 3)) +
     
-    #  bracket
-    geom_segment(data = bracket_table,
-                 aes(x = x,
-                     y = y,
-                     xend = xend,
-                     yend = yend),
-                 color = "black"
-    ) +
+    geom_bracket(x = 2.5,
+                 y = b[1] + b[2],
+                 yend = b[1] + b[2] + b[3] + b[4],
+                 tip.length = 0.03,
+                 label = "simple",
+                 text.nudge_x = nudge_x,
+                 text.size = 3,
+                 text.angle = 90,
+                 color = "black") +
+    geom_bracket(x = 3,
+                 y = b[1] + b[2] + b[3],
+                 yend = b[1] + b[2] + b[3] + b[4],
+                 tip.length = 0.03,
+                 label = "interaction",
+                 text.nudge_x = nudge_x,
+                 text.size = 3,
+                 text.angle = 90,
+                 color = "black") +
     
-    annotate(geom = "text",
-             x = x_pos,
-             y = c(max(y_pos) + .2, max(y_pos) + .2),
-             label = c("Simple", "Interaction"),
-             angle = 90,
-             hjust = 0)
+    # annotate(geom = "text",
+    #          x = x_pos,
+    #          y = c(max(y_pos) + .2, max(y_pos) + .2),
+    #          label = c("Simple", "Interaction"),
+    #          size = 3,
+    #          angle = 90,
+    #          hjust = 0)
     
     NULL
   return(gg)
@@ -793,8 +817,8 @@ fake_exp2j <- copy(exp2j)
 
 # observed
 fake_exp2j[, scen0 := glucose_uptake]
-m0 <- lm(scen0 ~ genotype * stimulation, data = fake_exp2j)
-m0_emm <- emmeans(m0, specs = c("genotype", "stimulation"))
+m0 <- lm(scen0 ~ stimulation * genotype, data = fake_exp2j)
+m0_emm <- emmeans(m0, specs = c("stimulation", "genotype"))
 m0_pairs <- contrast(m0_emm,
                      method = "revpairwise",
                      simple = "each",
@@ -803,15 +827,15 @@ m0_pairs <- contrast(m0_emm,
 gg0 <- gg_plot_it(m0, m0_emm, m0_pairs)
 
 
-b <- exp2j_m1_coef[, "Estimate"]
+b <- emm_b(exp2j_m1_emm)
 
 # scenario 1 - ixn = - effect
 fake_exp2j[, scen1 := glucose_uptake]
 fake_exp2j[treatment == "KO Rest", scen1 := scen1 - b[3]]
 fake_exp2j[treatment == "KO Active", scen1 := scen1 - (b[2]+b[3]+b[4])]
 
-m1 <- lm(scen1 ~ genotype * stimulation, data = fake_exp2j)
-m1_emm <- emmeans(m1, specs = c("genotype", "stimulation"))
+m1 <- lm(scen1 ~ stimulation * genotype, data = fake_exp2j)
+m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
 m1_pairs <- contrast(m1_emm,
                      method = "revpairwise",
                      simple = "each",
@@ -830,8 +854,8 @@ fake_exp2j[treatment == "KO Rest",
 fake_exp2j[treatment == "KO Active",
            scen2 := scen2 - (b[2]+b[3]+b[4]) + b3*b2*b[2] + b[2]]
 
-m2 <- lm(scen2 ~ genotype * stimulation, data = fake_exp2j)
-m2_emm <- emmeans(m2, specs = c("genotype", "stimulation"))
+m2 <- lm(scen2 ~ stimulation * genotype, data = fake_exp2j)
+m2_emm <- emmeans(m2, specs = c("stimulation", "genotype"))
 m2_pairs <- contrast(m2_emm,
                      method = "revpairwise",
                      simple = "each",
@@ -850,8 +874,8 @@ fake_exp2j[treatment == "KO Rest",
 fake_exp2j[treatment == "KO Active",
            scen3 := scen3 - (b[2]+b[3]+b[4]) + b3*b2*b[2]]
 
-m3 <- lm(scen3 ~ genotype * stimulation, data = fake_exp2j)
-m3_emm <- emmeans(m3, specs = c("genotype", "stimulation"))
+m3 <- lm(scen3 ~ stimulation * genotype, data = fake_exp2j)
+m3_emm <- emmeans(m3, specs = c("stimulation", "genotype"))
 m3_pairs <- contrast(m3_emm,
                      method = "revpairwise",
                      simple = "each",
@@ -867,22 +891,138 @@ image_path <- here("images", "twoway-scenarios.png")
 #        height = 5,
 #        units = "in")
 
-png(image_path,
-    width = 800,
-    height = 400,
-    units = "px") 
-  gg_scenarios
-dev.off() 
+# png(image_path,
+#     width = 800,
+#     height = 300,
+#     units = "px") 
+#   gg_scenarios
+# dev.off() 
 
+# gg_scenarios
+
+```
+
+```{r twoway-scenarios, echo=FALSE, fig.width=full_width, fig.asp=3/8, fig.cap = "Scenarios to show the consequence of inferring the stimulation-induced TLR9-/- effect from the simple effect (KO/Active - WT/Active). The simple effect and interaction effect lines extend from the KO/Active mean to either the KO/Rest mean (simple) or the expected mean of KO/Active if the two factors were additive (interaction)."}
+# image_path <- here("images", "twoway-scenarios.png")
+# knitr::include_graphics(image_path)
 gg_scenarios
+```
+
+### The order of the factors in the model tells the same story differently
+
+The order of the factors in the model formula doesn't matter for the coefficients, the estimated marginal means, or the contrasts. It can matter for ANOVA (more on this below) but not "tests after ANOVA". But the order does matter to how the researchers communicates the results to themselves and in the report (Figure \@ref(fig:twoway-same-story)). The order is also a natural consequence of the [two different ways of framing the research question](#twoway-understand1).
+
+```{r twoway-same-story-build, echo = FALSE}
+same_story_build_gg <- function(){
+  m1 <- lm(glucose_uptake ~ genotype * stimulation,
+           data = exp2j)
+  m1_emm <- emmeans(m1, specs = c("genotype", "stimulation"))
+  b <- emm_b(m1_emm)
+  m1_emm_dt <- summary(m1_emm) %>%
+    data.table
+  
+  dodge_width <- 0.0
+  pd <- position_dodge(dodge_width)
+  gg <- ggplot(data = m1_emm_dt,
+                        aes(x = genotype,
+                            y = emmean,
+                            color = stimulation)) +
+    
+    # add individual points in the backgound
+    geom_jitter(data = exp2j,
+                aes(y = glucose_uptake,
+                    color = stimulation),
+                alpha = .3,
+                width = 0.1) +
+    
+    geom_hline(yintercept = b[1],
+               linetype = "dashed",
+               color = "black",
+               alpha = 0.5) +
+    
+    geom_point(size = 3,
+               position = pd) +
+    scale_color_manual(values = pal_okabe_ito_blue) +
+    #  scale_x_discrete(labels = c("WT", "TLR9-/-")) +
+    ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
+    coord_cartesian(ylim = c(5.0, 11.5)) +
+    
+    geom_line(aes(group = stimulation),
+              position = pd) +
+    
+    # additive line
+    geom_segment(aes(
+      x = 1 + dodge_width/4,
+      y = b[1] + b[3],
+      xend = 2 + dodge_width/4,
+      yend = b[1] + b[2] + b[3]),
+      color = pal_okabe_ito_blue[2],
+      linetype = "dashed",
+      alpha = 0.2
+    ) +
+    
+    # additive point
+    geom_point(aes(
+      x = 2 + dodge_width/4,
+      y = b[1] + b[2] + b[3]),
+      size = 3,
+      shape = 21,
+      color = pal_okabe_ito_blue[2],
+      fill = "white") +
+    
+    theme_pubr() +
+    theme(axis.title.x = element_blank(),
+          legend.title = element_blank()) +
+    
+    NULL
+  
+  nudge <- 0.05
+  tip_length <- 0.01
+  
+  gg <- gg +
+    geom_bracket(x = 1 - nudge,
+                 y = b[1],
+                 yend = b[1] + b[2],
+                 tip.length = -tip_length,
+                 label = "1. what KO does\nin Rest (confounder)",
+                 text.nudge_x = -0.02,
+                 text.size = 3,
+                 text.hjust = 1,
+                 color = "black") +
+    geom_bracket(x = 1 - nudge,
+                 y = b[1] + b[3],
+                 yend = b[1] + b[2] + b[3] + b[4],
+                 tip.length = -tip_length,
+                 label = "2. wrong contrast\n(confounded by 1)",
+                 text.nudge_x = -0.02,
+                 text.size = 3,
+                 text.hjust = 1,
+                 text.vjust = 0.5,
+                 color = "black") +
+    geom_bracket(x = 2 + 1*nudge,
+                 y = b[1]+b[2]+b[3],
+                 yend = b[1]+b[2]+b[3]+b[4],
+                 tip.length = tip_length,
+                 label = "3. correct contrast\n(unconfounded by 1)",
+                 text.size = 3,
+                 text.hjust = 0,
+                 text.vjust = 0.1,
+                 color = "black") +
+    
+    NULL
+  
+  return(gg)
+}
+# gg_ixn_same
+```
+
+```{r twoway-same-story, echo=FALSE, fig.width=full_width, fig.asp=0.5, fig.cap = "It may take some work but these plots show the same four means and effects. The only difference is how we communicate the story to ourselves and to others. A) the order of the factors in the model is stimulation * genotype. B) the order of the factors in the model is genotype * stimulation. "}
+
+gg_ixn_same <- same_story_build_gg()
+plot_grid(gg_what_we_want, gg_ixn_same, ncol = 2, labels = "AUTO")
 
 ```
 
-```{r twoway-scenarios, echo=FALSE, out.width="100%", fig.cap = "Scenarios to show the consequence of inferring the stimulation-induced TLR9-/- effect from the simple effect (KO/Active - WT/Active). The simple effect and interaction effect lines extend from the KO/Active mean to either the KO/Rest mean (simple) or the expected mean of KO/Active if the two factors were additive (interaction)."}
-image_path <- here("images", "twoway-scenarios.png")
-
-knitr::include_graphics(image_path)
-```
 
 ## Example 2: Estimation of the effect of background condition on an effect ("it depends") (Experiment 3e lesian area data)
 
@@ -986,10 +1126,10 @@ ggcheck_the_model(exp3e_m1)
 
 ```{r two-way-coef, echo=TRUE}
 # step 2 - get the coefficient table
-exp3e_m1_coef <- cbind(coef(summary(exp3e_m1)),
-                 confint(exp3e_m1))
+exp3e_m1_coef <- tidy(exp3e_m1, conf.int = TRUE)
+
 exp3e_m1_coef %>%
-  kable(digits = c(3,4,2,4,3,3)) %>%
+  kable(digits = c(1,3,4,2,4,3,3)) %>%
   kable_styling()
 ```
 
@@ -1030,17 +1170,17 @@ exp3e_m1_planned <- contrast(exp3e_m1_emm,
 ) %>%
   summary(infer = TRUE)
 
-exp3e_m1_interaction <- contrast(exp3e_m1_emm,
+exp3e_m1_ixn <- contrast(exp3e_m1_emm,
                            interaction = c("revpairwise"),
                            by = NULL) %>%
   summary(infer = TRUE)
 
 # Make the interaction table conform (same column names)
 # to the planned table
-exp3e_m1_interaction <- cbind(contrast = "interaction",
-                        exp3e_m1_interaction[, -c(1:2)]) # remove cols 1:2
+exp3e_m1_ixn <- cbind(contrast = "interaction",
+                        exp3e_m1_ixn[, -c(1:2)]) # remove cols 1:2
 # combine
-exp3e_m1_planned <- rbind(exp3e_m1_planned, exp3e_m1_interaction)
+exp3e_m1_planned <- rbind(exp3e_m1_planned, exp3e_m1_ixn)
 
 exp3e_m1_planned %>%
   kable(digits = c(0,3,4,0,3,3,2,5)) %>%
@@ -1148,10 +1288,10 @@ The conditional means from the fit model are shown in the upper left $2 \times 2
 
 In a factorial experiment with crossed A and B factors, there is an effect of factor A (relative to the reference, or another level of factor A) for each of the *p* levels of factor B. And, there is an effect of factor B (relative to the reference, or another level of factor B) for each of the *m* levels of factor A. These effects of one factor at each of the levels of the other factor are called the **simple effects**. I prefer **conditional effects**, since the value of the effect is conditional on the level of the other factor.
 
-For the maize defense response experiment, there is an chromosome effect at `sex = Female` and a different effect at `sex = Male`. Similarly, there is a sex effect at `chromosome = XX` and a different effect at `chromosome = XY`.
+For the mouse lesian area experiment, there is a chromosome effect at `sex = Female` and a different effect at `sex = Male`. Similarly, there is a sex effect at `chromosome = XX` and a different effect at `chromosome = XY`.
 
 ```{r twoway-conditional-effects, echo=FALSE}
-exp3e_m1_emm <- emmeans(fit, specs = factors)
+exp3e_m1_emm <- emmeans(exp3e_m1, specs = c("sex", "chromosome"))
 exp3e_m1_pairs <- contrast(exp3e_m1_emm,
                         method = "revpairwise",
                         adjust = "none",
@@ -1291,11 +1431,10 @@ exp3e_m2 <- lm(lesian_area ~ sex + chromosome, data = exp3e)
 The model coefficients of the additive model are
 
 ```{r twoway-exp3e-m2-coef, echo=FALSE}
-exp3e_m2_coef <- cbind(coef(summary(exp3e_m2)),
-                 confint(exp3e_m2))
+exp3e_m2_coef <- tidy(exp3e_m2, conf.int = TRUE)
 
 knitr::kable(exp3e_m2_coef, 
-             digits=c(3,3,2,3, 3, 3),
+             digits=c(1,3,3,2,3,3,3),
              caption = "Model coefficients of additive model.") %>%
   kable_styling()
 
@@ -1410,352 +1549,356 @@ row.names(df) <- c("Indole-", "Indole+")
 knitr::kable(df, col.names = c("HAC-", "HAC+"))
 ```
 
-```{r factorial-import-ecology, echo=FALSE, warning=FALSE, message=FALSE}
+```{r twoway-aba-import, echo=FALSE, warning=FALSE, message=FALSE}
 
 data_from <- "Integration of two herbivore-induced plant volatiles results in synergistic effects on plant defense and resistance"
 file_name <- "Data for Dryad.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
-fig1 <- read_excel(file_path,
+exp1 <- read_excel(file_path,
                      sheet = "Fig. 1",
                      range = "A3:K23", # 1 blank column
                      col_names = TRUE) %>%
   data.table() %>%
   clean_names()
 
-fig1[treat == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
-fig1[treat == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
-fig1[treat == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
-fig1[treat == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
+exp1[treat == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
+exp1[treat == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
+exp1[treat == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
+exp1[treat == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
 
 treat_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
-fig1[, treat := factor(treat, levels = treat_levels)]
-fig1[, hac := factor(hac)] # levels in correct order
-fig1[, indole := factor(indole)] # levels in correct order
-# View(fig1)
+exp1[, treat := factor(treat, levels = treat_levels)]
+exp1[, hac := factor(hac)] # levels in correct order
+exp1[, indole := factor(indole)] # levels in correct order
+# View(exp1)
 ```
 
-### Analysis
-
-#### Examine the data
+### Examine the data
 
 ```{r}
-qplot(x = treat, y = aba, data = fig1)
+qplot(x = treat, y = aba, data = exp1)
 ```
 
 Too few points for box plot. control variance is small. No obvious implausible points. fit with lm but recognize small n warning for any inference.
 
-#### Fit the model
-```{r factorial-fit-model}
-m1 <- lm(aba ~ hac * indole, data = fig1)
+### Fit the model
+```{r  twoway-aba-m1}
+exp1c_m1 <- lm(aba ~ hac * indole, data = exp1)
 ```
 
-#### Model check
+### Model check
 
-```{r}
-qqPlot(m1, id = FALSE)
+```{r twoway-aba-check}
+ggcheck_the_model(exp1c_m1)
 ```
 
-A plausible sample from a Normal distribution.
+The distribution looks like a sample from a Normal. The variance looks like it increases with the mean. This suggest gls modeling heterogeneity.
 
-```{r}
-spreadLevelPlot(m1)
-```
-A bit of increase in variance with mean. 
+### Inference from the model
 
-#### Inference from the model
+```{r twoway-aba-coef}
+exp1c_m1_coef <- tidy(exp1c_m1, conf.int = TRUE)
 
-```{r}
-m1_coef <- cbind(coef(summary(m1)),
-                 confint(m1))
-knitr::kable(m1_coef, digits = 3)
+exp1c_m1_coef %>%
+  kable(digits = 3) %>%
+  kable_styling()
 ```
 
 
-```{r}
-m1_emm <- emmeans(m1, specs = c("hac", "indole"))
-knitr::kable(m1_emm, digits = 2)
+```{r twoway-aba-emm}
+exp1c_m1_emm <- emmeans(exp1c_m1, specs = c("hac", "indole"))
+
+exp1c_m1_emm %>%
+  kable(digits = c(1,1,1,2,1,1,1)) %>%
+  kable_styling()
 ```
 
-```{r}
-m1_pairs <- contrast(m1_emm,
+```{r twoway-aba-pairs}
+exp1c_m1_pairs <- contrast(exp1c_m1_emm,
                      method = "revpairwise",
                      simple = "each",
                      combine = TRUE,
                      adjust = "none") %>%
   summary(infer = TRUE)
 
-knitr::kable(m1_pairs, digits = 2)
+exp1c_m1_pairs %>%
+  kable(digits = c(1,1,1,1,2,1,1,1,2,5)) %>%
+  kable_styling()
 ```
 
-```{r}
-m1_interaction <- contrast(m1_emm,
+```{r twoway-aba-ixn}
+exp1c_m1_ixn <- contrast(exp1c_m1_emm,
                            interaction = c("revpairwise"),
                            by = NULL) %>%
   summary(infer = TRUE)
 
-m1_interaction %>%
+exp1c_m1_ixn %>%
   kable(digits = c(1,1,1,2,0,2,1,2,3)) %>%
   kable_styling()
 ```
 
-#### Plot the model
+```{r twoway-aba-ixn-combined}
+# Make the interaction table conform (same column names)
+# to the planned table
+exp1c_m1_ixn <- data.table(exp1c_m1_ixn)
+colnames(exp1c_m1_ixn)[1:2] <- colnames(exp1c_m1_pairs)[c(2,1)]
+exp1c_m1_ixn[, indole := "(Indole+)"]
+exp1c_m1_ixn[, hac := "(HAC+)"]
+exp1c_m1_ixn[, contrast := "ixn"]
 
-xxx if interested in synergy plot the coefficients! this is what we want. When would we want to plot all simple effects?
+# combine
+exp1c_m1_pairs <- rbind(exp1c_m1_pairs, exp1c_m1_ixn)
 
-```{r factorial-aba-prepare-plot, echo=FALSE}
-
-m1_emm_dt <- summary(m1_emm) %>%
-  data.table
-m1_emm_dt[, treat := levels(fig1$treat)]
-m1_pairs_dt <- data.table(m1_pairs)
-
-# create contrast column with unique value each row
-within_group <- c("Indole-", "Indole+", "HAC-", "HAC+")
-m1_pairs_dt[, contrast := paste(within_group, contrast, sep =": ")]
-
-# add interaction row
-m1_pairs_dt <- rbind(m1_pairs_dt,
-                     data.table(contrast = "Interaction",
-                                estimate = m1_coef[4, "Estimate"],
-                                lower.CL = m1_coef[4, "2.5 %"],
-                                upper.CL = m1_coef[4, "97.5 %"],
-                                p.value = m1_coef[4, "Pr(>|t|)"]),
-                     fill = TRUE)
-
-# pvalString is from package lazyWeave
-m1_pairs_dt[ , p_pretty := pvalString(p.value)]
-# also create a column with "p-val: "
-m1_pairs_dt[ , pval_pretty := paste("p-val:", p_pretty)]
+exp1c_m1_pairs %>%
+  kable(digits = c(0,3,4,0,3,3,2,5)) %>%
+  kable_styling()
 ```
 
+### Plot the model
 
-```{r factorial-aba-build-plot, echo=FALSE}
-# response plot using treat column
-gg_response <- ggplot(data = fig1,
-                            aes(x = aba,
-                                y = treat,
-                                color = hac,
-                                shape = indole)) +
-  # points
-  geom_jitter(alpha = 0.5,
-            height = 0.4) +
-  
-  # plot means and CI
-  geom_errorbar(data = m1_emm_dt,
-                aes(x = emmean,
-                    xmin = lower.CL,
-                    xmax = upper.CL,
-                    color = hac),
-                width = 0,
-  ) +
-  
-  geom_point(data = m1_emm_dt,
-             aes(x = emmean,
-                 color = hac),
-             size = 3
-  ) +
-
-  # aesthetics
-  xlab("ABA (ng per g FW)") +
-  scale_color_manual(values=pal_okabe_ito,
-                     name = NULL) +
-  theme_pubr() +
-  theme(legend.position="none") +
-  theme(axis.title.y=element_blank()) +
-  
-  NULL
-
-# gg_effect
-
-contrast_order <- m1_pairs_dt[, contrast]
-m1_pairs_dt[, contrast := factor(contrast, contrast_order)]
-contrast_labels <- c("HAC - Control",
-                     "HAC+Indole - Indole",
-                     "Indole - Control",
-                     "HAC+Indole - HAC",
-                     "Interaction")
-
-gg_effect <- ggplot(data = m1_pairs_dt, 
-                    aes(x = estimate,
-                        y = contrast)) +
-  # confidence level of effect
-  geom_errorbar(aes(xmin=lower.CL, 
-                    xmax=upper.CL),
-                width=0, 
-                color="black") +
-  # estimate of effect
-  geom_point(size = 3) +
-  
-  # draw a line at effect = 0
-  geom_vline(xintercept=0, linetype = 2) +
-  # draw a line to sep interaction from simple effects
-  geom_vline(xintercept=4.5, color = "gray") +
-  
-  # p-value. The y coordinates are set by eye
-  annotate(geom = "text",
-           label = m1_pairs_dt$p_pretty,
-           y = 1:5,
-           x = 40,
-           size = 3) +
-  
-  # aesthetics
-  
-  scale_y_discrete(labels = contrast_labels) +
-  scale_x_continuous(position = "top") + # move to top
-
-  xlab("Effect (ng per g FW)") +
-  ylab("Contrast") +
-  coord_cartesian(xlim = c(-10,40)) +
-  
-  # use ggpubr theme
-  theme_pubr() +
-  theme(axis.title.y=element_blank()) +
-  
-  NULL
-
-#gg_effect
+```{r twoway-aba-plot, echo=FALSE, fig.width=std_width, fig.asp=harrell_ar, dev.args = list(type = "cairo-png")}
+ggplot_the_model(
+  fit = exp1c_m1,
+  fit_emm = exp1c_m1_emm,
+  fit_pairs = exp1c_m1_pairs,
+  palette = pal_okabe_ito_blue,
+  legend_position = "bottom",
+  y_label = "ABA\n(ng per g FW)",
+  #y_label = expression(paste("Abcisic acid\n(ng", g^-1, "FW)")),
+  effect_label = "Difference in ABA",
+  contrast_rows = "all",
+  rel_heights = c(0.6,1),
+)
 ```
 
-```{r factorial-aba-plot, echo=FALSE}
-plot_grid(gg_effect,
-          gg_response,
-          nrow=2,
-          align = "v",
-          axis = "lr",
-          rel_heights = c(0.5,1))
+### Alternative plot
+
+```{r twoway-aba-alternaplot, echo=FALSE, fig.width=std_width, fig.asp=response_ar, dev.args = list(type = "cairo-png"), fig.cap = "An alternative plot for showing the estimate of synergy. Gray, dashed line is the expected mean of the HAC + Indole group if the interaction is zero."}
+b <- emm_b(exp1c_m1_emm)
+
+gg <- ggplot_the_response(
+  fit = exp1c_m1,
+  fit_emm = exp1c_m1_emm,
+  fit_pairs = exp1c_m1_pairs[1:4,],
+  palette = pal_okabe_ito_blue,
+  legend_position = "bottom",
+  y_label = "ABA\n(ng per g FW)",
+  contrast_rows = "all",
+  y_pos = c(69, 73, 65, 65)
+) +
+  
+  # add additive mean
+  geom_segment(x = 2.1,
+               y = sum(b[1:3]),
+               xend = 2.4,
+               yend = sum(b[1:3]),
+               linetype = "dashed",
+               color = "gray") +
+  
+  # bracket
+  geom_bracket(
+    x = 2.25,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("synergy\n(interaction)\np = ",
+                   fmt_p_value_rmd(exp1c_m1_pairs[5,"p.value"])),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black") +
+
+  NULL
+
+
+# image_path <- here("images", "twoway-example3-alternaplot.png")
+# ggsave(image_path,
+#        width = small_width,
+#        height = small_width*response_ar,
+#        units = "in")
+
+
+```
+
+```{r twoway-alternaplot-plot, echo=FALSE, fig.width=std_width, fig.asp=response_ar, dev.args = list(type = "cairo-png"), fig.cap = "An alternative plot for showing the estimate of synergy. Gray, dashed line is the expected mean of the HAC + Indole group if the interaction is zero."}
+# image_path <- here("images", "twoway-example3-alternaplot.png")
+# knitr::include_graphics(image_path)
+gg
+```
+
+```{r sad3FUN, echo=FALSE}
+sad3 <- function(m1, m1_emm){
+  b <- unlist(tidy(m1, conf.int = TRUE)[, "estimate"])
+  m1_emm <- summary(m1_emm)
+  mu <- m1_emm[, "emmean"]
+  
+  X <- model.matrix(m1)
+  y_col <- insight::find_response(m1)
+  y <- model.frame(m1)[, y_col]
+  b <- (solve(t(X)%*%X)%*%t(X)%*%y)[,1]
+
+  b2 <- c(mu[1],
+          mu[2] - mu[1],
+          mu[3] - mu[1],
+          mu[4])
+  b2[4] <- b2[4] - (b2[1]+b2[2]+b2[3])
+  
+  gg <- ggplot(data = m1_emm,
+               aes(x = names(m1_emm)[1],
+                   y = emmean,
+                   color = names(m1_emm)[2])) +
+    
+    geom_hline(yintercept = mu[1],
+               linetype = "dashed",
+               color = "black",
+               alpha = 0.5) +
+    geom_hline(yintercept = mu[2],
+               linetype = "dashed",
+               color = "black",
+               alpha = 0.5) +
+    annotate(geom = "text",
+             label = paste(round(b,2), collapse=","),
+             x = 1.5,
+             y = (mu[1] + mu[2])/2) + # middle, fails
+    annotate(geom = "text",
+             label = paste(round(mu,2), collapse=","),
+             x = 1.5,
+             y = mu[1] + 0.75*b2[2]) + # top, works
+    annotate(geom = "text",
+             label = paste(round(b2,2), collapse=","),
+             x = 1.5,
+             y = mu[1] + 0.25*b2[2]) + # bottom, works
+    
+    
+  NULL
+
+
+  return(gg)
+}
+```
+
+```{r TESTsad, eval=FALSE, echo=FALSE}
+gg <- sad3(exp2j_m1, exp2j_m1_emm)
+gg
+gg <- sad3(exp1c_m1, exp1c_m1_emm)
+gg
+
 ```
 
 ## Understanding the linear model with crossed factors 3
 
-### A factorial model adds an interaction effect to the coefficients table
+### Thinking about the coefficients of the linear model
 
-A factorial design allows a researcher to estimate the interaction between two factors. An interaction is an effect between two variables in a linear model. The interaction effect is the coefficient $beta_3$ in the linear model
-
+$$
 \begin{equation}
-aba = \beta_0 + \beta_1 hac_{HAC^+} + \beta_2 indole_{Indole^+} + \beta_3 hac_{HAC^+}:indole_{Indole^+} +\varepsilon
+\texttt{aba} = \beta_0 + \beta_1 (\texttt{hac}_\texttt{HAC+}) + \beta_2 (\texttt{indole}_\texttt{Indole+}) + \beta_3 (\texttt{hac}_\texttt{HAC+}:\texttt{indole}_\texttt{Indole+}) +\varepsilon
 (\#eq:factorial-full)
 \end{equation}
+$$
 
-$hac_{HAC^+}$ and $indole_{Indole^+}$ are dummy-coded **indicator variables** indicating group membership. $hac_{HAC^+} : indole_{Indole^+}$ is a dummy-coded variable for the interaction between $hac$ and $indole$. The value of this variable is the product of the two indicator variables in the interaction ($hac_{HAC^+}$ and $indole_{Indole^+}$), which can be verified with the model matrix (which here, is computed from the subset of the data that includeds only the first two rows of each treatment combination)
-
-```{r factorial-dummy, echo=FALSE}
-m1_mm <- model.matrix(m1)
-first_two <- c(1:2, 6:7, 11:12, 16:17)
-knitr::kable(m1_mm[first_two,])
-```
-
-The coefficient table is
+The linear model makes it easy to understand synergy in the $2 \times 2$ design. If we start with the mean of the reference (the group without the added HAC or Indole), then $\beta_1$ is the extra bit due to adding HAC, $\beta_2$ is the extra bit due to adding Indole, and $\beta_3$ is the extra bit due to synergy between HAC and Indole. A positive $\beta_3$ means the combined treatment effect is more than the sum of the parts.
 
 ```{r factorial-coef, echo=FALSE}
-knitr::kable(m1_coef, digits=c(2,2,1,3, 2, 2), caption="Coefficient table of the factorial model")
+exp1c_m1_coef %>%
+  kable(digits=c(2,2,1,3, 2, 2),
+        caption="Coefficient table of the factorial model") %>%
+  kable_styling()
 ```
 
-1. The Intercept ($b_0$) is the mean of the reference (HAC-/Indole-) group, and so the mean of the upper left cell ("Control") in Table \@ref(tab:factorial-coef).
-2. The hacHAC+ coefficient ($b_1$) is the estimate of the added HAC effect relative to the reference, and so is the mean of the lower left cell ("HAC") minus the mean of the upper left cell ("Control"). Another way of stating this is, it is **the effect of HAC when Indole is at its reference level**.
-3. The indoleIndole+ coefficient ($b_2$) is the estimate of the added Indole effect relative to the reference, and so is the mean of the upper right cell ("Indole") minus the mean of the upper left cell ("Control"). Another way of stating this is, **it is the effect of Indole when HAC is at its reference level**.
-4. The hacHAC+:indoleIndole+ coefficient ($b_3$) is the estimate of the **interaction effect**. If we added the HAC effect ($b_1$) and the Indole effect ($b_2$) to the Control mean ($b_0$), we would get the expected mean of the "HAC+Indole" group **if the effects were additive**. The hacHAC+:indoleIndole+ effect ($b_3$) is the additional bit that we need to get from this additive expectation to the modeled HAC+Indole mean (Figure \@ref(factorial-what-are-coefficients-plot)). It is the difference between the mean of the bottom right cell ("HAC+Indole") and the sum of the coefficients of the other three cells ($b0$, $b1$, $b2$).
+Again, the interaction is a **non-additive effect**. Adding HAC alone increases ABA concentration by 13.3 ng per g FW. Adding Indole alone increases ABA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
 
-An interaction is a **non-additive effect**. Think about this. Adding HAC alone increases ABA concentration by 13.3 ng per g FW. Adding Indole alone increases ABA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
+```{r twoway-synergy-build, echo=FALSE, eval=TRUE}
 
-```{r twoway-synergy-build, echo=FALSE, eval=FALSE, fig.cap="Meaning of coefficients in factorial model. b0 (blue line) is the mean of the reference (Control). b1 (orange line) is the /HAC effect. Numerically, it is the mean of the HAC group minus the mean of the reference. b2 (green line) is the Indole effect. Numerically it is the mean of the Indole group minus the mean of the reference. The expected mean of the HAC+Indole group if HAC and Indole were additive is b0 + b1 + b2 (gray circle). b3 (purple line) is the interaction effect. Numerically, it is the observed mean of the HAC+Indole group minus the expected additive mean (gray circle)"}
+b <- emm_b(exp1c_m1_emm)
+b0 <- b[1]
+b1 <- b[2]
+b2 <- b[3]
+b3 <- b[4]
 
-m1 <- lm(aba ~ hac * indole, data = fig1)
-m1_emm <- emmeans(m1, specs=c("hac", "indole"))%>%
+m1_emm <- exp1c_m1_emm %>%
   summary() %>%
   data.table()
 
 treatment_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
 m1_emm[, treatment := factor(treatment_levels, treatment_levels)]
 
-b <- coef(m1)
-b0 <- b[1]
-b1 <- b[2]
-b2 <- b[3]
-b3 <- b[4]
+p1 <- data.table(
+  xpos = 1:4,
+  y = b[1],
+  treatment = treatment_levels[1]
+)
+p2 <- data.table(
+  xpos = 1:4,
+  y = c(0, b[2], 0, b[2]),
+  treatment = treatment_levels[2]
+)
+p3 <- data.table(
+  xpos = 1:4,
+  y = c(0, 0, b[3], b[3]),
+  treatment = treatment_levels[3]
+)
+p4 <- data.table(
+  xpos = 1:4,
+  y = c(0, 0, 0, b[4]),
+  treatment = treatment_levels[4]
+)
 
+gg_table <- rbind(p1, p2, p3, p4)
+gg_table[, treatment := fct_rev(factor(treatment,
+                               levels = treatment_levels))]
 
-gg_add <- ggplot(data = m1_emm,
-                 aes(x = treatment,
-                     y = emmean,
-                     color = treatment)) +
-  geom_point(size = 4, alpha = 0.5) +
+gg_synergy <- ggplot(data = gg_table,
+                 aes(x = factor(xpos),
+                     y = y,
+                     fill = treatment)) +
+  
+  # plot means
+  geom_col(position = "stack") +
+  
   coord_cartesian(ylim = c(0, 60)) +
 
-  geom_point(aes(x = 4,
-                 y = b0 + b1 + b2),
-             size = 4,
-             alpha = 0.5) +
-  
-  geom_segment(aes(x = c(1, 2, 3, 4),
-                   y = c(0,emmean[1],emmean[1],emmean[1]),
-                   xend = c(1, 2, 3, 4),
-                   yend = emmean),
-               size = 1,
-               show.legend = FALSE) +
- 
-  geom_segment(aes(x = c(4),
-                   y = c(emmean[1]),
-                   xend = c(4),
-                   yend = c(emmean[2])),
-               size = 1,
-               color = pal_okabe_ito_blue[2]) +
-  geom_segment(aes(x = c(4),
-                   y = c(emmean[2]),
-                   xend = c(4),
-                   yend = c(emmean[2] + (emmean[3]-emmean[1]))),
-               size = 1,
-               color = pal_okabe_ito_blue[3]) +
-  
   annotate(geom = "text",
-           label="b[0]",
-           parse=TRUE,
-           x = 1.15,
-           y = b0/2) +
-  annotate(geom = "text",
-           label="b[1]",
-           parse=TRUE,
-           x = 2.15,
-           y = b0 + b1/2) +
-  annotate(geom = "text",
-           label="b[2]",
-           parse=TRUE,
-           x = 3.15,
-           y = b0 + b2/2) +
-  annotate(geom = "text",
-           label="b[3]",
-           parse=TRUE,
-           x = 4.15,
-           y = b0 + b1 + b2 + b2/2) +
-
-  annotate(geom = "text",
-           label="interaction effect",
-           x = 2.55,
-           y = 51.5,
-           size = 4) +
-  geom_segment(aes(x = 3.1,
-                   y = 51,
-                   xend = 3.9,
-                   yend = b0+b1+b2+b3/2),
+           label = c("additive expectation"),
+           x = c(3.1),
+           y = c(b0+b1+b2),
+           size = 4,
+           hjust = 1) +
+  geom_segment(x = 3.2,
+               y = b0+b1+b2,
+               xend = 3.5,
+               yend = b0+b1+b2,
                arrow=arrow(length = unit(0.05, "npc"),
-                           ends="last",type="open"),
-               color="black") +
-
-  annotate(geom = "text",
-           label="additive expectation",
-           x = 2.55,
-           y = 44.5,
-           size = 4) +
-  geom_segment(aes(x = 3.2,
-                   y = 44,
-                   xend = 3.9,
-                   yend = b0+b1+b2+0.3),
-               arrow=arrow(length = unit(0.05, "npc"),
-                           ends="last",type="open"),
+                           ends = "last",
+                           type = "open"),
                color="black") +
   
-  scale_color_manual(values=pal_okabe_ito_blue,
-                     name = "Group mean") +
+  # add "add this"
+  annotate(geom = "text",
+           label = c("start with\nControl"),
+           x = 1:4,
+           y = rep(b0/2, 4),
+           size = 3,
+           hjust = 0.5) +
+  annotate(geom = "text",
+           label = c("add\nHAC"),
+           x = c(2,4),
+           y = rep(b0 + b1/2, 2),
+           size = 3,
+           hjust = 0.5) +
+  annotate(geom = "text",
+           label = c("add\nIndole"),
+           x = c(3,4),
+           y = c(b0 + b2/2,
+                 b0 + b1 + b2/2),
+           size = 3,
+           hjust = 0.5) +
+  annotate(geom = "text",
+           label = c("synergy\n(interaction)"),
+           x = 4,
+           y = b0 + b1 + b2 + b3/2,
+           size = 3,
+           hjust = 0.5) +
+  
+  scale_fill_manual(values = rev(pal_okabe_ito_blue[1:4])) +
   
   ylab("ABA (ng per g FW)") +
   theme_minimal_hgrid() +
@@ -1764,25 +1907,26 @@ gg_add <- ggplot(data = m1_emm,
   scale_y_continuous(
     # don't expand y scale at the lower end
     expand = expansion(mult = c(0, 0.05)))  +
+  scale_x_discrete(label = treatment_levels) +
 
   NULL
-
-image_path <- here("images", "twoway-synergy.png")
-ggsave(image_path,
-       width = 7,
-       height = 5,
-       units = "in")
-
-gg_add
+# 
+# image_path <- here("images", "twoway-synergy.png")
+# ggsave(image_path,
+#        width = std_width,
+#        height = std_width*std_ar,
+#        units = "in")
+# 
+# gg_synergy
 ```
 
-```{r twoway-synergy, echo=FALSE, out.width="80%", fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
-image_path <- here("images", "twoway-synergy.png")
-
-knitr::include_graphics(image_path)
+```{r twoway-synergy, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap="Synergy is the bit needed to get to the HAC + Indole mean after adding the HAC effect and the Indole effect to the Control mean"}
+# image_path <- here("images", "twoway-synergy.png")
+# knitr::include_graphics(image_path)
+gg_synergy
 ```
 
-## Issues in infernce
+## Issues in inference
 ### For pairwise comparisons, it doesn't matter if you analyze the data with a factorial or a flattened linear model
 
 Compare the pairwise comparisons of the Experiment 2j glucose uptake data using a factorial linear model and a flattened linear model.
@@ -1918,6 +2062,8 @@ Further thoughts on multiple adjustment, focussing on the highlighted row in the
 
 ## Two-way ANOVA
 
+Both wet-bench and ecology/evolution experimental biologists do ANOVA. Many textbooks, advisors, and colleagues tell researchers to report "tests after ANOVA" -- what I call pairwise contrasts -- but in modern computing, pairwise contrasts and ANOVA tables are both computed from the same underlying regression model. The ANOVA is not necessary for any inference, a point I return to below.
+
 Let's use the glucose uptake experiment (Example 1) to explore the ANOVA table.
 
 ### How to read a two-way ANOVA table
@@ -1967,11 +2113,9 @@ Explainer
 
 ### What do the main effects in an ANOVA table mean?
 
-Both wet-bench and ecology/evolution experimental biologists do ANOVA. For whatever reason, wet-bench experimental biologists rarely report statistics from ANOVA tables (wet-bench biologists do report "tests after ANOVA" but in modern computing, post-hoc tests and ANOVA tables are both computed from the underlying regression model. The ANOVA is not necessary for any inference, a point I return to below).
+It is very common in the literature to see researchers report the rows of an ANOVA table by stating something like "We found an effect of stimulation on glucose uptake ($F_{1,25} = 26.9$, $p < 0.0001$)". Thinking of a main effect term in an ANOVA table as "an effect" can be misleading. What does "an effect" mean? Afterall, there are *two* effects of $\texttt{stimulation}$ in this experiment, one in the wildtype mice and one in the TLR9-/- mice. 
 
-It is very common in the ecology/evolution literature to see the researchers to state something like "We found an effect of stimulation on glucose uptake ($F_{1,25} = 26.9$, $p < 0.0001$)". Thinking of a main effect term in an ANOVA table as (an effect) can be misleading. What does "an effect" mean? There are two effects of $\texttt{stimulation}$ in this experiment, one in the wildtype mice and one in the TLR9-/- mice. 
-
-Main effects in ANOVA tables are about average effects. A main effect in a two-way ANOVA table is an "overall" marginal effect. Recall that a marginal effect of the level of Factor A is the average of the conditional effects at each level of B (Section \@ref(twoway-marginal-effects)). For a $2 \times 2$ table, there is only one marginal effect for each factor and, as a consquence, the *p* value for the main effect term of $\textt{stimulation}$ in the ANOVA table (Table \@ref(tab:twoway-anova-table)) is equak to the *p*-value of the marginal effect of $\textt{stimulation}$ in the contrast table (Table \@ref(tab:twoway-marginal-table)). The "main term" effect of stimulation is illustrated in Figure \@ref(twoway-main-1).
+Main effects in ANOVA tables are about average effects. A main effect in a two-way ANOVA table is an "overall" marginal effect. Recall that a marginal effect of the level of Factor A is the average of the conditional effects at each level of B (Section \@ref(twoway-marginal-effects)). For a $2 \times 2$ table, there is only one marginal effect for each factor and, as a consquence, the *p* value for the main effect term of $\texttt{stimulation}$ in the ANOVA table (Table \@ref(tab:twoway-anova-table)) is equal to the *p*-value of the marginal effect of $\texttt{stimulation}$ in the contrast table (Table \@ref(tab:twoway-marginal-table)). The "main term" effect of stimulation is illustrated in Figure \@ref(twoway-main-1).
 
 ```{r twoway-anova-table, echo=FALSE}
 anova(exp2j_aov4)[, -c(3,5)] %>%
@@ -1994,176 +2138,170 @@ contrast(exp2j_aov4_emm_stim,
 
 Again, main effects in ANOVA tables are about average effects. Is the average effect what we want to report? The answer is, it depends. It does *not* depend on the *p*-value of the interaction (the answer in many textbooks and websites) although the *p*-value is, perhaps, not irrelevant. Rather, it depends on the research question motivating the experiment. The research question in Experiment 2j specifically predicted a different treatment (KO/Active - KO/Rest) and control effect (WT/Active - WT/Rest). The average of these two effects isn't of interest. Any inference about the average effect of stimulation (the *p*-value from the ANOVA table or the marginal effect size or CIs) doesn't answer any question motivating the experiment. A more general discussion of when we might be interested in the main effect term of an ANOVA table (or better, marginal effects) was in section xxx and below in section xxx.
 
-```{r twoway-main-base, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
-type3 <- list(stimulation = contr.sum, genotype = contr.sum)
-exp2j_aov <- lm(glucose_uptake ~ stimulation * genotype,
-                     data = exp2j,
-                     contrasts = type3)
-exp2j_aov_emm <- emmeans(exp2j_aov, specs = c("stimulation", "genotype")) %>%
-  summary() %>%
-  data.table()
-exp2j_aov_stim <- emmeans(exp2j_aov, specs = "stimulation") %>%
-  summary() %>%
-  data.table()
+```{r twoway-anova-explainer-build, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 
-exp2j_aov_geno <- emmeans(exp2j_aov, specs = "genotype") %>%
-  summary() %>%
-  data.table()
-
-b <- coef(exp2j_aov)
-dodge_width <- 0.0
-pd <- position_dodge(dodge_width)
-
-nudge <- 0.05
-bracket_table <- data.table(
-  x = c(1 + nudge,
-        2 - nudge,
-        2 - nudge),
-  y = c(b[1],
-        b[1],
-        b[1] + b[2] + b[3]),
-  xend = c(1 + nudge,
-           2 - nudge,
-           2 - nudge),
-  yend = c(b[1] + b[2],
-           b[1] + b[3],
-           b[1] + b[2] + b[3] + b[4])
-)
-
-dodge_width <- 0.0
-pd <- position_dodge(dodge_width)
-gg_main_base <- ggplot(data = exp2j_aov_emm,
-             aes(x = genotype,
-                 y = emmean,
-                 color = stimulation)) +
+anova_build_gg <- function(){
+  type3 <- list(stimulation = contr.sum, genotype = contr.sum)
+  exp2j_aov <- lm(glucose_uptake ~ stimulation * genotype,
+                  data = exp2j,
+                  contrasts = type3)
+  exp2j_aov_emm <- emmeans(exp2j_aov, specs = c("stimulation", "genotype")) %>%
+    summary() %>%
+    data.table()
+  exp2j_aov_stim <- emmeans(exp2j_aov, specs = "stimulation") %>%
+    summary() %>%
+    data.table()
   
-  # add individual points in the background
-  geom_jitter(data = exp2j,
-             aes(y = glucose_uptake,
-                 color = stimulation),
-             alpha = .3,
-             width = 0.1) +
-  
-  # grand mean line
-  geom_segment(x = 0.75,
-               y = b[1],
-               xend = 2.25,
-               yend = b[1],
-             linetype = "dashed",
-             color = "gray") +
-  # annotate(geom = "text",
-  #          label = "grand mean",
-  #          x = .5,
-  #          y = b[1],
-  #          hjust = 0) +
+  exp2j_aov_geno <- emmeans(exp2j_aov, specs = "genotype") %>%
+    summary() %>%
+    data.table()
+
+  exp2j_aov_stim[, genotype := c(1.5, 1.5)]
  
-  # conditional means
-  geom_point(size = 3,
-             position = pd) +
+  b <- coef(exp2j_aov) # ugg fails when bookdowning
+  b <- c(8.2874498, -1.1473230, 0.1867615, -0.5768006 )
   
-  scale_color_manual(values = pal_okabe_ito_blue) +
-#  scale_x_discrete(labels = c("WT", "TLR9-/-")) +
-  ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
-  coord_cartesian(ylim = c(5.0, 11.5)) +
+  dodge_width <- 0.0
+  pd <- position_dodge(dodge_width)
   
-  theme_pubr() +
-  theme(axis.title.x = element_blank(),
-        legend.title = element_blank()) +
+  nudge <- 0.05
+  bracket_table <- data.table(
+    x = c(1 + nudge,
+          2 - nudge,
+          2 - nudge),
+    y = c(b[1],
+          b[1],
+          b[1] + b[2] + b[3]),
+    xend = c(1 + nudge,
+             2 - nudge,
+             2 - nudge),
+    yend = c(b[1] + b[2],
+             b[1] + b[3],
+             b[1] + b[2] + b[3] + b[4])
+  )
   
-  NULL
-
-# gg_main_base
+  dodge_width <- 0.0
+  pd <- position_dodge(dodge_width)
+  gg <- ggplot(data = exp2j_aov_emm,
+                         aes(x = genotype,
+                             y = emmean,
+                             color = stimulation)) +
+    
+    # add individual points in the background
+    geom_jitter(data = exp2j,
+                aes(y = glucose_uptake,
+                    color = stimulation),
+                alpha = .3,
+                width = 0.1) +
+    
+    # grand mean line
+    geom_segment(x = 0.75,
+                 y = b[1],
+                 xend = 2.25,
+                 yend = b[1],
+                 linetype = "dashed",
+                 color = "gray") +
+    # annotate(geom = "text",
+    #          label = "grand mean",
+    #          x = .5,
+    #          y = b[1],
+    #          hjust = 0) +
+    
+    # conditional means
+    geom_point(size = 3,
+               position = pd) +
+    
+    # marginal means
+    geom_point(data = exp2j_aov_stim,
+               aes(y = emmean),
+               size = 3,
+               shape = 21) +
+    
+    # annotations
+    annotate(
+      geom = "text",
+      label = c("marginal means"),
+      x = c(1.5),
+      y = 10
+    ) +
+    
+    # effect lines
+    geom_segment(
+      data = data.table(
+        x = c(1 - nudge, 1.5 + nudge, 2 + nudge),
+        y = c(b[1] + b[2] + b[3] + b[4], # wt rest
+              b[1] + b[2],
+              b[1] + b[2] - b[3] - b[4]), # ko rest
+        xend = c(1 - nudge, 1.5 + nudge, 2 + nudge),
+        yend = c(b[1] - b[2] + b[3] - b[4], #wt stim
+                 b[1] - b[2],
+                 b[1] - b[2] - b[3] + b[4]) # ko stim
+      ),
+      aes(x = x,
+          y = y,
+          xend = xend,
+          yend = yend),
+      color = "black") +
+    
+    # effect annotations
+    annotate(geom = "text",
+             label = c("effect of\nstimulation\nin WT"),
+             x = c(.7),
+             y = c(11)) +
+    geom_curve(x = .7,
+               y = 10.3,
+               xend = 1 - nudge*1.2,
+               yend = 9,
+               arrow = arrow(length = unit(0.03, "npc")),
+               color = "black",
+               curvature = 0.3) +
+    
+    annotate(geom = "text",
+             label = c("effect of\nstimulation\nin KO"),
+             x = c(2.3),
+             y = c(11)) +
+    geom_curve(x = 2.3,
+               y = 10.3,
+               xend = 2 + nudge*1.2,
+               yend = 8.3,
+               arrow = arrow(length = unit(0.03, "npc")),
+               color = "black",
+               curvature = -0.3) +
+    
+    annotate(geom = "text",
+             label = c("mean effect of\nstimulation"),
+             x = c(1.75),
+             y = c(11.5)) +
+    geom_curve(x = 1.75,
+               y = 11.0,
+               xend = 1.5 + nudge*1.2,
+               yend = 8.6,
+               arrow = arrow(length = unit(0.03, "npc")),
+               color = "black",
+               curvature = -0.2) +
+    
+    scale_color_manual(values = pal_okabe_ito_blue) +
+    #  scale_x_discrete(labels = c("WT", "TLR9-/-")) +
+    ylab(expression(paste("Glucose uptake (nmol mg ", protein^-1, "15 ", min^-1, ")"))) +
+    coord_cartesian(ylim = c(5.0, 11.5)) +
+    
+    theme_pubr() +
+    theme(axis.title.x = element_blank(),
+          legend.title = element_blank()) +
+    
+    NULL
+  
+  return(gg)
+}
+# gg
 ```
 
-```{r twoway-main-1-build, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
-exp2j_aov_stim[, genotype := c(1.5, 1.5)]
+```{r twoway-anova-explainer-plot, echo=FALSE, fig.width=std_width, fig.asp = std_ar, message=FALSE, fig.cap = "The main effect of stimulation in the ANOVA table tests the average of the conditional effects of stimulation. The average of the conditional effects is the difference between the marginal means of Active and of Rest."}
 
-gg_main_1 <- gg_main_base +
-  
-  # marginal means
-  geom_point(data = exp2j_aov_stim,
-             aes(y = emmean),
-             size = 3,
-             shape = 21) +
-  
-  # annotations
-  annotate(
-    geom = "text",
-    label = c("marginal means"),
-    x = c(1.5),
-    y = 10
-  ) +
-  
-  # effect lines
-  geom_segment(
-    data = data.table(
-      x = c(1 - nudge, 1.5 + nudge, 2 + nudge),
-      y = c(b[1] + b[2] + b[3] + b[4], # wt rest
-            b[1] + b[2],
-            b[1] + b[2] - b[3] - b[4]), # ko rest
-      xend = c(1 - nudge, 1.5 + nudge, 2 + nudge),
-      yend = c(b[1] - b[2] + b[3] - b[4], #wt stim
-            b[1] - b[2],
-            b[1] - b[2] - b[3] + b[4]) # ko stim
-    ),
-    aes(x = x,
-    y = y,
-    xend = xend,
-    yend = yend),
-    color = "black") +
-  
-  # effect annotations
-  annotate(geom = "text",
-           label = c("effect of\nstimulation\nin WT"),
-           x = c(.7),
-           y = c(11)) +
-  geom_curve(x = .7,
-             y = 10.3,
-             xend = 1 - nudge*1.2,
-             yend = 9,
-             arrow = arrow(length = unit(0.03, "npc")),
-             color = "black",
-             curvature = 0.3) +
-
-  annotate(geom = "text",
-           label = c("effect of\nstimulation\nin KO"),
-           x = c(2.3),
-           y = c(11)) +
-  geom_curve(x = 2.3,
-             y = 10.3,
-             xend = 2 + nudge*1.2,
-             yend = 8.3,
-             arrow = arrow(length = unit(0.03, "npc")),
-             color = "black",
-             curvature = -0.3) +
-
-  annotate(geom = "text",
-           label = c("mean effect of\nstimulation"),
-           x = c(1.75),
-           y = c(11.5)) +
-  geom_curve(x = 1.75,
-             y = 11.0,
-             xend = 1.5 + nudge*1.2,
-             yend = 8.6,
-             arrow = arrow(length = unit(0.03, "npc")),
-             color = "black",
-             curvature = -0.2) +
-  
-  NULL
-
-image_path <- here("images", "twoway-main-1.png")
-ggsave(image_path,
-       width = 7,
-       height = 5,
-       units = "in")
-gg_main_1
-```
-
-```{r twoway-main-1, echo=FALSE, out.width="80%", fig.cap = "The main effect of stimulation in the ANOVA table tests the average of the conditional effects of stimulation. The average of the conditional effects is the difference between the marginal means of Active and of Rest."}
-
-image_path <- here("images", "twoway-main-1.png")
-
-knitr::include_graphics(image_path)
+# image_path <- here("images", "twoway-main-1.png")
+# knitr::include_graphics(image_path)
+gg_anova_explainer <- anova_build_gg()
+gg_anova_explainer
 ```
 
 ## Working in R
@@ -2174,17 +2312,18 @@ A linear model with two crossed factors is specified in the model formula as `y 
 ```{r twoway-working-m1}
 m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
 
-coef(summary(m1)) %>%
-  kable(digits = c(2,3,2,6)) %>%
+tidy(m1, conf.int = TRUE) %>%
+  kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
 ```
+
 The order of the factors in the model formula doesn't matter for the coefficients, the estimated marginal means, or the contrasts. It can matter for ANOVA (more on this below) but not "tests after ANOVA".
 
 ```{r twoway-working-m1_b}
 m1_b <- lm(glucose_uptake ~ genotype * stimulation, data = exp2j)
 
-coef(summary(m1_b)) %>%
-  kable(digits = c(2,3,2,6)) %>%
+tidy(m1_b, conf.int = TRUE) %>%
+  kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
 ```
 
@@ -2192,8 +2331,9 @@ The additive model is specified by the formula `y ~ A + B`
 
 ```{r twoway-working-m2}
 m2 <- lm(glucose_uptake ~ stimulation + genotype, data = exp2j)
-coef(summary(m2)) %>%
-  kable(digits = c(2,3,2,6)) %>%
+
+tidy(m2, conf.int = TRUE) %>%
+  kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
 
 ```
@@ -2274,11 +2414,122 @@ m1_ixn %>%
   kable_styling()
 ```
 
+#### Method argument
+
+```{r}
+m1_pairs <- contrast(m1_emm,
+                     method = "pairwise",
+                     adjust = "fdr") %>%
+  summary(infer = TRUE) # add the 95% CIs
+
+m1_pairs %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r}
+m1_pairs <- contrast(m1_emm,
+                     method = "trt.vs.ctrl",
+                     adjust = "none") %>%
+  summary(infer = TRUE) # add the 95% CIs
+
+m1_pairs %>%
+  kable() %>%
+  kable_styling()
+```
+
+Notes
+
+1. `method = "pairwise"` and `method = "revpairwise"` compute all pairwise comparisons. I prefer "revpairwise" because the contrasts that include the reference are in the direction non-reference minus reference.
+2. `method = "trt.vs.ctrl"` gives a very flattened picture of the model results and constrains what we can infer from the results.
+
 #### Adjustment for multiple tests
+
+set the `adjust =` argument to 
+
+1. "none" -- no adjustment
+2. "dunnettx" -- [Dunnett's test](https://en.wikipedia.org/wiki/Dunnett%27s_test){target="_blank"} is a method used when comparing all treatments to a single control. For a factorial design, this only makes sense for a flattened analysis.
+3. "tukey" -- [Tukey's HSD method](https://en.wikipedia.org/wiki/Tukey%27s_range_test){target="_blank"} is a method used to compare all pairwise comparisons.
+4. "bonferroni" -- [Bonferroni](https://en.wikipedia.org/wiki/Bonferroni_correction){target="_blank"} is a general purpose method to compare any set of multiple tests. The test is conservative. A better method is "holm"
+5. "holm" -- [Holm-Bonferroni](https://en.wikipedia.org/wiki/Holm–Bonferroni_method){target="_blank"} is a general purpose method like the Bonferroni but is more powerful.
+6. "fdr" -- controls the [false discovery rate](https://en.wikipedia.org/wiki/False_discovery_rate){target="_blank"} not the Type I error rate for a family of tests. One might use this in an exploratory experiment.
+7. "mvt" -- based on the multivariate *t* distribution and using covariance structure of the variables.
 
 ### Practice safe ANOVA
 
-If you want an ANOVA table to match that in Graphpad Prism or JMP, then you need a table computed from Type III sum of squares. If using a linear model to compute the ANOVA (remember that ANOVA was developed without fitting linear models), then the linear model needs to be fit using a model matrix constructed with indicator variables using effects coding. There are two safe ways to do this in R
+Many researchers are unaware of the different ways of computing the sum of squares in an ANOVA table. The *F*-value and *p*-value are both functions of the sum of squares. When the cells of a two-way ANOVA are not balanced (different sample sizes among the cells), the different ways of computing the sum of squares can matter. There is a great deal of sound and fury about which methods should be used and which avoided. For many research questions and the experiments used to address these, these arguments are moot because the ANOVA table is simply unnecessary for inference. Instead, fit the linear model and compute the contrasts of interest.
+
+If your reviewer/advisor/boss wants an ANOVA table and wants this table to match that in Graphpad Prism or JMP, then you need a table computed from Type III sum of squares. If using a linear model to compute the ANOVA (remember that ANOVA was developed without fitting linear models), then the linear model needs to be fit using a model matrix constructed with indicator variables using effects coding. There are two safe ways to do this in R.
+
+#### The afex aov_4 function
+
+```{r twoway-aov_4, warning=FALSE, message = FALSE}
+# .I is a data.table function that returns the row number
+exp2j[, fake_id := paste("mouse", .I)]
+
+m1_aov4 <- aov_4(glucose_uptake ~ stimulation * genotype +
+                   (1|fake_id),
+                 data = exp2j)
+
+nice(m1_aov4, MSE = FALSE)[,-4] %>% # delete ges column
+  kable() %>%
+  kable_styling()
+```
+
+Notes
+
+1. The afex package has three function names for generating the same ANOVA table and statistics -- here I'm using `aov_4` because this functions uses a linear model formula argument (specifically, that used in the lme4 package), which is consistent with the rest of this text.
+2. The formula includes the addition of a random factor (`(1|id)`) even though there really is no random factor in this model. See [Models with random factors -- Blocking and pseudoreplication](#lmm) for more information on random factors. The random factor (the factor variable "id" created in the line before the fit model line) identifies the individual mouse from which the response variable was measured. Because the response was only measured once on each individual mouse, "id" is not really a random factor but the addition of this in the model formula is necessary for the `aov_4` function to work.
+
+
+#### The car Anova function
+
+```{r twoway-car-Anova}
+type3 <- list(stimulation = contr.sum,
+              genotype = contr.sum)
+m1_type3 <- lm(glucose_uptake ~ stimulation * genotype,
+               data = exp2j,
+               contrasts = type3)
+Anova(m1_type3, type="3")[-1, -1] %>% # delete row 1 and col 1
+  kable(digits = c(1,2,5)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. `car::Anova` has arguments for reporting the Type II and Type III sum of squares.
+2. Background: The default model matrix in the `lm` function uses dummy (or treatment) coding. For a Type 3 SS ANOVA (the kind that matches that in Graphpad Prism or JMP), we need to tell `lm` to use sum (or deviation) coding.
+3. Many online sites give you code to change this using 
+
+```{r twoway-options-contrasts}
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+
+If you're reading this book, you almost certainly don't want to do this because this code resets how R computes coefficients of linear models and SS of ANOVA tables. This will effect all future analysis until the contrasts are set to something else or a new R session is started. 
+4. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
+5. The coefficients of `m1_type3` will be different from those using the default contrasts. Except when computing a Type III ANOVA, this text uses the default contrasts throughout because the coefficients make sense for the kinds of experiments in experimental biology. If using sum ("type III") coding, the intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology (but "useful" is largely a function of "used to").
+6. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
+
+### Don't do this
+
+```{r twoway-aov}
+m1_aov <- aov(glucose_uptake ~ stimulation * genotype,
+               data = exp2j)
+summary(m1_aov)
+```
+
+```{r twoway-anova}
+# same as exp2j_m1 in the Example 1 section
+m1 <- lm(glucose_uptake ~ stimulation * genotype,
+               data = exp2j)
+anova(m1)
+```
+
+Notes
+
+1. Note the differences from the the afex table and the car Anova table. The *p*-values for the interaction term is the same -- this will always be the case for the highest order interaction term in the model. The *p*-values for $\texttt{stimulation}$ and $\texttt{genotype}$ terms are different. The difference will be a function of the degree of imbalance. Here, this difference doesn't make a difference for inference. In some data sets, the difference is catastrophic.
+2. Many introduction to statistics textbooks and websites teach the base R `aov` function. This function is only useful if 1) the data are balanced and 2) we care about ANOVA. Don't use this. If you need the ANOVA table use either afex or car Anova.
+2. The base R `anova` is useful if you know what you are doing with it. Otherwise, use either afex or car Anova. 
 
 ## Hidden Code
 ### Import exp2j (Example 1)

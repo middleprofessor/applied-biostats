@@ -1477,6 +1477,7 @@ m1_response_ixn <- m1_response_fac +
 
 m1_response_ixn
 ```
+
 #### Adding interaction effect to effects plot
 ##### Add the interaction effect to the contrast table
 

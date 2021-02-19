@@ -1,14 +1,3 @@
----
-title: Analysis for Figure 2 of ASK1 inhibits browning of white adipose tissue in obesity
-author: "Jeffrey A. Walker"
-date: "9/2/2020"
-output:
-  html_document:
-    toc: true
-    toc_float: true
-    code_folding: hide
----
-
 # Analyses for Figure 2 of "ASK1 inhibits browning of white adipose tissue in obesity" {-}
 
 ## Setup

@@ -366,9 +366,11 @@ Even though the linear model that models heterogeneity and the Welch *t*-test pr
 1. A linear modeling strategy encourages researchers to think about the effect and uncertainty in the effect and not just a *p*-value.
 2. The linear model is nearly infinitely flexible and expandible while the *t*-test has extremely limited flexibility (The Welch *t*-test is one way to expand the classical, Student's *t*-test).
 
+### When groups of the focal test have >> variance
+
 ## The conditional response isn't Normal
 
-I often read that of all the issues with inference from a classical linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome -- we should be much more concerned about lack of independence and heterogeneity.
+It is common to hear or read from a statistitican that of all the issues with inference from a classical linear model (including *t*-tests and ANOVA), non-normal "data" is the least worrisome -- we should be much more concerned about lack of independence and heterogeneity.
 
 1. The theoretical basis for this sentiment is the **central limit theorem**. In short, if we repeatedly 1) sample a non-normal distribution and 2) compute the sample mean, the distribution *of these resampled means* is approximately normal (the distribution converges to normal as the sample size increases). Because inferential statistics using a classical linear model assume a normal distribution of the means, inference from classical linear models are increasingly robust to non-normal distributions as the sample size increases. The main issue for applied statistics in experimental biology is the small sample sizes.
 2. Empirical results from simulations support the theory. Actual type I error using classical linear models with non-normal data tends to be close to the nominal (say, 0.05) level.
@@ -526,7 +528,7 @@ gg2 <- ggplot_the_model(
   effect_label = "Relative Effect",
   palette = pal_okabe_ito_blue,
   rel_heights = c(0.75,1),
-  effect_lims = c(0.35, 1.25)
+  effect_x_lim = c(0.35, 1.25)
 )
 
 plot_grid(gg1, gg2, nrow=2, labels = "AUTO")
