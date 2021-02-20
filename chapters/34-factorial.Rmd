@@ -32,18 +32,22 @@ minus <- "\u2013"
 dpi <- 72
 # width of bookdown page is 800 pix
 # width of standard bookdown fig is 560 pix or 70% of page
-std_width <- 560/dpi
+std_width <- 504/dpi # 7 in
 full_width <- 800/dpi
-small_width <- 400/dpi
+small_scale = 6/7
+small_width <- std_width*small_scale # 6 in
 
 # standard aspect ratio is .7 so
-std_ar <- .7
+std_ar <- 5/7 # .71
 response_ar <- .8 # for use with response plots with p-values
 effect_ar <- 0.6 # for effects
 harrell_ar <- 1 # for harrell effect & response plots
 
-# heights
-std_height <- std_width*std_ar
+# dims (width, height)
+std_dim <- c(std_width, std_width*std_ar)
+response_dim <- c(std_width, std_width*response_ar)
+effect_dim <- c(std_width, std_width*effect_ar)
+harrell_dim <- c(std_width, std_width*harrell_ar)
 
 # out.width percents
 out.width_std <- paste0(std_width/full_width*100, "%")
@@ -130,6 +134,7 @@ dt %>%
 3. The first two elements in the "Effect" row contains the difference of the two cells above -- these are the **effects of donor conditional on the level of genotype**.
 4. The effects described in items 2 and 3 are known as the **simple effects**.
 5. The value in red is the difference of the two simple effects above it. It is also the difference of the two simple effects to the left. These differences are equal. This is the interaction effect.
+6. In an experiment with a single factor with four levels, all six pairwise comparisons may be of interest. In a factorial experiment, it is the simple effects (fewer than all pairwise contrasts) and the interaction effects that are interesting.
 
 In this fake experiment, we want to know the effect of obese donor treatment in the KO mice *compared to* the effect of obese donor treatment in the WT mice. That is, we want the contrast of these two simple effects.
 
@@ -275,21 +280,28 @@ The two ways of framing the research question suggest either of the following se
 
 1. (KO/Active - KO/Rest) -- effect of Stimulation in KO mice. This is our **treatment contrast**. If TLR9 is necessary for glucose uptake, then this should be zero. If positive, there are non-TLR9 paths.
  
-2. (WT/Active - WT/Rest) -- This is the **control (or reference) contrast** -- it is what we know based on prior knowledge and what we want to compare the treatment effect to. This should be positive based on prior knowledge.
+2. (WT/Active - WT/Rest) -- This is the **positive control contrast** -- it is what we know based on prior knowledge and what we want to compare the treatment effect to. This should be positive based on prior knowledge.
 
 We need to control for the expected increase in 2 using the contrast:
 
-3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the knockout-induced stimulation effect.
+3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) -- This contrast is the interaction effect. This **focal contrast** is what we need to estimate the knockout-induced stimulation effect.
 
 **Framing 2**: What is stimulation-induced TLR9-/- effect?
 
-1. (KO/Active - WT/Active) -- effect of KO during muscle stimulation. This is our **treatment effect**. If TLR9 is necessary for glucose uptake, then this should be big and negative.
+1. (KO/Active - WT/Active) -- effect of KO during muscle stimulation. This is our **treatment contrast**. If TLR9 is necessary for glucose uptake, then this should be big and negative *if* the KO effect at rest is small.
  
-2. (KO/Rest - WT/Rest) -- effect of KO when the muscle is not stimulated. This is the **control (or reference) effect**. If TLR9-/- KO has non-muscle-stimulation paths to glucose uptake, this will be something other than zero.
+2. (KO/Rest - WT/Rest) -- effect of KO when the muscle is not stimulated. This is the **methodological control contrast**. If TLR9-/- KO has non-muscle-stimulation paths to glucose uptake, this will be something other than zero.
 
 We need to control for any (KO/Rest - WT/Rest) effect using the contrast:
 
-3. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- This contrast is the interaction effect. This **focal effect** is what we need to estimate the stimulation-induced TLR9-/- effect.
+3. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- This contrast is the interaction effect. This **focal contrast** is what we need to estimate the stimulation-induced TLR9-/- effect.
+
+Our planned contrasts are:
+
+1. (WT/Active - WT/Rest) -- positive control contrast
+2. (KO/Rest - WT/Rest) -- methodological control contrast
+3. (KO/Active - WT/Active) -- treatment contrast
+4. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- interaction contrast
 
 ### Fit the linear model
 
@@ -332,32 +344,24 @@ ko_active <- c(0,0,0,1)
 
 # contrasts are the difference in the vectors created above
 # these planned contrasts are described above
-# 1. (KO/Active - KO/Rest) # treatment
-# 2. (WT/Active - WT/Rest) # control
-# 3. (KO/Active - KO/Rest) - (WT/Active - WT/Rest) Interaction
+# 1. (WT/Active - WT/Rest) -- positive control contrast
+# 2. (KO/Rest - WT/Rest) -- methodological control contrast
+# 3. (KO/Active - WT/Active) -- treatment contrast
+# 4. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- interaction 
 
 exp2j_m1_planned <- contrast(
   exp2j_m1_emm,
   method = list(
-    "(KO/Active - KO/Rest)" = c(ko_active - ko_rest),
-    "(WT/Active - WT/Rest)" = c(wt_active - wt_rest)
+    "(WT/Active - WT/Rest)" = c(wt_active - wt_rest),
+    "(KO/Rest - WT/Rest)" = c(ko_rest - wt_rest),
+    "(KO/Active - WT/Active)" = c(ko_active - wt_active),
+    "KO:Active Ixn" = c(ko_active - wt_active) -
+      (ko_rest - wt_rest)
   ),
   adjust = "none"
 ) %>%
   summary(infer = TRUE)
 
-exp2j_m1_interaction <- contrast(exp2j_m1_emm,
-                           interaction = c("revpairwise"),
-                           by = NULL) %>%
-  summary(infer = TRUE)
-
-# Make the interaction table conform (same column names)
-# to the planned table and  remove cols 1:2
-exp2j_m1_interaction <- cbind(contrast = "interaction",
-                              exp2j_m1_interaction[, -c(1:2)])
-# combine
-exp2j_m1_planned <- rbind(exp2j_m1_planned,
-                          exp2j_m1_interaction)
 
 exp2j_m1_planned %>%
   kable(digits = c(0,3,4,0,3,3,2,5)) %>%
@@ -370,7 +374,7 @@ exp2j_m1_planned %>%
 
 ### Plot the model
 
-```{r twoway-exp2j-plot, echo=TRUE, eval=TRUE, fig.width=small_width, fig.asp = harrell_ar, dev.args = list(type = "cairo-png")}
+```{r twoway-exp2j-plot, echo=TRUE, eval=TRUE, fig.dim=harrell_dim*small_scale, dev.args = list(type = "cairo-png")}
 ggplot_the_model(
   exp2j_m1,
   exp2j_m1_emm,
@@ -379,26 +383,47 @@ ggplot_the_model(
   legend_position = "bottom",
   y_label = "Glucose uptake\n(nmol per mg protein\nper 15 min)",
   effect_label = "Difference in glucose uptake",
-  contrast_rows = c(2,1,3),
-  rel_heights = c(0.5,1),
+  rel_heights = c(0.44,1),
 )
 ```
-```{r twoway-exp2j-altplot, echo=TRUE, eval=TRUE, , fig.width=small_width, fig.asp = response_ar, dev.args = list(type = "cairo-png")}
+### alternaPlot the model
+
+```{r twoway-exp2j-altplot, echo=TRUE, eval=TRUE, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "Dashed gray line is expected additive mean of KO/Active"}
+
 exp2j_m1_pairs <- contrast(exp2j_m1_emm,
                            method = "revpairwise",
                            simple = "each",
                            combine = TRUE,
                            adjust = "none") %>%
   summary(infer = TRUE)
-ggplot_the_response(
+b <- emm_b(exp2j_m1_emm)
+dodge_width <- 0.4
+gg <- ggplot_the_response(
   exp2j_m1,
   exp2j_m1_emm,
-  exp2j_m1_pairs[c(3,2,4),],
+  exp2j_m1_pairs[c(1,3,4),],
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
   y_label = "Glucose uptake\n(nmol per mg protein\nper 15 min)",
-  y_pos = c(13.2, 13.6, 13.2)
-)
+  y_pos = c(13.6, 13.2, 13.3)
+) +
+  geom_segment(x = 2 + dodge_width/2 - 0.05,
+               y = b[1] + b[2] + b[3],
+               xend = 2 + dodge_width/2 + 0.05,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 2.25,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("ixn p = ",
+                  fmt_p_value_rmd(exp2j_m1_planned[4,"p.value"])),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black")
+
+gg
 ```
 
 ## Understanding the linear model with crossed factors 1
@@ -602,7 +627,7 @@ NULL
 
 
 
-```{r twoway-what-coefs-are, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "The coefficients of a linear model with two crossed factors, explained."}
+```{r twoway-what-coefs-are, echo=FALSE, fig.dim=std_dim, fig.cap = "The coefficients of a linear model with two crossed factors, explained."}
 
 # image_path <- here("images", "twoway-what_coefs_are.png")
 # knitr::include_graphics(image_path)
@@ -678,7 +703,7 @@ gg_something_different <- gg_ixn_explainer_base +
 
 ```
 
-```{r twoway-something-different, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "The interaction is something different, not more of the same. To get the observed difference (4), take the expected difference (3) and add something different (5)."}
+```{r twoway-something-different, echo=FALSE, fig.dim=std_dim, fig.cap = "The interaction is something different, not more of the same. To get the observed difference (4), take the expected difference (3) and add something different (5)."}
 # image_path <- here("images", "twoway-something-different.png")
 # knitr::include_graphics(image_path)
 
@@ -744,7 +769,7 @@ gg_what_we_want <- gg_ixn_explainer_base +
 
 ```
 
-```{r twoway-what-we-want, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
+```{r twoway-what-we-want, echo=FALSE, fig.dim=std_dim, fig.cap = "Why the interaction effect is the stimulation-induced TLR9-/- effect"}
 # image_path <- here("images", "twoway-what-we-want.png")
 # knitr::include_graphics(image_path)
 gg_what_we_want
@@ -1023,6 +1048,32 @@ plot_grid(gg_what_we_want, gg_ixn_same, ncol = 2, labels = "AUTO")
 
 ```
 
+### Power for the interaction effect is less than that for simple effects
+
+The interaction contrast is the difference of two simple contrasts and, consequently, the variance of the interaction contrast is [twice that of the simple contrasts](https://en.wikipedia.org/wiki/Variance#Sum_of_uncorrelated_variables_(Bienaymé_formula)){target="_blank"}. And, consequently, the SE of the interaction estimate is $\sim 1.4 \times$ larger than the precision of the two simple effects that form the contrast (1.4 is $sqrt{2}. The exact value will depend on differences in sample size among groups). The consequence of this is wider confidence intervals and larger *p*-values for the interaction contrast compared to a simple contrast of the same effect size.
+
+### Planned comparisons vs. post-hoc tests
+
+The contrasts computed above were planned based on questions motivating the experiment. The planned contrasts contain three of the four simple effects. The four simple effects are
+
+```{r}
+exp2j_m1_pairs <- contrast(exp2j_m1_emm,
+                           method = "revpairwise",
+                           simple = "each",
+                           combine = TRUE,
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+exp2j_m1_pairs %>%
+  kable(digits = c(1,1,1,2,3,1,2,2,1,6)) %>%
+  kable_styling()
+```
+
+There are six pairwise comparisons for this experiment. Two of these are not a simple effect:
+
+1. KO/Active - WT/Rest
+2. WT/Active - KO/Rest
+
+These are the contrasts of the diagonal pairs in the cell-means table (Table \@ref(tab:twoway-exp2j-cellmeans)). In a factorial design, we generally are not interested in these diagonal contrasts. They could be reported in a supplement. Recognize that if you are adjusting *p*-values for multiple tests, and you do not care about these contrasts but have included them in the computation of the adjustment, then your adjusted *p*-values are conservative.
 
 ## Example 2: Estimation of the effect of background condition on an effect ("it depends") (Experiment 3e lesian area data)
 
@@ -1071,7 +1122,11 @@ exp3e <- na.omit(exp3e) # be careful with a global na.omit
 
 ### Understand the experimental design
 
-**Research question** Does the X complement stimulate dyslipidemia and lipid-related diseases and, if so, how conditional is the effect on background gonad?
+**Research question**
+1. What is the effect of the X chromosome complement on lipid-related disease markers?
+2. What is the effect of sex (female or male gonad) on lipid-related disease markers?
+3. How conditional is the sex effect on the chromosome complement?
+4. How conditional is the effect of X chromosome complement on the level of sex?
 
 **Response variable** $\texttt{lesian_area}$ -- atherosclerotic lesian area in aortic sinus.
 
@@ -1095,18 +1150,24 @@ knitr::kable(factor_table) %>%
   kable_styling()
 ```
 
-The research question suggest the following contrasts
+The research question suggest the following planned contrasts
 
-Does the X complement stimulate dyslipidemia and lipid-related diseases?
+What is the effect of $\texttt{chromosome}$ on lipid-related disease markers?
 
 1. (Female/XX - Female/XY) -- effect of XX in mice with female gonad. If hypothesis is true, this should be large, negative.
 2. (Male/XX - Male/XY) -- effect of XX in mice with male gonad. If hypothesis is true, this should be large, negative.
 
-If so, how conditional is the effect on sex?
+What is the effect of $\texttt{sex}$ on lipid-related disease markers?
 
-3. (Male/XX - Male/XY) - (Female/XX - Female/XY) -- Interaction.
+3. (Male/XX - Female/XX) -- effect of sex in XX mice.
+4. (Male/XY - Female/XY) -- effect of sex in XY in mice.
 
-In this experiment, there is no treatment contrast or control contrast. Instead, there are three contrasts of equal interest -- the effect of XX in female mice, the effect of XX in male mice, and the difference in these effects.
+
+How conditional are the effects?
+
+5. (Male/XX - Male/XY) - (Female/XX - Female/XY) -- Interaction.
+
+In this experiment, there is no treatment contrast or control contrast. Instead, all four simple contrasts are of equal interest.
 
 ### Fit the linear model
 
@@ -1159,28 +1220,28 @@ mxy <- c(0,0,0,1)
 # the focal contrasts are in the understand the experiment section
 # 1. (FXY - FXX) 
 # 2. (MXY - MXX)
-# 3. Interaction
+# 3. (MXX - FXX)
+# 4. (MXY - FXY)
+# 5. Interaction
 
 exp3e_m1_planned <- contrast(exp3e_m1_emm,
                        method = list(
                          "FXY - FXX" = c(fxy - fxx),
-                         "MXY - MXX" = c(mxy - mxx)
+                         "MXY - MXX" = c(mxy - mxx),
+                         "MXX - FXX" = c(mxx - fxx),
+                         "MXY - FXY" = c(mxy - fxy),
+                         "Interaction" = c(mxy - mxx) -
+                           c(fxy - fxx)
+                           
                        ),
                        adjust = "none"
 ) %>%
   summary(infer = TRUE)
 
-exp3e_m1_ixn <- contrast(exp3e_m1_emm,
-                           interaction = c("revpairwise"),
-                           by = NULL) %>%
-  summary(infer = TRUE)
-
-# Make the interaction table conform (same column names)
-# to the planned table
-exp3e_m1_ixn <- cbind(contrast = "interaction",
-                        exp3e_m1_ixn[, -c(1:2)]) # remove cols 1:2
-# combine
-exp3e_m1_planned <- rbind(exp3e_m1_planned, exp3e_m1_ixn)
+# check
+ # exp3e_m1_ixn <- contrast(exp3e_m1_emm,
+ #                           interaction = c("revpairwise"),
+ #                           by = NULL)
 
 exp3e_m1_planned %>%
   kable(digits = c(0,3,4,0,3,3,2,5)) %>%
@@ -1194,39 +1255,61 @@ Explainer
 2. The magnitude of the estimated effect of XX in mice with male gonads is about 1/2 that in mice with female gonads. This difference is the magnitude of the interaction.
 3. Don't infer "no effect" given the p-value of the interaction. The estimate of the interaction effect has the same magnitude as the estimated effect of XX in mice with male gonads and about 1/2 the magnitude as the estimated effect of XX in mice with female gonads. The interaction *p*-value suggests caution in our confidence of the sign of this effect.
 
-**All simple effects**
-
-```{r two-way-simple}
-# step 4 - get the contrasts
-exp3e_m1_simple <- contrast(exp3e_m1_emm,
-                        method = "revpairwise",
-                        adjust = "none",
-                        simple = "each",
-                        combine = TRUE) %>%
-  summary(infer = TRUE)
-
-exp3e_m1_simple %>%
-  kable(digits = c(0,1,1,3,4,1,3,3,2,5)) %>%
-  kable_styling()
-```
-
-1. With $k=4$ groups, there are $k(k-1)/2$ pairwise comparisons. For many factorial designs, the comparisons of interest are the **simple effects**, which are the differences among the levels of factor 1 at each level of factor 2. For example, the difference between XY and XX means when sex is "female" (row 3 in the table) and the difference between XY and XX means when sex is "male". For a $2 \times 2$ design like this, there are four simple effects. I limited the output of the `contrast` function to the four simple effects using the `simple = "each"` and `combine = TRUE` arguments. To get all six effects, simply delete or comment out the `simple =` and `combine =` arguments.
-
 ### Plot the model
 
-```{r plot_the_model}
+```{r plot_the_model, fig.dim=harrell_dim*small_scale}
 
 exp3e_m1_plot <- ggplot_the_model(
   fit = exp3e_m1,
   fit_emm = exp3e_m1_emm,
-  fit_pairs = exp3e_m1_planned[1:3,],
+  fit_pairs = exp3e_m1_planned,
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
   y_label = expression(paste("Lesian area (", mm^2, ")")),
   effect_label = expression(paste("Effect (", mm^2, ")")),
-  contrast_rows = "all"
+  contrast_rows = "all",
+  rel_heights = c(0.5,1)
 )
 exp3e_m1_plot
+```
+### alternaPlot the model
+
+```{r twoway-exp3e-altplot, echo=TRUE, eval=TRUE, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "Dashed gray line is expected additive mean of KO/Active"}
+
+exp3e_m1_pairs <- contrast(exp3e_m1_emm,
+                           method = "revpairwise",
+                           simple = "each",
+                           combine = TRUE,
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+b <- emm_b(exp3e_m1_emm)
+dodge_width <- 0.4
+gg <- ggplot_the_response(
+  exp3e_m1,
+  exp3e_m1_emm,
+  exp3e_m1_pairs[1:4,],
+  palette = pal_okabe_ito_blue,
+  legend_position = "bottom",
+  y_label = expression(paste("Lesian area (", mm^2, ")")),
+  y_pos = c(0.75, 0.78, 0.72, 0.72)
+) +
+  geom_segment(x = 2 + dodge_width/2 - 0.05,
+               y = b[1] + b[2] + b[3],
+               xend = 2 + dodge_width/2 + 0.05,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 2.25,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("ixn p = ",
+                  fmt_p_value_rmd(exp3e_m1_planned[5,"p.value"])),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black")
+
+gg
 ```
 
 ## Understanding the linear model with crossed factors 2
@@ -1485,7 +1568,7 @@ The interaction *p*-value for the lesion-area data is 0.078. Should we refit the
 3. Regardless, for this example, I would not avoid reporting the interaction effect and the conditional effects somewhere. The estimated interaction effect (0.14 mm$^2$) is moderately large relative to the four simple effects. It's much bigger than the marginal effect of sex (Table \@ref(tab:twoway-exp3e-m2-pairs)) and about 2/3 the size of the marginal effect of chromosome (Table \@ref(tab:twoway-exp3e-m2-pairs)).
 4. A response plot of both models (Figure \@ref(fig:twoway-additive-plot)) can help understanding and the decision of which model to report.
 
-```{r twoway-additive-plot, echo=FALSE, fig.cap = "A. Conditional means and p-values of conditional effects. B. Marginal means and p-values of marginal effects."}
+```{r twoway-additive-plot, echo=FALSE, fig.width=full_width, fig.asp=0.5, fig.cap = "A. Conditional means and p-values of conditional effects. B. Marginal means and p-values of marginal effects."}
 gg1 <- ggplot_the_response(exp3e_m1,
                     exp3e_m1_emm,
                     exp3e_m1_pairs,
@@ -1536,11 +1619,11 @@ exp3e_m2_coef
 
 ```
 
-## Example 3: Estimation of synergy ("More than the sum of the parts") (Experiment 1a ABA data)
+## Example 3: Estimation of synergy ("More than the sum of the parts") (Experiment 1c JA data)
 
 To explain what synergy is and why it is estimated by the interaction effect, this example uses data from an experiment measuring the effect of two defense signals on the defense response in Maize plants. In response to herbivory from insects, maize, and other plants, release multiple, chemical signals into the air (chemicals that evaporate into the air are known as volatile compounds). These chemicals signal the plant, and neighboring plants, to secrete anti-herbivory hormones, including abcisic acid and jasmonic acid. The researchers investigated the effects of two volatile compounds, (Z)‐3‐hexenyl acetate (HAC) and Indole, on the defense response both each without the other and in combination.
 
-The example data come from Figure 1a, which is the effect of HAC and Indole on tissue concentrations of the hormone abcisic acid (ABA). The design is fully crossed with two factors, each with two levels: $\texttt{hac}$, with levels "HAC-" and "HAC+", and $\texttt{indole}$, with levels ("Indole-" and "Indole+").
+The example data come from Figure 1c, which is the effect of HAC and Indole on tissue concentrations of the hormone jasmonic acid (JA). The design is fully crossed with two factors, each with two levels: $\texttt{hac}$, with levels "HAC-" and "HAC+", and $\texttt{indole}$, with levels ("Indole-" and "Indole+").
 
 ```{r factorial-2way-table, echo = FALSE, message=FALSE, warning=FALSE}
 df <- data.frame("HAC-" = c("Control", "Indole"),
@@ -1549,7 +1632,7 @@ row.names(df) <- c("Indole-", "Indole+")
 knitr::kable(df, col.names = c("HAC-", "HAC+"))
 ```
 
-```{r twoway-aba-import, echo=FALSE, warning=FALSE, message=FALSE}
+```{r twoway-ja-import, echo=FALSE, warning=FALSE, message=FALSE}
 
 data_from <- "Integration of two herbivore-induced plant volatiles results in synergistic effects on plant defense and resistance"
 file_name <- "Data for Dryad.xlsx"
@@ -1562,13 +1645,16 @@ exp1 <- read_excel(file_path,
   data.table() %>%
   clean_names()
 
-exp1[treat == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
-exp1[treat == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
-exp1[treat == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
-exp1[treat == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
+setnames(exp1, old = "treat", new = "treatment")
 
-treat_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
-exp1[, treat := factor(treat, levels = treat_levels)]
+exp1[treatment == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
+exp1[treatment == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
+exp1[treatment == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
+exp1[treatment == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
+
+treatment_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
+exp1[, treatment := factor(treatment,
+                           levels = treatment_levels)]
 exp1[, hac := factor(hac)] # levels in correct order
 exp1[, indole := factor(indole)] # levels in correct order
 # View(exp1)
@@ -1577,19 +1663,19 @@ exp1[, indole := factor(indole)] # levels in correct order
 ### Examine the data
 
 ```{r}
-qplot(x = treat, y = aba, data = exp1)
+qplot(x = treatment, y = ja, data = exp1)
 ```
 
 Too few points for box plot. control variance is small. No obvious implausible points. fit with lm but recognize small n warning for any inference.
 
 ### Fit the model
-```{r  twoway-aba-m1}
-exp1c_m1 <- lm(aba ~ hac * indole, data = exp1)
+```{r  twoway-ja-m1}
+exp1c_m1 <- lm(ja ~ hac * indole, data = exp1)
 ```
 
 ### Model check
 
-```{r twoway-aba-check}
+```{r twoway-ja-check}
 ggcheck_the_model(exp1c_m1)
 ```
 
@@ -1597,7 +1683,7 @@ The distribution looks like a sample from a Normal. The variance looks like it i
 
 ### Inference from the model
 
-```{r twoway-aba-coef}
+```{r twoway-ja-coef}
 exp1c_m1_coef <- tidy(exp1c_m1, conf.int = TRUE)
 
 exp1c_m1_coef %>%
@@ -1606,7 +1692,7 @@ exp1c_m1_coef %>%
 ```
 
 
-```{r twoway-aba-emm}
+```{r twoway-ja-emm}
 exp1c_m1_emm <- emmeans(exp1c_m1, specs = c("hac", "indole"))
 
 exp1c_m1_emm %>%
@@ -1614,78 +1700,78 @@ exp1c_m1_emm %>%
   kable_styling()
 ```
 
-```{r twoway-aba-pairs}
-exp1c_m1_pairs <- contrast(exp1c_m1_emm,
-                     method = "revpairwise",
-                     simple = "each",
-                     combine = TRUE,
-                     adjust = "none") %>%
+```{r twoway-ja-planned}
+# exp1c_m1_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+ref <- c(1,0,0,0)
+hac <- c(0,1,0,0)
+indole <- c(0,0,1,0)
+hac_indole <- c(0,0,0,1)
+
+# contrasts are the difference in the vectors created above
+# these planned contrasts are described above
+# 1. (hac+/indole- - hac-/indole-) # add hac
+# 2. (hac-/indole+ -  hac-/indole-) # add indole
+# 3. (hac+/indole+ - hac-/indole+) - (hac+/indole- - hac-/indole-) # Interaction
+
+exp1c_m1_planned <- contrast(
+  exp1c_m1_emm,
+  method = list(
+    "hac+" = c(hac - ref),
+    "indole+" = c(indole - ref),
+    "HAC/Indole Ixn" = c(hac_indole - indole) -
+      (hac - ref)
+  ),
+  adjust = "none"
+) %>%
   summary(infer = TRUE)
 
-exp1c_m1_pairs %>%
-  kable(digits = c(1,1,1,1,2,1,1,1,2,5)) %>%
-  kable_styling()
-```
-
-```{r twoway-aba-ixn}
-exp1c_m1_ixn <- contrast(exp1c_m1_emm,
-                           interaction = c("revpairwise"),
-                           by = NULL) %>%
-  summary(infer = TRUE)
-
-exp1c_m1_ixn %>%
-  kable(digits = c(1,1,1,2,0,2,1,2,3)) %>%
-  kable_styling()
-```
-
-```{r twoway-aba-ixn-combined}
-# Make the interaction table conform (same column names)
-# to the planned table
-exp1c_m1_ixn <- data.table(exp1c_m1_ixn)
-colnames(exp1c_m1_ixn)[1:2] <- colnames(exp1c_m1_pairs)[c(2,1)]
-exp1c_m1_ixn[, indole := "(Indole+)"]
-exp1c_m1_ixn[, hac := "(HAC+)"]
-exp1c_m1_ixn[, contrast := "ixn"]
-
-# combine
-exp1c_m1_pairs <- rbind(exp1c_m1_pairs, exp1c_m1_ixn)
-
-exp1c_m1_pairs %>%
-  kable(digits = c(0,3,4,0,3,3,2,5)) %>%
+exp1c_m1_planned %>%
+  kable(digits = c(1,2,3,1,2,2,2,5)) %>%
   kable_styling()
 ```
 
 ### Plot the model
 
-```{r twoway-aba-plot, echo=FALSE, fig.width=std_width, fig.asp=harrell_ar, dev.args = list(type = "cairo-png")}
+```{r twoway-ja-plot, echo=FALSE, , fig.dim=harrell_dim*small_scale, dev.args = list(type = "cairo-png")}
+
+m1 <- lm(ja ~ treatment, data = exp1)
+m1_emm <- emmeans(m1, specs = "treatment")
 ggplot_the_model(
   fit = exp1c_m1,
   fit_emm = exp1c_m1_emm,
-  fit_pairs = exp1c_m1_pairs,
-  palette = pal_okabe_ito_blue,
+  fit_pairs = exp1c_m1_planned,
+  dodge_width = 1,
+  palette = pal_okabe_ito_4,
   legend_position = "bottom",
-  y_label = "ABA\n(ng per g FW)",
+  y_label = "JA\n(ng per g FW)",
   #y_label = expression(paste("Abcisic acid\n(ng", g^-1, "FW)")),
-  effect_label = "Difference in ABA",
+  effect_label = "Difference in JA",
   contrast_rows = "all",
-  rel_heights = c(0.6,1),
+  rel_heights = c(0.4,1)
 )
 ```
 
 ### Alternative plot
 
-```{r twoway-aba-alternaplot, echo=FALSE, fig.width=std_width, fig.asp=response_ar, dev.args = list(type = "cairo-png"), fig.cap = "An alternative plot for showing the estimate of synergy. Gray, dashed line is the expected mean of the HAC + Indole group if the interaction is zero."}
-b <- emm_b(exp1c_m1_emm)
+```{r twoway-ja-alternaplot, echo=FALSE, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "An alternative plot for showing the estimate of synergy. Gray, dashed line is the expected mean of the HAC + Indole group if the interaction is zero."}
 
-gg <- ggplot_the_response(
+b <- emm_b(exp1c_m1_emm)
+exp1c_m1_pairs <- contrast(exp1c_m1_emm,
+                           method = "revpairwise",
+                           simple = "each",
+                           combine = TRUE,
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+
+ggplot_the_response(
   fit = exp1c_m1,
   fit_emm = exp1c_m1_emm,
-  fit_pairs = exp1c_m1_pairs[1:4,],
+  fit_pairs = exp1c_m1_pairs,
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
-  y_label = "ABA\n(ng per g FW)",
-  contrast_rows = "all",
-  y_pos = c(69, 73, 65, 65)
+  y_label = "JA\n(ng per g FW)",
+  contrast_rows = c(3,1)
 ) +
   
   # add additive mean
@@ -1702,7 +1788,7 @@ gg <- ggplot_the_response(
     y = b[1] + b[2] + b[3],
     yend = b[1] + b[2] + b[3] + b[4],
     label = paste0("synergy\n(interaction)\np = ",
-                   fmt_p_value_rmd(exp1c_m1_pairs[5,"p.value"])),
+                   fmt_p_value_rmd(exp1c_m1_planned[3,"p.value"])),
     text.size = 3,
     text.hjust = 0,
     color = "black") +
@@ -1710,20 +1796,8 @@ gg <- ggplot_the_response(
   NULL
 
 
-# image_path <- here("images", "twoway-example3-alternaplot.png")
-# ggsave(image_path,
-#        width = small_width,
-#        height = small_width*response_ar,
-#        units = "in")
-
-
 ```
 
-```{r twoway-alternaplot-plot, echo=FALSE, fig.width=std_width, fig.asp=response_ar, dev.args = list(type = "cairo-png"), fig.cap = "An alternative plot for showing the estimate of synergy. Gray, dashed line is the expected mean of the HAC + Indole group if the interaction is zero."}
-# image_path <- here("images", "twoway-example3-alternaplot.png")
-# knitr::include_graphics(image_path)
-gg
-```
 
 ```{r sad3FUN, echo=FALSE}
 sad3 <- function(m1, m1_emm){
@@ -1790,7 +1864,7 @@ gg
 
 $$
 \begin{equation}
-\texttt{aba} = \beta_0 + \beta_1 (\texttt{hac}_\texttt{HAC+}) + \beta_2 (\texttt{indole}_\texttt{Indole+}) + \beta_3 (\texttt{hac}_\texttt{HAC+}:\texttt{indole}_\texttt{Indole+}) +\varepsilon
+\texttt{ja} = \beta_0 + \beta_1 (\texttt{hac}_\texttt{HAC+}) + \beta_2 (\texttt{indole}_\texttt{Indole+}) + \beta_3 (\texttt{hac}_\texttt{HAC+}:\texttt{indole}_\texttt{Indole+}) +\varepsilon
 (\#eq:factorial-full)
 \end{equation}
 $$
@@ -1804,7 +1878,7 @@ exp1c_m1_coef %>%
   kable_styling()
 ```
 
-Again, the interaction is a **non-additive effect**. Adding HAC alone increases ABA concentration by 13.3 ng per g FW. Adding Indole alone increases ABA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
+Again, the interaction is a **non-additive effect**. Adding HAC alone increases JA concentration by 13.3 ng per g FW. Adding Indole alone increases JA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
 
 ```{r twoway-synergy-build, echo=FALSE, eval=TRUE}
 
@@ -1900,7 +1974,7 @@ gg_synergy <- ggplot(data = gg_table,
   
   scale_fill_manual(values = rev(pal_okabe_ito_blue[1:4])) +
   
-  ylab("ABA (ng per g FW)") +
+  ylab("JA (ng per g FW)") +
   theme_minimal_hgrid() +
   
   theme(axis.title.x=element_blank()) +
@@ -1920,10 +1994,25 @@ gg_synergy <- ggplot(data = gg_table,
 # gg_synergy
 ```
 
-```{r twoway-synergy, echo=FALSE, fig.width=std_width, fig.asp=std_ar, fig.cap="Synergy is the bit needed to get to the HAC + Indole mean after adding the HAC effect and the Indole effect to the Control mean"}
+```{r twoway-synergy, echo=FALSE, fig.dim=std_dim, fig.cap="Synergy is the bit needed to get to the HAC + Indole mean after adding the HAC effect and the Indole effect to the Control mean"}
 # image_path <- here("images", "twoway-synergy.png")
 # knitr::include_graphics(image_path)
 gg_synergy
+```
+## Violations in inference
+### Heterogeneity
+
+```{r}
+exp1a_m1 <- lm(aba ~ hac * indole, data = exp1)
+exp1a_m2 <- gls(aba ~ hac * indole,
+                data = exp1,
+                weights = varIdent(form = ~ 1 | treatment))
+tidy(exp1a_m1)
+
+exp1a_m2_emm <- emmeans(exp1a_m2, specs = c("hac", "indole"))
+exp1a_m2_ixn <- contrast(exp1a_m2_emm,
+                         interaction = "revpairwise")
+exp1a_m2_ixn
 ```
 
 ## Issues in inference
@@ -2296,7 +2385,7 @@ anova_build_gg <- function(){
 # gg
 ```
 
-```{r twoway-anova-explainer-plot, echo=FALSE, fig.width=std_width, fig.asp = std_ar, message=FALSE, fig.cap = "The main effect of stimulation in the ANOVA table tests the average of the conditional effects of stimulation. The average of the conditional effects is the difference between the marginal means of Active and of Rest."}
+```{r twoway-anova-explainer-plot, echo=FALSE, fig.dim=std_dim, message=FALSE, fig.cap = "The main effect of stimulation in the ANOVA table tests the average of the conditional effects of stimulation. The average of the conditional effects is the difference between the marginal means of Active and of Rest."}
 
 # image_path <- here("images", "twoway-main-1.png")
 # knitr::include_graphics(image_path)
