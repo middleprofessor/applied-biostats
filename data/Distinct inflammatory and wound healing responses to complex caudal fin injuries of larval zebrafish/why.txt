@@ -1,0 +1,7 @@
+Anion channel SLAH3 is a regulatory target of chitin receptor-associated kinase PBL27 in microbial stomatal closure
+
+why - all data - multiple measures per plant. Three experimental replications. Used nested ANOVA
+- blocking
+
+fig 1b - 2 x 2.
+fib 1c - 3 x 2

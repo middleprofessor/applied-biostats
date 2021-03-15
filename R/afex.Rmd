@@ -1,0 +1,495 @@
+---
+title: "afex code"
+author: "Jeffrey A. Walker"
+date: "2/25/2021"
+output: html_document
+---
+
+```{r}
+check_contrasts <- function(data, factors, 
+                            check_contrasts, type, 
+                            warn = TRUE) {
+  if (check_contrasts) {
+    resetted <- NULL
+    for (i in factors) {
+      if (is.character(data[,i])) {
+        data[,i] <- factor(data[,i])
+      }
+      if (is.factor(data[,i])) {
+        if (is.null(attr(data[,i], "contrasts")) & 
+            (options("contrasts")[[1]][1] != "contr.sum")) {
+          contrasts(data[,i]) <- "contr.sum"
+          resetted  <- c(resetted, i)
+        }
+        else if (!is.null(attr(data[,i], "contrasts")) && 
+                 attr(data[,i], "contrasts") != "contr.sum") {
+          contrasts(data[,i]) <- "contr.sum"
+          resetted  <- c(resetted, i)
+        }
+      }
+    }
+    if (!is.null(resetted)) 
+      message(paste0("Contrasts set to contr.sum for the following variables: ", 
+                     paste0(resetted, collapse=", ")))
+  } else if (warn) {
+    non_sum_contrast <- c()
+    for (i in factors) {
+      if (is.factor(data[,i])) {
+        if (is.null(attr(data[,i], "contrasts")) & 
+            (options("contrasts")[[1]][1] != "contr.sum")) {
+          non_sum_contrast <- c(non_sum_contrast, i)
+        }
+        else if (!is.null(attr(data[,i], "contrasts")) && 
+                 attr(data[,i], "contrasts") != "contr.sum") {
+          non_sum_contrast <- c(non_sum_contrast, i)
+        }
+      }
+    }
+    if((type == 3 | type == "III") && (length(non_sum_contrast)>0)) 
+      warning(
+        paste0("Calculating Type 3 sums with contrasts != 'contr.sum' for: ", 
+               paste0(non_sum_contrast, collapse=", "), 
+               "\n  Results likely bogus or not interpretable!\n",
+               "You probably want check_contrasts = TRUE or ", 
+               "options(contrasts=c('contr.sum','contr.poly'))"), 
+        call. = FALSE)
+  }
+  return(data)
+}
+
+## paste function that can replace stringr::str_c and differs from the way 
+# paste handles NULL arguments as last arguments. 
+# It checks whether the first or last char of the string is equal to sep and 
+# removes it in this case.
+mypaste <- function(..., sep) {
+  tmp <- paste(..., sep = sep)
+  if (substr(tmp, nchar(tmp), nchar(tmp)) == sep) {
+    tmp <- substr(tmp, 1, nchar(tmp)-1)
+  }
+  if (substr(tmp, 1, 1) == sep) {
+    tmp <- substr(tmp, 2, nchar(tmp))
+  }
+  tmp
+}
+
+escape_vars <- function(names) {
+  if (length(names) == 0)
+    return(names)
+  names <- vapply(names, function(name) {
+    if (make.names(name) != name) {
+      name <- gsub('\\', '\\\\', name, fixed=TRUE)
+      name <- gsub('`',  '\\`',  name, fixed=TRUE)
+      name <- paste0('`', name, '`')
+    }
+    name
+  }, FUN.VALUE='', USE.NAMES=FALSE)
+  names
+}
+
+# decompose functions from jmvcore
+
+decomposeTerm <- function(term) {
+
+    chars <- strsplit(term, '')[[1]]
+    components <- character()
+    componentChars <- character()
+    inQuote <- FALSE
+
+    i <- 1
+    n <- length(chars)
+
+    while (i <= n) {
+        char <- chars[i]
+        if (char == '`') {
+            inQuote <- ! inQuote
+        }
+        else if (char == '\\') {
+            i <- i + 1
+            char <- chars[i]
+            componentChars <- c(componentChars, char)
+        }
+        else if (char == ':' && inQuote == FALSE) {
+            component <- paste0(componentChars, collapse='')
+            components <- c(components, component)
+            componentChars <- character()
+        }
+        else {
+            componentChars <- c(componentChars, char)
+        }
+        i <- i + 1
+    }
+
+    component <- paste0(componentChars, collapse='')
+    components <- c(components, component)
+
+    components
+}
+
+
+print_legend <- function(x) {
+  sig_symbols <- as.character(attr(x, "sig_symbols"))
+  if(length(sig_symbols) > 0 & !all(sig_symbols == rep("", 4))) {
+    sleg <- attr(stats::symnum(0, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), 
+                               symbols = rev(c(" " , trimws(sig_symbols)))), "legend")
+    width <- getOption("width")
+    
+    if(width < nchar(sleg)) {
+      sleg <- strwrap(sleg, width = width - 2, prefix = "  ")
+    } 
+    
+    cat("---\nSignif. codes:  ", sleg, sep = "", fill = getOption("width") + 4 + max(nchar(sleg, "bytes") - nchar(sleg)))
+  }
+}
+```
+
+```{r}
+aov_4_check <- function (formula, data, observed = NULL, fun_aggregate = NULL, 
+    type = afex_options("type"), factorize = afex_options("factorize"), 
+    check_contrasts = afex_options("check_contrasts"), return = afex_options("return_aov"), 
+    anova_table = list(), include_aov = afex_options("include_aov"), 
+    ..., print.formula = FALSE) 
+{
+    barterms <- findbars(formula)
+    if (length(barterms) > 1) 
+        stop("aov_4 only allows one random effect term")
+    within <- all.vars(barterms[[1]][[2]])
+    id <- all.vars(barterms[[1]][[3]])
+    id <- escape_vars(id)
+    within <- escape_vars(within)
+    error <- paste0(" + Error(", id, if (length(within) > 0) 
+        "/("
+    else "", paste0(within, collapse = " * "), if (length(within) > 
+        0) 
+        ")"
+    else "", ")")
+    lh <- as.character(nobars(formula))
+    if (length(lh) == 1) {
+        dv <- lh
+        rh <- "1"
+    }else {
+        dv <- lh[2]
+        rh <- lh[3]
+    }
+    formula <- paste0(dv, " ~ ", rh, error)
+    if (print.formula) 
+        message(paste0("Formula send to aov_car: ", formula))
+    aov_car(formula = as.formula(formula), data = data, fun_aggregate = fun_aggregate, 
+        type = type, return = return, factorize = factorize, 
+        check_contrasts = check_contrasts, observed = observed, 
+        anova_table = anova_table, include_aov = include_aov, 
+        ...)
+}
+```
+
+```{r aov_car, include=FALSE}
+fun_aggregate = NULL
+type = afex_options("type")
+factorize = afex_options("factorize")
+check_contrasts = afex_options("check_contrasts")
+observed = NULL
+anova_table = list()
+include_aov = afex_options("include_aov")
+return = afex_options("return_aov")
+```
+
+
+```{r aov_car, include=FALSE}
+aov_car_check <- function (formula, data, fun_aggregate = NULL, type = afex_options("type"), 
+    factorize = afex_options("factorize"), check_contrasts = afex_options("check_contrasts"), 
+    observed = NULL, anova_table = list(), include_aov = afex_options("include_aov"), 
+    return = afex_options("return_aov"), ...)
+  
+{
+    return <- match.arg(return, c("Anova", "lm", "data", "nice", 
+        "afex_aov", "univariate", "marginal", "aov"))
+#    dots <- list(...)
+    # if ("check.contrasts" %in% names(dots)) {
+    #     warn_deprecated_arg("check.contrasts", "check_contrasts")
+    #     check_contrasts <- dots$check.contrasts
+    #     dots <- dots[names(dots) != "check.contrasts"]
+    # }
+    # if ("fun.aggregate" %in% names(dots)) {
+    #     warn_deprecated_arg("fun.aggregate", "fun_aggregate")
+    #     fun_aggregate <- dots$fun.aggregate
+    #     dots <- dots[names(dots) != "fun.aggregate"]
+    # }
+    # data <- as.data.frame(data)
+    Terms <- terms(formula, "Error", data = data)
+    indError <- attr(Terms, "specials")$Error
+    if (length(indError) > 1L) 
+        stop(sprintf(ngettext(length(indError), "there are %d Error terms: only 1 is allowed", 
+            "there are %d Error terms: only 1 is allowed"), length(indError)), 
+            domain = NA)
+    if (is.null(indError)) {
+        stop("formula needs an error term identifying the ID column.")
+    }
+    vars <- all.vars(formula)
+    lhs <- all.names(formula[[2]])
+    transf <- setdiff(lhs, all.vars(formula[[2]]))
+    if (length(transf) == 0) 
+        transf = NULL
+    if (!is.null(transf)) {
+        origdv <- setdiff(lhs, transf)
+        dv <- paste0(transf[1], ".", origdv)
+        data[[dv]] <- eval(formula[[2]], envir = data)
+        vars <- vars[!(vars %in% lhs)]
+    }else {
+        dv <- vars[1]
+        if (!is.numeric(data[, dv])) 
+            stop("dv needs to be numeric.")
+        vars <- vars[-1]
+    }
+    parts <- attr(terms(formula, "Error", data = data), "term.labels")
+    error.term <- parts[grepl("^Error\\(", parts)]
+    id <- all.vars(parse(text = error.term))[1]
+    within <- all.vars(parse(text = error.term))[-1]
+    between <- vars[!(vars %in% c(id, within))]
+    dv.escaped <- escape_vars(dv)
+    id.escaped <- escape_vars(id)
+    within.escaped <- escape_vars(within)
+    between.escaped <- escape_vars(between)
+    effect.parts <- parts[!grepl("^Error\\(", parts)]
+    if (length(within) > 0) {
+        effect.parts.no.within <- character()
+        for (term in effect.parts) {
+            components <- decomposeTerm(term)
+            if (!any(within %in% components)) 
+                effect.parts.no.within <- c(effect.parts.no.within, 
+                  term)
+        }
+    }else {
+        effect.parts.no.within <- effect.parts
+    }
+    data <- droplevels(data)
+    if (!(is.factor(data[, id]))) 
+        data[, id] <- factor(data[, id])
+    if (factorize) {
+        if (any(!vapply(data[, between, drop = FALSE], is.factor, 
+            TRUE))) {
+            to.factor <- between[!vapply(data[, between, drop = FALSE], 
+                is.factor, TRUE)]
+            message(paste0("Converting to factor: ", paste0(to.factor, 
+                collapse = ", ")))
+            for (tmp.c in to.factor) {
+                data[, tmp.c] <- factor(data[, tmp.c])
+            }
+        }
+    }else {
+        c.ns <- between[vapply(data[, between, drop = FALSE], 
+            is.numeric, TRUE)]
+        if (length(c.ns) > 0) {
+            non.null <- c.ns[!abs(vapply(data[, c.ns, drop = FALSE], 
+                mean, 0)) < .Machine$double.eps^0.5]
+            if (length(non.null) > 0) 
+                warning(paste0("Numerical variables NOT centered on 0 (i.e., likely bogus results): ", 
+                  paste0(non.null, collapse = ", ")), call. = FALSE)
+        }
+    }
+    
+    for (i in c(between, within)) {
+        if (is.factor(data[, i]) && length(unique(data[, i])) == 
+            1) 
+            stop(paste0("Factor \"", i, "\" consists of one level only. Remove factor from model?"))
+    }
+    rh2 <- if (length(between.escaped) > 0){ 
+        paste0(effect.parts.no.within, collapse = "+")
+      } else "1"
+    lh1 <- mypaste(id, if (length(between.escaped) > 0) {
+        paste0(between.escaped, collapse = "+")} else NULL, sep = "+")
+    rh1 <- paste0(within.escaped, collapse = "+")
+    rh3 <- paste0(within.escaped, collapse = "*")
+    for (within.factor in within) {
+        if (is.factor(data[, within.factor])){ 
+            levels(data[, within.factor]) <- make.names(levels(data[, 
+                within.factor]), unique = TRUE)}
+      else data[, within.factor] <- factor(as.character(data[, 
+            within.factor]), levels = unique(as.character(data[, 
+            within.factor])), labels = make.names(unique(as.character(data[, 
+            within.factor])), unique = TRUE))
+    }
+    between.factors <- between[vapply(data[, between, drop = FALSE], 
+        is.factor, TRUE)]
+    if (length(between.factors) > 0) {
+        split.data <- split(data, lapply(between.factors, function(x) data[, 
+            x]))
+        ids.per.condition <- lapply(split.data, function(x) unique(as.character(x[, 
+            id])))
+        ids.in.more.condition <- unique(unlist(lapply(seq_along(ids.per.condition), 
+            function(x) unique(unlist(lapply(ids.per.condition[-x], 
+                function(y, z = ids.per.condition[[x]]) intersect(z, 
+                  y)))))))
+        if (length(ids.in.more.condition) > 0) {
+            stop(paste0("Following ids are in more than one between subjects condition:\n", 
+                paste0(ids.in.more.condition, collapse = ", ")))
+        }
+    }
+    if ((length(within) > 0) && any(table(data[within]) == 0)) {
+        stop("Empty cells in within-subjects design ", " (i.e., bad data structure).\n", 
+            "", paste0("table(data[", deparse(within), "])"), 
+            "\n# ", paste(utils::capture.output(table(data[within])), 
+                collapse = "\n# "), call. = FALSE)
+    }
+    between_nn <- between[!vapply(data[between], is.numeric, 
+        NA)]
+    if (length(between_nn) > 0 && any(table(data[between_nn]) == 
+        0)) {
+        stop("Empty cells in between-subjects design ", " (i.e., bad data structure).\n", 
+            "", paste0("table(data[", deparse(between_nn), "])"), 
+            "\n# ", paste(utils::capture.output(table(data[between_nn])), 
+                collapse = "\n# "), call. = FALSE)
+    }
+    if (is.null(fun_aggregate)) {
+        if (any(xtabs(as.formula(paste0("~", id.escaped, if (length(within) > 
+            0) "+", rh1)), data = data) > 1)) {
+            warning("More than one observation per cell, aggregating the data using mean (i.e, fun_aggregate = mean)!", 
+                call. = FALSE)
+            fun_aggregate <- mean
+        }
+    }
+    tmp.dat <- do.call(dcast, args = c(data = list(data), formula = as.formula(paste(lh1, 
+        if (length(within) > 0) rh1 else ".", sep = "~")), fun.aggregate = fun_aggregate, 
+        value.var = dv))
+#        dots, value.var = dv))
+    if (any(is.na(tmp.dat))) {
+        missing.values <- apply(tmp.dat, 1, function(x) any(is.na(x)))
+        missing_ids <- unique(tmp.dat[missing.values, 1])
+        warning(paste0("Missing values for following ID(s):\n", 
+            paste0(missing_ids, collapse = ", "), "\nRemoving those cases from the analysis."), 
+            call. = FALSE)
+        tmp.dat <- tmp.dat[!missing.values, ]
+        data <- data[!(data[, id] %in% missing_ids), ]
+        if ((nrow(data) == 0) | (nrow(tmp.dat) == 0)) {
+            stop("No observations remain after removing missing values.", 
+                "\n  Try adding to ANOVA call: na.rm = TRUE", 
+                call. = FALSE)
+        }
+    } else {
+        missing_ids <- NULL
+    }
+    dat.ret <- do.call(dcast, args = c(data = list(data), formula = as.formula(paste0(mypaste(lh1, 
+        if (length(within) > 0) rh1 else NULL, sep = "+"), "~.")), 
+        fun.aggregate = fun_aggregate, value.var = dv))
+#        fun.aggregate = fun_aggregate, dots, value.var = dv))
+    colnames(dat.ret)[length(colnames(dat.ret))] <- dv
+    if (!isTRUE(all.equal(target = data[, c(id, between, within, 
+        dv)], current = dat.ret[, c(id, between, within, dv)], 
+        check.attributes = FALSE))) {
+        data_changed <- TRUE
+    }else {
+        data_changed <- FALSE
+    }
+    if (length(between) > 0) {
+        tmp.dat <- check_contrasts(data = tmp.dat, factors = between, 
+            check_contrasts = check_contrasts, type = type)
+    }
+    if (return %in% c("aov")) {
+        include_aov <- TRUE}
+    
+    # do aov
+    if (include_aov) {
+        if (check_contrasts) {
+            factor_vars <- vapply(dat.ret[, c(within, between), 
+                drop = FALSE], is.factor, NA)
+            contrasts <- as.list(rep("contr.sum", sum(factor_vars)))
+            names(contrasts) <- c(within, between)[factor_vars]
+        }
+        tmp_formula <- formula(paste(dv.escaped, "~", if (length(within) > 
+            0) {
+            paste(if (rh2 == "1") {
+                paste(within.escaped, collapse = "*")
+            } else {
+                paste("(", rh2, ")*(", paste(within.escaped, 
+                  collapse = "*"), ")")
+            }, "+Error(", id.escaped, "/(", paste(within.escaped, 
+                collapse = "*"), "))")
+        } else rh2))
+        aov <- aov(tmp_formula, data = dat.ret, contrasts = contrasts)
+    } else {
+        aov <- NULL
+    }
+    if (return == "aov") 
+        return(aov)
+    data.l <- list(long = dat.ret, wide = tmp.dat)
+    
+    if (return == "data") 
+        return(tmp.dat)
+    
+    # do Anova using multivariate model
+    if (length(within) > 0) {
+        if (length(within) > 1) {
+            within.levels <- lapply(lapply(data[, within], levels), 
+                factor)
+            idata <- rev(expand.grid(rev(within.levels)))
+        } else {
+            idata <- data.frame(levels(data[, within]), stringsAsFactors = TRUE)
+            colnames(idata) <- within
+        }
+        tmp.lm <- do.call("lm", list(formula = as.formula(paste0("cbind(", 
+            paste0(colnames(tmp.dat[-(seq_along(c(id, between)))]), 
+                collapse = ", "), ") ~ ", rh2)), data = tmp.dat))
+        if (any(is.na(coef(tmp.lm)))) 
+            stop("Some parameters are not estimable, most likely due to empty cells of the design (i.e., structural missings). Check your data.")
+        if (return == "lm") 
+            return(tmp.lm)
+        Anova.out <- Anova(tmp.lm, idata = idata, idesign = as.formula(paste0("~", 
+            rh3)), type = type)
+        data.l <- c(data.l, idata = list(idata))
+    } else {
+        colnames(tmp.dat)[ncol(tmp.dat)] <- "dv"
+        tmp.lm <- do.call("lm", list(formula = as.formula(paste0("dv ~ ", 
+            rh2)), data = tmp.dat))
+        if (return == "lm") 
+            return(tmp.lm)
+        Anova.out <- Anova(tmp.lm, type = type)
+    }
+    
+    # done with models
+    
+    # return
+    if (return == "afex_aov") {
+        afex_aov <- list(anova_table = NULL, aov = aov, Anova = Anova.out, 
+            lm = tmp.lm, data = data.l)
+        class(afex_aov) <- "afex_aov"
+        attr(afex_aov, "dv") <- dv
+        attr(afex_aov, "id") <- id
+        attr(afex_aov, "within") <- if (length(within) > 0) 
+            lapply(data[, within, drop = FALSE], levels)
+        else list()
+        attr(afex_aov, "between") <- if (length(between) > 0) 
+            lapply(data[, between, drop = FALSE], levels)
+        else list()
+        attr(afex_aov, "type") <- type
+        attr(afex_aov, "transf") <- transf
+        attr(afex_aov, "incomplete_cases") <- missing_ids
+        attr(afex_aov, "data_changed") <- data_changed
+        afex_aov$anova_table <- do.call("anova", args = c(object = list(afex_aov), 
+            observed = list(observed), anova_table))
+        return(afex_aov)
+    }
+    if (return == "Anova") 
+        return(Anova.out)
+    else if (return == "univariate") {
+        if (inherits(Anova.out, "Anova.mlm")) 
+            return(summary(Anova.out, multivariate = FALSE))
+        else return(Anova.out)
+    }
+    else if (return == "nice") {
+        afex_aov <- list(anova_table = NULL, Anova = Anova.out)
+        class(afex_aov) <- "afex_aov"
+        attr(afex_aov, "dv") <- dv
+        attr(afex_aov, "id") <- id
+        attr(afex_aov, "within") <- if (length(within) > 0) 
+            lapply(data[, within, drop = FALSE], levels)
+        else list()
+        attr(afex_aov, "between") <- if (length(between) > 0) 
+            lapply(data[, between, drop = FALSE], levels)
+        else list()
+        attr(afex_aov, "type") <- type
+        afex_aov$anova_table <- do.call("anova", args = c(object = list(afex_aov), 
+            observed = list(observed), anova_table))
+        return(do.call("nice", args = c(object = list(afex_aov), 
+            observed = list(observed), anova_table)))
+    }
+}
+```
+

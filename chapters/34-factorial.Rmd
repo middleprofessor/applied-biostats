@@ -5,13 +5,16 @@ library(here)
 library(janitor)
 library(readxl)
 library(data.table)
+library(broom)
 
 # analysis packages
 library(emmeans)
 library(car) # qqplot, spreadlevel
 library(afex)
+library(lmerTest)
+library(nlme)
 
-# graphing an tabling packages
+# graphing and tabling packages
 library(ggplot2) # ggplot environment
 library(ggpubr) # publication ready plots
 library(cowplot) # combine plots
@@ -134,7 +137,7 @@ dt %>%
 3. The first two elements in the "Effect" row contains the difference of the two cells above -- these are the **effects of donor conditional on the level of genotype**.
 4. The effects described in items 2 and 3 are known as the **simple effects**.
 5. The value in red is the difference of the two simple effects above it. It is also the difference of the two simple effects to the left. These differences are equal. This is the interaction effect.
-6. In an experiment with a single factor with four levels, all six pairwise comparisons may be of interest. In a factorial experiment, it is the simple effects (fewer than all pairwise contrasts) and the interaction effects that are interesting.
+6. In an experiment with a single factor with four levels, all six pairwise comparisons may be of interest. In a $2 \times 2$ factorial experiment, it is the four simple effects and the interaction effect that should pique the interest of the researcher.
 
 In this fake experiment, we want to know the effect of obese donor treatment in the KO mice *compared to* the effect of obese donor treatment in the WT mice. That is, we want the contrast of these two simple effects.
 
@@ -1771,7 +1774,8 @@ ggplot_the_response(
   palette = pal_okabe_ito_blue,
   legend_position = "bottom",
   y_label = "JA\n(ng per g FW)",
-  contrast_rows = c(3,1)
+  contrast_rows = c(3,1),
+  y_pos = c(130, 138)
 ) +
   
   # add additive mean
@@ -1878,7 +1882,7 @@ exp1c_m1_coef %>%
   kable_styling()
 ```
 
-Again, the interaction is a **non-additive effect**. Adding HAC alone increases JA concentration by 13.3 ng per g FW. Adding Indole alone increases JA concentration by 8.8 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 19.2 + 13.3 + 8.8 = 41.3 ng per g FW in the HAC+Indole group. The modeled mean is 54.1 ng per g FW. The difference observed - additive is 54.1 - 41.3 = 12.8 ng per g FW. Compare this to the interaction coefficient in the coefficient table.
+Again, the interaction is a **non-additive effect**. Adding HAC alone increases JA concentration by 15.6 ng per g FW. Adding Indole alone increases JA concentration by 13.1 ng per g FW. If these effects were purely additive, then adding both HAC and Indole to the Control mean should result in a mean of 43.9 + 15.6 + 13.1 = 72.6 ng per g FW in the HAC+Indole group. The modeled mean is 102.4 ng per g FW. The difference (observed - additive) is 102.4 - 72.6 = 29.8 ng per g FW. This is the estimated interaction effect in the coefficient table.
 
 ```{r twoway-synergy-build, echo=FALSE, eval=TRUE}
 
@@ -1928,7 +1932,7 @@ gg_synergy <- ggplot(data = gg_table,
   # plot means
   geom_col(position = "stack") +
   
-  coord_cartesian(ylim = c(0, 60)) +
+#  coord_cartesian(ylim = c(0, 60)) +
 
   annotate(geom = "text",
            label = c("additive expectation"),
@@ -1998,21 +2002,6 @@ gg_synergy <- ggplot(data = gg_table,
 # image_path <- here("images", "twoway-synergy.png")
 # knitr::include_graphics(image_path)
 gg_synergy
-```
-## Violations in inference
-### Heterogeneity
-
-```{r}
-exp1a_m1 <- lm(aba ~ hac * indole, data = exp1)
-exp1a_m2 <- gls(aba ~ hac * indole,
-                data = exp1,
-                weights = varIdent(form = ~ 1 | treatment))
-tidy(exp1a_m1)
-
-exp1a_m2_emm <- emmeans(exp1a_m2, specs = c("hac", "indole"))
-exp1a_m2_ixn <- contrast(exp1a_m2_emm,
-                         interaction = "revpairwise")
-exp1a_m2_ixn
 ```
 
 ## Issues in inference
@@ -2124,15 +2113,15 @@ m1_pairs <- contrast(exp2j_m1_emm,
 p_mat[, "None"] <- m1_pairs[, "p.value"]
 
 m1_pairs <- data.table(m1_pairs)
-m1_pairs[1:2, contrast := paste(stimulation, contrast, sep = ": ")]
-m1_pairs[3:4, contrast := paste(genotype, contrast, sep = ": ")]
+m1_pairs[1:2, contrast := paste(genotype, contrast, sep = ": ")]
+m1_pairs[3:4, contrast := paste(stimulation, contrast, sep = ": ")]
 y_cols <- c("contrast", "estimate")
 m1_pairs <- cbind(m1_pairs[, .SD, .SDcols = y_cols], data.table(p_mat))
 m1_pairs %>%
   kable(digits = c(1,2,3,3,3,3,3,3,3),
         caption = "P-values from seven different methods of adjustment. The Tukey-all p-value is from all six pairwise comparisons. All other p-values are from the four simple effects.") %>%
   kable_styling() %>%
-  row_spec(2, background = pal_okabe_ito[1])
+  row_spec(4, background = pal_okabe_ito[1])
 ```
 
 Table \@ref(tab:twoway-exp2j-p-adjust) shows *p*-values adjusted using seven different methods (including no adjustment) for the Experiment 2j glucose uptake data.
@@ -2393,6 +2382,9 @@ gg_anova_explainer <- anova_build_gg()
 gg_anova_explainer
 ```
 
+## More issues in inference
+### Longitudinal experiments -- include Time as a random factor (better than repeated measures ANOVA)
+
 ## Working in R
 ### Model formula
 
@@ -2570,8 +2562,7 @@ Notes
 1. The afex package has three function names for generating the same ANOVA table and statistics -- here I'm using `aov_4` because this functions uses a linear model formula argument (specifically, that used in the lme4 package), which is consistent with the rest of this text.
 2. The formula includes the addition of a random factor (`(1|id)`) even though there really is no random factor in this model. See [Models with random factors -- Blocking and pseudoreplication](#lmm) for more information on random factors. The random factor (the factor variable "id" created in the line before the fit model line) identifies the individual mouse from which the response variable was measured. Because the response was only measured once on each individual mouse, "id" is not really a random factor but the addition of this in the model formula is necessary for the `aov_4` function to work.
 
-
-#### The car Anova function
+#### The car Anova function {#twoway-car-anova}
 
 ```{r twoway-car-Anova}
 type3 <- list(stimulation = contr.sum,
@@ -2588,18 +2579,19 @@ Notes
 
 1. `car::Anova` has arguments for reporting the Type II and Type III sum of squares.
 2. Background: The default model matrix in the `lm` function uses dummy (or treatment) coding. For a Type 3 SS ANOVA (the kind that matches that in Graphpad Prism or JMP), we need to tell `lm` to use sum (or deviation) coding.
-3. Many online sites give you code to change this using 
+3. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
+4. The coefficients of `m1_type3` will be different from those using the default contrasts. Except when computing a Type III ANOVA, this text uses the default contrasts throughout because the coefficients make sense for the kinds of experiments in experimental biology. If using sum ("type III") coding, the intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology (but "useful" is largely a function of "used to").
+5. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
 
-```{r twoway-options-contrasts}
-options(contrasts = c("contr.sum", "contr.poly"))
-```
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Danger!. Many online sites suggest this bit of code before a Type III ANOVA using car::Anova:
+
+`options(contrasts = c("contr.sum", "contr.poly")`
 
 If you're reading this book, you almost certainly don't want to do this because this code resets how R computes coefficients of linear models and SS of ANOVA tables. This will effect all future analysis until the contrasts are set to something else or a new R session is started. 
-4. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
-5. The coefficients of `m1_type3` will be different from those using the default contrasts. Except when computing a Type III ANOVA, this text uses the default contrasts throughout because the coefficients make sense for the kinds of experiments in experimental biology. If using sum ("type III") coding, the intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology (but "useful" is largely a function of "used to").
-6. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
+</div>
 
-### Don't do this
+### Better to avoid these
 
 ```{r twoway-aov}
 m1_aov <- aov(glucose_uptake ~ stimulation * genotype,
@@ -2658,5 +2650,81 @@ exp2j[, genotype := factor(genotype,
 exp2j[, stimulation := factor(stimulation,
                               levels = stimulation_levels)]
 # View(exp2j)
+```
+
+
+### Import exp3e lesian area data (Example 2)
+
+```{r twoway-exp3e-import-show, message=FALSE, echo=TRUE}
+
+data_from <- "XX sex chromosome complement promotes atherosclerosis in mice"
+file_name <- "41467_2019_10462_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+# fig 3e
+exp3e_wide <- read_excel(file_path,
+                  sheet = "Figure 3E",
+                  range = "A3:K4",
+                  col_names = FALSE) %>%
+  data.table() %>%
+  transpose(make.names = 1)
+
+sex_levels <- colnames(exp3e_wide)
+exp3e <- melt(exp3e_wide,
+              measure.vars = sex_levels,
+              variable.name = "sex",
+              value.name = "lesian_area")
+
+# convert lesian_area to mm^2 from µm^2
+exp3e[, lesian_area := lesian_area/10^6]
+
+# convert sex variable to factor
+exp3e[, sex := factor(sex,
+                        levels = sex_levels)]
+
+# create chromosome column and convert to factor
+chromosome_levels <- c("XX", "XY")
+exp3e[, chromosome := rep(rep(chromosome_levels, each = 5), 2)]
+exp3e[, chromosome := factor(chromosome,
+                             levels = chromosome_levels)]
+
+# researchers treatment levels
+exp3e[, treatment := rep(c("FXX", "FXY", "MXX", "MXY"), each = 5)]
+
+# two rows with missing response so delte these rows as there is 
+# no useful information in them
+exp3e <- na.omit(exp3e) # be careful with a global na.omit
+
+# View(exp3e) # highlight and run to see data
+```
+
+### Import Exp1c JA data (Example 3)
+
+```{r twoway-ja-import-show, echo=TRUE, warning=FALSE, message=FALSE}
+
+data_from <- "Integration of two herbivore-induced plant volatiles results in synergistic effects on plant defense and resistance"
+file_name <- "Data for Dryad.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp1 <- read_excel(file_path,
+                     sheet = "Fig. 1",
+                     range = "A3:K23", # 1 blank column
+                     col_names = TRUE) %>%
+  data.table() %>%
+  clean_names()
+
+setnames(exp1, old = "treat", new = "treatment")
+
+exp1[treatment == "Control", c("hac", "indole") := list("HAC-", "Indole-")]
+exp1[treatment == "HAC", c("hac", "indole") := list("HAC+", "Indole-")]
+exp1[treatment == "Indole", c("hac", "indole") := list("HAC-", "Indole+")]
+exp1[treatment == "HAC+Indole", c("hac", "indole") := list("HAC+", "Indole+")]
+
+treatment_levels <- c("Control", "HAC", "Indole", "HAC+Indole")
+exp1[, treatment := factor(treatment,
+                           levels = treatment_levels)]
+exp1[, hac := factor(hac)] # levels in correct order
+exp1[, indole := factor(indole)] # levels in correct order
+# View(exp1)
 ```
 

@@ -91,7 +91,7 @@ Open R Studio and choose the menu item "Tools" > "Install Packages". In the "pac
 
 Once these are installed, you don't need to do this again although there will be additional packages that you might install. You simply need to use the `library()` function at the start of a markdown script.
 
-## Create an R Studio Project for this textbook
+## Create an R Studio Project for this textbook {#setup-create-project}
 
 1. Create a project folder within the Documents folder (Mac OS) or My Documents folder (Windows OS). All files associated with this book will reside inside this folder. The name of the project folder should be something meaningful, such as "Applied Biostatistics" or the name of your class (for students in my Applied Biostatistics class, this folder could be named "BIO_413"). 
 2. Within the project folder, create new folders named

@@ -17,6 +17,8 @@ library(emmeans)
 library(DHARMa)
 library(mvtnorm) # need for fake mouse
 library(Hmisc) #trap.rule
+library(lmerTest)
+library(afex)
 
 library(ggpubr)
 library(knitr)
@@ -35,6 +37,284 @@ data_folder <- "data"
 minus <- "\u2013"
 ```
 
+## Replicated experiments -- include $\texttt{Experiment}$ as a random factor (better than one-way ANOVA of means)
+
+Replicated experiments are the norm in bench biology. Researchers either analyze the mean response from each replicate or pool all the data, ignoring that they come from multiple, independent experiments. A useful alternative, one that is almost never used outside of certain subfields where pipelines for this alternative exist, is a linear mixed model with the experiment id added as a random factor (a "mixed effect ANOVA"). Researchers should be aware of this linear model alternative because it increases precision and power relative to a *t*-test/ANOVA of experiment means.
+
+It's important to understand the assumptions of the three different models. In a study with multiple, replicated experiments, the replications are "independent" -- solutions are re-made, instruments have drifted and are re-calibrated, the grad student doing the work has lived another day. Each experiment has a unique set of factors that contribute to the error variance of the response variable. All measures within an experiment share the component of the error variance unique to that experiment and, as a consequence, the error (residuals) within an experiment are more similar to each other than they are to the residuals between experiments. This is a violation of the independent sampling assumption of the linear model and the lack of independence creates **correlated error**. The consequences of this on the three analyses are:
+
+1. Linear model/*t*-test/ANOVA of pooled data ignoring experiment. This model assumes perfect replication between experiments, that essentially, the world was exactly the same for each. If this assumption is true, each replicate within each experiment is an *independent* data point. A study with n = 5 mice per treatment replicated five times has n = 25. If there are two treatment levels, the *t*-test will have 48 df. But, if the measures within an experiment share a common source contributing to the variance of the response within that experiment (the temperature in the room was 1°C cooler causing a machine to give a slightly different reading), there are not 25 independent measures because the five measures within each experiment are not independendent. The true df will be less than 48, how much less depends on the magnitude of the correlated error resulting from the non-independence. Pooling data across experiments with correlated error creates an incorrectly small standard error of the mean, resulting in incorrectly narrow confidence intervals and incorrectly small *p*-values. Pooling data inflates false discovery.
+2. Linear model/*t*-test/ANOVA of experiment means. Analysis of the means violates the independence assumption because the means of the treatment levels within an independent experiment are expected to share common sources of measure variability of that experiment. Instead of inflating false discovery, this correlated error generally works against discovery. The correlated error among the means can be modeled to increase precision and gain power.
+3. Linear model of the experiment means with $\texttt{experiment_id}$ added as a random factor to account for correlated error due to the unique sources of variance within each experiment. This model is equivalent to a **mixed effect ANOVA** of the full data set.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Reproducibility blues. Researchers are improving best practices by archiving data on public servers. Nevertheless, it is extremely rare to find the full data for many experiments. For analyses of the means from multiple experiments, researchers almost always archive the means and not the full set of measurements from each experiment. There is no way to replicate a result if only the means are archived. There is also no way to re-analyze the data with alternative models that require the full data.
+</div>
+
+### Multiple experiments Example 1 (wound healing Exp4d) {#issues-exp4d}
+The data for this section is from the experiment in Figure 4d of
+
+Article source: [Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish](https://elifesciences.org/articles/45976){target="_blank"}
+
+data source(https://elifesciences.org/download/aHR0cHM6Ly9jZG4uZWxpZmVzY2llbmNlcy5vcmcvYXJ0aWNsZXMvNDU5NzYvZWxpZmUtNDU5NzYtZmlnNC1kYXRhMi12MS54bHN4/elife-45976-fig4-data2-v1.xlsx?_hash=Rr9mVyxyYK07xI0hnatjGDQjIMXR4LNrn01cfekuF%2B0%3D)
+
+The experiment was designed to estimate the effect of a STAT3(https://en.wikipedia.org/wiki/STAT3){target="_blank"} [knockout](https://en.wikipedia.org/wiki/Gene_knockout){target="_blank"} on the number of cells expressing the cytoskeletal protein [vimentin](https://en.wikipedia.org/wiki/Vimentin){target="_blank"} in the wounded tissue.
+
+```{r twoway-exp4d-import, echo = FALSE}
+data_from <- "Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish"
+file_name <- "elife-45976-fig4-data2-v1.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp4d_wide <- read_excel(file_path,
+                         sheet = "Sheet1",
+                         range = "A16:C49") %>%
+  data.table()
+
+exp4d_wide[, experiment_id := nafill(Replicate, type = "locf")]
+exp4d_wide[, experiment_id := paste0("Exp", experiment_id)]
+
+old_cols <- c("STAT3 +/+", "STAT3 -/-")
+genotype_levels <- c("STAT3_wt", "STAT3_ko")
+setnames(exp4d_wide, old = old_cols, new = genotype_levels)
+exp4d <- melt(exp4d_wide,
+              id.vars = "experiment_id",
+              measure.vars = genotype_levels,
+              variable.name = "genotype",
+              value.name = "vimentin_cells") %>% # cell count
+  na.omit()
+exp4d[, genotype := factor(genotype,
+                           levels = genotype_levels)]
+exp4d[, experiment_id := factor(experiment_id)]
+```
+
+Following Fisher, we can be more confident of an effect if we consistently get small *p*-values from replicate experiments.
+
+```{r issues-combined-p-values,}
+ids <- levels(exp4d[, experiment_id])
+n_exp <- length(ids)
+p <- list()
+for(exp_i in ids){
+  exp4d_m1 <- lm(vimentin_cells ~ genotype,
+           data = exp4d[experiment_id == exp_i,]) # subset
+  exp4d_m1_test <- coef(summary(exp4d_m1))
+  p[[exp_i]] <- exp4d_m1_test["genotypeSTAT3_ko", "Pr(>|t|)"]
+}
+
+data.table(
+  experiment = ids,
+  p = unlist(p)
+) %>%
+  kable(digits = 3,
+        caption = "P-values from the three independent experients of the exp4d data.") %>%
+  kable_styling()
+```
+
+There are methods for *combining p-values* but we do not need to do this because we have the raw data.
+
+```{r combining-p-values, eval = FALSE, echo = FALSE}
+p_vec <- unlist(p)
+metap::allmetap(p_vec, method = "all")
+
+# Held method
+z <- qnorm(p_vec)
+n <- length(z)
+chi_sq <- n/sum(1/z^2)
+p_mult <- (1 - pnorm(sqrt(chi_sq)))/2^(n-1)
+p_mult
+```
+
+```{r repeated-similar-p-values, eval=FALSE, echo=FALSE}
+# the p-values are very similar to each other. What is the probability of sampling p-values this similar assuming an effect of the size with median p-value about equal to the median p-value?
+
+sd_p <- sd(p_vec)
+n = 12
+n_iter <- 2000
+b1 <- 1
+p <- as.numeric(n_iter)
+for(i in 1:n_iter){
+  y1 <- rnorm(n)
+  y2 <- rnorm(n, mean=b1)
+  p[i] <- t.test(y1, y2, var.equal = TRUE)$p.value
+}
+median(p)
+
+n_iter <- 5000
+sd_vec <- as.numeric(n_iter)
+for(i in 1:n_iter){
+  y1 <- rnorm(n)
+  y2 <- rnorm(n, mean=b1)
+  p1 <- t.test(y1, y2, var.equal = TRUE)$p.value
+  y1 <- rnorm(n)
+  y2 <- rnorm(n, mean=b1)
+  p2 <- t.test(y1, y2, var.equal = TRUE)$p.value
+  y1 <- rnorm(n)
+  y2 <- rnorm(n, mean=b1)
+  p3 <- t.test(y1, y2, var.equal = TRUE)$p.value
+  sd_vec[i] <- sd(c(p1,p2,p3))
+}
+sum(sd_vec < sd_p)/n_iter
+
+```
+
+#### Linear mixed model for combining replicated experiments {#issues-combined-experiments}
+
+The linear mixed model for combining replicated experiments is most easily fit using the `aov_r` function from the afex package
+
+**fit the model**
+
+```{r  twoway-exp4d-m1, warning=FALSE, message=FALSE}
+exp4d_m1 <- aov_4(vimentin_cells ~ genotype + (genotype|experiment_id),
+           data = exp4d)
+```
+
+**inference from the model**
+
+```{r  twoway-exp4d-m1-pairs, warning=FALSE, message=FALSE}
+exp4d_m1_emm <- emmeans(exp4d_m1, specs = "genotype")
+
+exp4d_m1_pairs <- contrast(exp4d_m1_emm,
+                           method = "revpairwise")
+
+exp4d_m1_pairs %>%
+  kable() %>%
+  kable_styling()
+```
+
+**plot the model**
+
+```{r twoway-exp4d-plot}
+# wrangling to get this to work
+# ggplot_the_response doesn't like the fit object from afex. That's okay,
+# we use it only to get the individual points
+exp4d_m0 <- lm(vimentin_cells ~ genotype,
+           data = exp4d)
+exp4d_m0 <- lm(vimentin_cells ~ genotype * experiment_id,
+           data = exp4d)
+exp4d_m0_emm <- emmeans(exp4d_m0, specs = c("genotype", "experiment_id"))
+
+ggplot_the_response(fit = exp4d_m0,
+                    fit_emm = exp4d_m0_emm,
+                    fit_pairs = exp4d_m1_pairs,
+                    y_label = "vimGFP+ cell count",
+                    palette = pal_okabe_ito_blue)
+```
+
+Explainer
+
+1. Model `exp4d_m1` adds $\texttt{experiment_id}$ as a random factor but the formula is misleading. The formula specifies a linear mixed model with a random intercept and a random slope (see [Models with random factors -- Blocking and pseudoreplication](#lmm}). The actual model fit by `aov_4` is equivalent to a **nested model**, which I'll get to in item 3.
+2. To understand the nested model, start with a factorial linear model with $\texttt{genotype}$ and $\texttt{experiment_id}$ crossed. This is the **fixed-effects** model that is the focus of this chapter.
+
+$$
+\begin{align}
+\texttt{vimentin_cells}_{j} = &\ \beta_0 + \beta_1 (\texttt{genotype}_\texttt{STAT3-/-}) + \beta_{2j} (\texttt{experiment_id}_{j})\ + \\
+&\beta_{3j} (\texttt{genotype}_\texttt{STAT3-/-}:\texttt{experiment_id}_{j}) + \varepsilon
+\end{align}
+$$
+
+In this model, there are $\beta_2$ and $beta_3$ coefficients for all non-reference levels of $\texttt{experiment_id}$. The R formula for this is `vimentin_cells ~ genotype * experiment_id`. Do not fit this model -- it fails to properly model the correlated error and can be conservative under some kinds of correlated error and highly anti-conservative under other kinds of correlated error (Simulation xxx).
+
+3. The nested model is
+
+$$
+\texttt{vimentin_cells} = \beta_0 + \beta_{0j} + \beta_{0jk} + \beta_1 (\texttt{genotype}_\texttt{STAT3-/-}) + \varepsilon
+$$
+
+$\beta_0$ and $\beta_1$ have the usual interpretation. $\beta_1$ is the effect that we want to estimate.
+
+$\beta_{0j}$ and $\beta_{0jk}$ are **random intercepts** from adding $\texttt{experiment_id}$ as a random (and not fixed) factor.
+
+$\beta_{0j}$ is the random intercept for the *j*th experiment and models the correlation due to shared features within experiments. It is similar to $\beta_{2j}$ in the fixed effect model except that there is a coefficient for all levels of $\texttt{experiment_id}$.
+
+$\beta_{0jk}$ is the random intercept for all combinations of the *j*th experiment with the *k* level of $\texttt{genotype}$. It is similar to $\beta_{3j}$ in the fixed effect model except that there is a coefficient for all combinations and not just the non-reference combinations.
+
+4. The nested model is implemented using `lmer` from the package lme4.
+
+```{r twoway-exp4d_m2, warning = TRUE}
+exp4d_m2 <- lmer(vimentin_cells ~ genotype +
+                         (1|experiment_id) +
+                         (1|experiment_id:genotype),
+           data = exp4d)
+
+```
+
+Oops. The function fits the model but returns a **convergence warning**, meaning that we shouldn't use the fit for inference. Convergence warnings will be very common with replicated experimental data for several reasons but the main reason is that there aren't enough replicates (three is the most common) to estimate the variance among the experiments. The only reason we'd want to use this function over the `aov_4` function is if we wanted these variance estimates.
+
+5. An equivalent of the nested model, at least for estimating the treatment effects and the uncertainty of these effects, is a simple linear mixed model of the Experiment means. These are the means typically used by researchers to compute a *t*-test or ANOVA.
+
+
+```{r twoway-exp4d-means}
+# compute the experiment means
+exp4d_means <- exp4d[, .(vimentin_cells = mean(vimentin_cells)),
+                     by = .(genotype, experiment_id)]
+```
+
+**fit the model**
+
+```{r twoway-exp4d-m3, message=FALSE}
+exp4d_m3 <- lmer(vimentin_cells ~ genotype +
+                              (1|experiment_id),
+                            data = exp4d_means)
+
+exp4d_m3_emm <- emmeans(exp4d_m3, specs = "genotype")
+exp4d_m3_pairs <- contrast(exp4d_m3_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+exp4d_m3_pairs %>%
+  kable(digits = c(1,2,3,1,2,2,1,5)) %>%
+  kable_styling()
+```
+
+6. The CI computed by `emmeans::contrast` uses the Kenward-Roger df and will be a little wider than the CI computed using `confint`.
+7. There is really no reason to use this instead of the `aov_4` function (`exp4d_m1`). Models like `exp4d_m2` are susceptible to convergence warnings for replicated experiments because of the low number of replicates. `aov_4` function avoids these fit issues by using a multivariate model and not a linear mixed model to compute the inferential statistics.
+
+#### A *t*-test or ANOVA of the means has less power
+
+Compare the nested model in `exp4d_m1` or `exp4d_m3` (these are the same) to a *t*-test/ANOVA of the experiment means
+
+```{r twoway-exp4d-ttest}
+exp4d_m4 <- lm(vimentin_cells ~ genotype, data = exp4d_means)
+
+exp4d_m4_coef <- cbind(coef(summary(exp4d_m4)),
+                 confint(exp4d_m4))
+exp4d_m4_coef %>%
+  kable(digits = c(2,3,1,5,2,2)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. Remember that a *t*-test of experiment means is equivalent to the linear model `exp4d_m4`.
+2. The SE for the estimate of the $\texttt{genotype}$ effect is much smaller for the random intercept model than for the model without the random intercept (*t*-test).
+3. A consequence of item 1 is the narrower CI for the estimate of $\texttt{genotype}$ in the random intercept model.
+4. A consequence of item 1 is the smaller *p*-value for the estimate of $\texttt{genotype}$ in the random intercept model (look closelyy because a quick glance might suggest they are almost they same. They aren't).
+5. The increased precision and power is a general result and not one specific to this example.
+
+#### A paired *t*-test is a special case of a nested model
+
+```{r twoway-nested-model-paired-t}
+exp4d_m5 <- t.test(vimentin_cells ~ genotype,
+               paired = TRUE,
+           data = exp4d_means)
+tidy(exp4d_m5) %>%
+  kable(digits = c(2,1,5,1,2,2,1,1)) %>%
+  kable_styling()
+
+```
+
+Notes
+
+1. The signs of the effect and confidence intervals are reverse of those in the nested model because the `t.test` function generates the contrast as (reference - treatment).
+
+#### Two-way mixed ANOVA
+
+The nested model (`exp4d_m1`, `exp4d_m2`, `exp4d_m3`) is equivalent to a two-way ANOVA with one fixed factor and one random factor (**two-way mixed ANOVA**).
+
+```{r twoway-nested-model-anova}
+anova(exp4d_m1)[,-5] %>%
+  kable() %>%
+  kable_styling()
+```
 
 ## Comparing change from baseline (pre-post) {#issues-pre-post}
 
@@ -188,7 +468,7 @@ Alert! Researchers also use two-way ANOVA or repeated measures ANOVA to analyze 
 The better practice methods are linear models for correlated error, including GLS and linear mixed models. For a pre-post design, these models give equivalent results to the change score model *but also* allows the estimate of additional effects of interest (see below). For more detail on the analysis of pre-post experiments, see the [Linear models for longitudinal experiments -- I. pre-post designs](#pre-post) chapter.
 </div>
 
-### Example 1 (DPP4 fig4c)
+### Pre-post example 1 (DPP4 fig4c)
 
 source: [Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism](https://www.nature.com/articles/s41467-019-14003-6){target="_blank"} 
 
@@ -379,7 +659,7 @@ Notes
 
 While the linear mixed model and change score model give the same result for the effect of treatment in response to the different conditions, the linear mixed model estimates additional effects that may be of interest. I use a real example (Example 2) to demonstrate this.
 
-### Example 2 (XX males fig1c)
+### Pre-post example 2 (XX males fig1c)
 
 Source: [AlSiraj, Y., Chen, X., Thatcher, S.E., Temel, R.E., Cai, L., Blalock, E., Katz, W., Ali, H.M., Petriello, M., Deng, P. and Morris, A.J., 2019. XX sex chromosome complement promotes atherosclerosis in mice. Nature communications, 10(1), pp.1-13.](https://www.nature.com/articles/s41467-019-10462-z){target="_blank"}
 
@@ -1078,7 +1358,7 @@ Two common, alternative analyses that can mislead because of model assumptions t
 3. two-way ANOVA with treatment and time as the factors, followed by post-hoc tests. The advantage of this analysis is the ability to estimate the effect at baseline *and* the interaction effect. But, the correlated error due to the multiple measures on each individual violates the independence assumption. Inference from this model will generally be optimisitic -- the CIs will be too narrow and the *p*-values too small. This is an example of pseudoreplication. The correlated error can be modeled with a GLS linear model or a Linear Mixed Model.
 4. repeated measures ANOVA with treatment and time as the factors, followed by post-hoc tests. Like the two-way ANOVA, a repeated measures ANOVA can be used to estimate both the baseline and interaction effects. Unlike the two-way ANOVA, a repeated measures ANOVA models the correlated error. But the model for the correlated error is too unrealistic. The better alternatives for modeling the correlated error are the GLS linear model or the Linear Mixed Model.
 
-#### Example 1 -- Treatment applied prior to baseline
+#### AUC Example 1 -- Treatment applied prior to baseline
 
 Source: [Innervation of thermogenic adipose tissue via a calsyntenin 3β–S100b axis](https://idp.nature.com/authorize/casa?redirect_uri=https://www.nature.com/articles/s41586-019-1156-9&casa_token=vnFIQyig4UoAAAAA:3hBrakzgGdZ7hYaUBmTHj7dyD2PxQp6iCQXmTJNeFQnIETrRhg_gZwVDPwteGOOf3sFxS9M_Tfa45w4t)
 
@@ -1272,8 +1552,6 @@ m4_t %>%
   kable_styling()
 ```
 
-## Comparing responses normalized to a standard
-
 ## Comparing ratios
 
 1. The ratio is a density (count per length/area/volume) or a rate (count/time).
@@ -1288,13 +1566,120 @@ Best practice: GLM for count data with an **offset** in the model, where an offs
 4. The ratio is relative to a whole and both the thing in the numerator and the thing in the denominator grow (**allometric data**).
 * Example: adipose mass relative to total lean body mass.
 * Best practice: ANCOVA linear model.
-* **Alert!** -- It has been known for more than 100 years, and repeatedly broadcasted, that inference from ratios of allometric data range from merely wrong (the inferred effect size is biased) to absurd (the direction of the inferred effect is opposite that of the true effect). 
+* **Alert!** -- It has been known for more than 100 years, and repeatedly broadcasted, that inference from ratios of allometric data range from merely wrong (the inferred effect size is in the right direction, but wrong) to absurd (the direction of the inferred effect is opposite that of the true effect). 
 
 ### The ratio is a density
 
 ## Don't do this stuff
 
-1. Normalize so all control values are 1.
+### Normalize the response so that all control values are equal to 1.
+
+In many experiments, the response variable is a measure with units that are not readily interpretable biologically. In these experiments, researchers often normalize the response by the mean of the reference group.
+
+$$
+y_i \; \mathrm{(normalized)} = \frac{y_i}{\overline{y}_{ref}}
+$$
+
+The normalized response variable is a multiple of (or a fraction) of the mean response of the reference group.
+
+Less often, researchers normalize by the value of the reference within a batch -- for example, the mean of the control group within each independent experiment -- and then analyze the batch means with a *t*-test or ANOVA. If the goal of this by-experiment_id normalization is to adjust for the variance among the experiments, the proper way to do this is [Linear mixed model for combining replicated experiments](issues-combined-experiments) above.
+
+Regardless of the goal, don't do this. There is no variance in the reference group as all *n* values are 1. A researcher is telling the *t*-test or ANOVA that there is no natural variability in the reference group (*and* the values were measured without measurement error). A classical (Student) *t*-test or ANOVA will have an incorrectly small error variance ($\sigma$) because this zero-variance will go into the computation of the pooled (modeled) variance. The consequence is incorrectly small standard errors, confidence intervals, and *p*-values, and inflated false discovery.
+
+Let's do this, to show why we don't do this. All examples that I've found in the literature only archive the batch-normalized data and not the raw data so I'm using fake data for this.
+
+```{r issues-normalize-to-1-fd}
+set.seed(9)
+n_exp <- 8 # number of experiments
+beta_0 <- 100
+beta_1 <- 1.5 # genotype effect as a multiple
+mu <- c(beta_0, beta_0*beta_1)
+sigma <- (beta_1 - 1)*beta_0 # iid error
+rho <- 0.7 # correlated error
+Sigma <- matrix(c(sigma^2, rho*sigma^2, rho*sigma^2, sigma^2),
+                nrow = 2)
+fake_data <- data.table(NULL)
+fake_data[, genotype := rep(c("wt", "ko"), each = n_exp)]
+fake_data[, genotype := factor(genotype,
+                               levels = c("wt", "ko"))]
+
+fake_data[, experiment_id := rep(paste0("exp_", 1:n_exp), 2)]
+
+# modeling the experiment means
+raw <- rmvnorm(n_exp, mean = mu, sigma = Sigma)
+fake_data[, y := c(raw)]
+
+# mean-normalize by the mean of the experiment means of wt group
+fake_data[, y_correct := c(raw/mean(raw[,1]))]
+
+# id-normalize by experiment mean of wt group for each experiment_id
+fake_data[, y_wrong := c(raw/raw[,1])]
+```
+
+The best practice is a linear mixed model using the mean-normalized response (the paired *t*-test is a specific case of this).
+
+```{r issues-normalize-to-1-m1}
+m1 <- lmer(y_correct ~ genotype +
+             (1|experiment_id),
+           data = fake_data)
+
+m1_emm <- emmeans(m1, specs = "genotype")
+m1_pairs <- contrast(m1_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+```
+
+The common practice is a linear model using the mean-normalized response (the Student *t*-test is a specific case of this). This model violates the independence assumption but this violation usually results in less precision and lower power.
+
+```{r issues-normalize-to-1-m2}
+m2 <- lm(y_correct ~ genotype,
+           data = fake_data)
+
+m2_emm <- emmeans(m2, specs = "genotype")
+m2_pairs <- contrast(m2_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+```
+
+The incorrect practice is a linear model (or *t*-test or ANOVA) using the id-normalized response. This model violates heterogeneity and estimates the error variance using a group with zero variation.
+
+```{r issues-normalize-to-1-m3}
+m3 <- lm(y_wrong ~ genotype,
+           data = fake_data)
+
+m3_emm <- emmeans(m3, specs = "genotype")
+m3_pairs <- contrast(m3_emm,
+                     method = "revpairwise") %>%
+  summary(infer = TRUE)
+```
+
+A summary table of the three models ...
+
+```{r issues-normalize-to-1-summary, echo = FALSE}
+rbind(data.table(method = "paired t", m1_pairs), 
+      data.table(method = "student t", m2_pairs),
+      data.table(method = "dont do this t", m3_pairs)) %>%
+  kable(digits = c(1,1,3,2,1,2,2,2,4)) %>%
+  kable_styling()
+```
+
+and a plot of the mean-normalized and id-normalized data and modeled means and CIs.
+
+```{r issues-normalize-to-1-plot, fig.cap = "Plot of the fake normalized data and modeled means and CI from A) model m1, the linear mixed model with experiment_id as a random factor and B) model m3, the linear model of the response normalized to each experiment mean."}
+gg1 <- ggplot_the_response(m1, m1_emm, m1_pairs)
+gg2 <- ggplot_the_response(m3,
+                           m3_emm,
+                           m3_pairs,
+                           dots = "jitter")
+set.seed(1)
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+
+```
+
+Notes
+
+1. 
 
 ## Researcher degrees of freedom
 
@@ -1320,8 +1705,36 @@ p_table
 ```
 
 ## Hidden code
-### Import Fig4c data
+### Import exp4d vimentin cell count data (replicate experiments example)
 
+```{r twoway-exp4d-import-show, echo = TRUE}
+data_from <- "Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish"
+file_name <- "elife-45976-fig4-data2-v1.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp4d_wide <- read_excel(file_path,
+                         sheet = "Sheet1",
+                         range = "A16:C49") %>%
+  data.table()
+
+exp4d_wide[, experiment_id := nafill(Replicate, type = "locf")]
+exp4d_wide[, experiment_id := paste0("Exp", experiment_id)]
+
+old_cols <- c("STAT3 +/+", "STAT3 -/-")
+genotype_levels <- c("STAT3_wt", "STAT3_ko")
+setnames(exp4d_wide, old = old_cols, new = genotype_levels)
+exp4d <- melt(exp4d_wide,
+              id.vars = "experiment_id",
+              measure.vars = genotype_levels,
+              variable.name = "genotype",
+              value.name = "vimentin_cells") %>% # cell count
+  na.omit()
+exp4d[, genotype := factor(genotype,
+                           levels = genotype_levels)]
+
+```
+
+### Import Fig4c data
 
 ```{r issues-fig4c-import-show, echo=TRUE, warning=FALSE, message=FALSE}
 data_from <- "Identification of osteoclast-osteoblast coupling factors in humans reveals links between bone and energy metabolism"
@@ -1583,6 +1996,4 @@ fig3f_long <- melt(fig3f_wide,
                    value.name = "glucose")
 
 ```
-
-
 

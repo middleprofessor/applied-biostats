@@ -1,0 +1,248 @@
+# Simulation -- t-test with normalized control
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(mvtnorm)
+library(magrittr)
+library(doBy)
+
+library(nlme)
+library(lmerTest)
+library(emmeans)
+library(afex)
+library(car)
+
+library(ggplot2)
+library(ggpubr)
+library(knitr)
+library(kableExtra)
+library(printy)
+
+sim_data <- "sim_data"
+```
+
+## Simulating a batch
+
+All measures within a batch share a unique combination of factors that effect the outcome and, as a consequence, all measures are shifted up a bit or shifted down a bit relative to what we'd expect if everything about the world were the same when we run our batch. Because all measures are shifted up or down by the same amount in each batch, there is correlated error. We can model this by generating fake data either by modeling a random intercept, which models the added effect to the unique combination of factors, or by directly modeling the correlated error.
+
+### adding a random effect to each batch
+
+```{r}
+simulator_cor <- function(
+  seed_i = 1,
+  n = 10,
+  beta_0 = 10,
+  beta_1 = 0,
+  sigma = c(1, 1), 
+  rho = c(0.6), # correlation between random intercept and slope
+  n_sim = 1000
+){ 
+  set.seed(seed_i)
+  treatment_levels <- c("cn", "tr")
+  fake_data[, treatment := rep(treatment_levels, each = n)]
+  fake_data[, treatment := factor(treatment,
+                                  levels = treatment_levels)]
+  fake_data[, id := rep(paste("id_", 1:n), 2)]
+  X <- model.matrix(~ treatment, data = fake_data)
+  mu <- (X %*% c(beta_0, beta_1))[,1]
+  Sigma <- matrix(c(sigma[1]^2,
+                rho*sigma[1]*sigma[2],
+                rho*sigma[1]*sigma[2],
+                sigma[2]^2), nrow = 2)
+  
+  n_methods <- length(methods)
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods) %>%
+    data.table()
+  colnames(p_mat) <- methods
+  for(i in 1:n_sim){
+    y <- rmvnorm(n, mean = c(beta_0, beta_0+beta_1), sigma = Sigma)
+    y_mu <- y / mean(y[,1])
+    y_id <- y / y[,1]
+    y_diff <- y - y[,1]
+    p_mat[i, paired := t.test(y_mu[,1], y_mu[,2], paired = TRUE)$p.value]
+    p_mat[i, mu_t := t.test(y_mu[,1], y_mu[,2], var.equal = TRUE)$p.value]
+    p_mat[i, mu_welch := t.test(y_mu[,1], y_mu[,2], var.equal = FALSE)$p.value]
+    p_mat[i, id_t := t.test(y_id[,1], y_id[,2], var.equal = TRUE)$p.value]
+    p_mat[i, id_1 := t.test(y_id[,2], mu = 1)$p.value]
+    p_mat[i, diff_t := t.test(y_diff[,1], y_diff[,2], var.equal = TRUE)$p.value]
+    p_mat[i, diff_1 := t.test(y_diff[,2], mu = 0)$p.value]
+  }
+  return(p_mat)
+}
+```
+
+```{r}
+simulator_mixed <- function(
+  seed_i = 1,
+  n = 10,
+  beta_0 = 10,
+  beta_1 = 0,
+  sigma = c(1, 1),
+  gamma_0 = 1,
+  additive = FALSE,
+  n_sim = 1000
+){ 
+  set.seed(seed_i)
+  y <- matrix(as.numeric(NA), nrow = n, ncol = 2)
+  n_methods <- length(methods)
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods) %>%
+    data.table()
+  colnames(p_mat) <- methods
+  
+  # variance in multiplicative model
+  # Var(X) = exp(2*μ + σ^2)*(exp(σ^2) - 1) 
+  # log(var(x)) = (2*u + sigma^2)
+  sd_log_1 <- sqrt((gamma_0^2 + sigma[1]^2)/(beta_0^2))
+  sd_log_2 <- sqrt((gamma_0^2 + sigma[2]^2)/(beta_0^2))
+  for(i in 1:n_sim){
+    u_j <- rnorm(n, mean = 0, sd = gamma_0)
+    if(additive == TRUE){
+      y[, 1] <- beta_0 + u_j + rnorm(n, mean = 0, sd = sigma[1]) 
+      y[, 2] <- beta_0 + u_j + beta_1 + rnorm(n, mean = 0, sd = sigma[2]) 
+    }else{
+      y[, 1] <- rlnorm(n,
+                       meanlog = log(beta_0 + u_j),
+                       sdlog = sd_log_1)
+      y[, 2] <- rlnorm(n,
+                       meanlog = log(beta_0 + u_j + beta_1),
+                       sdlog = sd_log_2)
+    }
+    y_mu <- y / mean(y[,1])
+    y_id <- y / y[,1]
+    y_diff <- y - y[,1]
+    p_mat[i, paired := t.test(y_mu[,1], y_mu[,2], paired = TRUE)$p.value]
+    p_mat[i, paired_log := t.test(log(y_mu[,1]), log(y_mu[,2]), paired = TRUE)$p.value]
+    p_mat[i, mu_t := t.test(y_mu[,1], y_mu[,2], var.equal = TRUE)$p.value]
+    p_mat[i, mu_welch := t.test(y_mu[,1], y_mu[,2], var.equal = FALSE)$p.value]
+    p_mat[i, id_t := t.test(y_id[,1], y_id[,2], var.equal = TRUE)$p.value]
+    p_mat[i, id_1 := t.test(y_id[,2], mu = 1)$p.value]
+    p_mat[i, diff_t := t.test(y_diff[,1], y_diff[,2], var.equal = TRUE)$p.value]
+    p_mat[i, diff_1 := t.test(y_diff[,2], mu = 0)$p.value]
+  }
+  return(p_mat)
+}
+```
+
+# modeling Rho
+
+```{r eval = FALSE}
+fake_data <- data.table(NULL)
+
+n_sim <- 1000
+seed_i <- 1
+n = 10
+beta_0 = 10
+beta_1 = 0
+sigma_1 = 1 
+sigma_2_list <- c(0.5, 1, 2)
+rho_list <- c(0, 0.5, 0.8)
+param_mat <- expand.grid(
+  sigma_2 = sigma_2_list,
+  rho = rho_list
+) %>%
+  data.table()
+res_table <- data.table(NULL)
+for(sim in 1:nrow(param_mat)){
+  rho_sim <- param_mat[sim, rho]
+  sigma_2_sim <- param_mat[sim, sigma_2]
+  res <- simulator(
+    seed_i = seed_i,
+    n = n,
+    beta_0 = beta_0,
+    beta_1 = beta_1,
+    sigma = c(sigma_1, sigma_2_sim), 
+    rho = rho_sim,
+    n_sim = n_sim
+  )  
+  res_table <- rbind(res_table,
+                     data.table(sim = sim,
+                                sigma_2 = sigma_2_sim,
+                                rho = rho_sim,
+                                res))
+}
+
+sum_table <- data.table(NULL)
+for(i in 1:nrow(param_mat)){
+  res <- res_table[sim == i,]
+  sum_table <- rbind(sum_table,
+                     data.table(
+                       sigma_2 = res[1, sigma_2],
+                       rho = res[1, rho],
+                       t(apply(res[, .SD, .SDcols = methods],
+                               2,
+                               function(x) sum(x < 0.05)/nrow(res)))
+                     ))
+}
+  sum_table %>%
+    kable() %>%
+    kable_styling()
+
+```
+
+# modeling gamma
+
+```{r}
+fake_data <- data.table(NULL)
+methods = c("paired", "paired_log",
+            "mu_t", "mu_welch",
+            "id_t", "id_1",
+            "diff_t", "diff_1")
+
+n_sim <- 5000
+seed_i <- 1
+n = 10
+beta_0 = 10
+beta_1 = 0
+sigma_1 = 1 
+sigma_2_list <- c(0.5, 1, 2)
+gamma_0_list <- c(0, 0.5, 1)
+param_mat <- expand.grid(
+  sigma_2 = sigma_2_list,
+  gamma_0 = gamma_0_list
+) %>%
+  data.table()
+res_table <- data.table(NULL)
+for(sim in 1:nrow(param_mat)){
+  gamma_0_sim <- param_mat[sim, gamma_0]
+  sigma_2_sim <- param_mat[sim, sigma_2]
+  res <- simulator_mixed(
+    seed_i = seed_i,
+    n = n,
+    beta_0 = beta_0,
+    beta_1 = beta_1,
+    sigma = c(sigma_1, sigma_2_sim), 
+    gamma_0 = gamma_0_sim,
+    additive = FALSE,
+    n_sim = n_sim
+  )  
+  res_table <- rbind(res_table,
+                     data.table(sim = sim,
+                                sigma_2 = sigma_2_sim,
+                                gamma_0 = gamma_0_sim,
+                                res))
+}
+
+sum_table <- data.table(NULL)
+for(sim_i in 1:nrow(param_mat)){
+  res <- res_table[sim == sim_i,]
+  sigma_2_sim <- res[1, sigma_2]
+  gamma_0_sim <- res[1, gamma_0]
+  rho_sim <- gamma_0_sim^2/(gamma_0_sim^2 + (1^2 + sigma_2_sim^2)/2)
+  sum_table <- rbind(sum_table,
+                     data.table(
+                       sigma_2 = sigma_2_sim,
+                       gamma_0 = gamma_0_sim,
+                       rho = rho_sim,
+                       t(apply(res[, .SD, .SDcols = methods],
+                               2,
+                               function(x) sum(x < 0.05)/nrow(res)))
+                     ))
+}
+  sum_table %>%
+    kable(digits = c(1,1,2,3,3,3,3,3,3,3,3)) %>%
+    kable_styling()
+
+```
+

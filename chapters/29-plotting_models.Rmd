@@ -565,6 +565,10 @@ Notes
 
 1. I often use `m1_pairs` as the name of the contrast table. Here I use `m1_simple` to remind me that I've limited the comparison to the four simple effects. If I only compute planned comparisons, I might use `m1_planned`.
 
+### Be sure ggplot_the_model is in your R folder
+
+If you skipped [Create an R Studio Project for this textbook](#setup-create-project), then download and move the file [ggplot_the_model.R](https://raw.githubusercontent.com/middleprofessor/applied-biostats/master/R/ggplot_the_model.R) into the R folder in your Project folder.
+
 ### How to use the Plot the Model functions
 
 The philosophy underneath these functions is to use the model fitted by the researcher to make the plots. The functions require information from three objects:

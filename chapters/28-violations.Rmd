@@ -67,9 +67,11 @@ Here, I show empirically that a paired t-test is a special case of a kind of **l
 
 A good way to think about the model generating the data is
 
+$$
 \begin{equation}
-diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold + \varepsilon
+\texttt{diHome} = (\beta_0 + \beta_{0_i}) + \beta_1 (\texttt{treatment_cold}) + \varepsilon
 \end{equation}
+$$
 
 1. $\beta_0$ is the expected value of diHome in humans given a saline treatment.
 2. $\beta_{0_i}$ is the expected difference between the expected value of diHome in human $i$ given a saline treatment and the expected value of diHome in humans given a saline treatment. $\beta_{0_i}$ is a kind of **random effect**

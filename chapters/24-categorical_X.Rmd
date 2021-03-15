@@ -979,18 +979,19 @@ Anova(m1_type3, type="3")
 
 Notes
 
-1. `car::Anova` has arguments for reporting the Type III sum of squares. Again, this is not relevant to a single factor ANOVA with no covariates but to avoid making mistakes in the future, its good to know about best practices now. For this, I prefer the `afex::aov_4 function` above. But, this works also.
+1. `car::Anova` has arguments for reporting the Type III sum of squares. Again, this is not relevant to a single factor ANOVA with no covariates but to avoid catastrophic code in the future, its good to know about best practices now, so I'm pre-peating what is written in Section \@ref(twoway-car-anova).
 2. Background: The default model matrix in the `lm` function uses dummy (or treatment) coding. For a Type 3 SS ANOVA (the kind that matches that in Graphpad Prism or JMP), we need to tell `lm` to use sum (or deviation) coding.
-3. Many online sites give you code to change this using 
+3. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
+4. The coefficients of `m1_type3` will be different from `m1`. The intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology.
+5. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
 
-```{r anova-options-contrasts}
-options(contrasts = c("contr.sum", "contr.poly"))
-```
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+Danger!. Many online sites suggest this bit of code before a Type III ANOVA using car::Anova:
+
+`options(contrasts = c("contr.sum", "contr.poly")`
 
 If you're reading this book, you almost certainly don't want to do this because this code resets how R computes coefficients of linear models and SS of ANOVA tables. This will effect all future analysis until the contrasts are set to something else or a new R session is started. 
-4. The best practice method for changing the contrasts in the model matrix is using the `contrasts` argument within the `lm` function, as in the code above to fit `m1_type3`. This is the safest practice because this sets the contrasts only for this specific fit.
-5. The coefficients of `m1_type3` will be different from `m1`. The intercept will be the grand mean and the coefficients of the non-reference levels (the effects) will be their deviations from the grand mean. I don't find this definition of "effects" very useful for most experiments in biology.
-6. The contrasts (differences in the means among pairs of groups) in the contrast table will be the same, regardless of the contrast coding.
+</div>
 
 **base R aov and anova**
 
