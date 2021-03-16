@@ -45,7 +45,8 @@ lmer_check <- function(fit){
 ```{r contrast_stats}
 contrast_stats <- function(fit, ...){
   fit_pairs <- contrast(emmeans(fit, ...),
-                        method = "revpairwise") %>%
+                        method = "revpairwise",
+                        adjust = "none") %>%
     summary(infer = TRUE)
   lower <- fit_pairs[1, "lower.CL"]
   upper <- fit_pairs[1, "upper.CL"]
@@ -954,23 +955,22 @@ N <- n*n_treat*n_id
 beta_0 <- 10
 beta_1_list <- c(0)
 sigma <- 1
-gamma_0_list = c(1) # intercept 
-gamma_1_list = c(1) # slope
+gamma_0_list = c(0.2, 1, 2) # intercept 
+gamma_1_list = c(0.2, 1) # slope
+gamma_2_list = c(0.2) # slope
 rho_list <- c("0","+") # correlation between random intercept and slope
-rho_list <- c("+") # correlation between random intercept and slope
-equal_n <- FALSE
-n_list <- c(TRUE, FALSE) # equal_n_list
-n_list <- c(FALSE) # equal_n_list
+#rho_list <- c("+") # correlation between random intercept and slope
+equal_n_list <- c(TRUE, FALSE) # equal_n_list
 rho_vec <- c(0.6, 0.6, 0.6)
 
-parameter_mat <- expand.grid(rho = rho_list,
+parameter_mat <- expand.grid(beta_1 = beta_1_list,
                              gamma_0 = gamma_0_list,
                              gamma_1 = gamma_1_list,
-                             beta_1 = beta_1_list,
-                             equal_n = n_list
+                             gamma_2 = gamma_2_list,
+                             rho = rho_list,
+                             equal_n = equal_n_list
                              ) %>%
   data.table
-parameter_mat <- dplyr::distinct(parameter_mat)
 
 big_table <- data.table(NULL)
 for(world in 1:nrow(parameter_mat)){
@@ -979,7 +979,7 @@ for(world in 1:nrow(parameter_mat)){
   beta_2 <- beta_1
   gamma_0 <- parameter_mat[world, gamma_0]
   gamma_1 <- parameter_mat[world, gamma_1]
-  gamma_2 <- gamma_1
+  gamma_2 <- parameter_mat[world, gamma_2]
   if(parameter_mat[world, rho] == "0"){
     rho <- c(0, 0, 0) # r2c1, r3c1,r3c2
   }
@@ -1019,8 +1019,9 @@ for(world in 1:nrow(parameter_mat)){
   big_table <- rbind(big_table,
                      data.table(
                        beta_1 = beta_1,
-                       gamma_1 = gamma_1,
                        gamma_0 = gamma_0,
+                       gamma_1 = gamma_1,
+                       gamma_2 = gamma_2,
                        rho = parameter_mat[world, rho],
                        equal_n = equal_n_sim,
                        stat_table
@@ -1048,6 +1049,7 @@ for(i in 1:nrow(parameter_mat)){
                        beta_1 == parameter_mat[i, beta_1] &
                        gamma_0 == parameter_mat[i, gamma_0] &
                        gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
                        rho == parameter_mat[i, rho] &
                        equal_n == parameter_mat[i, equal_n],
                      .SD, .SDcols = methods]
@@ -1055,6 +1057,7 @@ for(i in 1:nrow(parameter_mat)){
                        beta_1 == parameter_mat[i, beta_1] &
                        gamma_0 == parameter_mat[i, gamma_0] &
                        gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
                        rho == parameter_mat[i, rho] &
                        equal_n == parameter_mat[i, equal_n],
                      .SD, .SDcols = methods]
@@ -1062,6 +1065,7 @@ for(i in 1:nrow(parameter_mat)){
                       beta_1 == parameter_mat[i, beta_1] &
                       gamma_0 == parameter_mat[i, gamma_0] &
                       gamma_1 == parameter_mat[i, gamma_1] &
+                      gamma_2 == parameter_mat[i, gamma_2] &
                       rho == parameter_mat[i, rho] &
                        equal_n == parameter_mat[i, equal_n],
                     .SD, .SDcols = methods]
@@ -1069,6 +1073,7 @@ for(i in 1:nrow(parameter_mat)){
                        beta_1 == parameter_mat[i, beta_1] &
                        gamma_0 == parameter_mat[i, gamma_0] &
                        gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
                        rho == parameter_mat[i, rho] &
                        equal_n == parameter_mat[i, equal_n],
                      .SD, .SDcols = methods]
@@ -1076,6 +1081,7 @@ for(i in 1:nrow(parameter_mat)){
                          beta_1 == parameter_mat[i, beta_1] &
                          gamma_0 == parameter_mat[i, gamma_0] &
                          gamma_1 == parameter_mat[i, gamma_1] &
+                         gamma_2 == parameter_mat[i, gamma_2] &
                          rho == parameter_mat[i, rho] &
                          equal_n == parameter_mat[i, equal_n],
                        .SD, .SDcols = methods]
@@ -1083,6 +1089,7 @@ for(i in 1:nrow(parameter_mat)){
                            beta_1 == parameter_mat[i, beta_1] &
                            gamma_0 == parameter_mat[i, gamma_0] &
                            gamma_1 == parameter_mat[i, gamma_1] &
+                           gamma_2 == parameter_mat[i, gamma_2] &
                            rho == parameter_mat[i, rho] &
                            equal_n == parameter_mat[i, equal_n],
                        .SD, .SDcols = methods]
@@ -1114,6 +1121,7 @@ for(i in 1:nrow(parameter_mat)){
       beta_1 = parameter_mat[i, beta_1],
       gamma_0 = parameter_mat[i, gamma_0],
       gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
       rho = parameter_mat[i, rho],
       equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
                        "T", "F"),
@@ -1125,6 +1133,7 @@ for(i in 1:nrow(parameter_mat)){
       beta_1 = parameter_mat[i, beta_1],
       gamma_0 = parameter_mat[i, gamma_0],
       gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
       rho = parameter_mat[i, rho],
       equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
                        "T", "F"),
@@ -1136,6 +1145,7 @@ for(i in 1:nrow(parameter_mat)){
       beta_1 = parameter_mat[i, beta_1],
       gamma_0 = parameter_mat[i, gamma_0],
       gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
       rho = parameter_mat[i, rho],
       equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
                        "T", "F"),
@@ -1147,6 +1157,7 @@ for(i in 1:nrow(parameter_mat)){
       beta_1 = parameter_mat[i, beta_1],
       gamma_0 = parameter_mat[i, gamma_0],
       gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
       rho = parameter_mat[i, rho],
       equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
                        "T", "F"),
@@ -1175,7 +1186,7 @@ anova_less_than_long <- melt(anova_less_than_table,
 
 ```{r plot type 1, message=FALSE, warning = FALSE}
 # p-value plot
-x_labels <- x_labeller(error_less_than_table[, 1:5])
+x_labels <- x_labeller(error_less_than_table[, 2:6])
 
 gg_type_1 <- ggplot(data = error_less_than_long[beta_1 == 0],
                    aes(x = sim,
@@ -1193,6 +1204,7 @@ gg_type_1 <- ggplot(data = error_less_than_long[beta_1 == 0],
   ylab("Type I frequency") +
   theme_pubr() +
   theme(axis.title.x = element_blank()) +
+#  facet_grid(. ~ equal_n) +
   NULL
 gg_type_1
 ```

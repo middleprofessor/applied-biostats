@@ -154,7 +154,7 @@ Researchers typically combine the experiment in one of two ways
 
 To analyze these data with a model that results in inferential statistics that mean what they say (confidence intervals that really reflect 95% coverage and *p*-values that really reflect 5% Type I error when the null is true) we need to model the correlated error. There are several ways to do this. Here we use a **linear mixed model**.
 
-```{r, echo=FALSE}
+```{r lmm-eg1-multiple-p, echo=FALSE}
 fit <- lm(gc ~ genotype * sex, data = exp1g[experiment_id == "exp_1"])
 p1 <- (emmeans(fit, specs = c("genotype", "sex")) %>%
   contrast(method = "revpairwise", adjust = "none") %>%
@@ -191,7 +191,7 @@ p_means <- (emmeans(fit, specs = c("genotype", "sex")) %>%
 
 ```
 
-```{r lmm-why-care, fig.cap = "The experiment introduced in Example 1 was replicated four times."}
+```{r lmm-why-care, fig.dim=std_dim, fig.cap = "The experiment introduced in Example 1 was replicated four times."}
 exp1g_means <- exp1g[, .(gc = mean(gc)),
                         by = .(treatment, experiment_id)]
 pd_width <- 0.4
@@ -242,36 +242,30 @@ ggplot(data = exp1g,
 
 ### Fit the model
 
-```{r}
-exp1g_m1 <- lmer(gc ~ treatment + (treatment | experiment_id),
-                 data = exp1g)
+```{r lmm-eg1-m1}
 exp1g_m1 <- lmer(gc ~ genotype * sex +
                    (treatment | experiment_id),
                  data = exp1g)
-exp1g_m1 <- lmer(gc ~ genotype * sex +
-                   (genotype * sex | experiment_id),
-                 data = exp1g)
 
+```
+
+### Inference from the model
+
+```{r lmm-eg1-emm}
+exp1g_m1_emm <- emmeans(exp1g_m1, specs = c("sex", "genotype"))
+# m1_emm
 ```
 
 Notes
 
-1. I have flattened the factorial design in this analysis for the purpose of the explainer. There is no interaction effect in the model, but we can still get this from the contrasts.
+1. the two factors passed to `specs` are reversed from the fit model so that $\texttt{sex}$ is ploted on the x-axis below. This ordering has no effect on inference.
 
-### Inference from the model
-
-```{r}
-exp1g_m1_emm <- emmeans(exp1g_m1, specs = c("genotype", "sex"))
-# m1_emm
-```
-
-
-```{r}
-# m1_emm # print in console to get row numbers
+```{r lmm-eg1-pairs}
+# exp1g_m1_emm # print in console to get row numbers
 # set the mean as the row number from the emmeans table
 wt_m <- c(1,0,0,0)
-ko_m <- c(0,1,0,0)
-wt_f <- c(0,0,1,0)
+wt_f <- c(0,1,0,0)
+ko_m <- c(0,0,1,0)
 ko_f <- c(0,0,0,1)
 
 # simple effects within males and females + interaction 
@@ -297,6 +291,64 @@ exp1g_m1_planned %>%
 
 ### Plot the model
 
+```{r lmm-eg1-plot-the-model, fig.dim=harrell_dim*small_scale}
+gg <- ggplot_the_model(exp1g_m1,
+                       exp1g_m1_emm,
+                       exp1g_m1_planned,
+                       y_label = "Germinal Center (%)",
+                       effect_label = "Effect (%)",
+                       palette = pal_okabe_ito_blue,
+                       rel_heights = c(0.5,1))
+
+gg
+```
+
+### Alternaplot the model
+
+```{r lmm-eg1-alternaplot, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "Dashed gray line is expected additive mean of Gpr174- F"}
+
+exp1g_m1_pairs <- contrast(exp1g_m1_emm,
+                           method = "revpairwise",
+                           simple = "each",
+                           combine = TRUE,
+                           adjust = "none") %>%
+  summary(infer = TRUE)
+
+# get coefficients of model
+b <- coef(summary(exp1g_m1))[, "Estimate"]
+
+# get interaction p
+p_ixn <- exp1g_m1_planned[3, "p.value"] # check!
+
+dodge_width <- 0.4
+
+gg <- ggplot_the_response(
+  exp1g_m1,
+  exp1g_m1_emm,
+  exp1g_m1_pairs[c(3,4),], # only for comparisons within sex
+  palette = pal_okabe_ito_blue,
+  legend_position = "bottom",
+  y_label = "Germinal Center (%)"
+) +
+  geom_segment(x = 2 + dodge_width/2 - 0.1,
+               y = b[1] + b[2] + b[3],
+               xend = 2 + dodge_width/2 + 0.1,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 2.35,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("ixn p = ",
+                  fmt_p_value_rmd(p_ixn)),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black")
+
+gg
+```
+
 ## Understanding linear mixed models 1 --
 ### Linear mixed models have parameters for random intercept effects and random slope effects
 
@@ -314,11 +366,7 @@ A reminder of what these fixed effects are is illustrated in Figure \@ref(fig:lm
 
 A **random intercept** for experiment *j* is the sum of the fixed intercept ($\beta_0$) and a **random intercept effect** $\gamma_0j$ (Figure \@ref(fig:lmm-eg1-explainer-2)).
 
-A **random slope** is illustrated in Figure \@ref(fig:lmm-eg1-explainer-3) for the treatment combination "GPR174+ F". The random slope for experiment *j* is the sum of the fixed slope ($\beta_2$) and a **random slope effect** $\gamma_2j$. This makes $\gamma_2j$ equal to the residual of the modeled mean of the "GPR174+ F" treatment for experiment *j* and the expected mean if there were no random slope. This expected mean is the fixed intercept plus the fixed effect for the "GPR174+ F" treatment plus the random intercept effect for experiment *j*, or $\beta_0 + \beta_1 + \gamma_{0j}$. These expected means (if each $\gamma_{0j}=0$) are illustrated by the large gray dots in Figure \@ref(fig:lmm-eg1-explainer-3). The random slopes can also be visualized by the lines connecting the modeled means for each experiment from the reference to the "GPR174+ F" treatment (Figure \@ref(fig:lmm-eg1-explainer-3)).
-
-### A reminder of what fixed effects are
-
-```{r lmm-eg1-explainer_1, echo= FALSE, fig.cap = "Fixed effects estimated by exp1g_m1. The light gray point is the expected value of the GPR174- F treatment if genotype and sex were additive."}
+```{r lmm-eg1-explainer_1, echo= FALSE, fig.dim=std_dim, fig.cap = "Fixed effects estimated by exp1g_m1. The light gray point is the expected value of the GPR174- F treatment if genotype and sex were additive."}
 exp1g_emm_dt <- summary(exp1g_m1_emm) %>%
   data.table()
 treatment_levels <- levels(exp1g$treatment) %>%
@@ -402,9 +450,11 @@ gg <- ggplot(data = exp1g,
 gg
 ```
 
-### What are random intercepts?
+### What the random effects are
 
-```{r lmm-eg1-explainer-2, echo=FALSE, fig.cap="What random intercepts are. The large, colored dots are the modeled mean for each treatment (genotype by sex) by experiment_id combination. The dashed grey line is the fixed intercept -- it is the modeled mean of the reference level (\"GPR174+ M\"). The large, colored dots at the reference level are the random intercepts. The value of each random intercept is the sum of the fixed intercept and the random intercept effect for that experiment_id. Each random intercept effect is the residual from (or, distance from colored dot to) the dashed, gray line, shown by the vertical, colored lines"}
+A **random slope** is illustrated in Figure \@ref(fig:lmm-eg1-explainer-3) for the treatment combination "GPR174+ F". The random slope for experiment *j* is the sum of the fixed slope ($\beta_2$) and a **random slope effect** $\gamma_2j$. This makes $\gamma_2j$ equal to the residual of the modeled mean of the "GPR174+ F" treatment for experiment *j* and the expected mean if there were no random slope. This expected mean is the fixed intercept plus the fixed effect for the "GPR174+ F" treatment plus the random intercept effect for experiment *j*, or $\beta_0 + \beta_1 + \gamma_{0j}$. These expected means (if each $\gamma_{0j}=0$) are illustrated by the large gray dots in Figure \@ref(fig:lmm-eg1-explainer-3). The random slopes can also be visualized by the lines connecting the modeled means for each experiment from the reference to the "GPR174+ F" treatment (Figure \@ref(fig:lmm-eg1-explainer-3)).
+
+```{r lmm-eg1-explainer-2, echo=FALSE, fig.dim=std_dim, fig.cap="What random intercepts are. The large, colored dots are the modeled mean for each treatment (genotype by sex) by experiment_id combination. The dashed grey line is the fixed intercept -- it is the modeled mean of the reference level (\"GPR174+ M\"). The large, colored dots at the reference level are the random intercepts. The value of each random intercept is the sum of the fixed intercept and the random intercept effect for that experiment_id. Each random intercept effect is the residual from (or, distance from colored dot to) the dashed, gray line, shown by the vertical, colored lines"}
 exp1g[, m1_fit := predict(exp1g_m1)]
 exp1g_gr_means <- exp1g[, .(emmean = mean(m1_fit)),
                         by = .(treatment, experiment_id)]
@@ -472,9 +522,7 @@ gg1 <- ggplot(data = exp1g,
 gg1
 ```
 
-### What are random slopes?
-
-```{r lmm-eg1-explainer-3, echo=FALSE, fig.cap="What random slopes are. The large, black dots are the modeled means for the reference (\"GPR174+ M\") and \"GPR174+ F\" treatment combinations. The difference in the y-value of these two points is the fixed effect $b_2$, which is the effect of \"GPR174+ F\" relative to the reference. This effect can be visualized as the slope of the black line -- it is a fixed slope. The large, gray dots are the expected modeled means of \"GPR174+ F\" treatment combination for each experiment_id if there were no random slope. The differences between each large, colored dots and large, gray dot is the random slope effect for that experiment_id for the \"GPR174+ F\" treatment combination. The value of these effects for each experiment_id is equivalent to the difference of each of the colored lines (the random slopes) and the black line (the fixed slope)."}
+```{r lmm-eg1-explainer-3, echo=FALSE, fig.dim=std_dim, fig.cap="What random slopes are. The large, black dots are the modeled means for the reference (\"GPR174+ M\") and \"GPR174+ F\" treatment combinations. The difference in the y-value of these two points is the fixed effect (or slope) $b_2$, which is the effect of \"GPR174+ F\" relative to the reference. This effect can be visualized as the slope of the black line connecting the two black dots. The large, gray dots are the expected modeled means of \"GPR174+ F\" treatment combination for each experiment_id if there were no random slope. The differences between each large, colored dot and large, gray dot from the same experiment_id is the random slope effect for the \"GPR174+ F\" treatment combination for that experiment_id. The value of this effect for an experiment_id is equivalent to the difference of the slope of the colored line (the random slope) for the experiment_id and the black line (the fixed slope)."}
 
 b <- coef(summary(exp1g_m1))[, "Estimate"]
 u <- ranef(exp1g_m1)$experiment_id
@@ -513,6 +561,20 @@ gg2 <- ggplot(data = exp1g,
              color = "gray",
              position = position_dodge(width = pd_width)) +
 
+  # gamma_2 lines
+  geom_segment(data = female_pos,
+               aes(x = c(3 - pd_width/2.6,
+                         3 - pd_width/8,
+                         3 + pd_width/8,
+                         3 + pd_width/2.6),
+                   y = zero_slope_mean,
+                   xend = c(3 - pd_width/2.6,
+                            3 - pd_width/8,
+                            3 + pd_width/8,
+                            3 + pd_width/2.6),
+                   yend = emmean,
+                   color = experiment_id)) +
+
   # random b_2 slopes
   geom_segment(data = data.table(
     experiment_id = experiment_id,
@@ -541,7 +603,7 @@ gg2 <- ggplot(data = exp1g,
     x = 3 + pd_width/1.7,
     y = b[1] + b[3] + min(u[,1] + u[,3]),
     yend = b[1] + b[3] + max(u[,1] + u[,3]),
-    label = "gamma[2]^2",
+    label = "gamma[2]",
     text.size = 4,
     text.hjust = 0,
     color = "black",
@@ -560,9 +622,121 @@ gg2 <- ggplot(data = exp1g,
 
 gg2
 ```
+### The linear mixed model increases precision relative to a linear model of the pooled experiment means
 
+Compute the experiment means, then pool and fit the model.
 
-## Example 2 -- Using a blocked design to increase precision and power (no subsampling) -- paired t
+```{r lmm-eg1-m2}
+exp1g_mean_pool <- exp1g[, .(gc = mean(gc)),
+                         by = .(genotype, sex, experiment_id)]
 
-## Example 3 - pseudoreplication
+exp1g_m2 <- lm(gc ~ genotype * sex,
+               data = exp1g_mean_pool,
+               contrasts = list(genotype = contr.sum,
+                                sex = contr.sum))
+
+# same planned contrasts as above
+exp1g_m2_emm <- emmeans(exp1g_m2, specs = c("genotype", "sex"))
+exp1g_m2_pairs <- exp1g_m2_emm %>%
+  contrast(method = list(
+    "KO/M - WT/M" = c(ko_m - wt_m),
+    "KO/F - WT/F" = c(ko_f - wt_f),
+    "Interaction" = c(ko_f - wt_f) -
+      c(ko_m - wt_m)
+    
+  ))
+
+exp1g_m2_pairs %>%
+  summary(infer = TRUE) %>%
+  kable(digits = c(1,2,3,3,2,2,2,3)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. Compare the inference (confidence intervals and *p*-values) from m2 (linear model of the pooled means of each experiment) to those from m1 (linear mixed model of the combined data)
+
+```{r lmm-eg1-m1-planned-print, echo = FALSE}
+exp1g_m1_planned %>%
+  kable(digits = c(1,2,3,3,2,2,2,3)) %>%
+  kable_styling()
+```
+### Complete pooling increases false discovery -- don't do this
+
+```{r lmm-eg1-pseudoreplication}
+exp1g_m3 <- lm(gc ~ genotype * sex,
+               data = exp1g,
+               contrasts = list(genotype = contr.sum,
+                                sex = contr.sum))
+
+# same planned contrasts as above
+exp1g_m3_emm <- emmeans(exp1g_m3, specs = c("genotype", "sex"))
+exp1g_m3_pairs <- exp1g_m3_emm %>%
+  contrast(method = list(
+    "KO/M - WT/M" = c(ko_m - wt_m),
+    "KO/F - WT/F" = c(ko_f - wt_f),
+    "Interaction" = c(ko_f - wt_f) -
+      c(ko_m - wt_m)
+    
+  ))
+
+exp1g_m3_pairs %>%
+  summary(infer = TRUE) %>%
+  kable(digits = c(1,2,3,3,2,2,2,3)) %>%
+  kable_styling()
+```
+
+Notes
+
+1. This is a kind of pseudoreplication -- look at the huge df compared to the linear mixed model! By fitting this model, you are telling your PI, your readers and yourself that the multiple experiments are perfectly alike. We know this isn't true just by looking at Figure \@ref(fig:lmm-why-care). The df in exp1g_m3 is inflated because of pseudoreplication.
+2. For this example, the CIs are only slightly narrower and the *p*-values only slightly smaller in the pseudoreplicated exp1g_m3 compared to exp1g_m1.
+3. A simulation shows that in data like these, a linear model of the complete-pooled data is highly anti-conservative with absurdly narrow intervals and absurdly high type I error.
+
+### Alternatives to the random intercept and slope model
+
+Linear mixed models are *extremely* flexible both in the specification of the model and in the algorithm used to compute the model parameters. This is not the text to describe this. But, some alternative specifications are useful for experimental biology.
+
+#### A linear mixed model with independent random intercepts and slopes
+
+```{r lmm-eg-m4}
+exp1g_m4 <- lmer(gc ~ genotype * sex +
+                   (treatment || experiment_id),
+                 data = exp1g)
+```
+
+Notes
+
+1. The double bar ("||") tells `lmer` to fit a model with uncorrelated random effects.
+2. Wait, what? What are correlated random effects? The model `exp1g_m1` explicitly models a correlation between the random effects. For example, the estimated correlation between $\gamma_{2j}$ (the random slopes for the "Gpr174+ F" treatment) and $\gamma_{0j}$ (the random intercepts) is 0.46, which means that experiments with more positive random intercepts (have larger GC than the overall mean for the reference treatment) have more positve random slopes (have larger GC for the "Gpr174+ F" treatment than expected given random intercept). You can see this moderate, positive correlation by examining the random intercepts and slopes in Figure \@ref(fig:lmm-eg1-explainer-3) (the intercepts are the left side of the colored lines, the slopes are the slope of the colored lines).
+3. The model fails to converge, a common feature of linear mixed models. This is treated below.
+
+#### A linear mixed model with a fixed factor by random factor interaction.
+
+```{r}
+exp1g_m5 <- lmer(gc ~ genotype * sex +
+                   (1 | experiment_id) +
+                   (1 | experiment_id:treatment),
+                 data = exp1g)
+```
+
+Notes
+
+1. This model has two random intercepts and no random slope. The first random intercept is $\texttt{experiment_id}$, as in model exp1g_m1. The second is an intercept for all combinations of $\texttt{experiment_id}$ and $\texttt{treatment}$. This is the fixed by random factor interaction. Note that the fixed factor $\texttt{treatment}$ contains all combinations of $\texttt{genotype} \times \texttt{sex}$ (look at the data!), so this random intercept is equivalent to (and could be specified in the model formula using) $\texttt{experiment_id:genotype:sex}$.
+2. Model exp1g_m5 accounts for variation in experiment effects for each level of $\texttt{treatment}$ using the random interaction instead of random slopes. dude! And, because this random interaction intercept is specified as a different random intercept from that for $\texttt{experiment_id}$, the random interaction effects (alternative to slope) are independent of the $\texttt{experiment_id}$ intercept effects. Sweet!
+3. This model is the regression model equivalent of the **mixed ANOVA** with two fixed factors ($\texttt{genotype}$ and $\texttt{sex}$) and one random factor ($\texttt{experiment_id$). If the design is balanced such that all experiments have the same number of individuals in every $\texttt{genotype} \times \texttt{sex}$ combination then an ANOVA of this model and ANOVA using SAS or JMP or SPSS will be equivalent. I'm not sure that Graphpad Prism can do this kind of ANOVA.
+
+#### A linear mixed model with a fixed factor by random factor interaction -- the afex remix.
+
+```{r lmm-eg1-m6}
+exp1g_m6 <- aov_4(gc ~ genotype * sex +
+                   (genotype * sex | experiment_id),
+                 data = exp1g)
+```
+
+1. `(genotype * sex | experiment_id)` and `(treatment | experiment_id)` are equivalent since $\texttt{treatment}$ contains all combinations of $\texttt{genotype}$ * $\texttt{sex}$. `(genotype * sex | experiment_id)` is used because the `afex` function can't make the substitution.
+2. The model formula is the same as the for model exp1g_m1, but exp1g_m6 *does not model random slopes*. 
+
+## Best practice for experimental biology -- the aov_4 model.
+
+## Working in R
 
