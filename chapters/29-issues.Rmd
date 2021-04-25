@@ -39,28 +39,29 @@ minus <- "\u2013"
 
 ## Replicated experiments -- include $\texttt{Experiment}$ as a random factor (better than one-way ANOVA of means)
 
-Replicated experiments are the norm in bench biology. Researchers either analyze the mean response from each replicate or pool all the data, ignoring that they come from multiple, independent experiments. A useful alternative, one that is almost never used outside of certain subfields where pipelines for this alternative exist, is a linear mixed model with the experiment id added as a random factor (a "mixed effect ANOVA"). Researchers should be aware of this linear model alternative because it increases precision and power relative to a *t*-test/ANOVA of experiment means.
+Replicated experiments are the norm in bench biology. Researchers most commonly 1) analyze the mean response from each replicate, 2) pool all the data, ignoring that they come from multiple, independent experiments, or 3) analyze a "representive" experiment.
 
-It's important to understand the assumptions of the three different models. In a study with multiple, replicated experiments, the replications are "independent" -- solutions are re-made, instruments have drifted and are re-calibrated, the grad student doing the work has lived another day. Each experiment has a unique set of factors that contribute to the error variance of the response variable. All measures within an experiment share the component of the error variance unique to that experiment and, as a consequence, the error (residuals) within an experiment are more similar to each other than they are to the residuals between experiments. This is a violation of the independent sampling assumption of the linear model and the lack of independence creates **correlated error**. The consequences of this on the three analyses are:
+The best practice for analyzing data from multiple, independent experiments, one that is almost never used outside of certain subfields where pipelines for this alternative exist, is a **linear mixed model** with the experiment id added as a random factor. A **mixed-effect** or **repeated measures** ANOVA is equivalent to one version of this kind of linear model. The analysis of data from pooled independent experiments with a linear mixed model is a best practice because it increases precision and power relative to a *t*-test/ANOVA of experiment means and avoids **pseudoreplication**.
+
+It's important to understand the assumptions of the different models for analyzing replicated experiments. In a study with multiple, replicated experiments, the replications are "independent" -- solutions are re-made, instruments have drifted and are re-calibrated, the grad student doing the work has lived another day. Each experiment has a unique set of factors that contribute to the error variance of the response variable. All measures within an experiment share the component of the error variance unique to that experiment and, as a consequence, the error (residuals) within an experiment are more similar to each other than they are to the residuals between experiments. This is a violation of the independent sampling assumption of the linear model and the lack of independence creates **correlated error**. The consequences of this on the three analyses are:
 
 1. Linear model/*t*-test/ANOVA of pooled data ignoring experiment. This model assumes perfect replication between experiments, that essentially, the world was exactly the same for each. If this assumption is true, each replicate within each experiment is an *independent* data point. A study with n = 5 mice per treatment replicated five times has n = 25. If there are two treatment levels, the *t*-test will have 48 df. But, if the measures within an experiment share a common source contributing to the variance of the response within that experiment (the temperature in the room was 1°C cooler causing a machine to give a slightly different reading), there are not 25 independent measures because the five measures within each experiment are not independendent. The true df will be less than 48, how much less depends on the magnitude of the correlated error resulting from the non-independence. Pooling data across experiments with correlated error creates an incorrectly small standard error of the mean, resulting in incorrectly narrow confidence intervals and incorrectly small *p*-values. Pooling data inflates false discovery.
 2. Linear model/*t*-test/ANOVA of experiment means. Analysis of the means violates the independence assumption because the means of the treatment levels within an independent experiment are expected to share common sources of measure variability of that experiment. Instead of inflating false discovery, this correlated error generally works against discovery. The correlated error among the means can be modeled to increase precision and gain power.
 3. Linear model of the experiment means with $\texttt{experiment_id}$ added as a random factor to account for correlated error due to the unique sources of variance within each experiment. This model is equivalent to a **mixed effect ANOVA** of the full data set.
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-Reproducibility blues. Researchers are improving best practices by archiving data on public servers. Nevertheless, it is extremely rare to find the full data for many experiments. For analyses of the means from multiple experiments, researchers almost always archive the means and not the full set of measurements from each experiment. There is no way to replicate a result if only the means are archived. There is also no way to re-analyze the data with alternative models that require the full data.
+Reproducibility blues. Researchers are improving best practices by archiving data on public servers. Nevertheless, it is extremely rare to find the full data for many experiments. For analyses of the means from multiple experiments, researchers almost always archive the means -- the data are **means pooled** -- and not the full set of measurements from each experiment. Or, the full data are archived but the experiment id is not included -- the data are **complete pooled**. There is no way to truly replicate a result if only the means are archived (were the means computed correctly?). And, there is no way to re-analyze the data with alternative models that require the full data with the experiment identified.
 </div>
 
 ### Multiple experiments Example 1 (wound healing Exp4d) {#issues-exp4d}
-The data for this section is from the experiment in Figure 4d of
 
 Article source: [Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish](https://elifesciences.org/articles/45976){target="_blank"}
 
-data source(https://elifesciences.org/download/aHR0cHM6Ly9jZG4uZWxpZmVzY2llbmNlcy5vcmcvYXJ0aWNsZXMvNDU5NzYvZWxpZmUtNDU5NzYtZmlnNC1kYXRhMi12MS54bHN4/elife-45976-fig4-data2-v1.xlsx?_hash=Rr9mVyxyYK07xI0hnatjGDQjIMXR4LNrn01cfekuF%2B0%3D)
+[data source](https://elifesciences.org/download/aHR0cHM6Ly9jZG4uZWxpZmVzY2llbmNlcy5vcmcvYXJ0aWNsZXMvNDU5NzYvZWxpZmUtNDU5NzYtZmlnNC1kYXRhMi12MS54bHN4/elife-45976-fig4-data2-v1.xlsx?_hash=Rr9mVyxyYK07xI0hnatjGDQjIMXR4LNrn01cfekuF%2B0%3D)
 
 The experiment was designed to estimate the effect of a STAT3(https://en.wikipedia.org/wiki/STAT3){target="_blank"} [knockout](https://en.wikipedia.org/wiki/Gene_knockout){target="_blank"} on the number of cells expressing the cytoskeletal protein [vimentin](https://en.wikipedia.org/wiki/Vimentin){target="_blank"} in the wounded tissue.
 
-```{r twoway-exp4d-import, echo = FALSE}
+```{r issues-exp4d-import, echo = FALSE}
 data_from <- "Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish"
 file_name <- "elife-45976-fig4-data2-v1.xlsx"
 file_path <- here(data_folder, data_from, file_name)
@@ -156,33 +157,39 @@ sum(sd_vec < sd_p)/n_iter
 
 ```
 
-#### Linear mixed model for combining replicated experiments {#issues-combined-experiments}
+### Models for combining replicated experiments {#issues-combined-experiments}
 
-The linear mixed model for combining replicated experiments is most easily fit using the `aov_r` function from the afex package
+A linear mixed model for combining replicated experiments is most easily fit using the `aov_4` function from the afex package. The `aov_4` function fits a **mixed-effects ANOVA** model, which is a factorial ANOVA that includes both fixed and random factors. In the Experiment 4d data, the variable $\texttt{genotype}$ is a fixed factor and the variable $\texttt{experiment_id}$ is a random factor. More information on fixed and random factors is given in the [Linear Mixed Model chapter](#lmm).
+
+The mixed-effect ANOVA models fit by `aov_4` are not linear mixed models but inference is equivalent in balanced designs -- I give more detail below. The `aov_4` function uses a linear mixed model formula interface and is a useful substitute for actually fitting the equivalent linear mixed model because fitting a linear mixed model can be sensitive to the data and sometimes fails, even if the mixed-effect ANOVA model "works".
 
 **fit the model**
 
-```{r  twoway-exp4d-m1, warning=FALSE, message=FALSE}
-exp4d_m1 <- aov_4(vimentin_cells ~ genotype + (genotype|experiment_id),
+```{r  issues-exp4d-m1, warning=FALSE, message=FALSE}
+exp4d_m1 <- aov_4(vimentin_cells ~ genotype + (genotype | experiment_id),
            data = exp4d)
 ```
 
 **inference from the model**
 
-```{r  twoway-exp4d-m1-pairs, warning=FALSE, message=FALSE}
+```{r  issues-exp4d-m1-pairs, warning=FALSE, message=FALSE}
 exp4d_m1_emm <- emmeans(exp4d_m1, specs = "genotype")
 
 exp4d_m1_pairs <- contrast(exp4d_m1_emm,
-                           method = "revpairwise")
+                           method = "revpairwise") %>%
+  summary(infer = TRUE)
+```
 
+
+```{r  issues-exp4d-m1-pairs-show, warning=FALSE, message=FALSE}
 exp4d_m1_pairs %>%
-  kable() %>%
+  kable(digits = c(1,2,3,1,2,2,1,5)) %>%
   kable_styling()
 ```
 
 **plot the model**
 
-```{r twoway-exp4d-plot}
+```{r issues-exp4d-plot}
 # wrangling to get this to work
 # ggplot_the_response doesn't like the fit object from afex. That's okay,
 # we use it only to get the individual points
@@ -199,50 +206,42 @@ ggplot_the_response(fit = exp4d_m0,
                     palette = pal_okabe_ito_blue)
 ```
 
-Explainer
+### Understanding Model `exp4d_m1`
 
-1. Model `exp4d_m1` adds $\texttt{experiment_id}$ as a random factor but the formula is misleading. The formula specifies a linear mixed model with a random intercept and a random slope (see [Models with random factors -- Blocking and pseudoreplication](#lmm}). The actual model fit by `aov_4` is equivalent to a **nested model**, which I'll get to in item 3.
-2. To understand the nested model, start with a factorial linear model with $\texttt{genotype}$ and $\texttt{experiment_id}$ crossed. This is the **fixed-effects** model that is the focus of this chapter.
+1. The univariate and multivariate models fit by `AOV_4` gives researchers an easy tool in R for replicating ANOVA results from other software, such as Graphpad Prism or JMP. But it is really the contrasts that we want, not the ANOVA table, and we can get these contrasts by passing the `aov_4` object to `emmeans`.
+2. The formula in Model `exp4d_m1` is misleading. The formula specifies a linear mixed model with a random intercept and a random slope (see [Models with random factors -- Blocking and pseudoreplication](#lmm}) but this is not the model that is fit.
+3. The `aov_4` function actually fits two models.
+* A linear model of the aggregated data with adjusted degrees of freedom (the "aov" or **univariate** model). "Aggregated" data are the means of each treatment level within each experiment (the means-pooled data).
+* A **multivariate** linear model (the multivariate model) of the aggregated data. A multivariate model has multiple *Y* variables. For the exp4d data, each experiment (containing the means for each treatments) is a seperate $Y$ variable.
+4. The default output is the univariate model but the researcher can choose the multivariate model.
 
-$$
-\begin{align}
-\texttt{vimentin_cells}_{j} = &\ \beta_0 + \beta_1 (\texttt{genotype}_\texttt{STAT3-/-}) + \beta_{2j} (\texttt{experiment_id}_{j})\ + \\
-&\beta_{3j} (\texttt{genotype}_\texttt{STAT3-/-}:\texttt{experiment_id}_{j}) + \varepsilon
-\end{align}
-$$
-
-In this model, there are $\beta_2$ and $beta_3$ coefficients for all non-reference levels of $\texttt{experiment_id}$. The R formula for this is `vimentin_cells ~ genotype * experiment_id`. Do not fit this model -- it fails to properly model the correlated error and can be conservative under some kinds of correlated error and highly anti-conservative under other kinds of correlated error (Simulation xxx).
-
-3. The nested model is
-
-$$
-\texttt{vimentin_cells} = \beta_0 + \beta_{0j} + \beta_{0jk} + \beta_1 (\texttt{genotype}_\texttt{STAT3-/-}) + \varepsilon
-$$
-
-$\beta_0$ and $\beta_1$ have the usual interpretation. $\beta_1$ is the effect that we want to estimate.
-
-$\beta_{0j}$ and $\beta_{0jk}$ are **random intercepts** from adding $\texttt{experiment_id}$ as a random (and not fixed) factor.
-
-$\beta_{0j}$ is the random intercept for the *j*th experiment and models the correlation due to shared features within experiments. It is similar to $\beta_{2j}$ in the fixed effect model except that there is a coefficient for all levels of $\texttt{experiment_id}$.
-
-$\beta_{0jk}$ is the random intercept for all combinations of the *j*th experiment with the *k* level of $\texttt{genotype}$. It is similar to $\beta_{3j}$ in the fixed effect model except that there is a coefficient for all combinations and not just the non-reference combinations.
-
-4. The nested model is implemented using `lmer` from the package lme4.
-
-```{r twoway-exp4d_m2, warning = TRUE}
-exp4d_m2 <- lmer(vimentin_cells ~ genotype +
-                         (1|experiment_id) +
-                         (1|experiment_id:genotype),
-           data = exp4d)
-
+```{r}
+exp4d_m1_pairs_multi <- emmeans(exp4d_m1,
+                                specs = "genotype",
+                                model = "multivariate") %>%
+  contrast(method = "revpairwise") %>%
+  summary(infer = TRUE)
 ```
 
-Oops. The function fits the model but returns a **convergence warning**, meaning that we shouldn't use the fit for inference. Convergence warnings will be very common with replicated experimental data for several reasons but the main reason is that there aren't enough replicates (three is the most common) to estimate the variance among the experiments. The only reason we'd want to use this function over the `aov_4` function is if we wanted these variance estimates.
+```{r echo=FALSE}
+pairs_dt <- rbind(exp4d_m1_pairs, exp4d_m1_pairs_multi)
 
-5. An equivalent of the nested model, at least for estimating the treatment effects and the uncertainty of these effects, is a simple linear mixed model of the Experiment means. These are the means typically used by researchers to compute a *t*-test or ANOVA.
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the univariate and multivarate models fit to the exp4d data.") %>%
+  kable_styling() %>%
+  pack_rows("univariate model (m1)", 1, 1) %>%
+  pack_rows("multivarite model (m2)", 2, 2)
+```
 
+5. The univariate and multivariate models are the same when there is only a single factor with two treatment levels, as with these data. Otherwise the two differ. See Section \@ref(lmm-exp6g-rmanova) in the Linear Mixed Models chapter.
+6. The univariate model is equivalent to the linear mixed model `exp4d_m2` (see next section) of the aggregated data if there are no missing data.
+7. If there are the same number of replicates within all treatment by experiment combinations, then the univariate model is equivalent to the linear mixed model `exp4d_m3` of the full (not aggregated) data.
 
-```{r twoway-exp4d-means}
+### The univariate model is equivalent to a linear mixed model of the aggregated data (Model exp4d_m2)
+
+**aggregate the data**
+
+```{r issues-exp4d-means}
 # compute the experiment means
 exp4d_means <- exp4d[, .(vimentin_cells = mean(vimentin_cells)),
                      by = .(genotype, experiment_id)]
@@ -250,71 +249,109 @@ exp4d_means <- exp4d[, .(vimentin_cells = mean(vimentin_cells)),
 
 **fit the model**
 
-```{r twoway-exp4d-m3, message=FALSE}
-exp4d_m3 <- lmer(vimentin_cells ~ genotype +
-                              (1|experiment_id),
-                            data = exp4d_means)
+```{r issues-exp4d-m2, message=FALSE}
+exp4d_m2 <- lmer(vimentin_cells ~ genotype + (1 | experiment_id),
+                 data = exp4d_means)
+```
 
-exp4d_m3_emm <- emmeans(exp4d_m3, specs = "genotype")
-exp4d_m3_pairs <- contrast(exp4d_m3_emm,
-                     method = "revpairwise") %>%
+```{r issues-exp4d-m2-show, echo=FALSE}
+
+exp4d_m2_pairs <- emmeans(exp4d_m2, specs = "genotype") %>%
+  contrast(method = "revpairwise") %>%
   summary(infer = TRUE)
 
-exp4d_m3_pairs %>%
-  kable(digits = c(1,2,3,1,2,2,1,5)) %>%
-  kable_styling()
+pairs_dt <- rbind(exp4d_m1_pairs, exp4d_m2_pairs)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the univariate model fit by AOV_4 (exp4d_m1) and the linear mixed model of the aggregated data (exp4d_m2)") %>%
+  kable_styling() %>%
+  pack_rows("univariate model (exp4d_m1)", 1, 1) %>%
+  pack_rows("linear mixed model (exp4d_m2)", 2, 2)
 ```
 
-6. The CI computed by `emmeans::contrast` uses the Kenward-Roger df and will be a little wider than the CI computed using `confint`.
-7. There is really no reason to use this instead of the `aov_4` function (`exp4d_m1`). Models like `exp4d_m2` are susceptible to convergence warnings for replicated experiments because of the low number of replicates. `aov_4` function avoids these fit issues by using a multivariate model and not a linear mixed model to compute the inferential statistics.
+Notes
 
-#### A *t*-test or ANOVA of the means has less power
+1. The univariate model is equivalent to Model `exp4d_m2` only if there is no missing data (for example, one treatment has no data in experiment 2).
+2.The factor $\texttt{experiment_id}$ is added as a **random intercept** using the formula notation `(1 | experiment_id)`. This random intercept models common variation shared within experiments. 
+3. Random intercepts were introduced in [Example 1 (exp1b) -- a paired t-test is a special case of a linear mixed model](#violations-paired-t) in the Violations chapter and are described in more detail in [Example 1 -- A random intercepts and slopes explainer (demo1)](#lmm-demo) in the Linear Mixed Model chapter.
 
-Compare the nested model in `exp4d_m1` or `exp4d_m3` (these are the same) to a *t*-test/ANOVA of the experiment means
+### A linear mixed model of the full data
 
-```{r twoway-exp4d-ttest}
+```{r issues-exp4d_m3, warning = TRUE}
+exp4d_m3 <- lmer(vimentin_cells ~ genotype +
+                         (1|experiment_id) +
+                         (1|experiment_id:genotype),
+           data = exp4d)
+
+```
+
+Notes
+
+1. Model `exp4d_m3` is equivalent to the univariate mixed-effect ANOVA (`exp4d_m1`) and the linear mixed model of the aggregated data (`exp4d_m2`) if there are the same number of subsamples in every genotype by experiment combination.
+2. Model `exp4d_m3` is a linear mixed model with the random factor added as two random intercepts.
+3. The `(1|experiment_id)` intercept models common variation shared within experiments.
+4. The `(1|experiment_id:genotype)` is an **interaction intercept** that models common variation shared within experiment by genotype combinations.
+5. The function `lmer` returns the "boundary (singular) fit" message, which is a warning to researchers to use caution if using the model for inference. This message will not be rare when the the number of experiments is small (2-4).
+
+Note 5 raises the question, why bother with the linear mixed model of the full data when the `aov_4` function always "works" and is the same when the design is balanced? The short answer is, just use the `aov_4` model with the default (univariate model) outputs. The long answer is, read chapter [Models with random factors -- linear mixed models](#lmm).
+
+### Analysis of the experiment means has less precision and power
+
+Compare inference from the mixed-ANOVA `exp4d_m1` or the linear mixed model `exp4d_m2` (these are the same) to a linear model of the experiment means (equivalent to a *t*-test/ANOVA)
+
+```{r issues-exp4d-ttest}
 exp4d_m4 <- lm(vimentin_cells ~ genotype, data = exp4d_means)
+```
 
-exp4d_m4_coef <- cbind(coef(summary(exp4d_m4)),
-                 confint(exp4d_m4))
-exp4d_m4_coef %>%
-  kable(digits = c(2,3,1,5,2,2)) %>%
-  kable_styling()
+```{r issues-exp4d-ttest-show, echo = FALSE}
+exp4d_m4_pairs <- emmeans(exp4d_m4, specs = "genotype") %>%
+  contrast(method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp4d_m1_pairs, exp4d_m4_pairs)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the univariate model fit by AOV_4 (exp4d_m1) and the linear model of the experiment means (exp4d_m4)") %>%
+  kable_styling() %>%
+  pack_rows("univariate model (exp4d_m1)", 1, 1) %>%
+  pack_rows("linear model (exp4d_m4)", 2, 2)
 ```
 
 Notes
 
-1. Remember that a *t*-test of experiment means is equivalent to the linear model `exp4d_m4`.
-2. The SE for the estimate of the $\texttt{genotype}$ effect is much smaller for the random intercept model than for the model without the random intercept (*t*-test).
-3. A consequence of item 1 is the narrower CI for the estimate of $\texttt{genotype}$ in the random intercept model.
-4. A consequence of item 1 is the smaller *p*-value for the estimate of $\texttt{genotype}$ in the random intercept model (look closelyy because a quick glance might suggest they are almost they same. They aren't).
-5. The increased precision and power is a general result and not one specific to this example.
+1. Model `exp4d_m4` violates the independence assumption because residuals within an experiment are expected to be more similar. Analyzing the experiment means does not fix this. With the aggregated data, this correlated error masks the true effect.
+2. The SE for the estimate of the $\texttt{genotype}$ effect is much smaller for the mixed ANOVA/random intercept model than for the fixed effect model of experiment means.
+3. The degrees of freedom for the fixed effect model is slighly larger than that for the mixed model `exp4d_m1`. Degrees of freedom is a measure of *independent* variation -- the fixed effect model assumes that every measure is independent. They aren't. The inflated degrees of freedom is **pseudoreplication**.
+4. Despite the (slightly) inflated degrees of freedom of the fixed effects model, the mixed model has much more narrow CIs and smaller p-value. This is because of item 2.
+5. The increased precision and power of the mixed model relative to the fixed effect model of the experiment means is a general result and not one specific to this example.
 
-#### A paired *t*-test is a special case of a nested model
+### Don't do this -- a t-test/fixed-effect ANOVA of the full data
 
-```{r twoway-nested-model-paired-t}
-exp4d_m5 <- t.test(vimentin_cells ~ genotype,
-               paired = TRUE,
-           data = exp4d_means)
-tidy(exp4d_m5) %>%
-  kable(digits = c(2,1,5,1,2,2,1,1)) %>%
-  kable_styling()
+`exp4d_m5` is a fixed effect model (there are no added random factors).
 
+```{r issues-exp4d_m5}
+exp4d_m5 <- lm(vimentin_cells ~ genotype, data = exp4d)
+```
+
+```{r issues-exp4d_m5-show, echo=FALSE}
+exp4d_m5_pairs <- emmeans(exp4d_m5, specs = "genotype") %>%
+  contrast(method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp4d_m1_pairs, exp4d_m5_pairs)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the univariate model fit by AOV_4 (exp4d_m1) and the linear model of the full data (exp4d_m5)") %>%
+  kable_styling() %>%
+  pack_rows("univariate model (exp4d_m1)", 1, 1) %>%
+  pack_rows("linear model (exp4d_m5)", 2, 2)
 ```
 
 Notes
 
-1. The signs of the effect and confidence intervals are reverse of those in the nested model because the `t.test` function generates the contrast as (reference - treatment).
-
-#### Two-way mixed ANOVA
-
-The nested model (`exp4d_m1`, `exp4d_m2`, `exp4d_m3`) is equivalent to a two-way ANOVA with one fixed factor and one random factor (**two-way mixed ANOVA**).
-
-```{r twoway-nested-model-anova}
-anova(exp4d_m1)[,-5] %>%
-  kable() %>%
-  kable_styling()
-```
+1. Model `exp4d_m4` violates the independence assumption because residuals within an experiment are expected to be more similar.
+2. The SE for the estimate of the $\texttt{genotype}$ effect is much smaller for the mixed ANOVA/random intercept model than for the fixed effect model *but* the degrees of freedom for the fixed effect model is much greater than that for the mixed model `exp4d_m1`. Degrees of freedom is a measure of *independent* variation -- the fixed effect model assumes that every measure is independent. They aren't. The inflated degrees of freedom is **pseudoreplication**.
+3. The consequence of the pseudoreplication is a too-small *p*-value. Pseudoreplication leads to more false discovery.
 
 ## Comparing change from baseline (pre-post) {#issues-pre-post}
 
@@ -1681,6 +1718,12 @@ Notes
 
 1. 
 
+## A difference in significance is not necessarily significant
+
+Thermal stress induces glycolytic beige fat formation via a myogenic state
+
+Figure 2j
+
 ## Researcher degrees of freedom
 
 ```{r echo = FALSE, eval=FALSE}
@@ -1707,7 +1750,7 @@ p_table
 ## Hidden code
 ### Import exp4d vimentin cell count data (replicate experiments example)
 
-```{r twoway-exp4d-import-show, echo = TRUE}
+```{r issues-exp4d-import-show, echo = TRUE}
 data_from <- "Distinct inflammatory and wound healing responses to complex caudal fin injuries of larval zebrafish"
 file_name <- "elife-45976-fig4-data2-v1.xlsx"
 file_path <- here(data_folder, data_from, file_name)

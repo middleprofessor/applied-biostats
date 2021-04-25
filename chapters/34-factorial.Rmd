@@ -191,7 +191,7 @@ $$
 \end{align}
 $$
 
-I refer to this as a **flattened** model (the table of treatment combinations has been flattened into a single row). Pairwise tests between treatments from a factorial analysis and a flattened analysis are the same. What differs is the interaction effect is not estimated in the flattened analysis (look at the two equations). This is a critical difference. The interaction effect is the necessary statistic to make many of the claims reported in the experimental biology literature.
+I refer to this as a **flattened** model (the table of treatment combinations has been flattened into a single row). Inference from a factorial or flattened model is the same. We can get the same pairwise contrasts or interaction contrasts from either model. That said, a factorial model nudges researchers to think about the analysis as a factorial design, which is good, because interaction effects are an explicit component of a factorial model.
 
 ## Example 1 -- Estimation of a treatment effect relative to a control effect ("Something different")  (Experiment 2j glucose uptake data)
 
@@ -1191,7 +1191,10 @@ ggcheck_the_model(exp3e_m1)
 ```{r two-way-coef, echo=TRUE}
 # step 2 - get the coefficient table
 exp3e_m1_coef <- tidy(exp3e_m1, conf.int = TRUE)
+```
 
+
+```{r two-way-coef-show, echo=FALSE}
 exp3e_m1_coef %>%
   kable(digits = c(1,3,4,2,4,3,3)) %>%
   kable_styling()
@@ -2005,7 +2008,7 @@ gg_synergy
 ```
 
 ## Issues in inference
-### For pairwise comparisons, it doesn't matter if you analyze the data with a factorial or a flattened linear model
+### For pairwise contrasts, it doesn't matter if you fit a factorial or a flattened linear model
 
 Compare the pairwise comparisons of the Experiment 2j glucose uptake data using a factorial linear model and a flattened linear model.
 
@@ -2045,7 +2048,49 @@ m2_pairs %>%
   
 ```
 
-But, this equivalence is somewhat beside the point, which is, in an experiment with crossed factors, we should analyze the data using a linear model with crossed factors, as this allows us to estimate the interaction effect.
+### For interaction contrasts, it doesn't matter if you fit a factorial or a flattened linear model
+
+Factorial model:
+
+```{r}
+# using m1 from above
+m1_ixn <- contrast(m1_emm,
+                     interaction = "revpairwise") %>%
+  summary(infer = TRUE)
+
+m1_ixn %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+```
+
+Flattened model:
+
+```{r}
+# need to compute the interaction as a contrast
+# using m2 from the previous chunk
+
+# m2_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+wt_rest <- c(1,0,0,0)
+wt_active <- c(0,1,0,0)
+ko_rest <- c(0,0,1,0)
+ko_active <- c(0,0,0,1)
+
+# contrasts are the difference in the vectors created above
+# 4. (KO/Active - WT/Active) - (KO/Rest - WT/Rest) -- interaction 
+
+m2_ixn <- contrast(m2_emm,
+                   method = list(
+                     "KO:Active Ixn" = c(ko_active - wt_active) -
+                       (ko_rest - wt_rest)
+                   )) %>%
+  summary(infer = TRUE)
+
+m2_ixn %>%
+  kable(digits = c(3)) %>%
+  kable_styling()
+```
+
 
 ### Adjusting *p*-values for multiple tests {#twoway-multiple-tests}
 
@@ -2392,17 +2437,22 @@ A linear model with two crossed factors is specified in the model formula as `y 
 
 ```{r twoway-working-m1}
 m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
+```
 
+```{r twoway-working-m1-show, echo=FALSE}
 tidy(m1, conf.int = TRUE) %>%
   kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
 ```
 
-The order of the factors in the model formula doesn't matter for the coefficients, the estimated marginal means, or the contrasts. It can matter for ANOVA (more on this below) but not "tests after ANOVA".
+The order of the factors in the model formula doesn't matter for the values of the coefficients, the estimated marginal means, or the contrasts. It can matter for ANOVA (more on this below) but not "tests after ANOVA".
 
 ```{r twoway-working-m1_b}
 m1_b <- lm(glucose_uptake ~ genotype * stimulation, data = exp2j)
+```
 
+
+```{r twoway-working-m1_b-show, echo=FALSE}
 tidy(m1_b, conf.int = TRUE) %>%
   kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
@@ -2412,7 +2462,10 @@ The additive model is specified by the formula `y ~ A + B`
 
 ```{r twoway-working-m2}
 m2 <- lm(glucose_uptake ~ stimulation + genotype, data = exp2j)
+```
 
+
+```{r twoway-working-m2-show, echo=FALSE}
 tidy(m2, conf.int = TRUE) %>%
   kable(digits = c(1,2,3,2,7,2,2)) %>%
   kable_styling()
@@ -2426,7 +2479,15 @@ tidy(m2, conf.int = TRUE) %>%
 # m1 <- lm(glucose_uptake ~ stimulation * genotype, data = exp2j)
 
 m1_emm <- emmeans(m1, specs = c("stimulation", "genotype"))
+
 m1_emm
+```
+
+```{r twoway-emm-show, echo=FALSE, eval=FALSE}
+# do not run, specifically want to show the emm result
+m1_emm %>%
+  kable(digits = c(1,1,2,3,1,2,2)) %>%
+  kable_styling()
 ```
 
 Notes
@@ -2447,6 +2508,36 @@ Notes
 2. Remember that the `specs` argument sets the values of the predictors for which we want a mean. By excluding $\texttt{B}$, we don't get the means of the levels of $\texttt{A}$ at each level of $\texttt{B}$ but averaged across the levels of $\texttt{B}$.`emmeans` "knows" to average across the levels of $\texttt{B}$ because $\texttt{B}$ is in the model.
 
 ### Contrasts
+
+#### Planned contrasts {#twoway-working-planned}
+
+```{r twoway-working-planned}
+wt_rest <- c(1,0,0,0)
+wt_active <- c(0,1,0,0)
+ko_rest <- c(0,0,1,0)
+ko_active <- c(0,0,0,1)
+
+m1_planned <- contrast(
+  m1_emm,
+  method = list(
+    "(WT/Active - WT/Rest)" = c(wt_active - wt_rest),
+    "(KO/Rest - WT/Rest)" = c(ko_rest - wt_rest),
+    "(KO/Active - WT/Active)" = c(ko_active - wt_active),
+    "KO:Active Ixn" = c(ko_active - wt_active) -
+      (ko_rest - wt_rest)
+  ),
+  adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r twoway-working-planned-show, echo=FALSE}
+m1_planned %>%
+  kable(digits = c(1,2,3,1,2,2,2,4)) %>%
+  kable_styling()
+```
+
+
 #### All pairwise effects
 
 ```{r twoway-working-pairs}
@@ -2475,21 +2566,29 @@ m1_simple <- contrast(m1_emm,
                      combine = TRUE,
                      adjust = "fdr") %>%
   summary(infer = TRUE) # add the 95% CIs
+```
 
+
+```{r twoway-working-simple-show, echo=FALSE}
 m1_simple %>%
 #  mutate(p.value = fmt_p_value_rmd(p.value)) %>%
   kable(digits = c(1,1,1,2,3,1,2,2,2,4)) %>%
   kable_styling()
 ```
 
-#### Interaction effects
+#### Interaction contrasts {#twoway-working-ixn}
 
-```{r}
+The interaction contrasts can be computed as in [Planned contrasts](#twoway-working-planned) above or using the argument "interaction = "
+
+```{r twoway-working-ixn}
 m1_ixn <- contrast(m1_emm,
                      interaction = "revpairwise",
                      adjust = "none") %>%
   summary(infer = TRUE) # add the 95% CIs
+```
 
+
+```{r twoway-working-ixn-show, echo=FALSE}
 m1_ixn %>%
   kable(digits = c(1,1,2,3,1,2,2,2,4)) %>%
   kable_styling()

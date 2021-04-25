@@ -75,7 +75,7 @@ gg
 
 ```
 
-## Two specifications of a linear model
+## Two specifications of a linear model {#lm-specifications}
 
 ### The "error draw" specification
 

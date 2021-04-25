@@ -1,20 +1,255 @@
-# Background physiology to the experiments in Figure 2 of "ASK1 inhibits browning of white adipose tissue in obesity" {-}
+# Analyzing experimental data with a linear model
 
-A little background on the subject of the article: white adipose tissue (WAT) is composed of adipose (fat) cells that function as energy storage cells. The energy is in the form of the fatty acids in the triacylglycerols, which form large lipid drops in the cell. The stored fatty acids are released from the WAT when other organs need energy. Mammalian brown adipose tissue (BAT) is composed of adipose cells that burn the stored fat to generate heat. This is enabled by the expression of the protein *uncoupling receptor 1* (UCP1) in the mitochondria. UCP1 uncouples the proton gradient across the inner mitochondrial membrane from ATP synthesis.
+## This text is about using linear models to estimate treatment effects and the uncertainty in our estimates. This, raises the question, what is "an effect"?
 
-In response to adverse health consequences of obesity, including metabolic syndrome, researchers are investigating various ways to increase BAT, or stimulate BAT activity, or transform WAT cells into more BAT-like cells, by turning up expression of UCP1. The regulation of UPC1 in WAT is a potential drug target for obesity.
+This text has an unusual start -- an example set of analyses for multiple, related experiments. This example is a goal or target; it's what you will be working towards as you learn from this text. The data for the analysis come from multiple experiments presented in Figure 2 in the article [ASK1 inhibits browning of white adipose tissue in obesity](https://www.nature.com/articles/s41467-020-15483-7){target="_blank"}. The data for Figure 2 is from a set of experiments exploring the consequences of adipose-tissue specific deletion of the ASK1 signaling protein on multiple, adverse effects of a high-fat diet in mice, including weight gain, glucose intolerance, and increased liver triacylglycerol levels. I chose the data in Figure 2 of this paper because of the diversity of analyses and plot types. My analyses and plots differ slightly from those of the researchers because I implemented better practices -- the stuff of this text.
 
-The researchers of the ASK1 study investigated the effects of an intracellular signaling protein (ASK1) on the browning of white adipose tissue. Previous research had suggested that 1) inflammation stimulates ASK1 activity and 2) increased ASK1 acitivty inhibits UPC1 expression (Figure \@ref(fig:ask1-mechanism). The experiments in Figure 2 of the ASK1 study follow this up and explore the question, if ASK1 is knocked out in the WAT cells, will this reverse the adverse effects of a high-fat diet, including weight gain, glucose intolerance, and liver triacylglycerol levels?
+The analyses of the Figure 2 data sets are isolated into their own chapter -- you can [scan the chapter](#ask1-report) and get a sense of the work necessary to generate an R Markdown document of reproducible results. Think of this as a template for organizing your own R Markdown documents. The chapter preceding the analysis is [just enough biology](#ask1-bio) to help you understand the biological importance of each experiment. Here, I use one panel from Figure 2 to outline what the statistical analysis of experimental data is all about. Much of this outline will be repeated in "An introduction to linear models" chapter.
 
-```{r ask1-mechanism, echo=FALSE, fig.cap="Inflammation to obesity stimulates ASK1 activity. ASK1 activity inhibits UCP1 expression."}
-image_path <- here::here("images", "ASK1_UCP1.png")
-knitr::include_graphics(image_path)
+The goal of the experiments is to measure the **effect** of the adipose-specific ASK1 deletion. To understand what I mean by "an effect", and to understand how we can estimate an effect by **fiting a linear model** to data, let's analyze the data from the experiment in Figure 2i (the "exp2i" data). My version of Figure 2i is in Figure \@ref(fig:ask1-exp2i-ggplot_the_model).
+
+```{r ask1-exp2i-setup, include=FALSE, echo = FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+
+library(here)
+library(janitor)
+library(readxl)
+library(data.table)
+library(stringr)
+library(knitr)
+library(kableExtra)
+
+# analysis packages
+library(emmeans)
+library(car) # qqplot, spreadlevel
+library(DHARMa)
+
+# graphing packages
+library(ggsci)
+library(ggpubr)
+library(ggthemes)
+library(ggforce)
+library(cowplot)
+library(lazyWeave) #pvalstring
+
+here <- here::here
+data_path <- "data"
+
+ggplot_the_model_path <- here::here("R/ggplot_the_model.R")
+source(ggplot_the_model_path)
+
 ```
 
-For the experiments in Figure 2, the researchers created mice in which the ASK1 gene was inhibited from being expressed (or "knocked out") in the white adipose tissue cells. The $ask1$ treatment has two levels: "ASK1Δadipo", which are the adipocyte-specific ASK1 knockout (KO) mice, and "ASK1F/F", which are the controls. For some of the experiments, the researchers split the mice in each $ask1$ treatment level and assigned these to either a Chow or a High Fat Diet (HFD). This experimental design is two-crossed factors, each with two levels, which I call a $2 \times 2$ factorial design in this text.
+```{r ask1-exp2i-import, echo=FALSE}
+data_folder <- "ASK1 inhibits browning of white adipose tissue in obesity"
+file_name <- "41467_2020_15483_MOESM4_ESM.xlsx"
+file_path <- here(data_path, data_folder, file_name)
+  
+fig_2_sheet <- "Source Date_Figure 2"
 
-* Some of the plots are coded directly in this document. Others use functions from the chapter "Plotting functions". But, to use these in an R Markdown document, these functions have to be saved in a "R Script" file. This script file then needs to be read at the start of the R Markdown document. I named the script file "ggplotsci.R" and placed it in a folder called "R" at the level of the project (directly within the project folder).
+range_2i <- "A265:G266"
+treatment_levels <- c("ASK1F/F", "ASK1Δadipo")
+exp2i <- read_excel(file_path,
+                     sheet = fig_2_sheet,
+                     range = range_2i,
+                     col_names = FALSE) %>%
+  transpose(make.names=1) %>%
+  data.table() %>%
+  melt(measure.vars = treatment_levels,
+       variable.name = "treatment",
+       value.name = "liver_tg") %>%
+  na.omit()
 
-* This example was written with the Bookdown style sheet (because its part of this book), which doesn't have one nice features of creating R Markdown documents for reports and manuscripts -- code folding. In an R Markdown document with code folding, a user can toggle between showing and hiding code. The html output with code folding is here.
+exp2i[, treatment := factor(treatment, treatment_levels)]
 
- 
+# View(exp2i)
+```
+```{r ask1-exp2i-gg-prep, echo = FALSE}
+exp2i_m1 <- lm(liver_tg ~ treatment, data = exp2i)
+
+exp2i_m1_emm <- emmeans(exp2i_m1, specs = "treatment")
+exp2i_m1_pairs <- contrast(exp2i_m1_emm,
+                            method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+exp2i_m1_emm_dt <- summary(exp2i_m1_emm) %>%
+  data.table
+exp2i_m1_pairs_dt <- data.table(exp2i_m1_pairs)
+exp2i_m1_pairs_dt[ , p_pretty := pvalString(p.value)]
+exp2i_m1_pairs_dt[, group1 := 1]
+exp2i_m1_pairs_dt[, group2 := 2]
+```
+
+```{r ask1-exp2i-ggplot_the_model, warning=FALSE, echo=FALSE, fig.cap = "The effect of adipose-specific ASK1 knockout on liver triglyceride (TG)."}
+ggplot_the_model(exp2i_m1,
+                 exp2i_m1_emm,
+                 exp2i_m1_pairs,
+                           palette = pal_okabe_ito_2,
+                 rel_heights = c(0.5,1),
+                           legend_position = "none",
+                 y_label = "Liver TG\n(µmol per g liver)",
+                 effect_label = "Effect (µmol per g liver)")
+```
+
+For Figure 2i, the researchers want to know if [knocking out](https://en.wikipedia.org/wiki/Gene_knockout){target="_blank"} the ASK1 gene in the adipose tissue cells lowers the liver triglyceride (TG) level in mice fed a high-fat diet. To investigate this, the researchers compared the TG levels in a group of knockout mice ("ASK1Δadipo" -- Δ is the del operator and refers to a deletion in genetics) to the TG levels in a group of control mice ("ASK1F/F"). Specifically, they measured *the difference* in the mean TG of the control group from the mean TG of the knockout group.
+
+$$
+\overline{\texttt{TG}}_\texttt{ASK1Δadipo} - \overline{\texttt{TG}}_\texttt{ASK1F/F}
+$$
+
+The difference in the means is **the estimate** of **the effect** of ASK1 deletion on liver TG levels. This estimate is -21.6 µmol per g liver. An effect has the same units as the variable compared (µmol per g liver), a magnitude (21.6 units), and a direction (negative).
+
+It is hard to overemphasize that what we measure in experiments is **estimated effects**. The true effect may be larger, smaller, or even in the reverse direction. This text is all about what we can infer about true effects from the statistical analysis of experimental data. This inference requires that we also measure our **uncertainty** in our estimate of the effect.
+
+The measured means in each group are computed from a random **sample** of mice. If we only cared about the six mice in each group in this experiment, then we would not need to fit a linear model to the data to estimate the effect, we could simply compute each group's mean and subtract the control mean from the knockout mean. But we care more about something more than these dozen mice because we are trying to discover something general about ASK1 regulation of TG levels in mice, generally (and even in mammals, and especially humans, generally). To make this leap of **inference**, we use a model to claim that each sample mean is an **estimate** of the respective **population** mean. Given this model, we can compute the **standard error** of each mean and the **standard error of the difference in means**. A standard error is a measure of the **sampling variance of a statistic** and, therefore, a measure of the precision of the estimate. The standard error, then, is a measure of **uncertainty** in the estimate. Here is how to think about precision and uncertainty: if we were to repeat this experiment many, many times, we would generate a long list of mean TG levels for the control mice and a long list of mean TG levels for the knockout mice. The less variable the means in each list, the more precise. By using a model, we do not need to repeat this experiment many times to get a standard error.
+
+The model we are going to fit to the Figure 2i data is
+
+\begin{align}
+y &= \beta_0 + \beta_1 x + \varepsilon\\
+\varepsilon &\sim N(0, \sigma^2)
+\end{align}
+
+This is *a model* of how the Figure 2i data were generated. In this model, $y$ is the liver TG level for some fictional, randomly generated mouse and $x$ is a variable that indicates the condition of the ask1 gene in randomly generated mouse -- a value of 0 is given to mice with a functional ASK1 gene and a value of 1 is given to mice with a knocked out gene.
+
+$\beta_0$ is the "true" mean of TG in mice fed a high-fat diet and with a functional ASK1 gene. By "true", I mean the mean that would be computed if we were to measure TG on an infinite number of these mice (exactly what "these mice" means is a good topic for a campfire discussion). The observed mean of the ASK1F/F group is an estimate of $\beta_0$. The sum $\beta_0$ + $\beta_1$ is the true mean of TG in mice fed a high-fat diet but with a knocked out ASK1 gene. This means that $\beta_1$ is the true difference in the means, or the **true effect**. The observed difference in means between the ASK1Δadipo and ASK1F/F groups is an estimate of $\beta_1$. This difference is the estimated effect.
+
+The sum $\beta_0 + \beta_1 x$ is the **expectation** of TG, or **expected** value of TG in a generated mouse given the generating model. This sum equals the true mean of the infinite set of normal mice if $x = 0$ and equals the true mean of the infinite set of ASK1 knockout mice if $x = 1$. All generated control mice have the same expected value of TG. All generated knockout mice have the same expectated value of TG.
+
+$\varepsilon$ is the **error** for the randomly generated mouse. It is a random number sampled from a Normal distribution with a mean of zero and a variance of $\sigma^2$. The variation in generated mice has a systematic component due to variation in $x$ and a random (or **stochastic**) component due to variation in $\varepsilon$.
+
+By **fitting a model to the data** we estimate the parameters $\beta_0$, $\beta_1$ and $\sigma$. It is the estimation of $\sigma$ that allows us to compute a measure of our uncertainty (a standard error) of our estimates of the means ($\beta_0$ and $\beta_0 + \beta_1$) and of the difference in the means ($\beta_1$).
+
+Let's fit this model to the Figure 2i data using R.
+
+```{r ask1-exp2i-m1, echo = FALSE}
+exp2i_m1 <- lm(liver_tg ~ treatment, data = exp2i)
+```
+
+Robust inference from the model (generalizing from sample to population, including measures of the uncertainty of our estimates) requires that our data approximates the kind of data we'd expect from the data generating model specified above. All rigorous analysis should use specific **model checks** to evaluate this. First, the "normality check" -- we use a **quantile-quantile (QQ) plot** to see if our data approximate what we'd see if we sampled from a normal distribution.
+
+```{r ask1-exp2i-qq, echo = TRUE}
+set.seed(1)
+qqPlot(exp2i_m1, id=FALSE)
+```
+
+95% of quantiles computed from fake samples from the generating model above are inside the two dashed lines in the plot. Our measured quantiles are the open circles. The quantiles from a sample that looks like it was sampled from a normal distribution, or "looks Normal", should be approximately linear and mostly lie within the dashed lines. Our sample looks good. Regardless, inference is pretty robust to moderate departure from Normal.
+
+Second, the "homogeneity check" -- we use a **spread level plot** to see if there is some pattern to the variance, for example if the spread of residuals is noticeably bigger in one group than another, or if the spread increases with the fitted value. 
+
+```{r ask1-exp2i-spread, echo = TRUE, warning=FALSE}
+spreadLevelPlot(exp2i_m1, id=FALSE)
+```
+
+This looks pretty good. Given these checks, lets move on and look at the table of model coefficients.
+
+```{r ask1-exp2i-coef, echo = TRUE}
+exp2i_m1_coef <- cbind(coef(summary(exp2i_m1)),
+                        confint(exp2i_m1))
+```
+
+```{r, echo=FALSE}
+exp2i_m1_coef %>%
+  kable(digits = c(1, 2, 1, 3, 1, 1)) %>%
+  kable_styling()
+```
+
+The two values in the column "Estimate" are the estimates of $\beta_0$ and $\beta_1$. The top value (61.5) is the mean of the control mice (the units are µmol/g). The mean of the knockout mice is the sum of the two values (39.9 µmol/g). And the effect of ASK1 deletion on TG levels is simply the second value (-21.6 µmol/g). The standard error of the effect is 7.05 µmol/g.
+
+We can use the standard error to compute a *t*-value (-3.1, in the column "t value"). A t-value is a **test statistic**. The probability ("p value") of the significance test is 0.012. This if the probability of sampling a *t*-value as large or larger than the observed *t*-value, if we were to sample from a null distribution of *t*-values (a distribution of sampled t values if the true value of $\beta_1$ was 0). We can also use the standard error to compute a **95% confidence interval of the effect**. The lower bound of this interval is -37.3 µmol/g and the upper bound is -5.9 µmol/g. A confidence interval is another way of communicating uncertainty, and the way advocated in this text. In a 95% confidence interval, 95% of similarly constructed intervals (from hypothetical sampling of six mice from the ASK1 normal population and six mice from the ASK1 knockout population) will contain the true mean. Another way to think about a confidence interval is, it is the range of true differences that are compatible with the data, where compatible means "not rejected" by a *t*-test (a *t*-test between the estimated effect and any number inside the interval would return a *p*-value greater than 0.05).
+
+Here is how we might report this result in a paper:
+
+Mean TG level in ASK1Δadipo mice on a high-fat diet was 21.6 µmol/g less than that in ASK1F/F mice on a high-fat diet (95% CI: -37.3, -5.9, $p = 0.012$) (Fig.\@ref(fig:ask1-exp2i-ggplot_the_model)).
+
+```{r ask1-exp2i-gg2, echo=FALSE}
+exp2i_gg <- ggplot(data = exp2i,
+                    aes(x = treatment,
+                        y = liver_tg,
+                        color = treatment)) +
+  
+  # points
+  geom_sina(alpha = 0.5) +
+  
+  # plot means and CI
+  geom_errorbar(data = exp2i_m1_emm_dt,
+                aes(y = emmean,
+                    ymin = lower.CL,
+                    ymax = upper.CL,
+                    color = treatment),
+                width = 0
+  ) +
+  
+  geom_point(data = exp2i_m1_emm_dt,
+             aes(y = emmean,
+                 color = treatment),
+             size = 3
+  ) +
+  
+ # plot p-values (y positions are adjusted by eye)
+  stat_pvalue_manual(exp2i_m1_pairs_dt,
+                     label = "p_pretty",
+                     y.position=c(95),
+                     tip.length = 0.01) +
+  
+  # aesthetics
+  ylab("Liver TG (µmol per g liver)") +
+  scale_color_manual(values=pal_okabe_ito[5:6],
+                     name = NULL) +
+  theme_pubr() +
+  theme(legend.position="none") +
+  theme(axis.title.x=element_blank()) +
+  
+  NULL
+
+# exp2i_gg
+
+```
+
+```{r ask1-exp2i-explainer-plot, echo=FALSE, warning=FALSE, message=FALSE}
+# This is for another chapter xxx
+
+do_it <- TRUE
+if(do_it == TRUE){
+  exp2i_explainer <- exp2i_gg +
+    geom_segment(aes(x = 1,
+                 y = exp2i_m1_emm_dt[treatment == "ASK1F/F",
+                                             emmean],
+                 xend = 1,
+                 yend = exp2i_m1_emm_dt[treatment == "ASK1Δadipo",
+                                             emmean]),
+               linetype = "dashed",
+               color = "black") +
+    geom_segment(aes(x = 1,
+                     y = exp2i_m1_emm_dt[treatment == "ASK1Δadipo",
+                                          emmean],
+                     xend = 2,
+                     yend = exp2i_m1_emm_dt[treatment == "ASK1Δadipo",
+                                             emmean]),
+                 linetype = "dashed",
+                 color = "black") +
+    geom_segment(aes(x = 1,
+                     y = exp2i_m1_emm_dt[treatment == "ASK1F/F",
+                                          emmean],
+                     xend = 2,
+                     yend = exp2i_m1_emm_dt[treatment == "ASK1Δadipo",
+                                             emmean]),
+                 color = "black") +
+    annotate(geom = "text",
+             label = "1 - 0 = 1",
+             x = 1.5,
+             y = 37) +
+    annotate(geom = "text",
+             label = bquote(bar(y)[2] - bar(y)[1]),
+             x = 1.1,
+             y = 50)
+  
+  
+  
+  #exp2i_explainer
+  image_path <- here("output", "exp2i_explainer.Rds")
+  saveRDS(exp2i_explainer, image_path)
+}
+
+```
+

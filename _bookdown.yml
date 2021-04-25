@@ -4,10 +4,12 @@ language:
     chapter_name: "Chapter "
 delete_merged_file: true
 rmd_files: ["index.Rmd",
+"chapters/00-models.Rmd",
 "chapters/01-part_1-getting_started.Rmd",
 "chapters/04-setup.Rmd",
-"chapters/05-ask1_fig2i.Rmd",
+"chapters/05-part_2_ask1.Rmd",
 "chapters/05-ask1_intro.Rmd",
+"chapters/05-ask1_bio.Rmd",
 "chapters/05-ask1-r_markdown.Rmd",
 "chapters/06-part_3_r_fundamentals.Rmd",
 "chapters/06-data-reading_writing.Rmd",

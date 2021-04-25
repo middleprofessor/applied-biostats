@@ -71,6 +71,26 @@ even <- function(x) x%%2 == 0
 '%not_in%' <- Negate('%in%')
 ```
 
+```{r}
+factor_wrap <- function(gg, sep = " "){
+  x_labels <- layer_scales(gg)$x$get_limits()
+  label_x <- str_replace(x_labels, sep, "\n")
+  gg <- gg +
+    scale_x_discrete(labels = label_x)
+  return(gg)
+}
+
+```
+
+```{r}
+factor_wrap_1 <- function(gg, sep = " "){
+  x_labels <- layer_scales(gg)$x$get_limits()
+  label_x <- str_replace(x_labels, sep, "\n")
+  return(label_x)
+}
+
+```
+
 ```{r remove-parentheses}
 remove_parentheses <- function(x){
   if(substr(x, 1, 1) == "("){
@@ -496,7 +516,7 @@ response_plot <- function(
   }
   if(dots == "jitter"){
     gg <- gg + geom_point(alpha = 0.5,
-                          position = "jitter")
+                          position = position_jitter(seed = 1))
   }
   if(dots == "dotplot"){
     gg <- gg + geom_dotplot(binaxis='y',

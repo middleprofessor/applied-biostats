@@ -1,4 +1,4 @@
-# Analyses for Figure 2 of "ASK1 inhibits browning of white adipose tissue in obesity" {-}
+# Analyses for Figure 2 of "ASK1 inhibits browning of white adipose tissue in obesity" {#ask1-report}
 
 ## Setup
 
@@ -418,6 +418,7 @@ fig_2d[treatment == "ASK1Δadipo HFD", time_x := time + shift*1.5]
 ```
 
 ### Figure 2d -- exploratory plots
+
 ```{r}
 
 qplot(x = time_x, y = glucose, color = treatment, data = fig_2d) +
@@ -489,6 +490,7 @@ qqPlot(fig_2e_m1, id=FALSE)
 spreadLevelPlot(fig_2e_m1, id=FALSE)
 
 ```
+
 ### Figure 2e -- inference from the model
 
 ```{r}
@@ -513,6 +515,7 @@ fig_2e_m1_pairs
 ```
 
 ### Figure 2e -- plot the model
+
 ```{r, message=FALSE}
 fig_2e_gg <- ggplot_the_response(
   fig_2e_m1,
@@ -530,6 +533,7 @@ fig_2e_gg
 
 ## Figure 2f -- Effect of ASK1 deletion  on glucose infusion rate
 ### Figure 2f -- import
+
 ```{r, message=FALSE}
 range_2f <- "A239:I240"
 treatment_levels <- c("ASK1F/F", "ASK1Δadipo")

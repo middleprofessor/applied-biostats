@@ -1,6 +1,4 @@
-# Models with random factors -- Blocking and pseudoreplication {#lmm}
-
-## Most experiments in bench biology generate batched data
+# Models with random factors -- linear mixed models {#lmm}
 
 ```{r lmm-setup, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -10,13 +8,14 @@ library(readxl)
 library(data.table)
 
 # analysis packages
+library(mvtnorm)
 library(emmeans)
 library(car) # qqplot, spreadlevel
 library(afex)
 library(lmerTest)
 library(nlme)
 
-# graphing an tabling packages
+# graphing and tabling packages
 library(ggplot2) # ggplot environment
 library(ggpubr) # publication ready plots
 library(cowplot) # combine plots
@@ -63,28 +62,39 @@ out.width_small <- paste0(small_width/full_width*100, "%")
 
 ```
 
-Most data in experimental biology is composed of subsets -- or **batches** of data that result in **correlated error** that contaminates statistical inference unless the error is modeled.
-In some designs, modeling the correlated error increases precision and power, and ultimately decreases false discovery. In other designs, failure to model the correlated error results in incorrectly high precision and incorrectly low *p*-values, leading to increased rates of false discovery.
+```{r echo=FALSE}
+varcor <- function(res){
+  # vc is the value from VarCorr(m1)
+  vc <- cov2cor(res)
+  diag(vc) <- sqrt(diag(res))
+  colnames(vc) <- rep(NA, ncol(vc))
+  vc[upper.tri(vc)] <- NA
+  return(vc)
+}
+
+```
+
+This chapter is about linear models with added random factors, or **linear mixed models**. In classical hypothesis testing, a **paired t-test**, **repeated measures ANOVA**, and **mixed-effect ANOVA** are equivalent to specific cases of linear mixed models. Linear mixed models are for analyzing data composed of subsets -- or **batches** -- of data that were measured from the "same thing". Batched data results in **correlated error** that muddles statistical inference unless the correlated error is modeled, explicitly or implicitly. In some designs, modeling the correlated error increases precision and power, and ultimately decreases false discovery. In other designs, failure to model the correlated error results in incorrectly high precision and incorrectly low *p*-values, leading to increased rates of false discovery. I think it's fair to infer from the experimental biology literature, that experimental biologists don't recognize the ubiquitousness of batched data and correlated error. This is probably the biggest issue in inference in the field (far more of an issue than say, a *t*-test on non-normal data).
 
 What do I mean by "batch" and how can correlated error both increase and decrease false discovery? Consider these experiments:
 
 1. The experiment in Figure \@ref(fig:lmm-biological-replicates) is a factorial design with two factors, $\texttt{genotype}$ and $\texttt{treatment}$, each with two levels. One mice of each treatment combination is randomly assigned to a cage. There are five replicates of each cage. The five replicate mice per treatment combination are **biological replicates**. Each cage is a batch. Each cage has a unique set of factors that contribute to the error variance of the measure of the response. Each cage shares a cage-specific history of temperature, humidity, food, light, interactions with animal facilities staff and behavioral interactions among the mice. All response measures within a cage share the component of the error variance unique to that cage and, as a consequence, the error (residuals) within a cage are more similar to each other than they are to the residuals between cages.
 
-```{r lmm-biological-replicates, echo=FALSE}
+```{r lmm-biological-replicates, out.width=out.width_std, echo=FALSE}
 path1 <- here("images", "lmm-biological-replicates-435-273.png")
 include_graphics(path1)
 ```
 
 2. The experiment in Figure \@ref(fig:lmm-technical-replicates) is a factorial design with two factors, $\texttt{genotype}$ and $\texttt{treatment}$, each with two levels. One mice of each treatment combination is randomly assigned to a cage. There are five replicates of each cage. The researchers take three measures of the response variable per mouse. The three measures are **subsampled replicates** (most often referred to as **subsamples**). The subsamples could be **technical replicates** if multiple measures are taken from the same prep or **repeated measures** if the the multiple measures are taken at different time points. In addition to each cage being a batch, each mouse is a batch. Each mouse has a unique set of factors that contribute to the error variance of the measures of the response in that mouse. All response measures within a mouse share the component of the error variance unique to that mouse and, as a consequence, the error (residuals) within a mouse are more similar to each other than they are to the residuals between mice
 
-```{r lmm-technical-replicates, echo=FALSE}
+```{r lmm-technical-replicates, out.width=out.width_std, echo=FALSE}
 path2 <- here("images", "lmm-technical-replicates-435-273.png")
 include_graphics(path2)
 ```
 
 3. The experiment in Figure \@ref(fig:lmm-segregated) has a single factor $\texttt{treatment}$ with two levels. Importantly, the treatment (example: diet) is randomly assigned to cage and all mice in the cage have this treatment. The five mice per cage are **subsampled replicates** (**subsamples**). As in experiments 1 and 2, each cage is a batch. Each cage has a unique set of factors that contribute to the error variance of the measures of the response in that cage. All response measures within a cage share the component of the error variance unique to that cage and, as a consequence, the error (residuals) within a cage are more similar to each other than they are to the residuals among cages.
 
-```{r lmm-segregated, echo=FALSE}
+```{r lmm-segregated, out.width=out.width_std, echo=FALSE}
 path3 <- here("images", "lmm-pseudoreplication.png")
 include_graphics(path3)
 ```
@@ -93,301 +103,1841 @@ In each of these experiments, there is systematic variation at multiple levels: 
 
 The variation among batches/lack of independence within batches has different consequences on the uncertainty of the estimate of a treatment effect. The batches in Experiment 1 contain all treatment combinations. The researcher is interested in the treatment effect but not the variation due to differences among the batches. The batches are nuissance factors that add additional variance to the response, with the consequence that estimates of treatment effects are less precise, unless the variance due to the batches is explicitly modeled. **Modeling a batch that contains some or all treatment combinations will increase precision and power**.
 
-Batches that contain at least two treatment combinations are known as **blocks**. A block that contains all treatment combinations is a **complete block**. A block that contains less than all combinations is an **incomplete block**. Including block structure in the design is known as **blocking**. Adding a blocking factor to a statistical model is used to increase the precision of an estimated treatment effect. Experiment 1 is an example of a **randomized complete block** design. "Complete" means that each block has all treatment levels or combinations of levels if there is more than one factor.
+Batches that contain at least two treatment combinations are known as **blocks**. A block that contains all treatment combinations is a **complete block**. A block that contains fewer than all combinations is an **incomplete block**. Including block structure in the design is known as **blocking**. Adding a blocking factor to a statistical model is used to increase the precision of an estimated treatment effect. Experiment 1 is an example of a **randomized complete block** design.
 
-In Experiment 2, there are multiple measures per mouse and the design is a **randomized complete block with subsampling**. The subsampling is not the kind of replication that can be used to infer the among treatment effect because the treatment assignment was not at the level of the subsamples. The **treatment replicates** (the cage) are the blocks, because *it was at this level that treatment assignment was randomized*. Nevertheless, there are inference advantages to subsampling. A statistical analysis of all measures from a subsampled design without modeling the correlated error due to the subsampling is a kind of [pseudoreplication](https://en.wikipedia.org/wiki/Pseudoreplication){target="_blank"}. Pseudoreplication results in incorrectly small standard errors and *p*-values and increased rates of false discovery.
+In Experiment 2, there are multiple measures per mouse and the design is a **randomized complete block with subsampling**. The subsampling is not the kind of replication that can be used to infer the among treatment effect because the treatment assignment was not at the level of the subsamples. The **treatment replicates** (the cage) are the blocks, because *it was at this level that treatment assignment was randomized*. Nevertheless, there are inference advantages to subsampling if modeled, But, a statistical analysis of all measures from a subsampled design without modeling the correlated error due to the subsampling is a kind of [pseudoreplication](https://en.wikipedia.org/wiki/Pseudoreplication){target="_blank"}. Pseudoreplication results in incorrectly small standard errors and *p*-values and increased rates of false discovery.
 
 In Experiment 3, the treatment is randomized *to* batch, so each batch contains only a single treatment level. In these **segregated** experimental designs, the variation among batches that arises from non-treatment related differences among batches **confounds** the variation among batches due to a true treatment effect. An extreme example of this would be an experiment with only a single cage with control conditions and a single cage with treatment conditions. Imagine 1) the true effect of the treatment is zero and 2) an aggressive mouse in the control cage stimulates the stress response in the other mice and this stress response has a large effect on the value of the response variable measured by the researchers. The researcher is fooled into thinking that the treatment caused the difference in the response. Again, mice are subsampled replicates while treatment replicates are at the level of the cage, because it was at this level that treatment assignment was randomized. This means the researcher has a single, treatment replicate (or, $n=1$), regardless of the number of mice (subsamples) in each cage. A statistical analysis of all measures from a subsampled design without modeling the correlated error due to the subsampling is a kind of [pseudoreplication](https://en.wikipedia.org/wiki/Pseudoreplication){target="_blank"}. Pseudoreplication results in incorrectly small standard errors and *p*-values and increased rates of false discovery.
 
+## Example 1 -- A random intercepts and slopes explainer (demo1) {#lmm-demo}
 
-```{r lmm-import-exp1g, echo=FALSE, message=FALSE}
+To introduce linear mixed models, I'm using data from [Experiment 1g](#lmm-example4) below. The design is $2 \times 2$ factorial with 4-5 mice per treatment combination. To simplify the explanation of **random intercepts** and **random slopes** in linear models with added random factors (**linear mixed models**), I flatten the analysis to a single treatment factor ($\texttt{treatment}$) with four levels ("Control", "Tr1", "Tr2", "Tr3). The response is percent germinal centers ($\texttt{gc}$) in [secondary lymphoid tissue](https://en.wikipedia.org/wiki/Lymphatic_system#Secondary_lymphoid_organs){target="_blank"}. The experiment was replicated 4 times. Each replication is a batch. This batch information is in the variable $\texttt{experiment_id}$. Further detail isn't necessary at this point.
+
+```{r lmm-demo1-import, echo=FALSE, message=FALSE}
 data_from <- "A GPR174–CCL21 module imparts sexual dimorphism to humoral immunity"
 file_name <- "41586_2019_1873_MOESM3_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
-exp1g_wide <- read_excel(file_path,
+demo1_wide <- read_excel(file_path,
                          sheet = "Fig 1g",
                          range = "B4:E25",
                          col_types = c("numeric"),
                          col_names = FALSE) %>%
   data.table()
 
-genotype_levels <- c("Gpr174+", "Gpr174-")
-sex_levels <- c("M", "F")
-g.by.s_levels <- do.call(paste, expand.grid(genotype_levels, sex_levels))
-colnames(exp1g_wide) <- g.by.s_levels
+new_levels <- c("Control", "Tr1", "Tr2", "Tr3")
+colnames(demo1_wide) <- new_levels
 
 exp_levels <- paste0("exp_", 1:4)
-exp1g_wide[, experiment_id := rep(exp_levels, c(5,6,6,5))] #check!
-exp1g_wide[, experiment_id := factor(experiment_id)] #check!
+demo1_wide[, experiment_id := rep(exp_levels, c(5,6,6,5))] #check!
+demo1_wide[, experiment_id := factor(experiment_id)] #check!
 
-exp1g <- melt(exp1g_wide,
+demo1 <- melt(demo1_wide,
               id.vars = "experiment_id",
-              measure.vars = g.by.s_levels,
+              measure.vars = new_levels,
               variable.name = "treatment",
               value.name = "gc") %>% # cell count
   na.omit()
 
-exp1g[, c("genotype", "sex"):= tstrsplit(treatment,
-                                             " ",
-                                             fixed = TRUE)]
-exp1g[, genotype := factor(genotype,
-                           levels = genotype_levels)]
-exp1g[, sex := factor(sex,
-                           levels = sex_levels)]
 
-exp1g_means <- exp1g[, .(gc = mean(gc)),
-                     by = .(treatment, genotype, sex, experiment_id)]
+demo1_means <- demo1[, .(gc = mean(gc)),
+                     by = .(treatment, experiment_id)]
 
 ```
 
-## Why we care about linear mixed models
+Figure \@ref(fig:lmm-explainer1a)A is a response plot of the linear model `lm(gc ~ treatment)` fit to the whole data set, ignoring the fact that the data were collected in batches. This is the **complete pooling** fit. Figure \@ref(fig:lmm-explainer1a)B is a response plot of the linear model `lm(gc ~ treatment)` fit to the means of each treatment combination from each experiment. This is the **means pooling** fit.
 
-The experiment that will be introduced in Example 1 was replicated four times. Looking at Figure \@ref(fig:lmm-why-care) shows why we shouldn't think of each independent experiment as a random sample *from the same hat*. Within any treatment level, the data from each experiment is **clustered**. Clearly, there is something systematically different among the experiments that is affecting the results. Which results should we report? Or, do we combine the experiments?
+```{r lmm-explainer1a, echo=FALSE, fig.width=full_width, fig.asp=0.5, fig.cap="A. Response plot of the linear model gc ~ treatment fit to all exp1g data. B. Response plot of the linear model gc ~ treatment fit to the experiment means of the exp1g data."}
 
-While frequently done, do not simply report one of the results and claim "similar results in the other three independent expeiments". Some aspects of the four experiments are qualitatively similar, for example, the direction of the estimated effect of genotype is positive in males and negative in females in all four experiments. But the evidence against the null for this pattern varies among experiments -- the *p*-values for a genotype effect in males and females are 0.1 and 0.047 in experiment 1, 0.08 and 0.16 in experiment 2, 0.013 and 0.11, and in experiment 3, and 0.12 and 0.006 in experiment 4. There will be a strong urge to choose to report the experiment that is closest to the goal of the researcher. Plus, why would we not report data that we bothered to collect and analyze?
+demo1_lm1 <- lm(gc ~ treatment, data = demo1)
+demo1_lm1_emm <- emmeans(demo1_lm1, specs = "treatment")
+demo1_lm1_pairs <- contrast(demo1_lm1_emm,
+                            method = "revpairwise",
+                            adjust = "none") %>%
+  summary(infer = TRUE)
+demo1_lm1_pairs <- demo1_lm1_pairs[c(1,2,4),]
+gg1 <- ggplot_the_response(demo1_lm1,
+                    demo1_lm1_emm,
+                    demo1_lm1_pairs,
+                    y_label = "Germinal Centers (%)",
+                    palette = pal_okabe_ito_blue)
 
-Researchers typically combine the experiment in one of two ways
+demo1_lm2 <- lm(gc ~ treatment, data = demo1_means)
+demo1_lm2_emm <- emmeans(demo1_lm2, specs = "treatment")
+demo1_lm2_pairs <- contrast(demo1_lm2_emm,
+                            method = "revpairwise",
+                            adjust = "none") %>%
+  summary(infer = TRUE)
+demo1_lm2_pairs <- demo1_lm2_pairs[c(1,2,4),]
+gg2 <- ggplot_the_response(demo1_lm2,
+                    demo1_lm2_emm,
+                    demo1_lm2_pairs,
+                    y_label = "Germinal Centers (%)",
+                    palette = pal_okabe_ito_blue)
 
-1. **complete pooling** by simply ignoring $\texttt{experiment_id}$. That is, just combine all the data and fit the model. The *p*-values for a genotype effect in males and females using the model with complete pooling are 0.032 and 0.028. Inference (confidence intervals and *p*-values) from complete pooling assumes no correlated error. We know from the conspicuous by-experiment clustering in Figure \@ref(fig:lmm-why-care) that there is correlated error in these data. The individual values within each experiment are pseudoreplicates. The consequence of the correlated error in complete pooling is anti-conservative inference -- incorrectly small standard errors and *p*-values.
-2. means pooling by computing the means of each treatment for each experiment and then analyzing the means. The *p*-values for a genotype effect in males and females using the model with means pooling are 0.29 and 0.025. Inference (confidence intervals and *p*-values) from means pooling assumes no correlated error. Analyzing the means does not correct for the clustering -- it is easy to see from Figure \@ref(fig:lmm-why-care) that the mean of exp_4 will be high in all four treatment groups. The consequence of the correlated error in means pooling will usually by conservative inference -- incorrectly large standard errors and *p*-values, with a subsequent loss of power.
+plot_grid(gg1, gg2, ncol=2, labels = "AUTO")
+```
 
-To analyze these data with a model that results in inferential statistics that mean what they say (confidence intervals that really reflect 95% coverage and *p*-values that really reflect 5% Type I error when the null is true) we need to model the correlated error. There are several ways to do this. Here we use a **linear mixed model**.
+### Batched measurements result in clustered residuals
 
-```{r lmm-eg1-multiple-p, echo=FALSE}
-fit <- lm(gc ~ genotype * sex, data = exp1g[experiment_id == "exp_1"])
-p1 <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
+Figure \@ref(fig:lmm-explainer1b)A is a plot of the residuals of the complete-pooling fit against $\texttt{experiment_id}$. The residuals are **clustered** by experiment. All residuals from experiment 1 are positive. All residuals from experiment 2 are negative. Residuals from experiment 3 are generally positive. Residuals from experiment 4 seem pretty random. This clustering by experiment is the same in the plot of the residuals of the means-pooling fit against $\texttt{experiment_id}$ (Figure \@ref(fig:lmm-explainer1b)B). The residuals are not independent in either fit. If you asked me to guess the sign of a residual and gave me the information that the measure was from experiment 1, I'd be correct 100% of the time. If the residuals were independent, I'd be correct, on average, 50% of the time. Independent residuals are randomly scattered about zero for within each experiment (Figure \@ref(fig:lmm-explainer1b)C).
 
-fit <- lm(gc ~ genotype * sex, data = exp1g[experiment_id == "exp_2"])
-p2 <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
+```{r lmm-explainer1b, echo=FALSE, fig.width=full_width, fig.asp=3/8, fig.cap="A. Residuals of the model fit to all demo1 data. B. Residuals of the model fit to the mean demo1 data."}
+demo1[, lm1_res := residuals(demo1_lm1)]
+gg1 <- ggplot(data = demo1,
+              aes(x = experiment_id,
+                  y = lm1_res)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_point() +
+  ylab("Residuals (complete pooling)") +
+  theme_pubr()
 
-fit <- lm(gc ~ genotype * sex, data = exp1g[experiment_id == "exp_3"])
-p3 <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
+demo1_means[, lm2_res := residuals(demo1_lm2)]
+gg2 <- ggplot(data = demo1_means,
+              aes(x = experiment_id,
+                  y = lm2_res)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_point() +
+  ylab("Residuals (means pooling)") +
+  theme_pubr()
 
-fit <- lm(gc ~ genotype * sex, data = exp1g[experiment_id == "exp_4"])
-p4 <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
-
-fit <- lm(gc ~ genotype * sex, data = exp1g)
-p_complete <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
-
-fit <- lm(gc ~ genotype * sex,
-          data = exp1g[, .(gc = mean(gc)),
-                       by = .(genotype, sex, experiment_id)])
-p_means <- (emmeans(fit, specs = c("genotype", "sex")) %>%
-  contrast(method = "revpairwise", adjust = "none") %>%
-  summary)[c(1,6), "p.value"]
-
-
+set.seed(1)
+demo1[, rand_res := rnorm(nrow(demo1), sd = sd(lm1_res))]
+gg3 <- ggplot(data = demo1,
+              aes(x = experiment_id,
+                  y = rand_res)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray") +
+  geom_point() +
+  ylab("Random residuals") +
+  theme_pubr()
+plot_grid(gg1, gg2, gg3, ncol=3, labels = "AUTO")
 
 ```
 
-```{r lmm-why-care, fig.dim=std_dim, fig.cap = "The experiment introduced in Example 1 was replicated four times."}
-exp1g_means <- exp1g[, .(gc = mean(gc)),
-                        by = .(treatment, experiment_id)]
-pd_width <- 0.4
-gg <- ggplot(data = exp1g,
+### Clustered residuals result in correlated error {#lmm-corerr}
+An assumption of inference from a linear model is independence -- each response is independently drawn from a distribution of random values. In Experiment 1g, the experiments are batches and the batched data results in correlated error unless modeled. One way to see this correlated error is to use the residuals from the means-pooled fit.
+
+1. aggregate the data by computing the means for each treatment level within each experiment.
+2. fit the fixed effect model (the model without added random factors) to the aggregated data
+3. compute the residuals from the model
+4. cast (or spread) the residuals for each treatment into its own column. This creates a 4 rows (experiment) $\times$ 4 columns (treatments) matrix of residuals.
+5. Compute the correlations among the four treatment combination columns. This is the correlated error due to the batch effect of $\texttt{experiment_id}$.
+
+```{r lmm-demo1-cor-error-table, echo=FALSE}
+# cast into a new data.table
+demo1_means_wide <- dcast(demo1_means,
+                          experiment_id ~ treatment,
+                          value.var = "lm2_res")
+demo1_means_wide %>%
+  kable(caption = "Residuals of fixed affect model fit to aggregated data. The residuals are split into each treatment.") %>%
+  kable_styling()
+```
+
+
+```{r lmm-demo1-cor-error, echo=FALSE}
+GGally::ggpairs(demo1_means_wide[, c(2:5)], progress = FALSE)
+```
+
+I've used `GGally::ggpairs` to compute and display the correlations as a matrix. The lower triangle of matrix elements contains the scatterplot of the residuals for the treatment combination defined by the row and column headers. The upper triangle of elements contains the Pearson correlation. With only four experiment residuals per treatment combination, large correlations will be common. But all correlations are large, positive values. The asterisks indicate values that would be an unexpected surprise under a null model of no correlation.
+
+We could explicitly model correlated error with a **linear model for correlated error** using the `nlme::gls` function, using a model for the correlated error that matches our knowledge of how the data were generated (from experiment batches). In this chapter, we implicitly model the correlated error using a linear model with added random factors -- a **linear mixed model**. What we explicitly model in a linear mixed model is hierarchical levels of variance.
+
+### In blocked designs, clustered residuals adds a variance component that masks treatment effects
+
+The variance among the experiments within a treatment is much greater than the variance among the treatment means. A consequence of this is, the experiment effect masks the effect of treatment. We can manually unmask this by
+
+1. compute the experiment means across all treatment combinations.
+2. create a gc variable without variation among experiment means ("adjusted for experiment_id").
+
+```{r lmm-demo1-manual-lmm, echo=FALSE}
+# step 1
+m0 <- lm(gc ~ experiment_id, data = demo1)
+demo1[, id_mean := predict(m0)]
+
+# step 2
+demo1[, gc_adj := gc - id_mean + mean(gc)]
+
+demo1_long <- melt(demo1,
+                   id.vars = c("treatment", "experiment_id"),
+                   measure.vars = c("gc",
+                                    "gc_adj"),
+                   variable.name = "measure",
+                   value.name = "gc")
+```
+
+```{r lmm-demo1-manual-lmm-explore, eval=FALSE, echo=FALSE}
+m1 <- lm(gc ~ treatment * experiment_id, data = demo1)
+m2 <- lm(gc_adj ~ treatment, data = demo1)
+m3 <- lmer(gc ~ treatment + (1 | experiment_id), data = demo1)
+emmeans(m1, specs = c("treatment", "experiment_id")) %>%
+  contrast(method = "revpairwise", adjust = "none") %>%
+  kable() %>%
+  kable_styling()
+emmeans(m2, specs = c("treatment")) %>%
+  contrast(method = "revpairwise", adjust = "none") %>%
+  kable() %>%
+  kable_styling()
+emmeans(m3, specs = c("treatment")) %>%
+  contrast(method = "revpairwise", adjust = "none") %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r lmm-demo1-manual-lmm-plot, echo=FALSE, fig.cap="Adjusting for variance among experiments. The black, dashed line is the grand-mean response. In the left panel, the colored, dashed lines are the mean gc for each experiment, ignoring treatment. In the right panel, the individual values have been shifted (adjusted) by centering the experiment means. This has the effect of reducing the error variance -- the spread of the values around the treatment means (large black dots)."}
+pd_width <- 0.8
+label_x <- as.character(levels(demo1$treatment))
+label_x <- str_replace(label_x, " ", "\n")
+demo1_id_means <- demo1[, .(gc = mean(id_mean),
+                            gc_adj = mean(gc_adj)),
+                        by = .(experiment_id)] %>%
+  melt(id.vars = "experiment_id",
+       variable.name = "measure",
+       value.name = "id_mean")
+
+gg2 <- ggplot(data = demo1_long,
        aes(x = treatment,
            y = gc,
            color = experiment_id)) +
+  
+  geom_point(position = position_dodge(pd_width)) +
+
+  # geom_point(position = position_dodge(pd_width),
+  #            alpha = 0.3,
+  #            size = 2) +
+  
+  # geom_point(aes(x = t.by.a,
+  #                y = glucose_uptake_donor_adj,
+  #                color = donor),
+  #            position = position_dodge(pd_width),
+  #            size = 2) +
+  
+  geom_point(data = summary(demo1_lm1_emm),
+             aes(x = treatment,
+                 y = emmean),
+             color = "black",
+             size = 3) +
+  
+  geom_hline(data = demo1_id_means,
+             aes(yintercept = id_mean,
+             color = experiment_id),
+             linetype = "dashed") +
+  
+  geom_hline(yintercept = mean(summary(demo1_lm1_emm)[, "emmean"]),
+             color = "black",
+             linetype = "dashed") +
+  
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  scale_x_discrete(labels = label_x) +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  facet_grid(.~measure) +
+  
+  NULL
+gg2
+
+```
+
+In Figure \@ref(fig:lmm-demo1-manual-lmm-plot), the black dots are the modeled means of each treatment combination. The small colored dots are the measured values of the response for each $\texttt{experiment_id}$ in the left panel and the experiment-adjusted values in the right panel. The black, dashed line is the grand-mean response. The colored, dashed lines are the means of all responses in each experiment. These means are equal in the right panel (and covered by the black line) because the variation among the means has been adjusted away. What is left is error variation uncontaminated by $\texttt{experiment_id}$.
+
+In Experiment 1g, $\texttt{experiment_id}$ is a nuissance variable -- it adds to the noise. In the exercise above, the effects of the treatment variables are adjusted for the elevation of batch effects on the overal batch mean. Linear mixed models are more sophisticated than this. In a linear mixed model, the effects of the treatment variables are adjusted for the elevations of batch effects on the intercept and batch effects on the slopes (or some combination of these). These are the **random intercepts** and **random slopes**.
+
+### Linear mixed models are linear models with added random factors
+
+A linear model adds some combination of **random intercepts** and **random slopes** to a linear model.
+
+$$
+\begin{equation}
+\texttt{gc}_{jk} = (\beta_{0} + \gamma_{0j}) + (\beta_{k} + \gamma_{kj}) \texttt{treatment}_{k} + \varepsilon 
+(\#eq:lmm-demo1-m1)
+\end{equation}
+$$
+
+A **random intercept** for experiment *j* is the sum of the fixed intercept ($\beta_0$) and a **random intercept effect** ($\gamma_{0j}$). I've embedded these within parentheses to show how these combine into the random intercept. A **random slope** for batch *j* is the sum of the fixed slope ($\beta_k$) for the non-reference level $k$ and a **random slope effect** ($\gamma_{kj}$). I've embedded these within parentheses to show how these combine into the random slopes.
+
+There is a different $\gamma_{0j}$ for each experiment. There is a different $\gamma_{kj}$ for each combination of non-reference level and experiment. The $\gamma_0j$ and $\gamma_kj$ are modeled as if the values for each experiment is a random draw from an infinite number of experiments. This is why $\gamma_{0j}$ and $\gamma_{kj}$ are **random effects**. In contrast, $\beta_0$ and the three $\beta_k$ for the non-reference treatment levels are the same for all experiments -- this is why $\beta_0$ is known as **fixed effects** (technically, $\beta_0$ is a mean and not an effect).
+
+Model \@ref(eq:lmm-demo1-m1) is fit to the Example 1 data using `lme4::lmer()`
+
+```{r lmm-demo1-m1, echo=TRUE}
+demo1_m1 <- lmer(gc ~ treatment +
+                   (treatment | experiment_id),
+                 data = demo1)
+```
+
+Notes
+
+1. `(treatment | experiment_id)` specifies a random intercept for all levels of $\textt{experiment_id}$ and
+a random slope for all combinations the levels of $\textt{experiment_id}$ and the non-reference levels of $\textt{treatment}$
+
+### What the random effects are
+
+**Random intercepts model batch effects in the reference treatment level**. \@ref(fig:lmm-demo1-explainer-2c)A illustrates random intercepts and random intercept effects. The large, colored dots are the modeled means of each experiment for each treatment combination. For the reference treatment level ("Control"), each mean is the sum of the estimated fixed intercept ($b_0$), shown by the dashed gray line, and the estimated random intercept effect ($\g_{0j}$) for experiment *j*. The random intercept effects are the vertical, colored lines.
+
+**Random slopes model the effect of treatment on batch effects in the non-reference treatment levels**. \@ref(fig:lmm-demo1-explainer-2c)B illustrates random slopes and random slope effects, focusing on the slopes for the 2nd non-reference treatment level ("Tr2"). The angled black line is the estimated fixed slope $b_2$ for this level. The colored lines are the random slopes for each experiment. The pale, gray dots are where the modeled means at the Tr2 level would be if there were no random slope effect -- as if we took the large colored dots at "Control" and rigidly shifted them up the black line to "Tr2". The estimated random slope effects $\mathrm{g}_{2j}$ are the difference between these large, gray dots and the modeled means.
+
+```{r lmm-demo1-m1-emm, echo=FALSE}
+demo1_m1_emm <- emmeans(demo1_m1, specs = "treatment")
+demo1_emm_dt <- summary(demo1_m1_emm) %>%
+  data.table()
+```
+
+```{r lmm-demo1-explainer-2a, echo=FALSE}
+demo1[, m1_fit := predict(demo1_m1)]
+demo1_gr_means <- demo1[, .(emmean = mean(m1_fit)),
+                        by = .(treatment, experiment_id)]
+
+b <- coef(summary(demo1_m1))[, "Estimate"]
+u <- ranef(demo1_m1)$experiment_id
+
+experiment_id <- levels(demo1$experiment_id)
+pd_width <- 0.4
+
+gg1 <- ggplot(data = demo1,
+       aes(x = treatment,
+           y = gc,
+           color = experiment_id)) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  geom_point(alpha = 0.5,
+             position = position_dodge(pd_width)) +
+
+  # b_0
+  geom_segment(x = 1 - pd_width,
+               y = b[1],
+               xend = 1 + pd_width,
+               yend = b[1],
+               linetype = "dashed",
+               color = "gray") +
+  annotate(geom = "text",
+           x = 1 + pd_width + 0.1,
+           y = b[1],
+           label = "b[0]",
+           hjust = 1,
+           parse = TRUE) +
+  
+  # treatment x experiment id points
+  geom_point(data = demo1_gr_means,
+            aes(x = treatment,
+                y = emmean),
+            size = 3,
+            position = position_dodge(pd_width)) +
+
+  # treatment x experiment id lines for intercept only
+  geom_segment(data = demo1_gr_means[1:4],
+               aes(x = c(1 - pd_width/2.6,
+                         1 - pd_width/8,
+                         1 + pd_width/8,
+                         1 + pd_width/2.6),
+                   y = rep(b[1], 4),
+                   xend = c(1 - pd_width/2.6,
+                            1 - pd_width/8,
+                            1 + pd_width/8,
+                            1 + pd_width/2.6),
+                   yend = emmean,
+                   color = experiment_id)) +
+
+  geom_bracket(
+    x = 1 - pd_width/1.7,
+    y = b[1],
+    yend = b[1] + u[1,1],
+    tip.length = -0.01,
+    label = "g[0.1]", # "g[0][exp1]",
+    text.size = 4,
+    text.nudge_x = -0.02,
+    text.hjust = 1,
+    color = "black",
+    parse = TRUE) +
+
+  geom_bracket(
+    x = 1 - pd_width/3.4,
+    y = b[1],
+    yend = b[1] + u[2,1],
+    tip.length = -0.01,
+    label = "g[0.2]", # "g[0][exp2]",
+    text.size = 4,
+    text.nudge_x = -0.02,
+    text.hjust = 1,
+    color = "black",
+    parse = TRUE) +
+
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+
+# gg1
+```
+
+```{r lmm-demo1-explainer-2b, echo=FALSE}
+b <- coef(summary(demo1_m1))[, "Estimate"]
+u <- ranef(demo1_m1)$experiment_id
+experiment_id <- levels(demo1$experiment_id)
+female_pos <- demo1_gr_means[treatment == levels(treatment)[3]]
+female_pos[, zero_slope_mean := b[1] + b[3] + u[,1]]
+
+pd_width <- 0.4
+
+gg2 <- ggplot(data = demo1,
+       aes(x = treatment,
+           y = gc,
+           color = experiment_id)) +
+  
+  # horizontal line at b_0 + b_2
+  geom_segment(x = 1 - pd_width,
+               y = b[1],
+               xend = 3 + pd_width,
+               yend = b[1],
+               linetype = "dashed",
+               color = "gray") +
 
   geom_point(alpha = 0.5,
              position = position_dodge(pd_width)) +
-  scale_color_manual(values = pal_okabe_ito_blue) +
   
-  geom_point(data = exp1g_means,
+  # treatment means
+  geom_point(data = demo1_emm_dt[c(1,3)],
+             aes(x = treatment,
+                 y = emmean),
+             size = 3,
+             color = "black") +
+  
+  # fixed b_2 slope
+    geom_segment(x = 1,
+               y = b[1],
+               xend = 3,
+               yend = b[1] + b[3],
+               color = "black") +
+
+
+  # expected means if gamma_2 = 0
+  geom_point(data = female_pos,
+             aes(x = treatment,
+                 y = zero_slope_mean,
+                 group = experiment_id),
+             size = 3,
+             color = "gray",
+             position = position_dodge(width = pd_width)) +
+
+  # gamma_2 lines
+  geom_segment(data = female_pos,
+               aes(x = c(3 - pd_width/2.6,
+                         3 - pd_width/8,
+                         3 + pd_width/8,
+                         3 + pd_width/2.6),
+                   y = zero_slope_mean,
+                   xend = c(3 - pd_width/2.6,
+                            3 - pd_width/8,
+                            3 + pd_width/8,
+                            3 + pd_width/2.6),
+                   yend = emmean,
+                   color = experiment_id)) +
+
+  # random b_2 slopes
+  geom_segment(data = data.table(
+    experiment_id = experiment_id,
+    x = c(1 - pd_width/2.5,
+          1 - pd_width/5,
+          1 + pd_width/5,
+          1 + pd_width/2.5),
+    y = c(b[1] + u[1,1],
+          b[1] + u[2,1],
+          b[1] + u[3,1],
+          b[1] + u[4,1]),
+    xend = c(3 - pd_width/2.5,
+             3 - pd_width/5,
+             3 + pd_width/5,
+             3 + pd_width/2.5),
+    yend = c(b[1] + b[3] + u[1,1] + u[1,3],
+             b[1] + b[3] + u[2,1] + u[2,3],
+             b[1] + b[3] + u[3,1] + u[3,3],
+             b[1] + b[3] + u[4,1] + u[4,3])),
+    aes(x = x,
+        y = y,
+        xend = xend,
+        yend = yend)) +
+  
+  geom_bracket(
+    x = 3 + pd_width/1.7,
+    y = b[1],
+    yend = b[1] + b[3],
+    label = "b[2]",
+    text.size = 4,
+    text.hjust = 0,
+    color = "black",
+    parse = TRUE) +
+
+  geom_bracket(
+    x = 3,
+    y = b[1] + b[3] + u[2,1],
+    yend = b[1] + b[3] + u[2,1] + u[2,3],
+    label = "g[2.2]",
+    text.size = 4,
+    text.hjust = 0,
+    color = "black",
+    parse = TRUE) +
+
+  geom_point(data = demo1_gr_means,
             aes(x = treatment,
-                y = gc),
+                y = emmean),
             size = 3,
             position = position_dodge(pd_width)) +
+
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
   
-  geom_line(data = exp1g_means,
-            aes(x = treatment,
-                y = gc,
-                group = experiment_id),
-            position = position_dodge(pd_width)) +
+  NULL
+
+ #gg2
+```
+
+```{r lmm-demo1-explainer-2c, fig.width=full_width, fig.asp=0.5, echo=FALSE, fig.cap="What random intercepts and slopes are. (A) A random intercept for batch $j$ is the difference between the fixed intercept and the modeled mean for batch $j$ in the reference treatment level. The random intercepts for experiments 1 ($\\mathrm{g}_{0.1}$) and 2 ($\\mathrm{g}_{0.2}$) are shown with brackets. (B) The fixed slope for the \"Tr2\" is illustrated with a bracket. The large, grey dots are the expected values for each batch (experiment_id) in the \"Tr2\" treatment if the random slope effects are zero. A random slope for batch $j$ is the difference between the expected value for batch j and the modeled mean for batch $j$. The random slope for experiment 2 in \"Tr2\" ($\\mathrm{g}_{2.2}$) is shown with a bracket."}
+plot_grid(gg1, gg2, ncol=2, labels = "AUTO")
+```
+
+### In a blocked design, a linear model with added random effects increases precision of treatment effects
+
+$$
+\begin{equation}
+\texttt{gc}_{jk} = \beta_{0} + \beta_{k} \texttt{treatment}_{k} +  (\gamma_{0j} + \gamma_{kj}\texttt{treatment}_{k} + \varepsilon) 
+(\#eq:lmm-demo1-m0)
+\end{equation}
+$$
+
+If the random intercepts and random slopes aren't modeled, this among-experiment variance is shifted to the error variance because the intercept effects and slope effects aren't estimated but absorbed by the error -- everything in Model \@ref(eq:lmm-demo1-m0) will be estimated by the residuals. As a consequence, the estimate of $\sigma$ (the square root of the error variance) for the linear mixed model is smaller than that for the linear model with only fixed effects.
+
+```{r lmm-demo1-m1-show}
+# sigma for the lmm
+m1 <- lmer(gc ~ treatment +
+                   (treatment | experiment_id),
+                 data = demo1)
+summary(m1)$sigma
+```
+
+
+```{r lmm-demo1-m2-show}
+# sigma for the fixed lm
+m2 <- lm(gc ~ treatment,
+                 data = demo1)
+summary(m2)$sigma
+```
+
+The consequence of the smaller estimate of $\sigma$ in the linear mixed model on inference (confidence intervals and *p*-values) depends on the number of subsamples, the **variance of the random effects** relative to the variance of the residual error, and the **correlation among the random effects**.
+
+### The correlation among random intercepts and slopes {#lmm-varcorr}
+
+Again, here is the linear mixed model fit to the experiment 1g data.
+
+$$
+\begin{equation}
+\texttt{gc}_{jk} = (\beta_{0} + \gamma_{0j}) + (\beta_{k} + \gamma_{kj}) \texttt{treatment}_{k} + \varepsilon 
+\end{equation}
+$$
+
+Think about how this model **generates data**. We have four experiments, so we randomly draw four $\gamma_{0j}$ from a normal distribution with some variance $\sigma_{0}^2$. And, for each non-reference treatment, we randomly draw four $\gamma_{0k}$ from a normal distribution with some variance $\sigma_{k}^2$. This gives us a matrix of four columns (one random intercept and three random slopes) and four rows (four experiments).
+
+```{r, echo=FALSE}
+gamma_0 <- c("$\\gamma_{0.1}$", "$\\gamma_{0.2}$", "$\\gamma_{0.3}$", "$\\gamma_{0.4}$")
+gamma_1 <- c("$\\gamma_{1.1}$", "$\\gamma_{1.2}$", "$\\gamma_{1.3}$", "$\\gamma_{1.4}$")
+gamma_2 <- c("$\\gamma_{2.1}$", "$\\gamma_{2.2}$", "$\\gamma_{2.3}$", "$\\gamma_{2.4}$")
+gamma_3 <- c("$\\gamma_{3.1}$", "$\\gamma_{3.2}$", "$\\gamma_{3.3}$", "$\\gamma_{3.4}$")
+dt <- data.table(intercept = gamma_0,
+                 "slope 1" = gamma_1,
+                 "slope 2" = gamma_2,
+                 "slope 3" = gamma_3)
+dt %>%
+  kable() %>%
+  kable_styling()
+```
+To randomly sample these values, the model needs not only the variances ($\sigma_k^2$) for each column (random effect) *but also* a correlation for each pair of columns. These correlations are the off-diagonal elements of the correlation matrix of random effects.
+
+```{r echo=FALSE}
+col_0 <- c(1,
+           "COR($\\gamma_{1}$, $\\gamma_{0}$)",
+           "COR($\\gamma_{2}$, $\\gamma_{0}$)",
+           "COR($\\gamma_{3}$, $\\gamma_{0}$)")
+col_1 <- c("COR($\\gamma_{0}$, $\\gamma_{1}$)",
+           1,
+           "COR($\\gamma_{2}$, $\\gamma_{1}$)",
+           "COR($\\gamma_{3}$, $\\gamma_{1}$)")
+col_2 <- c("COR($\\gamma_{0}$, $\\gamma_{2}$)",
+           "COR($\\gamma_{1}$, $\\gamma_{2}$)",
+           1,
+           "COR($\\gamma_{3}$, $\\gamma_{2}$)")
+col_3 <- c("COR($\\gamma_{0}$, $\\gamma_{3}$)",
+           "COR($\\gamma_{1}$, $\\gamma_{3}$)",
+           "COR($\\gamma_{2}$, $\\gamma_{3}$)",
+           "1")
+dt <- data.table("$\\gamma_0$" = col_0,
+                 "$\\gamma_1$" = col_1,
+                 "$\\gamma_2$" = col_2,
+                 "$\\gamma_3$" = col_3)
+dt %>%
+  kable(col.names = NULL) %>%
+  kable_styling()
+```
+
+In the models fit in this text, a researcher doesn't specify these variances and correlations. Instead, these are parameters estimated by the model. Here is a summary of the estimates of the variances of the random effects and of the correlations among the random effects for the linear mixed model fit to the experiment 1g data.
+
+```{r lmm-demo1-VarCorr, echo = FALSE}
+VarCorr(demo1_m1)
+```
+The first four values in the column "Std.Dev." are the square roots of the estimated variances for the random effects given in the column "Name". The last value in column "Std.Dev." is the square roots of the estimate of $\sigma^2$ (the error variance). The (lower) triangular matrix of values under "Corr" are the estimates of the correlations among the random effects. The variance of the random effects and the correlation among the random effects creates the [correlated error described above](#lmm-corerr) but do not confuse these different correlations (this is easy to confuse, you are not alone).
+
+A compact way to view these variances and correlations is a matrix with the random effect standard deviations on the diagonal and the correlations on the off-diagonal. I'll refer to this as the *VarCorr* matrix after the `lme4` function used to get the values.
+
+```{r, echo=FALSE}
+options(knitr.kable.NA = '')
+varcor(VarCorr(demo1_m1)$experiment_id) %>%
+  kable(col.names = rep("",4),
+        digits = 2,
+        caption = "The Varcorr matrix. Standard deviations of random effects on the diagonal. Correlations of random effects on the off-diagonal.") %>%
+  kable_styling()
+```
+
+It's probably not worth trying to understand the experimental reason underneath the correlations among the random effects. But, researchers might want to sleuth out why a lab is getting high random intercept and slope variances, relative to the error variances, as these could indicate potential sources of improvement in lab protocols.
+
+### Clustered residuals create heterogeneity among treatments
+
+The variances of the four treatments are
+
+```{r echo = FALSE}
+demo1[, .(Var = sd(gc)^2), by = treatment] %>%
+  kable(digits = 1) %>%
+  kable_styling(full_width = FALSE)
+```
+
+In chapter xxx, I stated that heterogeneity of variances can arise because of clustered data. Why does clustered data generate heterogeneity? Let's keep peeking at the linear mixed model fit to the experiment 1g data.
+
+$$
+\begin{equation}
+\texttt{gc}_{jk} = (\beta_{0} + \gamma_{0j}) + (\beta_{k} + \gamma_{kj}) \texttt{treatment}_{k} + \varepsilon 
+\end{equation}
+$$
+
+In a linear model with fixed effects only, the expected variance for any treatment for any treatment is $\sigma^2$. But if the data are batched, the expected variances include components due to the batch and these batch components depend on the treatment. This creates heterogeneity.
+
+To understand this, first some rules of expected variance. The random variable $\texttt{C}$ is the sum of two random variables $\texttt{A}$ and $\texttt{B}$. The variances of these variables are $\sigma_{C}^2$, $\sigma_{A}^2$, and $\sigma_{B}^2$.
+
+1. The expected variance of $\texttt{C}$ if $\texttt{A}$ and $\texttt{B}$ are independent (uncorrelated) is $\sigma_{C}^2 = \sigma_{A}^2 + \sigma_{B}^2$ ([this equation should look familiar](https://en.wikipedia.org/wiki/Pythagorean_theorem){target="_blank"}).
+2. The expected variance of $\texttt{C}$ if $\texttt{A}$ and $\texttt{B}$ are not independent (correlated) is $\sigma_{C}^2 = \sigma_{A}^2 + \sigma_{B}^2 + 2\sigma_{A}\ \sigma_{B}\ \rho_{A,B}$ where $\rho_{A,B}$ is the expected correlation between $\texttt{A}$ and $\texttt{B}$ ([this equation might also look familiar](https://en.wikipedia.org/wiki/Law_of_cosines){target="_blank"}).
+
+Here is some code to better know expected variances of the sum of two correlated random variables.
+
+```{r, eval=FALSE}
+# copy, paste, and explore
+n <- 10^4
+rho <- 0.6 # change this to any value between -1 and 1
+b <- sqrt(abs(rho))
+z <- rnorm(n)
+A <- b*z + sqrt(1-b^2)*rnorm(n)
+B <- sign(rho)*b*z + sqrt(1-b^2)*rnorm(n)
+cor(A,B) # should be close to rho
+C <- A + B
+sd(A)^2 # should be close to 1
+sd(B)^2 # should be close to 1
+sd(C)^2 # should be close to 1^2 + 1^2 + 2*1*1*rho
+sd(A)^2 + sd(B)^2 + 2*sd(A)*sd(B)*cor(A,B) # should equal previous line
+```
+
+Using these rules and the standard deviations of the random effects given above we can computed the expected variances of the treatment groups given the fit model.
+
+1. For the variance of the reference ("Control") group, we need to add to $\sigma^2$ the variance of the random intercept using rule #1 (the residuals are not correlated with random intercepts or slopes). The modeled variance is a less than the actual variance of the Control group.
+
+```{r}
+summary(m1)$sigma^2 + 1.7710^2
+```
+2. For the variance of a non-reference group, we need to add to $\sigma^2$ the variance of the random intercept and the variance of the random slope for the treatment and the component due to the correlation between the random slope for the treatment and the random intercept. For Tr2, this is
+
+```{r}
+# error + intercept + slope + cor(intercept, slope)
+(summary(m1)$sigma^2) + (1.7710^2) + (2.9026^2) + (2 * 1.7710 * 2.9026 * 0.458)
+
+```
+
+which is a bit higher than the measured variance.
+
+### Linear mixed models are flexible
+
+One more look at the linear mixed model fit to the experiment 1g data.
+
+$$
+\begin{equation}
+\texttt{gc}_{jk} = (\beta_{0} + \gamma_{0j}) + (\beta_{k} + \gamma_{kj}) \texttt{treatment}_{k} + \varepsilon 
+\end{equation}
+$$
+
+The linear mixed model specifies both a random intercept and a random slope but a researcher might limit the model to the random intercept only, or less commonly, the random slope only. Or a researcher might replace the random slope with a second random intercept that captures variance in the batch by treatment combinations like a random slope. Or a researcher might model the structure (correlated error and heterogeneity of variances) in the residuals *in addition to* adding random factors to the model.
+
+### A random intercept only model
+
+```{r lmm-demo1-alt1}
+demo1_m2 <- lmer(gc ~ treatment +
+                   (1 | experiment_id),
+                 data = demo1)
+```
+
+Notes
+
+1. Model `demo1_m2` specifies only a random intercept for each of the levels of $\texttt{experiment_id}$. The exclusion of the random slopes ia a kind of **model simplification**.
+2. In experiments without subsampling, random slopes cannot be added to the model because there is no variation with a treatment by batch combination.
+3. In experiments with subsampling, a researcher might exclude a random slope term for several reasons, including
+* it is the culture in many subfields to only include a random intercept (no, this is not a good reason)
+* the computation of the model fit returned a convergence warning
+* model comparison suggested that a model with the random slope was too complex given the data. A useful statistic for comparing models with different random effects specifications is the **AIC**, which is introduced in Section \@ref(lmm-demo-aic) below.
+
+### A model including an interaction intercept
+
+```{r}
+demo1_m3 <- lmer(gc ~ treatment +
+                   (1 | experiment_id) +
+                   (1 | experiment_id:treatment),
+                 data = demo1)
+```
+
+Notes
+
+1. `(1 | experiment_id:treatment)` models a random intercept for all combinations of the levels of $\texttt{experiment_id}$ and $\texttt{treatment}$. This **interaction intercept** is an alternative to a random slope for modeling treatment-specific batch effects.
+
+### AIC and model selection -- which model to report? {#lmm-demo-aic}
+
+Three different linear mixed models were fit to the Example 1 data: `demo1_m1`, `demo1_m2`, and `demo1_m3`. Which model do we report? A useful stastistic for this decision is a statistic known as the AIC.
+
+```{r lmm-demo-acc, echo=FALSE}
+data.table(
+  Model = c("demo1_m1", "demo1_m2", "demo1_m3"),
+  AIC = c(AIC(demo1_m1), AIC(demo1_m2), AIC(demo1_m3))
+) %>%
+  kable(caption = "AIC of the two alternative models fit to Example 1 data") %>%
+  kable_styling(full_width = FALSE)
+```
+
+Notes
+
+1. AIC ([Akaike Information Criterion](https://en.wikipedia.org/wiki/Akaike_information_criterion){target="_blank"}) is a relative measure of model quality. Compare this to $R^2$, which is an absolute measure of goodness of fit. The AIC formula has two parts, one is a kind of goodness of fit (like $R^2$) and the other is a penalty based on the number of parameters in the model. As the goodness of fit increases, the AIC goes down. As the number of parameters increases, the AIC goes up. The model with the lowest AIC is the highest quality model. The actual value of AIC, unlike $R^2$, does not have any absolute meaning; it is only meaningful relative to the AICs computed from fits to different models to the same data.
+2. The AIC of the three models suggests that we report Model `demo1_m3`.
+
+### The specification of random effects matters
+
+Inference will often be very different between these two models as they make very different 
+
+```{r echo = FALSE}
+demo1_m1_pairs <- emmeans(demo1_m1, specs = "treatment") %>%
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+demo1_m2_pairs <- emmeans(demo1_m2, specs = "treatment") %>%
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+demo1_m3_pairs <- emmeans(demo1_m3, specs = "treatment") %>%
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(demo1_m1_pairs, demo1_m2_pairs, demo1_m3_pairs)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the three linear mixed models fit to the Example 1 data.") %>%
+  kable_styling() %>%
+  pack_rows("intercepts + slopes (m1)", 1, 3) %>%
+  pack_rows("intercepts only (m2)", 4, 6) %>%
+  pack_rows("intercept + interaction intercept (m3)", 7, 9)
+```
+
+Notes
+
+1. Inference from the intercept only model (`demo1_m2`) is almost certainly too optimistic based on simulations that show that intercept only models can be highly anti-conservative (too narrow confidence intervals and too small *p*-values).
+2. Humans have evolved to make up rational explanations -- do not convince yourself that the model with the smallest *p*-values is the scientifically most rational model.
+
+### Mixed Effect and Repeated Measures ANOVA
+
+Two-way mixed-effect ANOVA (some fields would call this a repeated measures ANOVA) is equivalent to Model `demo1_m3` *in this case*. More generally, the two are equal in balanced designs -- the same number of subsamples in all treatment x batch combinations.
+
+```{r, warning=FALSE}
+demo1_m4 <- aov_4(gc ~ treatment + 
+                   (treatment | experiment_id),
+                 data = demo1)
+
+```
+
+Notes
+1. The function `afex::aov4` is used for specifying ANOVA models that are special cases of linear mixed models.
+2. The model formula in Model `demo1_m2` looks exactly like that the random intercepts and slopes model (Model `demo1_m1`) *but these are not the same*.
+3. One can use either a univariate or multivariate model for mixed or repeated measures ANOVA -- see section \@ref(lmm-exp6g-rmanova-multi).
+
+```{r echo=FALSE}
+emmeans(demo1_m4, specs = "treatment") %>%
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE) %>%
+  kable(digits = c(1,2,3,3,2,2,2,5), caption = "Contrasts from the two-way mixed effect ANOVA model demo1_m4.") %>%
+  kable_styling()
+```
+
+### Pseudoreplication
+
+## Example 2 -- experiments without subsampling replication (exp6g) {#lmm-example2}
+
+This example introduces linear mixed models for batches that contain all treatment levels of a single factor but no subsampling replication. In this example, the batch is the individual mouse ($\texttt{mouse_id}$). There are four measures of the response variable on each mouse, one measure per treatment level. When there is no subsampling replication, we cannot add a random slope to the model because there is only a single observation at each treatment level and a slope would fit the point at the reference level and the point at the non-reference level perfectly. However, we can explicitly model variation in the correlated error and heterogeneity in the variances among treatments as an alternative to modeling a random slope.
+
+[Reversing a model of Parkinson’s disease with in situ converted nigral neurons](https://www.nature.com/articles/s41586-020-2388-4){target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/7521455/){target="_blank"}
+
+Source figure: [Fig. 6g](https://www.nature.com/articles/s41586-020-2388-4#Fig6){target="_blank"}
+
+Source data: [Source Data Fig. 6](https://www.nature.com/articles/s41586-020-2388-4#MOESM11){target="_blank"}
+
+```{r lmm-import6g, echo=FALSE}
+data_from <- "Reversing a model of Parkinson’s disease with in situ converted nigral neurons"
+file_name <- "41586_2020_2388_MOESM11_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp6g_wide <- read_excel(file_path,
+                         sheet = "fig6g",
+                         range = "A3:E10",
+                         col_names = TRUE) %>%
+  data.table() %>%
+  clean_names()
+
+treatment_levels <- c("Lesion", "Saline", "CNO", "Post_CNO")
+setnames(exp6g_wide,
+         old = names(exp6g_wide),
+         new = c("mouse_id", treatment_levels))
+
+exp6g <- melt(exp6g_wide,
+              id.vars = "mouse_id",
+              variable.name = "treatment",
+              value.name = "touch")
+exp6g[, treatment := factor(treatment, levels = treatment_levels)]
+exp6g[, mouse_id := paste0("mouse_", mouse_id)]
+```
+
+### Understand the data
+
+In this study, the researchers investigate the effectiveness of knocking down the protein [PTBP1](https://en.wikipedia.org/wiki/PTBP1){target="_blank"} to induce astrocytes to convert to neurons in a motor processing region of the brain. Experimental lesions of this region of the brain is a model of [Parkinson's disease](https://en.wikipedia.org/wiki/Parkinson%27s_disease){target="_blank"}. In Experiment 6g, the researchers
+
+1. Generated a lesion in the motor processing region using 6-hydroxydopamine (6-OHDA). The lesion disrupts the ability to control the **contralateral** (opposite side) forelimb.
+2. One month after the lesion, measured the percent of ipsilateral (same side) forepaw touches (the forelimb extending out and touching the surface) in a test of exploration in a new environment (the "cylinder test"). The expected percent in an intact mouse is 50%. In a lesioned mouse, the percent should be much greater than 50% since there is less control of the contralateral limb. The measure at this point is in the treatment "Lesion". This is the positive control.
+3. Converted astrocytes in the lesion to functional neurons by knocking down PTBP1.
+4. Two months after knockdown, gave the mouse saline and remeasured percent ipsilateral touches in a cylinder test. If the knockdown worked as expected, there should be closer to 50% ipsilateral touches. The measure at this point is in the treatment "Saline". The comparison with Lesion is a focal test.
+5. Inhibited neuron action in the converted neurons using clozapine-N-oxide (CNO), which suppresses neuron electrical activity. Then, remeasured percent ipsilateral touches in a cylinder test. If the CNO worked as expected, there should be much greater than 50% ipsilateral touches since there should be re-loss of control of the contralateral limb. The measure at this point is in the treatment "CNO". The comparison with Saline is a focal test.
+6. Allowed three days for the CNO to degrade, then, remeasured percent ipsilateral touches in a cylinder test. If the CNO degraded as expected, the converted neurons should be functional and there should be closer to 50% ipsilateral touches. The measure at this point is in the treatment "Post_CNO". The comparison with CNO is a focal test.
+
+The design is $4 \times 1$ -- a single treatment with four levels ("Lesion", "Saline", "CNO", "Post_CNO")
+
+The planned contrasts are
+
+1. Saline - Lesion. This measures the effect of the knockdown and conversion of astrocytes to functional neurons.
+2. CNO - Saline. This measures the effect of inhibiting the converted neurons to test if it was these and not some other neurons that account for the effect in contrast 1.
+3. Post_CNO - CNO. This is probing the same expectation as contrast 2.
+
+### Model fit and inference
+#### Fit the model
+
+```{r lmm-6g_m1}
+exp6g_m1a <- lmer(touch ~ treatment + (1|mouse_id), data = exp6g)
+
+# alt model
+exp6g_m1b <- lme(touch ~ treatment,
+                random = ~1|mouse_id,
+                correlation = corSymm(form = ~ 1 | mouse_id),
+                weights = varIdent(form = ~ 1 | treatment),
+                data = exp6g)
+
+AIC(exp6g_m1a, exp6g_m1b)
+
+# report model a
+exp6g_m1 <- exp6g_m1a
+
+```
+
+exp6g_m1b overparameterizes, report exp6g_m1a (see [Alternative models for exp6g ](#lmm-exp6g-alt) below) 
+
+#### Inference from the model
+
+```{r lmm-6g_m1_coef, message=FALSE}
+exp6g_m1_coef <- cbind(coef(summary(exp6g_m1)),
+                       confint(exp6g_m1)[-c(1:2),])
+
+# exp5c_m1_coef %>%
+#   kable(digits = c(2,3,1,1,4,2,2)) %>%
+#   kable_styling()
+```
+
+```{r lmm-6g_m1_emm}
+exp6g_m1_emm <- emmeans(exp6g_m1, specs = c("treatment"))
+```
+
+
+```{r lmm-6g_m1_emm-show, echo=FALSE}
+exp6g_m1_emm %>%
+  kable(digits = c(1,1,2,1,1,2,2)) %>%
+  kable_styling()
+```
+
+```{r lmm-6g_m1_planned}
+# exp6g_m1_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+lesion <- c(1,0,0,0)
+saline <- c(0,1,0,0)
+cno <- c(0,0,1,0)
+post_cno <- c(0,0,0,1)
+
+exp6g_m1_planned <- contrast(exp6g_m1_emm,
+                       method = list(
+                         "Saline - Lesion" = c(saline - lesion),
+                         "CNO - Saline" = c(cno - saline),
+                         "Post_CNO - CNO" = c(post_cno - cno)
+                       ),
+                       adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r lmm-6g_m1_planned-show, echo=FALSE}
+exp6g_m1_planned %>%
+  kable(digits = c(1,2,3,3,2,2,2,5)) %>%
+  kable_styling()
+```
+
+#### Plot the model {#lmm-exp5c-plotthemodel}
+
+```{r echo=FALSE}
+# add group1 and group2 columns to exp6g_m1_planned
+exp6g_m1_planned_dt <- data.table(exp6g_m1_planned)
+exp6g_m1_planned_dt[, pretty_p := pvalString(p.value)]
+exp6g_m1_planned_dt[, group1 := c("Saline", "CNO", "Post_CNO")]
+exp6g_m1_planned_dt[, group2 := c("Lesion", "Saline", "CNO")]
+
+```
+
+```{r echo=FALSE}
+exp6g_effects <- ggplot_the_effects(exp6g_m1_emm,
+                   exp6g_m1_planned,
+                   effect_label = "Difference in % ipsilateral touch")
+
+```
+
+```{r echo=FALSE}
+exp6g_response <- ggplot(data = exp6g,
+              aes(x = treatment,
+                  y = touch)) +
+  geom_point(aes(group = mouse_id),
+             position = position_dodge(width = 0.2),
+             color = "gray") +
+  geom_line(aes(group = mouse_id),
+            position = position_dodge(width = 0.2),
+            color = "gray80") +
+  geom_point(data = summary(exp6g_m1_emm),
+             aes(y = emmean,
+             color = treatment),
+             size = 3) +
+  geom_errorbar(data = summary(exp6g_m1_emm),
+             aes(y = emmean,
+                 ymin = lower.CL,
+                 ymax = upper.CL,
+             color = treatment),
+             width = .05) +
+  
+  ylab("Percent ipsilateral touch") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+```
+
+```{r echo = FALSE, fig.dim=harrell_dim*small_scale, fig.cap="Treatment effect on ipsilateral touch, as percent of all touches. Gray dots connected by lines are individual mice."}
+plot_grid(exp6g_effects, exp6g_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.5,1))
+```
+
+#### Alternaplot the model
+
+```{r echo=FALSE, fig.dim=response_dim*small_scale, fig.cap = "Ipsilateral touch (percent of all touches) response to different treatments. Gray dots connected by lines are individual mice."}
+exp6g_response_2 <- exp6g_response + stat_pvalue_manual(exp6g_m1_planned_dt,
+                     label = "pretty_p",
+                     y.position = c(99,97,95),
+                     size = 2.5,
+                     tip.length = 0.01)
+
+
+exp6g_response_2
+```
+
+### The model exp6g_m1 adds a random intercept but not a random slope
+
+The model fit to the exp6g data is
+
+$$
+\begin{equation}
+\texttt{touch}_{jk} = (\beta_{0} + \gamma_{0j}) + (\beta_{k} + \gamma_{jk}) \texttt{treatment}_{k} + \varepsilon 
+\end{equation}
+$$
+
+Notes
+
+1. Again, in experiments without subsampling, we cannot add a random slope to the model (for each mouse, there is a single observation at each treatment level so a slope would fit the two points perfectly).
+
+### The fixed effect coefficients of model exp6g_m1
+The fixed effect coefficients of model `exp6g_m1` are
+
+```{r lmm-exp6g_m1-b, echo = FALSE}
+exp6g_m1_coef %>%
+  kable(digits = c(2,3,1,2,4,2,2)) %>%
+  kable_styling
+```
+
+Notes
+
+1. The interpretation of the fixed effectcs coefficients have the usual interpretation (see [The coefficients of a linear model using dummy coding have a useful interpretation](#oneway-what-coefs-are)). Figure \@ref(fig:lmm-exp6g-explainer-1) is a reminder.
+
+```{r lmm-exp6g-explainer-1, echo=FALSE, fig.dim=std_dim, fig.cap = "Fixed effects estimated by exp6g_m1. $b_0$ is the modeled mean of the Lesian treatment. $b_1$ is the difference (Saline - Lesian). $b_2$ is the difference (CNO - Lesian). $b_3$ is the difference (Post_CNO - Lesian)."}
+
+exp6g_emm_dt <- summary(exp6g_m1_emm) %>%
+  data.table()
+
+b <- coef(summary(exp6g_m1))[, "Estimate"]
+
+pd_width <- 0.4
+gg <- ggplot(data = exp6g,
+       aes(x = treatment,
+           y = touch,
+           color = mouse_id)) +
+  
+  geom_point(position = position_dodge(pd_width)) +
+  
+  geom_point(data = exp6g_emm_dt,
+             aes(x = treatment,
+                 y = emmean),
+             color = "black",
+             size = 3) +
+  
+  geom_segment(x = 0.75,
+               y = b[1],
+               xend = 4.25,
+               yend = b[1],
+               linetype = "dashed",
+               color = "gray30") +
+  
+  annotate(geom = "text",
+           x = .7,
+           y = b[1],
+           hjust = 1,
+           label = "b[0]",
+           parse = TRUE) +
+  
+  geom_bracket(
+    x = 2.1,
+    y = b[1],
+    yend = b[1] + b[2],
+    label = "b[1]",
+    text.size = 4,
+    text.hjust = 0,
+    color = "black",
+    parse = TRUE) +
+  
+  geom_bracket(
+    x = 3.1,
+    y = b[1],
+    yend = b[1] + b[3],
+    label = "b[2]",
+    text.size = 4,
+    text.hjust = 0,
+    color = "black",
+    parse = TRUE) +
+  
+  geom_bracket(
+    x = 4.1,
+    y = b[1],
+    yend = b[1] + b[4],
+    label = "b[3]",
+    text.size = 4,
+    text.hjust = 0,
+    color = "black",
+    parse = TRUE) +
+  
+  
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+gg
+```
+
+### The random intercept coefficients of exp6g_m1
+
+```{r lmm-exp6g-m1-random-coef, echo=FALSE}
+intercept_table <- data.table(
+  mouse_id = row.names(coef(exp6g_m1)$mouse_id),
+  "random intercept" = coef(exp6g_m1)$mouse_id[, "(Intercept)"],
+  b_0 = coef(summary(exp6g_m1))[1,1],
+  g_0j = ranef(exp6g_m1)$mouse_id[, "(Intercept)"])
+
+intercept_table %>%
+  kable(digits = c(1,3,3,3),
+        caption = "Random intercept coefficients (g_0j) for exp6g_m1. For each mouse, the random intercept is the sum of the fixed intercept ($b_0$) and the random intercept effect $g_{0j}$.") %>%
+  kable_styling()
+```
+
+Notes
+
+1. The random intercept effect $g_{0j}$ is the difference between the modeled mean for mouse *j* and the mean of the reference treatment. Unlike the fixed intercept ($b_0$), $g_{0j}$ is an effect.
+2. Figure \@ref(fig:lmm-exp1g-explainer-2) illustrates the random intercept coefficients $g_{0j}$ for model `exp6g_m1`.
+3. The random intercept coefficients are often (but not always) treated as a source of nuisance variation -- that is, the coefficients are not generally of interest and the values are not typically reported.
+
+```{r lmm-exp6g-explainer-2, echo=FALSE, fig.dim=std_dim, fig.cap="Random intercept effects for model exp6g_m1. The pale, colored dots are the measured percent ipsilateral touch values for each mouse for each treatment. The dashed, gray lines are the modeled means for each treatment. The dashed grey line for the reference level (\"Lesion\") is the fixed intercept. The dark, colored dots at the reference level are the random intercepts. The value of each random intercept is the sum of the fixed intercept and the random intercept effect for that mouse. The vertical, colored line segments at the reference level are the random intercept effects $g_{0j}$. The length of the segment is the residual from the dashed, gray line to the pale dot. The random intercept effects for mice 1 and 2 are too short to see."}
+
+pd_width <- 0.8
+b <- coef(summary(exp6g_m1))[, "Estimate"]
+u <- ranef(exp6g_m1)$mouse_id
+
+modeled_means <- data.table(
+  x = 1:4 - pd_width/2,
+  y = c(b[1], b[1] + b[2], b[1] + b[3], b[1] + b[4]),
+  xend = 1:4 + pd_width/2,
+  yend = c(b[1], b[1] + b[2], b[1] + b[3], b[1] + b[4])
+  )
+
+x_vals <- seq(-pd_width, pd_width, length.out = 7)/2.4
+exp6g_cn <- exp6g[treatment == "Lesion",]
+exp6g_cn[, x := 1 + x_vals]
+exp6g_cn[, y := rep(b[1],7)]
+exp6g_cn[, xend := 1 + x_vals]
+exp6g_cn[, yend := b[1]+ u[,1]]
+
+gg1 <- ggplot(data = exp6g,
+       aes(x = treatment,
+           y = touch,
+           color = mouse_id)) +
+  
+  geom_point(position = position_dodge(pd_width),
+             size = 2,
+             alpha = 0.3
+) +
+
+  # b_0 and modeled means
+  geom_segment(data = modeled_means,
+               aes(x = x,
+                   y = y,
+                   xend = xend,
+                   yend = yend),
+               linetype = "dashed",
+               color = "gray") +
+  
+
+  # treatment x donor dots for intercept
+  geom_point(data = exp6g_cn,
+               aes(x = treatment,
+                   y = yend,
+                   color = mouse_id),
+             position = position_dodge(pd_width)) +
+  
+  # treatment x donor lines for intercept
+  geom_segment(data = exp6g_cn,
+               aes(x = x,
+                   y = y,
+                   xend = xend,
+                   yend = yend,
+                   color = mouse_id)) +
+
+  geom_bracket(
+    x = 1 - pd_width/1.7,
+    y = b[1] + min(u[,1]),
+    yend = b[1] + max(u[,1]),
+    tip.length = -0.01,
+    label = "g[0][j]",
+    text.size = 4,
+    text.nudge_x = -0.02,
+    text.hjust = 1,
+    color = "black",
+    parse = TRUE) +
+
+  scale_color_manual(values = pal_okabe_ito_blue) +
   
   theme_pubr() +
   theme(axis.title.x = element_blank()) +
   
   NULL
 
-gg
-
+gg1
 ```
 
-## Example 1 -- Using independent experiments as blocks to increase precision and power ("germinal centers" -- Experiment 1g)
+### The random and residual variance and the intraclass correlation of model exp6g_m1
 
-### Understand the data
-
-### Examine the data
-
-```{r lmm-exp1g-examine}
-ggplot(data = exp1g,
-       aes(x = treatment,
-           y = gc,
-           color = experiment_id)) +
-  geom_point(position = position_dodge(0.4))
-
-```
-
-### Fit the model
-
-```{r lmm-eg1-m1}
-exp1g_m1 <- lmer(gc ~ genotype * sex +
-                   (treatment | experiment_id),
-                 data = exp1g)
-
-```
-
-### Inference from the model
-
-```{r lmm-eg1-emm}
-exp1g_m1_emm <- emmeans(exp1g_m1, specs = c("sex", "genotype"))
-# m1_emm
+```{r lmm-exp6g-m1-varcorr, echo=FALSE}
+sds <- as.data.frame(VarCorr(exp6g_m1))[, "sdcor"]
+icc <- (sds[1]^2/(sds[1]^2 + sds[2]^2))
+VarCorr(exp6g_m1)
 ```
 
 Notes
 
-1. the two factors passed to `specs` are reversed from the fit model so that $\texttt{sex}$ is ploted on the x-axis below. This ordering has no effect on inference.
+1. The first element in "Std.Dev." is the estimate of $\sqrt{\sigma^2_{0j}}$, the standard deviation among the donors due to the random effect of $\texttt{mouse_id}$.
+2. The second element in "Std.Dev." is $\sqrt{\sigma^2_{0}}$, the estimate of the standard deviation of the error variance ($\varepsilon^2$). Remember that the residuals of the model are the estimates of $\varepsilon$.
+3. The ratio $\frac{\sigma^2_{0j}}{\sigma^2_{0j} + \sigma^2_{0}}$ (the ratio of the among-block variance to total random variance) is known as the [intraclass correlation](https://en.wikipedia.org/wiki/Intraclass_correlation){target="_blank"}. This correlation is an estimate of the correlated error due to the by-mouse clustering if the model were fit without the added random intercept. For `exp6g_m1`, this correlation is `r round(icc, 2)`.
+4. The intraclass correlation ranges between 0 and 1 and makes a pretty good qualitative indicator of repeatability.
 
-```{r lmm-eg1-pairs}
-# exp1g_m1_emm # print in console to get row numbers
-# set the mean as the row number from the emmeans table
-wt_m <- c(1,0,0,0)
-wt_f <- c(0,1,0,0)
-ko_m <- c(0,0,1,0)
-ko_f <- c(0,0,0,1)
+### The linear mixed model exp6g_m1 increases precision of treatment effects, relative to a fixed effects model
 
-# simple effects within males and females + interaction 
-# 1. (ko_m - wt_m) 
-# 2. (ko_f - wt_f)
+Let's compare the effects estimated by the linear mixed model `exp6g_m1` with a linear model that ignores donor (a **fixed effects** model).
 
-exp1g_m1_planned <- contrast(exp1g_m1_emm,
+```{r lmm-exp6g-m2, echo=TRUE}
+exp6g_m2 <- lm(touch ~ treatment, data = exp6g)
+```
+
+```{r lmm-exp6g-m2-fixed, echo = FALSE}
+exp6g_m2_emm <- emmeans(exp6g_m2, specs = c("treatment"))
+exp6g_m2_planned <- contrast(exp6g_m2_emm,
                        method = list(
-                         "KO/M - WT/M" = c(ko_m - wt_m),
-                         "KO/F - WT/F" = c(ko_f - wt_f),
-                         "Interaction" = c(ko_f - wt_f) -
-                           c(ko_m - wt_m)
+                         "Saline - Lesion" = c(saline - lesion),
+                         "CNO - Saline" = c(cno - saline),
+                         "(Post-CNO) - Saline" = c(post_cno - saline),
+                         "(Post-CNO) - CNO" = c(post_cno - cno)
+                       ),
+                       adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r lmm-exp6g-why2, echo=FALSE, fig.cap="A. Inference from a linear mixed model with blocking factor (mouse_id) added as a random intercept. B. Inference from a fixed effects model."}
+gg1 <- ggplot_the_effects(exp6g_m1,
+                 exp6g_m1_planned,
+                 effect_label = "Difference in percent ipsilateral touch") +
+  ggtitle("Linear mixed model") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+gg2 <- ggplot_the_effects(exp6g_m2,
+                 exp6g_m2_planned,
+                 effect_label = "Difference inpercent ipsilateral touch") +
+  ggtitle("Fixed effect model") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+plot_grid(gg1, gg2, ncol=1, labels = "AUTO")
+
+```
+
+Figure \@ref(fig:lmm-exp6g-why2)A is a plot of the effects from the linear mixed model `exp6g_m1` that models the added variance due to mouse. Figure \@ref(fig:lmm-exp6g-why2)B is a plot of the effects from the fixed effect model `exp6g_m2` that ignores the added variance due to mouse. The 95% confidence intervals of the treatment effects in model `exp6g_m1` are slightly smaller than those in model `exp6g_m2`. Adding $\texttt{mouse_id}$ as a random factor to the linear model increases the precision of the estimate of the treatment effects by eliminating the among-mouse component of variance from the error variance.
+
+The error variance (the estimate of $\sigma^2) in the linear mixed model and the fixed effects model is
+
+```{r}
+summary(exp6g_m1)$sigma^2
+summary(exp6g_m2)$sigma^2
+```
+
+The error variance is 43% higher in the fixed effects model. In the linear mixed model, the variance lost from the error was shifted to the random intercept. We can track this shift with the table of the two variance components of the linear mixed model, shown above, and here again (the values are the square roots of the variances).
+
+```{r}
+VarCorr(exp6g_m1)
+```
+
+The sum of the two variance components of the linear mixed model is equal to the error variance of the fixed effects model:
+
+```{r}
+sum(as.data.frame(VarCorr(exp6g_m1))$vcov)
+```
+
+### Alternative models for exp6g {#lmm-exp6g-alt}
+
+Linear mixed models are very flexible, a topic which is too advanced for this text. Here I want to focus on an alternative model because of its relevance to **repeated measures ANOVA**.
+
+```{r lmm-exp6g-alt-models, message=TRUE}
+exp6g_m1a <- lmer(touch ~ treatment + (1 | mouse_id),
+                 data = exp6g)
+exp6g_m1b <- lme(touch ~ treatment,
+                random = ~1|mouse_id,
+                correlation = corSymm(form = ~ 1 | mouse_id),
+                weights = varIdent(form = ~ 1 | treatment),
+                data = exp6g)
+```
+
+Notes
+
+1. Two models are fit. The two models have the same fixed effect but differ in how they model the random effect and the pattern of correlations in the residuals. The difference in specification determines the error variance and degrees of freedom for computing uncertainty. I'll return to inference and the problem of "which model to choose" in a moment. First, how do these models differ?
+2. Model `exp6g_m1a` is the same model analyzed and explained above. This model specifies a random intercept for each level of $\texttt{mouse_id}$.
+3. Model `exp6g_m1b` has the same random effects as `exp6g_m1a` but adds two additional arguments, a `correlation` argument that explicitly models correlated error in the residuals and a `weights` argument that models heterogeneity in the residuals.
+4. Consider the error (the residuals) of the fixed effect model `touch ~ treatment` cast into a matrix with the residuals for each treatment in its own column. This matrix of residuals will be a $7 \times 4$ (7 mice, 4 treatments) matrix that looks like the table of residuals in Example 1 (Table \@ref(tab:lmm-demo1-cor-error-table)).
+5. Model `exp6g_m1a` implicitly models **compound symmetric** correlated error. This means
+* the correlation between every pair of columns of the residual matrix is the same.
+* the variances of each of the columns of the residual matrix is the same.
+* Model `exp6g_m1a` assumes zero correlation among the columns of a residual matrix *from Model exp6g_m1a*. This is because the source of the correlated residuals from the fixed model has been modeled by the random intercept.
+5. Model `exp6g_m1b` does not assume **compound symmetric** correlated error.
+* the argument `correlation = corSymm(form = ~ 1 | mouse_id)` in model `exp6g_m1b` explicitly models different correlations for all pairs of treatment combinations -- that is, **unstructured** correlated error.
+* the argument `weights = varIdent(form = ~ 1 | treatment)` in model `exp6g_m1b` explicitly models heterogeneity in the residuals among the levels of $\texttt{treatment}.
+6. Model `exp6g_m1b` makes fewer assumptions for inference. The trade-off is the estimation of more parameters and the potential of  [overfitting](https://en.wikipedia.org/wiki/Overfitting){target="_blank"}.
+7. A univariate model of a **repeated measures ANOVA** fit to the `exp6g` data is equivalent to model `exp6g_m1a`. See section \@ref(lmm-exp6g-rmanova).
+8. A multivariate model of a **repeated measures ANOVA** fit to the `exp6g` data is equivalent to model `exp6g_m1b`. See section \@ref(lmm-exp6g-rmanova-multi).
+
+```{r lmm-exp6g-alternatives-planned, echo = FALSE}
+contrast_list <- list(
+             "Saline - Lesion" = c(saline - lesion),
+             "CNO - Saline" = c(cno - saline),
+             "Post_CNO - CNO" = c(post_cno - cno)
+           )
+
+exp6g_m1a_pairs <- emmeans(exp6g_m1a, specs = "treatment") %>%
+  contrast(method = contrast_list,
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+exp6g_m1b_pairs <- emmeans(exp6g_m1b, specs = "treatment") %>%
+  contrast(method = contrast_list,
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp6g_m1a_pairs, exp6g_m1b_pairs)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,6), caption = "Planned contrasts from the two alternative models.") %>%
+  kable_styling() %>%
+  pack_rows("exp6g_m1a", 1, 3) %>%
+  pack_rows("exp6g_m1b", 4, 6)
+
+```
+
+9. Planned comparisons of the two models are given in the tables above. The effect estimates are the same but inference differs quantitatively among the models (but not qualitatively) because of how each model models the error. Which model do we report? One way to evaluate the models is a statistic known as the AIC.
+
+```{r lmm-exp6-aic, echo=FALSE}
+data.table(
+  Model = c("exp6g_m1a", "exp6g_m1b"),
+  AIC = c(AIC(exp6g_m1a), AIC(exp6g_m1b))
+) %>%
+  kable(caption = "AIC of the two alternative models fit to exp6g data") %>%
+  kable_styling(full_width = FALSE)
+```
+
+10. AIC ([Akaike Information Criterion](https://en.wikipedia.org/wiki/Akaike_information_criterion){target="_blank"}) is a relative measure of model quality. Compare this to $R^2$, which is an absolute measure of goodness of fit. The AIC formula has two parts, one is a kind of goodness of fit (like $R^2$) and the other is a penalty based on the number of parameters in the model. As the goodness of fit increases, the AIC goes down. As the number of parameters increases, the AIC goes up. The model with the lowest AIC is the highest quality model. The actual number, however does not have any absolute meaning; it is only meaningful relative to the AICs computed from fits to different models using the same data.
+11. The AICs of models `exp6g_m1a` and models `exp6g_m1b` suggest that model `exp6g_m1b` is too complex given the data. This has relevance for the repeated measures ANOVA analysis in the next section.
+
+### Paired t-tests and repeated measures ANOVA are special cases of linear mixed models
+
+A paired *t*-test is a special case of linear mixed model fit to data from a randomized complete block design with no subsampling and only two treatment levels (see [Lack of independence](#oneway-paired-t) in the Violations chapter). A repeated measures ANOVA is a special case of linear mixed model fit to data from a randomized complete block design with no subsampling and more than two treatment levels (see [Lack of independence](#oneway-paired-t) in the Violations chapter).
+
+Experiment 6g is a randomized complete block design with no subsampling and four treatments. A "which test" key in a traditional, experimental statistics textbook would guide a researcher to analyze these data using [repeated measures ANOVA](https://en.wikipedia.org/wiki/Repeated_measures_design#Repeated_measures_ANOVA){target="_blank"}. There are two methods of repeated measures anova, the univariate model and the multivariate model.
+
+### Classical ("univariate model") repeated measures ANOVA of exp6g {#lmm-exp6g-rmanova}
+
+```{r lmm-exp6g-uni-rmanova}
+exp6g_aov1 <- aov_4(touch ~ treatment +
+                    (treatment | mouse_id),
+                  data = exp6g)
+```
+
+```{r lmm-exp6g-uni-rmanova-planned, echo=FALSE}
+exp6g_aov1_emm1 <- emmeans(exp6g_aov1,
+                          specs = c("treatment"),
+                          model = "univariate")
+
+exp6g_aov1_pairs1 <- emmeans(exp6g_aov1_emm1, specs = c("treatment")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp6g_m1a_pairs, exp6g_aov1_pairs1)
+
+  pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,6), caption = "Planned contrasts for the linear mixed model exp6g_m1a and the univariate model of the repeated measures ANOVA.") %>%
+    kable_styling() %>%
+    pack_rows("exp6g_m1a", 1, 3) %>%
+    pack_rows("univariate RM-ANOVA", 4, 6)
+  
+```
+
+Notes
+
+1. In addition to the assumptions of the linear model outlined in the Violations chapter, the classical ("univariate model") repeated measures ANOVA assumes [sphericity](https://en.wikipedia.org/wiki/Mauchly%27s_sphericity_test#Sphericity){target="_blank"}, which is the equality of the variances of *all pairwise differences* among treatment combinations. 
+2. The univariate model of the classic RM ANOVA is equivalent to Model `exp6g_m1a`.
+
+### "Multivariate model" repeated measures ANOVA {#lmm-exp6g-rmanova-multi}
+
+```{r lmm-exp6g-multi-rmanova, echo = FALSE}
+exp6g_aov1_emm2 <- emmeans(exp6g_aov1,
+                          specs = c("treatment"),
+                          model = "multivariate")
+
+exp6g_aov1_pairs2 <- emmeans(exp6g_aov1_emm2, specs = c("treatment")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp6g_m1b_pairs, exp6g_aov1_pairs2)
+
+  pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,6), caption = "Planned contrasts for the linear mixed model exp6g_m1b and the multivariate model of the repeated measures ANOVA.") %>%
+    kable_styling() %>%
+    pack_rows("exp6g_m1b", 1, 3) %>%
+    pack_rows("multivariate RM-ANOVA", 4, 6)
+
+```
+
+Notes
+
+1. The sphericity assumption of classical repeated measures ANOVA is relaxed if the model is fit using the "multivariate model". 
+2. The multivariate model repeated measures ANOVA is a linear model with a multivariate response and not a linear mixed model. In the multivariate model, each treatment combination is a different response variable and there is a single row for each level of the random factor ($\texttt{mouse_id}$ in Experiment 6g). The multivariate model is a different way of handling the correlated error that occurs when conceiving of the design as univariate.
+3. The multivariate repeated measures ANOVA is equivalent to the linear mixed model `exp6g_m1b`. The SEs of the contrasts are the same but the degrees of freedom differ. Because of the increased df of the linear mixed model, the CIs are narrower and the *p*-value is smaller -- that is the linear mixed model is less conservative than the repeated measures ANOVA. There is no correct degrees of freedom for a linear mixed model like this and emmeans outputs one way to compute these (with options for others, none of which are equivalent to those from the multivariate model RM-ANOVA).
+
+### Linear mixed models vs repeated measures ANOVA
+
+Many modern textbooks encourage researchers to use linear mixed models instead of repeated measures ANOVA for randomized complete block designs (with or without subsampling) because
+
+1. linear mixed models do not exclude random units (subject/mouse/donor/cage) with missing measures of one of the treatment combinations. [Example 2 (diHOME exp2a) -- A repeated measures ANOVA is a special case of a linear mixed model](#violations-rmanova) is an example of this kind of missing data.
+2. if there is subsampling, linear mixed models do not **aggregate** the random-unit data, that is, linear mixed models do not simply compute the means and ignore the variance of the sample within each random unit.
+3. linear mixed models allow for modeling additional sources of correlated error, that is, an experiment may have two or more random factor variables (for example, donor and experiment).
+4. linear mixed models allow a researcher to model different patterns of correlated error. This is especially important in longitudinal experiments.
+5. linear mixed models can be generalized to model sampling from non-normal distributions -- these are generalized linear mixed models.
+
+### Modeling $\texttt{mouse_id}$ as a fixed effect
+
+$$
+\begin{equation}
+\texttt{touch} \sim \texttt{treatment + mouse_id}
+\end{equation}
+(\#eq:lmm-exp6g-m3)
+$$
+
+Model \@ref(eq:lmm-exp6g-m3) (using R formula syntax) is a linear model with the block $\texttt{mouse_id}$ added as a fixed covariate instead of a random intercept. The coefficients of the fit model are
+
+```{r}
+exp6g_m3 <- lm(touch ~ treatment + mouse_id,
+               data = exp6g)
+
+exp6g_m3_coef <- cbind(coef(summary(exp6g_m3)),
+                       confint(exp6g_m3))
+```
+
+
+```{r echo=FALSE}
+exp6g_m3_coef %>%
+  kable(digits = c(2,3,1,4,2,2)) %>%
+  kable_styling
+```
+
+Notes
+
+1. The coefficients include a slope for the seven non-reference levels of mouse_id We typically don't care about these.
+2. In a randomized complete block design with only 1 replicate of each treatment combination per block, like that in Experiment 6g, inference about treatment effects is exactly that same between this model and the random intercept model `exp6g_m1.` Compare the SE, CI and *p*-value for the coefficients of the treatment effects to those from the linear mixed model `exp6g_m1`.
+
+```{r echo=FALSE}
+exp6g_m1_coef %>%
+  kable(digits = c(2,3,1,2,4,2,2)) %>%
+  kable_styling
+```
+
+3. In a randomized complete block design with only 1 replicate of each treatment combination per block, like that in Experiment 6g, inference about *treatment means* differs between this model and the random intercept model -- the SE of the means of the fixed effect model are smaller than the SE of the means of the linear mixed model. Compare the SE and CI of the `(Intercept)` (the mean of the reference treatment combination) between the fixed effect and linear mixed model.
+4. The equivalence of inference in the treatment effect between the fixed effect and linear mixed model holds only for balanced randomized complete block designs -- where all blocks contain all treatment combinations and the subsampling replicate size is the same for all treatment combinations for all blocks. This means, outside of special cases like Experiment 6g, the choice between adding a blocking variable as a random or fixed factor depends on assumptions about the model.  
+
+## Example 3 -- Factorial experiments and no subsampling replicates (exp5c)
+
+Example 3 is similar to example 2 in that there is no subsampling replication and we cannot add random slopes to the linear mixed model. Example 3 differs in that the design is factorial -- there are two, crossed fixed factors. Consequently, there are several alternative models with different sets of random intercepts. The reported model includes two random intercepts, one of which models differences in batch effects among treatment levels (treatment by batch interactions). This **interaction intercept** is an alternative to random slope for modeling treatment by batch interactions.
+
+[Transcriptomic profiling of skeletal muscle adaptations to exercise and inactivity](https://www.nature.com/articles/s41467-019-13869-w){target="_blank"}
+
+Source figure: [Fig. 5c](https://www.nature.com/articles/s41467-019-13869-w#Fig5){target="_blank"}
+
+Source data: [Source Data Fig. 5](https://www.nature.com/articles/s41467-019-13869-w#Sec27){target="_blank"}
+
+
+```{r lmm-exp5c-import, echo = FALSE}
+data_from <- "Transcriptomic profiling of skeletal muscle adaptations to exercise and inactivity"
+file_name <- "41467_2019_13869_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp5c_wide <- read_excel(file_path,
+                         sheet = "Fig5c",
+                         range = "A2:M3",
+                         col_names = FALSE) %>%
+  data.table() %>%
+  transpose(make.names = 1)
+
+activity_levels <- c("Basal", "EPS")
+treatment_levels <- names(exp5c_wide)[1:2]
+exp5c_wide[, activity := rep(activity_levels, each = 6)]
+exp5c_wide[, activity := factor(activity, levels = activity_levels)]
+
+exp5c <- melt(exp5c_wide,
+              id.vars = "activity",
+              variable.name = "treatment",
+              value.name = "glucose_uptake")
+exp5c[, treatment := factor(treatment, levels = treatment_levels)]
+
+exp5c[, donor := rep(paste0("donor_", 1:6), 4)]
+```
+
+### Understand the data
+
+The data for Example 1 are from Figure 5c. Six muscle source cells were used to start six independent cultures. Cells from each culture were treated with either a negative control ("Scr") or a siRNA ("siNR4A3") that "silences" expression of the NR4A3 gene product by [cleaving the mRNA](https://en.wikipedia.org/wiki/Small_interfering_RNA){target="_blank"}. Glucose uptake in the two cell types was measured at rest ("Basal") and during electrical pulse stimulation ("EPS").
+
+The design is a $2 \times 2$ [Randomized complete block with no subsampling](https://en.wikipedia.org/wiki/Blocking_(statistics)#Randomized_block_design){target="_blank"}. There are two factors each with two levels: $\texttt{treatment}$ ("Scr", "siNR4A3") and $\texttt{activity}$ ("Basal", "EPS"). Each source cell is a block. All four treatment combinations were measured once per block.
+
+### Examine the data
+
+```{r lmm-exp5c-examine, echo = FALSE}
+exp5c[, t.by.a := paste(treatment, activity)]
+t.by.a_levels <- c("Scr Basal", "Scr EPS", "siNR4A3 Basal", "siNR4A3 EPS")
+exp5c[, t.by.a := factor(t.by.a, levels = t.by.a_levels)]
+
+ggplot(data = exp5c,
+       aes(x = t.by.a,
+           y = glucose_uptake,
+           color = donor)) +
+  geom_point() +
+  geom_line(aes(group = donor))
+```
+
+The plot shows a strong donor effect.
+
+### Model fit and inference {#lmm-exp5c-m1}
+
+```{r lmm-exp5c_m1}
+exp5c_m1a <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor),
+                 data = exp5c)
+
+exp5c_m1b <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor) +
+                   (1 | donor:treatment) +
+                   (1 | donor:activity),
+                 data = exp5c)
+
+exp5c_m1c <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor) +
+                   (1 | donor:treatment),
+                 data = exp5c)
+
+exp5c_m1d <- lme(glucose_uptake ~ treatment * activity,
+                 random =  ~ 1 | donor,
+                 correlation = corSymm(form = ~ 1 | donor),
+                 weights = varIdent(form = ~ 1|t.by.a),
+                 data = exp5c)
+
+# check AIC
+AIC(exp5c_m1a, exp5c_m1b, exp5c_m1c, exp5c_m1d)
+
+# check VarCorr model c
+VarCorr(exp5c_m1c) # fine
+
+# report 1c (based on AIC and VarCorr check)
+exp5c_m1 <- exp5c_m1c
+
+```
+exp5c_m1b (equivalent to univariate repeated measures ANOVA) is singular fit. don't use. Trivial difference in AIC between exp5c_m1a and exp5c_m1c. Nothing in VarCorr with exp5c_m1c raises red flags. Report exp5c_m1c.
+
+#### Check the model
+
+```{r lmm-exp5c_m1-check}
+ggcheck_the_model(exp5c_m1)
+```
+
+fine.
+
+#### Inference from the model
+
+```{r lmm-exp5c_emm_coef, message=FALSE}
+exp5c_m1_coef <- cbind(coef(summary(exp5c_m1)),
+                       confint(exp5c_m1)[-c(1:3),])
+```
+
+
+```{r lmm-exp5c_emm_coef-show, message=FALSE}
+exp5c_m1_coef %>%
+  kable(digits = c(2,3,1,1,4,2,2)) %>%
+  kable_styling()
+```
+
+```{r lmm-exp5c_emm}
+exp5c_m1_emm <- emmeans(exp5c_m1, specs = c("treatment", "activity"))
+```
+
+```{r lmm-exp5c_emm-show, echo=FALSE}
+exp5c_m1_emm %>%
+  kable(digits = c(1,1,2,3,1,2,2)) %>%
+  kable_styling()
+```
+
+```{r lmm-exp5c_planned}
+# exp5c_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+scr_basal <- c(1,0,0,0)
+siNR4A3_basal <- c(0,1,0,0)
+scr_eps <- c(0,0,1,0)
+siNR4A3_eps <- c(0,0,0,1)
+
+exp5c_m1_planned <- contrast(exp5c_m1_emm,
+                       method = list(
+                         "(Scr EPS) - (Scr Basal)" = c(scr_eps - scr_basal),
+                         "(siNR4A3 EPS) - (siNR4A3 Basal)" = c(siNR4A3_eps - siNR4A3_basal),
+                         "Interaction" = c(siNR4A3_eps - siNR4A3_basal) -
+                           c(scr_eps - scr_basal)
                            
                        ),
                        adjust = "none"
 ) %>%
   summary(infer = TRUE)
+```
 
-exp1g_m1_planned %>%
+```{r lmm-exp5c-planned-show, echo=FALSE}
+exp5c_m1_planned %>%
   kable(digits = c(1,2,3,3,2,2,2,3)) %>%
   kable_styling()
 ```
 
-### Plot the model
+#### Plot the model {#lmm-exp5c-plotthemodel}
 
-```{r lmm-eg1-plot-the-model, fig.dim=harrell_dim*small_scale}
-gg <- ggplot_the_model(exp1g_m1,
-                       exp1g_m1_emm,
-                       exp1g_m1_planned,
-                       y_label = "Germinal Center (%)",
-                       effect_label = "Effect (%)",
-                       palette = pal_okabe_ito_blue,
-                       rel_heights = c(0.5,1))
+```{r echo=FALSE}
+# add treatment column to emmeans table
+exp5c_m1_emm_dt <- summary(exp5c_m1_emm) %>%
+  data.table
+exp5c_m1_emm_dt[, t.by.a := paste(treatment, activity)]
+exp5c_m1_emm_dt[, t.by.a := factor(t.by.a,
+                                      levels = levels(exp5c$t.by.a))]
 
-gg
+# add group1 and group2 columns to exp6g_m1_planned
+exp5c_m1_planned_dt <- data.table(exp5c_m1_planned)
+exp5c_m1_planned_dt[, pretty_p := pvalString(p.value)]
+exp5c_m1_planned_dt[, group1 := c("Scr EPS", "siNR4A3 EPS", "")]
+exp5c_m1_planned_dt[, group2 := c("Scr Basal", "siNR4A3 Basal", "")]
+
 ```
 
-### Alternaplot the model
+```{r echo=FALSE}
+exp5c_effects <- ggplot_the_effects(exp5c_m1_emm,
+                   exp5c_m1_planned,
+                   effect_label = "Difference in Glucose uptake\n(pmol per min)")
+# exp5c_effects
+```
 
-```{r lmm-eg1-alternaplot, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "Dashed gray line is expected additive mean of Gpr174- F"}
+```{r echo=FALSE}
 
-exp1g_m1_pairs <- contrast(exp1g_m1_emm,
-                           method = "revpairwise",
-                           simple = "each",
-                           combine = TRUE,
-                           adjust = "none") %>%
-  summary(infer = TRUE)
+exp5c_response <- ggplot(data = exp5c,
+              aes(x = t.by.a,
+                  y = glucose_uptake)) +
+  geom_point(aes(group = donor),
+             position = position_dodge(width = 0.2),
+             color = "gray") +
+  geom_line(aes(group = donor),
+            position = position_dodge(width = 0.2),
+            color = "gray80") +
+  geom_point(data = exp5c_m1_emm_dt,
+             aes(y = emmean,
+             color = activity),
+             size = 3) +
+  geom_errorbar(data = exp5c_m1_emm_dt,
+             aes(y = emmean,
+                 ymin = lower.CL,
+                 ymax = upper.CL,
+             color = activity),
+             width = .05) +
+  
+  ylab("Glucose uptake\n(pmol per min)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+
+exp5c_response <- factor_wrap(exp5c_response)
+
+#exp5c_response
+```
+
+```{r echo = FALSE, fig.dim=harrell_dim*small_scale, fig.cap="Treatment effect on glucose uptake. Gray dots connected by lines are individual donors."}
+plot_grid(exp5c_effects, exp5c_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.6,1))
+```
+
+#### Alternaplot the model
+
+```{r lmm-exp5c-alternaplot, fig.dim=response_dim*small_scale, echo=FALSE, fig.cap = "Glucose response to different treatments. Gray dots connected by lines are individual donors. Dashed gray line is expected additive mean of \"siNR4A3 EPS\"."}
 
 # get coefficients of model
-b <- coef(summary(exp1g_m1))[, "Estimate"]
+b <- coef(summary(exp5c_m1))[, "Estimate"]
 
 # get interaction p
-p_ixn <- exp1g_m1_planned[3, "p.value"] # check!
+p_ixn <- exp5c_m1_planned_dt[contrast == "Interaction", pretty_p] # check!
 
 dodge_width <- 0.4
 
-gg <- ggplot_the_response(
-  exp1g_m1,
-  exp1g_m1_emm,
-  exp1g_m1_pairs[c(3,4),], # only for comparisons within sex
-  palette = pal_okabe_ito_blue,
-  legend_position = "bottom",
-  y_label = "Germinal Center (%)"
-) +
-  geom_segment(x = 2 + dodge_width/2 - 0.1,
+gg <- exp5c_response +
+  # pvalue brackets
+  stat_pvalue_manual(exp5c_m1_planned_dt[1:2],
+                     label = "pretty_p",
+                     y.position = c(2.1, 2.1),
+                     size = 2.5,
+                     tip.length = 0.01) +
+  
+  geom_segment(x = 4 + dodge_width/2 - 0.1,
                y = b[1] + b[2] + b[3],
-               xend = 2 + dodge_width/2 + 0.1,
+               xend = 4 + dodge_width/2 + 0.1,
                yend = b[1] + b[2] + b[3],
                linetype = "dashed",
                color = "gray") +
   geom_bracket(
-    x = 2.35,
+    x = 4.35,
     y = b[1] + b[2] + b[3],
     yend = b[1] + b[2] + b[3] + b[4],
-    label = paste0("ixn p = ",
-                  fmt_p_value_rmd(p_ixn)),
+    label = paste0("interaction\np = ", p_ixn),
     text.size = 3,
     text.hjust = 0,
-    color = "black")
+    color = "black") +
+  coord_cartesian(xlim = c(1,4.25))
 
 gg
 ```
 
-## Understanding linear mixed models 1 --
-### Linear mixed models have parameters for random intercept effects and random slope effects
+Notes
 
-The linear mixed model fit to `exp1g` data is
+1. Many researchers might look at the wide confidence intervals relative to the short distance between the means and think "no effect". The confidence intervals are correct, they simply are *not* meant to be tools for inferring anything about differences in means. This is one of many reasons why plots of means and error bars can be misleading for inference, despite the ubiquity of their use for communicating results. And, its why I prefer the [effects-and-response plots](#lmm-exp5c-plotthemodel), which explicitly communicate correct inference about effects.
+
+### Why we care about modeling batch in exp5c
+
+Figure \@ref(fig:lmm-exp5c-why) shows the modeled means of the four treatment combinations and the individual values colored by donor. It is pretty easy to see that the glucose uptake values for donors 4 and 5 are well above the mean for all four treatments. And, the values for donors 1, 2, and 3 are well below the mean for all four treatments. The values for donor 6 are near the mean for all four treatments.
+
+```{r lmm-exp5c-why, echo= FALSE, fig.dim=std_dim, fig.cap = "Why we care about blocking. The black dots are the modeled means of each treatment combination. The colored dots are the measured values of the response for each donor. The position of a donor relative to the mean is easy to see with these data."}
+
+m1 <- lm(glucose_uptake ~ treatment * activity,
+           data = exp5c)
+m1_emm_dt <- emmeans(m1, specs = c("treatment", "activity")) %>%
+  summary() %>%
+  data.table()
+m1_emm_dt[, t.by.a:= paste(treatment, activity)]
+m1_emm_dt[, t.by.a:= factor(t.by.a, t.by.a)]
+
+pd_width <- 0.4
+gg <- ggplot(data = exp5c,
+       aes(x = t.by.a,
+           y = glucose_uptake,
+           color = donor)) +
+  
+  # geom_line(aes(group = donor),
+  #           position = position_dodge(pd_width),
+  #           color = "gray") +
+  geom_point(position = position_dodge(pd_width),
+             size = 2) +
+  
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  geom_point(data = m1_emm_dt,
+             aes(x = t.by.a,
+                 y = emmean),
+             color = "black",
+             size = 3) +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+gg
+```
+
+Let's compare the effects estimated by the linear mixed model `exp5c_m1` with a linear model that ignores donor.
+
+```{r lmm-exp5c-m2, echo=TRUE}
+exp5c_m2 <- lm(glucose_uptake ~ treatment * activity,
+           data = exp5c)
+
+```
+
+```{r lmm-exp5c_fixed, echo = FALSE}
+exp5c_m2_emm <- emmeans(exp5c_m2, specs = c("treatment", "activity"))
+exp5c_m2_planned <- contrast(exp5c_m2_emm,
+                       method = list(
+                         "(Scr EPS) - (Scr Basal)" = c(scr_eps - scr_basal),
+                         "(siNR4A3 EPS) - (siNR4A3 Basal)" = c(siNR4A3_eps - siNR4A3_basal),
+                         "Interaction" = c(siNR4A3_eps - siNR4A3_basal) -
+                           c(scr_eps - scr_basal)
+                           
+                       ),
+                       adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r lmm-exp5c-why2, echo=FALSE, fig.cap="A. Inference from a linear mixed model with blocking factor (donor) added as a random intercept. B. Inference from a fixed effects model."}
+gg1 <- ggplot_the_effects(exp5c_m1,
+                 exp5c_m1_planned,
+                 effect_label = "Difference in Glucose uptake\n(pmol per min)")
+
+gg2 <- ggplot_the_effects(exp5c_m2,
+                 exp5c_m2_planned,
+                 effect_label = "Difference in Glucose uptake\n(pmol per min)")
+
+plot_grid(gg1, gg2, ncol=1, labels = "AUTO")
+
+```
+
+Figure \@ref(fig:lmm-exp5c-why2)A is a plot of the effects from the linear mixed model that models the correlated error due to donor. Figure \@ref(fig:lmm-exp5c-why2)B is a plot of the effects from the fixed effect model that ignores the correlated error due to donor. Adding $\texttt{donor}$ as a factor to the linear model increases the precision of the estimate of the treatment effects by eliminating the among-donor component of variance from the error variance.
+
+### The linear mixed model exp5c_m1 adds two random intercepts
+
+There are *two* random intercepts in the linear mixed model `exp5c_m1` fit to the exp5c data (`exp5c_m1` is copied from `exp5c_m1c` in [Model fit and inference](#lmm-exp5c-m1)).
 
 $$
 \begin{align}
-\texttt{gc}_j = \ &\beta_0 + \beta_1 (\texttt{genotype}_\texttt{KO}) + \beta_2 (\texttt{sex}_\texttt{F}) + \beta_3 (\texttt{genotype}_\texttt{KO}:\texttt{sex}_\texttt{F}) \ + \\
-&\gamma_{0j} + \gamma_{1j}(\texttt{genotype}_\texttt{KO}:\texttt{sex}_\texttt{M}) +  \gamma_{2j}(\texttt{genotype}_\texttt{WT}:\texttt{sex}_\texttt{F}) \ + \\  &\gamma_{3j}(\texttt{genotype}_\texttt{KO}:\texttt{sex}_\texttt{F}) + \varepsilon
+\texttt{glucose_uptake}_j = \ &(\beta_0 + \gamma_{0j} + \gamma_{0jk}) + \beta_1 (\texttt{treatment}_\texttt{siNR4A3}) + \beta_2 (\texttt{activity}_\texttt{EPS}) \ + \\
+&\beta_3 (\texttt{treatment}_\texttt{siNR4A3}:\texttt{activity}_\texttt{EPS}) + \varepsilon
 \end{align}
+(\#eq:lmm-exp5c-m1)
 $$
-The $\beta$ are the **fixed effects**, although $\beta_$ is not an effect but a mean. The $\gamma$ (the lower case, greek letter "gamma") are the **random effects**. All of these, including the $\gamma_0$, are effects (differences between means). The *j* in the $\gamma$ references the *j*th experiment -- this means that there is a different $\gamma_0$, $\gamma_1$, $\gamma_2$, and $\gamma_3$ for each experiment. In contrast, $\beta_0$, $\beta_1$, $\beta_2$, and $\beta_3$ are the same for all experiments -- this is why they are "fixed". The $\gamma$ are modeled as if each experiment is a random draw from an infinite number of experiments. This is why the $\gamma$ are "random".
 
-A reminder of what these fixed effects are is illustrated in Figure \@ref(fig:lmm-eg1-explainer_1). [A more thorough explanation is in the chapter Linear models with two categorical $X$ -- Factorial linear models ("two-way ANOVA")](#factorial)
+1. The random intercept effect $\gamma_{0j}$ models donor variation in the reference level. *j* indexes donor *j*. A coefficient is estimated for each donor.
+2. The random intercept effect $\gamma_{0jk}$ models the variation due to the $\texttt{donor}$ by $\texttt{treatment}$ combinations. A coefficient is estimated for each of the 6 (donors) $\times$ 2 (levels of $\texttt{treatment}$). *k* indexes treatment level *k*. This **interaction intercept** is an alternative to random slope for modeling treatment by batch interactions. Unlike a random slope, there is a $\gamma_{0jk}$ coefficient for each donor in the reference level.
 
-A **random intercept** for experiment *j* is the sum of the fixed intercept ($\beta_0$) and a **random intercept effect** $\gamma_0j$ (Figure \@ref(fig:lmm-eg1-explainer-2)).
+### The fixed effect coefficients of model exp5c_m1
+The fixed effect coefficients of model `exp5c_m1` are
 
-```{r lmm-eg1-explainer_1, echo= FALSE, fig.dim=std_dim, fig.cap = "Fixed effects estimated by exp1g_m1. The light gray point is the expected value of the GPR174- F treatment if genotype and sex were additive."}
-exp1g_emm_dt <- summary(exp1g_m1_emm) %>%
+```{r lmm-exp5c-m1-b, echo = FALSE}
+m1_coef <- cbind(coef(summary(exp5c_m1)),
+                 confint(exp5c_m1)[-(1:3),])
+m1_coef %>%
+  kable(digits = c(2,3,1,2,4,2,2)) %>%
+  kable_styling
+```
+
+Notes
+
+1. The interpretation of the fixed effectcs coefficients have the [usual interpretation for a factorial linear model](#twoway-what-coefs-are). Figure \@ref(fig:lmm-exp5c-explainer-1) is a reminder.
+
+```{r lmm-exp5c-explainer-1, echo=FALSE, fig.dim=std_dim, fig.cap = "Fixed effects estimated by exp5c_m1. The light gray point is the expected value of the GPR174- F treatment if genotype and sex were additive."}
+
+exp5c_emm_dt <- summary(exp5c_m1_emm) %>%
   data.table()
-treatment_levels <- levels(exp1g$treatment) %>%
-  as.character
-exp1g_emm_dt[, treatment := factor(treatment_levels,
-                                   levels = treatment_levels)]
+exp5c_emm_dt[, t.by.a:= paste(treatment, activity)]
+exp5c_emm_dt[, t.by.a:= factor(t.by.a, t.by.a)]
 
-b <- coef(summary(exp1g_m1))[, "Estimate"]
+b <- coef(summary(exp5c_m1))[, "Estimate"]
 
 pd_width <- 0.4
-gg <- ggplot(data = exp1g,
-       aes(x = treatment,
-           y = gc,
-           color = experiment_id)) +
+gg <- ggplot(data = exp5c,
+       aes(x = t.by.a,
+           y = glucose_uptake,
+           color = donor)) +
   
-  geom_point(alpha = 0.5,
-             position = position_dodge(pd_width)) +
+  geom_point(position = position_dodge(pd_width)) +
+  
   scale_color_manual(values = pal_okabe_ito_blue) +
   
-  geom_point(data = exp1g_emm_dt,
-             aes(x = treatment,
+  geom_point(data = exp5c_emm_dt,
+             aes(x = t.by.a,
                  y = emmean),
              color = "black",
              size = 3) +
@@ -450,293 +2000,1460 @@ gg <- ggplot(data = exp1g,
 gg
 ```
 
-### What the random effects are
+### The random effect coefficients of model exp5c_m1
 
-A **random slope** is illustrated in Figure \@ref(fig:lmm-eg1-explainer-3) for the treatment combination "GPR174+ F". The random slope for experiment *j* is the sum of the fixed slope ($\beta_2$) and a **random slope effect** $\gamma_2j$. This makes $\gamma_2j$ equal to the residual of the modeled mean of the "GPR174+ F" treatment for experiment *j* and the expected mean if there were no random slope. This expected mean is the fixed intercept plus the fixed effect for the "GPR174+ F" treatment plus the random intercept effect for experiment *j*, or $\beta_0 + \beta_1 + \gamma_{0j}$. These expected means (if each $\gamma_{0j}=0$) are illustrated by the large gray dots in Figure \@ref(fig:lmm-eg1-explainer-3). The random slopes can also be visualized by the lines connecting the modeled means for each experiment from the reference to the "GPR174+ F" treatment (Figure \@ref(fig:lmm-eg1-explainer-3)).
+```{r lmm-exp5c-m1-random-coef, echo=FALSE}
+coef1 <- coef(exp5c_m1)$donor
+coef2 <- coef(exp5c_m1)$"donor:treatment"
+ranef1 <- ranef(exp5c_m1)$donor
+ranef2 <- ranef(exp5c_m1)$"donor:treatment"
 
-```{r lmm-eg1-explainer-2, echo=FALSE, fig.dim=std_dim, fig.cap="What random intercepts are. The large, colored dots are the modeled mean for each treatment (genotype by sex) by experiment_id combination. The dashed grey line is the fixed intercept -- it is the modeled mean of the reference level (\"GPR174+ M\"). The large, colored dots at the reference level are the random intercepts. The value of each random intercept is the sum of the fixed intercept and the random intercept effect for that experiment_id. Each random intercept effect is the residual from (or, distance from colored dot to) the dashed, gray line, shown by the vertical, colored lines"}
-exp1g[, m1_fit := predict(exp1g_m1)]
-exp1g_gr_means <- exp1g[, .(emmean = mean(m1_fit)),
-                        by = .(treatment, experiment_id)]
-b <- coef(summary(exp1g_m1))[, "Estimate"]
-u <- ranef(exp1g_m1)$experiment_id
+part_table1 <- data.table(
+  donor_treatment = row.names(coef2),
+  random_intercept_jk = coef2[, "(Intercept)"],
+  b_0 = exp5c_m1_coef[1,1],
+  g_0jk = ranef2[, "(Intercept)"])
+part_table1[ , donor := substr(donor_treatment,1,7)]
 
-experiment_id <- levels(exp1g$experiment_id)
-pd_width <- 0.4
+part_table2 <- data.table(
+  donor = row.names(coef1),
+  random_intercept_j = coef1[, "(Intercept)"],
+  g_0j = ranef1[, "(Intercept)"])
 
-gg1 <- ggplot(data = exp1g,
-       aes(x = treatment,
-           y = gc,
-           color = experiment_id)) +
-  scale_color_manual(values = pal_okabe_ito_blue) +
-  geom_point(alpha = 0.5,
-             position = position_dodge(pd_width)) +
+full_table <- merge(part_table1, part_table2, by = "donor")
 
-  # b_0
-  geom_segment(x = 1 - pd_width/2,
-               y = b[1],
-               xend = 1 + pd_width/2,
-               yend = b[1],
-               linetype = "dashed",
-               color = "gray") +
-  
-  # treatment x experiment id points
-  geom_point(data = exp1g_gr_means,
-            aes(x = treatment,
-                y = emmean),
-            size = 3,
-            position = position_dodge(pd_width)) +
+ycols <- c("donor_treatment", "random_intercept_j", "random_intercept_jk", "b_0", "g_0j", "g_0jk")
+intercept_table <- full_table[, .SD, .SDcols = ycols]
+setnames(intercept_table, old = "donor_treatment", new = "donor:treatment")
 
-  # treatment x experiment id lines for intercept
-  geom_segment(data = exp1g_gr_means[1:4],
-               aes(x = c(1 - pd_width/2.6,
-                         1 - pd_width/8,
-                         1 + pd_width/8,
-                         1 + pd_width/2.6),
-                   y = rep(b[1], 4),
-                   xend = c(1 - pd_width/2.6,
-                            1 - pd_width/8,
-                            1 + pd_width/8,
-                            1 + pd_width/2.6),
-                   yend = emmean,
-                   color = experiment_id)) +
-
-  
-  geom_bracket(
-    x = 1 - pd_width/1.7,
-    y = b[1] + min(u[,1]),
-    yend = b[1] + max(u[,1]),
-    tip.length = -0.01,
-    label = "gamma[0][j]",
-    text.size = 4,
-    text.nudge_x = -0.02,
-    text.hjust = 1,
-    color = "black",
-    parse = TRUE) +
-
-  theme_pubr() +
-  theme(axis.title.x = element_blank()) +
-  
-  NULL
-
-gg1
-```
-
-```{r lmm-eg1-explainer-3, echo=FALSE, fig.dim=std_dim, fig.cap="What random slopes are. The large, black dots are the modeled means for the reference (\"GPR174+ M\") and \"GPR174+ F\" treatment combinations. The difference in the y-value of these two points is the fixed effect (or slope) $b_2$, which is the effect of \"GPR174+ F\" relative to the reference. This effect can be visualized as the slope of the black line connecting the two black dots. The large, gray dots are the expected modeled means of \"GPR174+ F\" treatment combination for each experiment_id if there were no random slope. The differences between each large, colored dot and large, gray dot from the same experiment_id is the random slope effect for the \"GPR174+ F\" treatment combination for that experiment_id. The value of this effect for an experiment_id is equivalent to the difference of the slope of the colored line (the random slope) for the experiment_id and the black line (the fixed slope)."}
-
-b <- coef(summary(exp1g_m1))[, "Estimate"]
-u <- ranef(exp1g_m1)$experiment_id
-experiment_id <- levels(exp1g$experiment_id)
-female_pos <- exp1g_gr_means[treatment == levels(treatment)[3]]
-female_pos[, zero_slope_mean := b[1] + b[3] + u[,1]]
-
-pd_width <- 0.4
-
-gg2 <- ggplot(data = exp1g,
-       aes(x = treatment,
-           y = gc,
-           color = experiment_id)) +
-  scale_color_manual(values = pal_okabe_ito_blue) +
-  geom_point(alpha = 0.5,
-             position = position_dodge(pd_width)) +
-  
-  # fixed b_2 slope
-  geom_point(data = exp1g_emm_dt[c(1,3)],
-             aes(x = treatment,
-                 y = emmean),
-             size = 3,
-             color = "black") +
-  geom_segment(x = 1,
-               y = exp1g_emm_dt[1, emmean],
-               xend = 3,
-               yend = exp1g_emm_dt[3, emmean],
-               color = "black") +
-
-  # expected means if gamma_2 = 0
-  geom_point(data = female_pos,
-             aes(x = treatment,
-                 y = zero_slope_mean,
-                 group = experiment_id),
-             size = 3,
-             color = "gray",
-             position = position_dodge(width = pd_width)) +
-
-  # gamma_2 lines
-  geom_segment(data = female_pos,
-               aes(x = c(3 - pd_width/2.6,
-                         3 - pd_width/8,
-                         3 + pd_width/8,
-                         3 + pd_width/2.6),
-                   y = zero_slope_mean,
-                   xend = c(3 - pd_width/2.6,
-                            3 - pd_width/8,
-                            3 + pd_width/8,
-                            3 + pd_width/2.6),
-                   yend = emmean,
-                   color = experiment_id)) +
-
-  # random b_2 slopes
-  geom_segment(data = data.table(
-    experiment_id = experiment_id,
-    x = c(1 - pd_width/2.5,
-          1 - pd_width/5,
-          1 + pd_width/5,
-          1 + pd_width/2.5),
-    y = c(b[1] + u[1,1],
-          b[1] + u[2,1],
-          b[1] + u[3,1],
-          b[1] + u[4,1]),
-    xend = c(3 - pd_width/2.5,
-             3 - pd_width/5,
-             3 + pd_width/5,
-             3 + pd_width/2.5),
-    yend = c(b[1] + b[3] + u[1,1] + u[1,3],
-             b[1] + b[3] + u[2,1] + u[2,3],
-             b[1] + b[3] + u[3,1] + u[3,3],
-             b[1] + b[3] + u[4,1] + u[4,3])),
-    aes(x = x,
-        y = y,
-        xend = xend,
-        yend = yend)) +
-  
-  geom_bracket(
-    x = 3 + pd_width/1.7,
-    y = b[1] + b[3] + min(u[,1] + u[,3]),
-    yend = b[1] + b[3] + max(u[,1] + u[,3]),
-    label = "gamma[2]",
-    text.size = 4,
-    text.hjust = 0,
-    color = "black",
-    parse = TRUE) +
-
-  geom_point(data = exp1g_gr_means,
-            aes(x = treatment,
-                y = emmean),
-            size = 3,
-            position = position_dodge(pd_width)) +
-
-  theme_pubr() +
-  theme(axis.title.x = element_blank()) +
-  
-  NULL
-
-gg2
-```
-### The linear mixed model increases precision relative to a linear model of the pooled experiment means
-
-Compute the experiment means, then pool and fit the model.
-
-```{r lmm-eg1-m2}
-exp1g_mean_pool <- exp1g[, .(gc = mean(gc)),
-                         by = .(genotype, sex, experiment_id)]
-
-exp1g_m2 <- lm(gc ~ genotype * sex,
-               data = exp1g_mean_pool,
-               contrasts = list(genotype = contr.sum,
-                                sex = contr.sum))
-
-# same planned contrasts as above
-exp1g_m2_emm <- emmeans(exp1g_m2, specs = c("genotype", "sex"))
-exp1g_m2_pairs <- exp1g_m2_emm %>%
-  contrast(method = list(
-    "KO/M - WT/M" = c(ko_m - wt_m),
-    "KO/F - WT/F" = c(ko_f - wt_f),
-    "Interaction" = c(ko_f - wt_f) -
-      c(ko_m - wt_m)
-    
-  ))
-
-exp1g_m2_pairs %>%
-  summary(infer = TRUE) %>%
-  kable(digits = c(1,2,3,3,2,2,2,3)) %>%
+intercept_table %>%
+  kable(digits = c(1,3,3,3,3,3),
+        caption = "Random intercept effects for each donor (g_0j) and for each donor:treatment combination (g_0jk) for exp5c_m1. There are two random intercepts. random_intercept_j is the sum of the fixed intercept (b_0) and g_0j. random_intercept_jk is the sum of the fixed intercept (b_0) and g_0jk.") %>%
   kable_styling()
 ```
 
 Notes
 
-1. Compare the inference (confidence intervals and *p*-values) from m2 (linear model of the pooled means of each experiment) to those from m1 (linear mixed model of the combined data)
+1. The random intercept "random_intercept_j" is the sum of the fixed intercept $b_0$ and the random intercept effect $g_{0j}$ for donor *j*. The $g_{0j}$ estimate the $\gamma_{0j}$ in Model \@ref(eq:lmm-exp5c-m1). Note that $g_{0j}$ is the same for both treatment levels within a donor. The illustration of these random effects is similar to that for Example 2 `exp6g_m1` (Figure \@ref(fig:lmm-exp6g-explainer-2).
+2. The random intercept "random_intercept_jk" is the sum of the fixed intercept $b_0$ and the random intercept effect $g_{0jk}$ for donor *j* in treatment level *k* (with the reference level equal to 1). The $g_{0jk}$ estimate the $\gamma_{0jk}$ in Model \@ref(eq:lmm-exp5c-m1). The $g_{0jk}$ differ for each combination of $\texttt{donor}$ and $\texttt{treatment}$.
+3. The donor:treatment random intercepts ("random_intercept_jk") are shown with the dark, colored dots in Figure \@ref(fig:lmm-exp5c-explainer-2)A. The distance from the dark colored dot to the dashed, gray line (the modeled mean for the treatment:activity combination) is the random intercept effect estimate of $\gamma_{0jk}$.
+4. The set of random intercept effects for the donor:treatment combinations ($g_{0jk}$) are the same between the two activity levels. This is seen in Figure \@ref(fig:lmm-exp5c-explainer-2)A - compare the pattern of dark, colored dots in the two EPS treatments to the two Basal treatments.
+5. The combined random intercept effects ($g_{0j} + g_{0jk}$) are shown in Figure \@ref(fig:lmm-exp5c-explainer-2)B as the distance between the dark, colored dots and the dashed, gray lines.
+6. There is some communication decision-making in Figure \@ref(fig:lmm-exp5c-explainer-2). The actual y-values of the dark, colored dots are the random intercept effect plus the treatment-combination modeled mean. Thus, in A, the dark colored dots are equal to "random_intercept_jk" only at the reference level (since the reference model mean is the fixed intercept).
 
-```{r lmm-eg1-m1-planned-print, echo = FALSE}
+```{r lmm-exp5c-explainer-2, echo=FALSE, fig.width=full_width, fig.asp=0.5, fig.cap="Random intercepts for model exp5c_m1. The pale, colored dots are the measured glucose uptake values for each donor at each treatment combination. The dashed, gray lines are the modeled means for each treatment combination. (A) The distance from a dark colored dot to the dashed, gray line is the random intercept effect $g_{0jk}$. (B) The distance from a dark colored dot to the dashed, gray line is the combined random intercept effect $g_{0j} + g_{0jk}$."}
+
+pd_width <- 0.8
+
+coef_table <- rbind(intercept_table, intercept_table)
+coef_table[, c("donor", "treatment"):= tstrsplit(get("donor:treatment"),
+                                             ":",
+                                             fixed = TRUE)]
+coef_table[, activity := rep(levels(exp5c$activity), each = 12)]
+coef_table[, t.by.a := paste(treatment, activity)]
+
+# merge modeled means
+exp5c_m1_emm_dt <- summary(exp5c_m1_emm) %>%
+  data.table()
+ycols <- c("treatment", "activity", "emmean")
+coef_table <- merge(coef_table, exp5c_m1_emm_dt[, .SD, .SDcols = ycols],
+                    by = c("treatment", "activity"))
+coef_table[, jk_elevation := g_0jk + emmean]
+coef_table[, ran_elevation := g_0j + g_0jk + emmean]
+
+modeled_means <- data.table(
+  x = 1:4 - pd_width/2,
+  y = c(b[1], b[1] + b[2], b[1] + b[3], b[1] + b[2] + b[3] + b[4]),
+  xend = 1:4 + pd_width/2,
+  yend = c(b[1], b[1] + b[2], b[1] + b[3], b[1] + b[2] + b[3] + b[4])
+  )
+
+label_x <- as.character(levels(exp5c$t.by.a))
+label_x <- str_replace(label_x, " ", "\n")
+
+gg1 <- ggplot(data = exp5c,
+       aes(x = t.by.a,
+           y = glucose_uptake,
+           color = donor)) +
+  
+  geom_point(alpha = 0.3,
+             position = position_dodge(pd_width)) +
+  
+  # b_0
+  geom_segment(data = modeled_means,
+               aes(x = x,
+                   y = y,
+                   xend = xend,
+                   yend = yend),
+               linetype = "dashed",
+               color = "gray") +
+  
+  # treatment x donor dots
+  geom_point(data = coef_table,
+               aes(x = t.by.a,
+                   y = jk_elevation,
+                   color = donor),
+             position = position_dodge(pd_width)) +
+
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  scale_x_discrete(labels = label_x) +
+  
+  ylab("Glucose uptake") +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+
+#gg1
+
+gg2 <- ggplot(data = exp5c,
+       aes(x = t.by.a,
+           y = glucose_uptake,
+           color = donor)) +
+  
+  geom_point(alpha = 0.3,
+             position = position_dodge(pd_width)) +
+  
+  # b_0
+  geom_segment(data = modeled_means,
+               aes(x = x,
+                   y = y,
+                   xend = xend,
+                   yend = yend),
+               linetype = "dashed",
+               color = "gray") +
+  
+  # treatment x donor dots
+  geom_point(data = coef_table,
+               aes(x = t.by.a,
+                   y = ran_elevation,
+                   color = donor),
+             position = position_dodge(pd_width)) +
+
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  
+  scale_x_discrete(labels = label_x) +
+  
+  ylab("Glucose uptake") +
+  
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  
+  NULL
+
+#gg2
+
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+```
+
+### Alternative models for exp5c {#lmm-exp5c-alt}
+
+```{r lmm-exp5c-alternative-models, message=TRUE}
+exp5c_m1a <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor),
+                 data = exp5c)
+
+exp5c_m1b <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor) +
+                   (1 | donor:treatment) +
+                   (1 | donor:activity),
+                 data = exp5c)
+
+exp5c_m1c <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor) +
+                   (1 | donor:treatment),
+                 data = exp5c)
+
+exp5c_m1d <- lme(glucose_uptake ~ treatment * activity,
+                 random =  ~ 1 | donor,
+                 correlation = corSymm(form = ~ 1 | donor),
+                 weights = varIdent(form = ~ 1|t.by.a),
+                 data = exp5c)
+```
+
+Notes
+
+1. Four models are fit. The models specify the same fixed effects but different random effects or patterns of correlated error. Again, we care about the fixed effects -- this is the point of the experiment -- but the specification of the random effects determines the error variance and degrees of freedom for computing uncertainty.
+2. Model `exp5c_m1a` specifies a random intercept for each level of $\texttt{donor}$.
+3. Model `exp5c_m1b` adds two additional random intercepts to Model `exp5c_m1a`. The code `(1 | donor:treatment)` adds an intercept for each combination of $\texttt{donor}$ and $\texttt{treatment}$. The code `(1 | donor:activity)` adds an intercept for each combination of $\texttt{donor}$ and $\texttt{activity}$. This model is the equivalent of the univariate model of a **repeated measures ANOVA** of these data (see [Classical ("univariate model") repeated measures ANOVA](#lmm-rmanova-5c) below).
+4. Model `exp5c_m1c` adds only one additional random intercept (`(1 | donor:treatment)`). It is a simplification of Model `exp5c_m1c`. This is the model reported and explained above.
+5. Model `exp5c_m1d` has the same random effects as `exp5c_m1a` but models unstructured correlated error and heterogeneity of the error, as described for Example 2: [Alternative models for exp6g](#lmm-exp6g-alt). This model is equivalent to the multivariate model of a **repeated measures ANOVA** of these data (see ["Multivariate model" repeated measures ANOVA](#lmm-rmanova-5c-multi) below).
+6. `lmer` returns a message "boundary (singular) fit: see ?isSingular" for `exp5c_m1b`. The model *was* fit but the message means that we should be cautious about (or simply avoid) interpreting any inferential statistics (SEs, CIs, *p*-values). Looking at the estimates of the estimated parameters of the random effects in the table below (the variances of the effects and the covariances among the effects), Model `exp5c_m1b` estimates zero variance for the $\texttt{donor:activity}$ random intercept. This suggests that we could simplify `exp5c_m1b` by removing `(1 | donor:activity)` from the model -- this is `exp5c_m1c`. Think about this warning. If we fit using repeated measures ANOVA (next section), we won't get a warning message but we still may be [overfitting](https://en.wikipedia.org/wiki/Overfitting){target="_blank"}.
+
+```{r lmm-exp5c_m1b-VarCorr}
+VarCorr(exp5c_m1b)
+```
+
+7. Planned comparisons of the four alternative models are given in Table \@ref(tab:lmm-exp5c-alternatives-planned). The effect estimates are the same but inference differs slightly among the models because of how each model partitions error variance to either random effects or the residuals.
+
+```{r lmm-exp5c-alternatives-planned, echo = FALSE}
+contrast_list <- list(
+  "(Scr EPS) - (Scr Basal)" = c(scr_eps - scr_basal),
+  "(siNR4A3 EPS) - (siNR4A3 Basal)" = c(siNR4A3_eps - siNR4A3_basal),
+  "Interaction" = c(siNR4A3_eps - siNR4A3_basal) -
+    c(scr_eps - scr_basal)
+)
+  
+pairs_a <- emmeans(exp5c_m1a, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+pairs_b <- emmeans(exp5c_m1b, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+pairs_c <- emmeans(exp5c_m1c, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+pairs_d <- emmeans(exp5c_m1d, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(pairs_a, pairs_b, pairs_c, pairs_d)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,3), caption = "Planned contrasts from the four alternative models.") %>%
+  kable_styling() %>%
+  pack_rows("exp5c_m1a", 1, 3) %>%
+  pack_rows("exp5c_m1b", 4, 6) %>%
+  pack_rows("exp5c_m1c", 7, 9) %>%
+  pack_rows("exp5c_m1d", 10, 12)
+
+```
+
+
+
+```{r lmm-exp5c-aic, echo=FALSE}
+data.table(
+  Model = c("exp5c_m1a", "exp5c_m1b", "exp5c_m1c", "exp5c_m1d"),
+  AIC = c(AIC(exp5c_m1a), AIC(exp5c_m1b), AIC(exp5c_m1c), AIC(exp5c_m1d))
+) %>%
+  kable(caption = "AIC of the four alternative models firt to exp5c data") %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+6. The use of AIC for selecting among models with different random effects was described above. The AICs of the models suggest that models `exp5c_m1b` and `exp5c_m1d` are too complex given the data. The AICs of models `exp5c_m1a` and `exp5c_m1c` are effectively the same. I reported `exp5c_m1c` simply to allow me to explain the `donor:treatment` random effect.
+
+### Classical ("univariate model") repeated measures ANOVA {#lmm-rmanova-5c}
+
+```{r lmm-exp5c-uni-rmanova}
+exp5c_aov1 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c)
+```
+
+```{r lmm-exp5c-uni-rmanova-planned, echo=FALSE}
+exp5c_aov1_emm1 <- emmeans(exp5c_aov1,
+                          specs = c("treatment", "activity"),
+                          model = "univariate")
+exp5c_aov1_pairs1 <- emmeans(exp5c_aov1_emm1, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(pairs_c, exp5c_aov1_pairs1)
+
+  pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,3), caption = "Planned contrasts for the linear mixed model exp5c_m1c and the univariate model of the repeated measures ANOVA.") %>%
+    kable_styling() %>%
+    pack_rows("exp5c_m1c", 1, 3) %>%
+    pack_rows("univariate RM-ANOVA", 4, 6)
+  
+```
+
+Notes
+
+1. In addition to the assumptions of the linear model outlined in the Violations chapter, the classical ("univariate model") repeated measures ANOVA assumes [sphericity](https://en.wikipedia.org/wiki/Mauchly%27s_sphericity_test#Sphericity){target="_blank"}, which is the equality of the variances of all pairwise differences among treatment combinations. 
+2. The univariate model of the repeated measures ANOVA is equivalent to Model `exp5c_m1c`. Inference (SEs, CIs, *p*-values) differs slightly in this here because the estimated variance for the $\texttt{donor:activity}$ random intercept of Model `exp5c_m1c` is zero. In cases where all variances are greater than zero *and the design is balanced* (no block is missing a treatment combination), the two tables would be identical.
+
+### "Multivariate model" repeated measures ANOVA of exp5c {#lmm-rmanova-5c-multi}
+
+```{r lmm-exp5c-multi-rmanova, echo = FALSE}
+exp5c_aov1_emm2 <- emmeans(exp5c_aov1,
+                          specs = c("treatment", "activity"),
+                          model = "multivariate")
+
+exp5c_aov1_pairs2 <- emmeans(exp5c_aov1_emm2, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(pairs_d, exp5c_aov1_pairs2)
+
+  pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,3), caption = "Planned contrasts for the linear mixed model exp5c_m1d and the multivariate model of the repeated measures ANOVA.") %>%
+    kable_styling() %>%
+    pack_rows("exp5c_m1d", 1, 3) %>%
+    pack_rows("multivariate RM-ANOVA", 4, 6)
+
+```
+
+Notes
+
+1. The sphericity assumption of the repeated measures ANOVA is relaxed if the model is fit using the "multivariate model". 
+2. The multivariate model repeated measures ANOVA is a linear model with a multivariate response and not a linear mixed model. In the multivariate model, each treatment combination is a different response variable and there is a single row for each level of the random factor ($\texttt{donor}$ in Experiment 5c). The multivariate model is a different way of handling the correlated error that occurs when conceiving of the design as univariate.
+3. The multivariate repeated measures ANOVA can be specified using the linear mixed model `exp5c_m1d`. Compared to the contrasts from the multivariate model of the repeated measures ANOVA above, the SEs of the contrasts are the same but the degrees of freedom differ. Because of the increased df of the linear mixed model, the CIs are narrower and the *p*-value is smaller -- that is the linear mixed model is less conservative than the repeated measures ANOVA. There is no correct degrees of freedom for a linear mixed model like this and emmeans outputs one way to compute these (with options for others, none of which are equivalent to those from the multivariate model RM-ANOVA).
+
+### Modeling $\texttt{donor}$ as a fixed effect
+
+$$
+\begin{equation}
+\texttt{glucose_uptake} \sim \texttt{treatment * activity + donor}
+\end{equation}
+(\#eq:lmm-exp5c-m3)
+$$
+
+Model \@ref(eq:lmm-exp5c-m3) (using R formula syntax) is a linear model with the block $\texttt{donor}$ added as a fixed covariate instead of a random intercept.
+
+```{r}
+exp5c_m3 <- lm(glucose_uptake ~ treatment * activity + donor,
+               data = exp5c)
+```
+
+The coefficients of the fit model are
+
+```{r echo=FALSE}
+exp5c_m3_coef <- cbind(coef(summary(exp5c_m3)),
+                       confint(exp5c_m3))
+exp5c_m3_coef %>%
+  kable(digits = c(2,3,1,4,2,2)) %>%
+  kable_styling
+```
+
+Notes
+
+1. The coefficients include a slope for the five non-reference levels of donor. We typically don't care about these.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+exp5c_m1a_pairs <- emmeans(exp5c_m1a, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+exp5c_m3_pairs <- emmeans(exp5c_m3, specs = c("treatment", "activity")) %>%
+  contrast(method = contrast_list,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp5c_m1a_pairs, exp5c_m3_pairs)
+
+pairs_dt %>%
+  kable(digits = c(2,2,3,3,2,2,2,3), caption = "Planned contrasts for the linear mixed model exp5c_m1a and the fixed effect model exp5c_m3.") %>%
+    kable_styling() %>%
+    pack_rows("exp5c_m1a", 1, 3) %>%
+    pack_rows("exp5c_m3", 4, 6)
+```
+
+Notes
+
+1. In a randomized complete block design with only 1 replicate of each treatment combination per block, like that in Experiment 5c, inference about treatment effects is exactly that same between this fixed effect model and the random intercept model `exp5c_m1a.`
+2. The equivalence of inference in the treatment effect between the fixed effect and linear mixed model holds only for balanced randomized complete block designs -- where all blocks contain all treatment combinations and the subsampling replicate size is the same for all treatment combinations for all blocks. This means, outside of special cases like Experiment 5c, the choice between adding a blocking variable as a random or fixed factor depends on assumptions about the model.  
+
+## Example 4 -- Experiments with subsampling replication (exp1g) {#lmm-example4}
+
+This example is from a design with batches (independent experiments) that contain all treatment levels of a single factor *and* subsampling replication. These data were used to introduce linear mixed models in Example 1. The design of the experiment is $2 \times 2$ factorial. Example 1 flattened the analysis to simplify explanation of random intercepts and random slopes. Here, the data are analyzed with a factorial model.
+
+[A GPR174–CCL21 module imparts sexual dimorphism to humoral immunity](https://www.nature.com/articles/s41586-019-1873-0){target="_blank"}
+
+[Public source](https://pubmed.ncbi.nlm.nih.gov/31875850/){target="_blank"}
+
+Source figure: [Fig. 1g](https://www.nature.com/articles/s41586-019-1873-0/figures/1){target="_blank"}
+
+Source data: [Source Data Fig. 1](https://www.nature.com/articles/s41586-019-1873-0#MOESM3){target="_blank"}
+
+```{r lmm-exp1g-import, echo=FALSE, message=FALSE}
+data_from <- "A GPR174–CCL21 module imparts sexual dimorphism to humoral immunity"
+file_name <- "41586_2019_1873_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp1g_wide <- read_excel(file_path,
+                         sheet = "Fig 1g",
+                         range = "B4:E25",
+                         col_types = c("numeric"),
+                         col_names = FALSE) %>%
+  data.table()
+
+genotype_levels <- c("Gpr174+", "Gpr174-")
+sex_levels <- c("M", "F")
+g.by.s_levels <- do.call(paste, expand.grid(genotype_levels, sex_levels))
+colnames(exp1g_wide) <- g.by.s_levels
+
+exp_levels <- paste0("exp_", 1:4)
+exp1g_wide[, experiment_id := rep(exp_levels, c(5,6,6,5))] #check!
+exp1g_wide[, experiment_id := factor(experiment_id)] #check!
+
+exp1g <- melt(exp1g_wide,
+              id.vars = "experiment_id",
+              measure.vars = g.by.s_levels,
+              variable.name = "treatment",
+              value.name = "gc") %>% # cell count
+  na.omit()
+
+exp1g[, c("genotype", "sex"):= tstrsplit(treatment,
+                                             " ",
+                                             fixed = TRUE)]
+exp1g[, genotype := factor(genotype,
+                           levels = genotype_levels)]
+exp1g[, sex := factor(sex,
+                           levels = sex_levels)]
+
+treatment_levels <- c("Gpr174+ M", "Gpr174+ F", "Gpr174- M", "Gpr174- F")
+treatment_levels <- c("Gpr174+ M", "Gpr174- M", "Gpr174+ F", "Gpr174- F")
+exp1g[, treatment := factor(treatment,
+                           levels = treatment_levels)]
+
+exp1g_means <- exp1g[, .(gc = mean(gc)),
+                     by = .(treatment, genotype, sex, experiment_id)]
+
+```
+
+### Understand the data
+
+The researchers in this paper are interested in discovering mechanisms causing the lower [antibody-mediated immune response](https://en.wikipedia.org/wiki/Humoral_immunity){target="_blank"} in males relative to females. The data in Fig. 1 are from a set of experiments on mice to investigate how the G-protein coupled receptor protein GPR174 regulates formation of the [B-cell germinal center in secondary lymph tissue](https://en.wikipedia.org/wiki/Germinal_center){target="_blank"}. GPR174 is a X-linked gene.
+
+**Response variable** $\texttt{gc}$ -- germinal center size (%). The units are the percent of cells expressing germinal center markers.
+
+**Factor 1** -- $\texttt{sex}$ ("M", "F"). Male ("M") is the reference level.
+
+**Factor 2** -- $\texttt{chromosome}$ ("Gpr174+", "Gpr174-"). "Gpr174-" is a GPR174 knockout. The wildtype ("Gpr174+") condition is the reference level. 
+
+**Design** -- $2 \times 2$, that is, two crossed factors each with two levels. This results in four groups, each with a unique combination of the levels from each factor. "M Gpr174+" is the control. "M Gpr174+" is the knockout genotype in males ("knockout added"). "F Gpr174+" is the wildtype female ("X chromosome added"). "F Gpr174-" is the knockout female ("knockout and X chromosome added".
+
+### Examine the data
+
+```{r lmm-exp1g-examine}
+ggplot(data = exp1g,
+       aes(x = treatment,
+           y = gc,
+           color = experiment_id)) +
+  geom_point(position = position_dodge(0.4))
+
+```
+
+### Fit the model
+
+```{r lmm-exp1g-m1}
+# three slope parameters
+exp1g_m1a <- lmer(gc ~ genotype * sex +
+                   (genotype * sex | experiment_id),
+                 data = exp1g)
+
+VarCorr(exp1g_m1a) # looks fine
+
+# one slope parameter but capturing all treatment combinations
+exp1g_m1b <- lmer(gc ~ genotype * sex +
+                   (treatment | experiment_id),
+                 data = exp1g)
+
+# intercept interactions
+exp1g_m1c <- lmer(gc ~ genotype * sex +
+                   (1 | experiment_id) +
+                    (1 | experiment_id:genotype) +
+                    (1 | experiment_id:sex) +
+                    (1 | experiment_id:genotype:sex),
+                 data = exp1g)
+
+VarCorr(exp1g_m1c) # id:genotype is low
+
+# drop id:genotype which has low variance
+exp1g_m1d <- lmer(gc ~ genotype * sex +
+                   (1 | experiment_id) +
+                    (1 | experiment_id:sex) +
+                    (1 | experiment_id:sex:genotype),
+                 data = exp1g)
+
+AIC(exp1g_m1a, exp1g_m1b, exp1g_m1c, exp1g_m1d)
+
+# go with exp1g_m1d.
+exp1g_m1 <- exp1g_m1d
+```
+
+### Inference from the model
+
+```{r}
+exp1g_m1_coef <- coef(summary(exp1g_m1))
+```
+
+```{r}
+exp1g_m1_coef
+```
+
+```{r lmm-exp1g-emm}
+# order of factors reversed in specs because I want sex to be
+# main x-axis variable in plot
+exp1g_m1_emm <- emmeans(exp1g_m1, specs = c("sex", "genotype"))
+```
+
+```{r lmm-exp1g-pairs}
+# exp1g_m1_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+wt_m <- c(1,0,0,0)
+wt_f <- c(0,1,0,0)
+ko_m <- c(0,0,1,0)
+ko_f <- c(0,0,0,1)
+
+# simple effects within males and females + interaction 
+# 1. (ko_m - wt_m) 
+# 2. (ko_f - wt_f)
+
+exp1g_contrasts <- list(
+  "(Gpr174- M) - (Gpr174+ M)" = c(ko_m - wt_m),
+  "(Gpr174- F) - (Gpr174+ F)" = c(ko_f - wt_f),
+  "Interaction" = c(ko_f - wt_f) -
+    c(ko_m - wt_m)
+)
+exp1g_m1_planned <- contrast(exp1g_m1_emm,
+                       method = exp1g_contrasts,
+                       adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+
+```{r lmm-exp1g-pairs-show, echo=FALSE}
 exp1g_m1_planned %>%
   kable(digits = c(1,2,3,3,2,2,2,3)) %>%
   kable_styling()
 ```
-### Complete pooling increases false discovery -- don't do this
-
-```{r lmm-eg1-pseudoreplication}
-exp1g_m3 <- lm(gc ~ genotype * sex,
-               data = exp1g,
-               contrasts = list(genotype = contr.sum,
-                                sex = contr.sum))
-
-# same planned contrasts as above
-exp1g_m3_emm <- emmeans(exp1g_m3, specs = c("genotype", "sex"))
-exp1g_m3_pairs <- exp1g_m3_emm %>%
-  contrast(method = list(
-    "KO/M - WT/M" = c(ko_m - wt_m),
-    "KO/F - WT/F" = c(ko_f - wt_f),
-    "Interaction" = c(ko_f - wt_f) -
-      c(ko_m - wt_m)
-    
-  ))
-
-exp1g_m3_pairs %>%
-  summary(infer = TRUE) %>%
-  kable(digits = c(1,2,3,3,2,2,2,3)) %>%
-  kable_styling()
-```
 
 Notes
 
-1. This is a kind of pseudoreplication -- look at the huge df compared to the linear mixed model! By fitting this model, you are telling your PI, your readers and yourself that the multiple experiments are perfectly alike. We know this isn't true just by looking at Figure \@ref(fig:lmm-why-care). The df in exp1g_m3 is inflated because of pseudoreplication.
-2. For this example, the CIs are only slightly narrower and the *p*-values only slightly smaller in the pseudoreplicated exp1g_m3 compared to exp1g_m1.
-3. A simulation shows that in data like these, a linear model of the complete-pooled data is highly anti-conservative with absurdly narrow intervals and absurdly high type I error.
+1. The direction of the estimated effect is opposite in males and females
 
-### Alternatives to the random intercept and slope model
+### Plot the model
 
-Linear mixed models are *extremely* flexible both in the specification of the model and in the algorithm used to compute the model parameters. This is not the text to describe this. But, some alternative specifications are useful for experimental biology.
+```{r lmm-exp1g-plot-the-model, fig.dim=harrell_dim*small_scale, echo=FALSE}
+exp1g_effects <- ggplot_the_effects(exp1g_m1_emm,
+                       exp1g_m1_planned,
+                       effect_label = "Difference in GC (%)")
 
-#### A linear mixed model with independent random intercepts and slopes
-
-```{r lmm-eg-m4}
-exp1g_m4 <- lmer(gc ~ genotype * sex +
-                   (treatment || experiment_id),
-                 data = exp1g)
+#exp1g_effects
 ```
 
-Notes
+```{r echo=FALSE}
+# add treatment column to emmeans table
+exp1g_m1_emm_dt <- summary(exp1g_m1_emm) %>%
+  data.table
+exp1g_m1_emm_dt[, treatment := paste(genotype, sex)]
+exp1g_m1_emm_dt[, treatment := factor(treatment,
+                                      levels = levels(exp1g$treatment))]
 
-1. The double bar ("||") tells `lmer` to fit a model with uncorrelated random effects.
-2. Wait, what? What are correlated random effects? The model `exp1g_m1` explicitly models a correlation between the random effects. For example, the estimated correlation between $\gamma_{2j}$ (the random slopes for the "Gpr174+ F" treatment) and $\gamma_{0j}$ (the random intercepts) is 0.46, which means that experiments with more positive random intercepts (have larger GC than the overall mean for the reference treatment) have more positve random slopes (have larger GC for the "Gpr174+ F" treatment than expected given random intercept). You can see this moderate, positive correlation by examining the random intercepts and slopes in Figure \@ref(fig:lmm-eg1-explainer-3) (the intercepts are the left side of the colored lines, the slopes are the slope of the colored lines).
-3. The model fails to converge, a common feature of linear mixed models. This is treated below.
+# create table of means for each treatment * experiment_id combination
+exp1g[, group_mean := predict(exp1g_m1)]
+exp1g_m1_emm2 <- exp1g[, .(group_mean = mean(group_mean)),
+                       by = .(treatment, experiment_id)]
 
-#### A linear mixed model with a fixed factor by random factor interaction.
+# add group1 and group2 columns to exp1g_m1_planned
+exp1g_m1_planned_dt <- data.table(exp1g_m1_planned)
+exp1g_m1_planned_dt[, pretty_p := pvalString(p.value)]
+exp1g_m1_planned_dt[, group1 := c("Gpr174- M", "Gpr174- F", "")]
+exp1g_m1_planned_dt[, group2 := c("Gpr174+ M", "Gpr174+ F", "")]
+
+```
+
+```{r echo=FALSE}
+exp1g_response <- ggplot(data = exp1g,
+              aes(x = treatment,
+                  y = gc,
+                  color = experiment_id)) +
+  # modeled experiment by treatment means
+  geom_point(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                color = experiment_id),
+            position = position_dodge(width = 0.4),
+            alpha = 1,
+            size = 2) +
+  geom_line(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                group = experiment_id,
+                color = experiment_id),
+            position = position_dodge(width = 0.4)) +
+  
+  # raw data
+  geom_point(position = position_dodge(width = 0.4),
+             alpha = 0.3
+  ) +
+  
+  # modeled treatment means
+  geom_point(data = exp1g_m1_emm_dt,
+             aes(y = emmean),
+             color = "black",
+             size = 3) +
+  # geom_errorbar(data = exp1g_m1_emm_dt,
+  #            aes(y = emmean,
+  #                ymin = lower.CL,
+  #                ymax = upper.CL),
+  #             color = "black",
+  #           width = .05) +
+  
+  ylab("GC (%)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  coord_cartesian(xlim = c(1, 4.1)) +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+  
+exp1g_response <- factor_wrap(exp1g_response)
+
+# exp1g_response
+```
+
+```{r echo = FALSE, fig.dim=harrell_dim*small_scale, fig.cap="Treatment effect on germinal center (GC) formation. Small, pale, colored dots are independent experiments. Intermediate size colored dots are experiment means."}
+plot_grid(exp1g_effects, exp1g_response,
+          nrow=2,
+          align = "v",
+          axis = "lr",
+          rel_heights = c(0.6,1))
+```
+
+### Alternaplot the model
+
+```{r lmm-exp1g-alternaplot, echo=FALSE, fig.dim=response_dim*small_scale, dev.args = list(type = "cairo-png"), fig.cap = "Germinal center (GC) formation in response to treatment. Small, pale, colored dots are independent experiments. Intermediate size colored dots are experiment means. Dashed gray line is expected additive mean of Gpr174- F"}
+
+
+# get coefficients of model
+b <- exp1g_m1_coef[, "Estimate"]
+
+# get interaction p
+p_ixn <- exp1g_m1_planned_dt[contrast == "Interaction", pretty_p]
+
+dodge_width <- 0.4
+
+gg <- exp1g_response +
+  
+  # pvalue brackets
+  stat_pvalue_manual(exp1g_m1_planned_dt[1:2],
+                     label = "pretty_p",
+                     y.position = c(20,20),
+                     size = 2.5,
+                     tip.length = 0.01) +
+  
+  # additive line + interaction p bracket
+  geom_segment(x = 3.85,
+               y = b[1] + b[2] + b[3],
+               xend = 4.15,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 4.2,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("interaction\np = ", p_ixn),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black")
+
+
+gg
+```
+
+
+### Understanding the alternative models
 
 ```{r}
-exp1g_m5 <- lmer(gc ~ genotype * sex +
-                   (1 | experiment_id) +
-                   (1 | experiment_id:treatment),
+exp1g_m1a <- lmer(gc ~ genotype * sex +
+                   (genotype * sex | experiment_id),
                  data = exp1g)
+
+exp1g_m1b <- lmer(gc ~ genotype * sex +
+                   (treatment | experiment_id),
+                 data = exp1g)
+
+exp1g_m1c <- lmer(gc ~ genotype * sex +
+                   (1 | experiment_id) +
+                    (1 | experiment_id:genotype) +
+                    (1 | experiment_id:sex) +
+                    (1 | experiment_id:genotype:sex),
+                 data = exp1g)
+
+exp1g_m1d <- lmer(gc ~ genotype * sex +
+                   (1 | experiment_id) +
+                    (1 | experiment_id:sex) +
+                    (1 | experiment_id:genotype:sex),
+                 data = exp1g)
+
 ```
 
 Notes
 
-1. This model has two random intercepts and no random slope. The first random intercept is $\texttt{experiment_id}$, as in model exp1g_m1. The second is an intercept for all combinations of $\texttt{experiment_id}$ and $\texttt{treatment}$. This is the fixed by random factor interaction. Note that the fixed factor $\texttt{treatment}$ contains all combinations of $\texttt{genotype} \times \texttt{sex}$ (look at the data!), so this random intercept is equivalent to (and could be specified in the model formula using) $\texttt{experiment_id:genotype:sex}$.
-2. Model exp1g_m5 accounts for variation in experiment effects for each level of $\texttt{treatment}$ using the random interaction instead of random slopes. dude! And, because this random interaction intercept is specified as a different random intercept from that for $\texttt{experiment_id}$, the random interaction effects (alternative to slope) are independent of the $\texttt{experiment_id}$ intercept effects. Sweet!
-3. This model is the regression model equivalent of the **mixed ANOVA** with two fixed factors ($\texttt{genotype}$ and $\texttt{sex}$) and one random factor ($\texttt{experiment_id$). If the design is balanced such that all experiments have the same number of individuals in every $\texttt{genotype} \times \texttt{sex}$ combination then an ANOVA of this model and ANOVA using SAS or JMP or SPSS will be equivalent. I'm not sure that Graphpad Prism can do this kind of ANOVA.
+1. All four models model the same fixed effects. The models differ only in how they model the random effects.
+2. Model `exp1g_m1a` fits one random intercept, two random slopes, and one random interaction.
+* $\gamma_{0j}$ -- a random intercept modeling batch effects of $\texttt{experiment_id}$ on the intercept
+* $\gamma_{1j}$ -- a random slope modeling the effect of the non-reference level of "Gpr174-" on the batch effect of $\texttt{experiment_id}$. This is a $\texttt{experiment_id} \times \texttt{genotype}$ interaction.
+* $\gamma_{2j}$ -- a random slope modeling the effect of "F" (female) on the batch effect of $\texttt{experiment_id}$. This is a $\texttt{experiment_id} \times \texttt{sex}$ interaction.
+* $\gamma_{3j}$ -- a random slope modeling the effect of the interaction effect of "Gpr174-" and "F" on the batch effect of $\texttt{experiment_id}$. This is a $\texttt{experiment_id} \times \texttt{sex}  \times \texttt{genotype}$ interaction.
+3. Model `exp1g_m1b` fits one random intercept and three random slopes
+* $\gamma_{0j}$ -- a random intercept modeling batch effects of $\texttt{experiment_id}$ on the intercept. This is modeling the same thing as $\gamma_{0j}$ in Model `exp1g_m1a`.
+* $\gamma_{1j}$ -- a random slope modeling the effect of "Gpr174- M" on the batch effect of $\texttt{experiment_id}$. This is modeling the same thing as $\gamma_{1j}$ in Model `exp1g_m1a`.
+* $\gamma_{2j}$ -- a random slope modeling the effect of "Gpr174+ F" on the batch effect of $\texttt{experiment_id}$. This is modeling the same thing as $\gamma_{2j}$ in Model `exp1g_m1a`.
+* $\gamma_{3j}$ -- a random slope modeling the effect of "M Gpr174- F" on the batch effect of $\texttt{experiment_id}$. This is modeling the added variance accounted for by the random interaction $\gamma_{2j}$ in Model `exp1g_m1a` but in a different way.
+4. Model `exp1g_m1c` fits four random intercepts
+* $\gamma_{0j}$ -- a random intercept modeling batch effects of $\texttt{experiment_id}$ on the intercept. This is modeling the same thing as $\gamma_{0j}$ in Model `exp1g_m1a`.
+* $\gamma_{0jk}$ -- a random intercept modeling the effects of the combination of $\texttt{experiment_id}$ and $\texttt{genotype}$. This is very similar to the variance modeled by $\gamma_{1j}$ in Model `exp1g_m1a` except the draws from $\gamma_{0jk}$ are independent (uncorrelated) of draws from the other random intercepts.
+* $\gamma_{0jl}$ -- a random intercept modeling the effects of the combination of $\texttt{experiment_id}$ and $\texttt{sex}$. This is very similar to the variance modeled by $\gamma_{2j}$ in Model `exp1g_m1a` except the draws from $\gamma_{0jl}$ are independent (uncorrelated) of draws from the other random intercepts (review [The correlation among random intercepts and slopes](#lmm-varcorr) if this doesn't make sense).
+* $\gamma_{0jkl}$ -- a random intercept modeling the effects of the combination of $\texttt{experiment_id}$, $\texttt{genotype}$ and $\texttt{sex}$. This is very similar to the variance modeled by $\gamma_{3j}$ in Model `exp1g_m1a` except the draws from $\gamma_{0jkl}$ are independent (uncorrelated) of draws from the other random intercepts.
+5. Model `exp1g_m1d` fits the same random intercepts as Model `exp1g_m1c` but excludes
+$\gamma_{0jl}$ (the random intercept for the experiment_id by genotyp combination. This was excluded because of the low variance of this component in the fit model. 
 
-#### A linear mixed model with a fixed factor by random factor interaction -- the afex remix.
+### The VarCorr matrix of models exp1g_m1a and exp1g_m1b
 
-```{r lmm-eg1-m6}
-exp1g_m6 <- aov_4(gc ~ genotype * sex +
-                   (genotype * sex | experiment_id),
-                 data = exp1g)
+The random effect similarity of models `exp1g_m1a` and `exp1g_m1b` can be seen in the estimated variance components and correlations among the random effects.
+
+```{r, echo=FALSE}
+options(knitr.kable.NA = '')
+vc <- rbind(varcor(VarCorr(exp1g_m1a)$experiment_id),
+            varcor(VarCorr(exp1g_m1b)$experiment_id))
+
+vc %>%
+  kable(col.names = rep("", 4),
+        digits = 4,
+        caption = "The Varcorr matrix. Standard deviations of random effects on the diagonal. Correlations of random effects on the off-diagonal.") %>%
+  kable_styling() %>%
+  pack_rows("exp1g_m1a", 1, 4) %>%
+  pack_rows("exp1g_m1b", 5, 8)
+  
 ```
 
-1. `(genotype * sex | experiment_id)` and `(treatment | experiment_id)` are equivalent since $\texttt{treatment}$ contains all combinations of $\texttt{genotype}$ * $\texttt{sex}$. `(genotype * sex | experiment_id)` is used because the `afex` function can't make the substitution.
-2. The model formula is the same as the for model exp1g_m1, but exp1g_m6 *does not model random slopes*. 
+### The linear mixed model has more precision and power than the fixed effect model of batch means
 
-## Best practice for experimental biology -- the aov_4 model.
+```{r lmm-exp1g-lm2-means-pool, echo=TRUE}
+# means pooling model
+exp1g_m2 <- lm(gc ~ sex * genotype,
+                data = exp1g_means)
+
+```
+
+```{r lmm-exp1g-lm2-planned, echo=FALSE}
+exp1g_m2_planned <- emmeans(exp1g_m2, specs = c("sex", "genotype")) %>%
+  contrast(method = exp1g_contrasts,
+           adjust = "none"
+  ) %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp1g_m1_planned, exp1g_m2_planned)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,1,2,2,2,3), caption = "Planned contrasts for the linear mixed model exp1g_m1 and the fixed effects model of experiment means exp1g_m2.") %>%
+  kable_styling() %>%
+  pack_rows("exp1g_m1 (lmm)", 1, 3) %>%
+  pack_rows("exp1g_m2 (lm means pooling)", 4, 6)
+```
+
+Notes
+
+1. A fixed effects model fit to batch-means pooled data is strongly conservative and will result in less discovery.
+2. Means pooling does not make the data independent in a randomized complete block design. A linear mixed model of batch-means pooled data is a **mixed-effect ANOVA** (Next section. Also see Section \@ref(issues-exp4d) in the Issues chapter).
+
+### Fixed effect models and pseudoreplication
+
+```{r lmm-exp1g_m3}
+# complete pooling model
+exp1g_m3 <- lm(gc ~ sex * genotype,
+                data = exp1g)
+```
+
+```{r lmm-exp1g_m3-compare, echo=FALSE}
+exp1g_m3_planned <- emmeans(exp1g_m3, specs = c("sex", "genotype")) %>%
+  contrast(method = exp1g_contrasts,
+           adjust = "none"
+  ) %>%
+  summary(infer = TRUE)
+
+pairs_dt <- rbind(exp1g_m1_planned, exp1g_m3_planned)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,1,2,2,2,3), caption = "Planned contrasts for the linear mixed model exp1g_m1 and the fixed effects model exp1g_m3 with complete pooling.") %>%
+  kable_styling() %>%
+  pack_rows("exp1g_m1 (lmm)", 1, 3) %>%
+  pack_rows("exp1g_m3 (lm complete pooling)", 4, 6)
+```
+
+Notes
+
+1. Complete pooling is strongly anti-conservative and will result in increased false discovery. Complete pooling is a type of pseudoreplication -- the subsamples have been analyzed as if they are independent replicates. Subsamples are not independent.
+2. For the Experiment 1g data, the 95% confidence intervals are wider and the *p*-values are larger in the complete pool model `exp1g_m3` compared to the linear mixed model `exp1g_m1`. This is an unusual result.
+
+### Mixed-effect ANOVA
+
+```{r lmm-exp1g_m1_aov}
+exp1g_m1_aov <- aov_4(gc ~ sex * genotype +
+                  (sex * genotype | experiment_id),
+                data = exp1g)
+```
+
+Notes
+
+1. The formula has the same format as that in Example 3 for repeated measures ANOVA on RCB designs with no subsampling. In biology, this is often called a **mixed effect ANOVA** with two fixed factors and one random factor.
+2. The data are aggregated prior to fitting the model -- this means the subsamples are averaged within each batch by treatment combination.
+3. The mixed-effect ANOVA is equivalent to the linear mixed model `exp1g_m1c` if there are the same number of replicates in each treatment combination and the same number of subsamples in all treatment by $\texttt{experiment_id}$ combinations. The design is not balanced in this example.
+
+```{r lmm-exp1g_m1_aov-pairs, echo=FALSE}
+pairs_a <- emmeans(exp1g_m1_aov, specs = c("sex", "genotype")) %>%
+  contrast(method = exp1g_contrasts,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+pairs_b <- emmeans(exp1g_m1c, specs = c("sex", "genotype")) %>%
+  contrast(method = exp1g_contrasts,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+pairs_c <- emmeans(exp1g_m1d, specs = c("sex", "genotype")) %>%
+  contrast(method = exp1g_contrasts,
+           adjust = "none"
+  )%>%
+  summary(infer = TRUE)
+
+
+pairs_dt <- rbind(pairs_a, pairs_b, pairs_c)
+
+pairs_dt %>%
+  kable(digits = c(1,2,3,3,2,2,2,3), caption = "Planned contrasts from mixed ANOVA compared to lmm equivalent of mixed ANOVA and lowest AIC lmm.") %>%
+  kable_styling() %>%
+  pack_rows("exp1g_m1_aov (mixed ANOVA)", 1, 3) %>%
+  pack_rows("exp1g_m1_c (lmm equivalent of mixed ANOVA)", 4, 6) %>%
+  pack_rows("exp1g_md (lmm with min AIC)", 7, 9)
+```
 
 ## Working in R
+### Fitting linear mixed models
+#### Models without subsampling
 
+**Single experimental factor**
+
+```{r, eval=FALSE}
+m1 <- lmer(y ~ treatment + (1 | id), data = exp_data)
+m2a <- lme(y ~ treatment,
+                 random =  ~ 1 | id,
+                 weights = varIdent(form = ~ 1 | treatment),
+                 data = exp_data)
+m2b <- lme(y ~ treatment,
+                 random =  ~ 1 | id,
+                 correlation = corSymm(form = ~ 1 | id),
+                 data = exp_data)
+m2c <- lme(y ~ treatment,
+                 random =  ~ 1 | id,
+                 correlation = corSymm(form = ~ 1 | id),
+                 weights = varIdent(form = ~ 1 | treatment),
+                 data = exp_data)
+m3 <- aov_4(y ~ treatment + (treatment | id), data = exp_data)
+
+```
+
+Notes
+
+1. . `aov_4` (Model `m3`) does not fit a linear mixed model but two different linear models.
+* The univariate model fit by `aov_4` is equivalent to Model `m1` if there is no missing measurement in any batch ($\texttt{id}$).
+* The multivariate model fit by `aov_4` is equivalent to Model `m2c` if there is no missing measurement in any batch ($\texttt{id}$).
+* Model `m1`, Model `m2c`, and both fits of `m3` are equivalent if there are only two two treatment levels.
+2. If there are only two treatment levels then Model `m1`, Model `m2c`, and both fits of `m2` are equivalent to a **paired t-test**.
+3. If there are > two treatment levels, then Model `m3` *is* a **repeated measures ANOVA**. Models `m1` and `m2` are equivalent to repeated measures ANOVA under the conditions listed in Item 1.
+
+To get the contrasts from the univariate and multivariate `aov_4` models (Model `m2`).
+
+```{r, eval=FALSE}
+m3_emm_uni <- emmeans(m3,
+                  specs = c("treatment"),
+                  model = "univariate")
+m3_pairs_uni <- contrast(m3_emm_uni,
+                         method = "revpairwise",
+                         adjust = "none")
+
+m3_emm_multi <- emmeans(m3,
+                  specs = c("treatment"),
+                  model = "multivariate")
+m3_pairs_multi <- contrast(m3_emm_multi,
+                         method = "revpairwise",
+                         adjust = "none")
+
+```
+
+Best Practice
+
+1. if $\texttt{id}$ is time in a pre-post design, then see the chapter on [pre-post designs](#pre-post).
+2. If model checks show that the data look like a sample from a normal distribution and that the spread is reasonably homogenous, then use `m1` or the univariate model of `m3` (these are the same). The multivariate model of `m3` is conservative.
+3. If there is heterogeneity, the linear mixed models `m1` and all three `m2` should be fit and then compared with AIC. Report the model with the smallest AIC.
+
+**Two crossed experimental factors**
+
+```{r, eval=FALSE}
+# treatment_by_genotype is a single factor containing all combinations of treatment and genotype
+m1 <- lmer(y ~ treatment * genotype +
+             (1 | id),
+           data = exp_data)
+m1b <- lmer(y ~ treatment_by_genotype +
+             (1 | id),
+           data = exp_data)
+m2 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:treatment) +
+             (1 | id:genotype),
+           data = exp_data)
+m3 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:genotype),
+           data = exp_data)
+m4 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:treatment),
+           data = exp_data)
+
+m5 <- aov_4(y ~ treatment * genotype +
+              (treatment * genotype | id),
+            data = exp_data)
+```
+
+Best practices -- in addition to the Notes and Best practices from the single factor case above
+
+1. Models `m1` and `m1b` are the factorial and flattened specifications -- try `m1b` if `m1` fits with a boundary warning. If `m1b` is reported, compute the [interaction contrasts](#twoway-working-ixn).
+2. Also try flattened fixed effect specifications of Models `m2`, `m3`, and `m4` if the factorial specification returns a boundary warning.
+
+#### Models with subsampling
+
+**Single experimental factor**
+
+```{r, eval=FALSE}
+m1 <- lmer(y ~ treatment + (1 | id), data = exp_data)
+m2 <- lmer(y ~ treatment + (treatment | id), data = exp_data)
+m3 <- lmer(y ~ treatment + (1 | id) + (1 | id:treatment),
+           data = exp_data)
+m4 <- aov_4(y ~ treatment + (treatment | id), data = exp_data)
+
+```
+
+Notes and Best practices -- in addition to the Notes and Best practices from above
+
+1. Modeling the random slope (`m2`) or interaction intercept (`m3`) models models some of the correlated error and heterogeneity not modeled by the random intercept.
+2. Model `m4` *is* a two-way mixed-effect. The data are aggregated and so is equivalent to a repeated measures ANOVA of the batch means.
+3. Models `m3` and `m4` are the same if there are the same number of replicates in each level of $\texttt{treatment}$ and the same number of subsamples in all $\texttt{treatment}$ by $\texttt{id}$ combinations.
+
+**Two crossed experimental factors**
+
+```{r, eval=FALSE}
+# treatment_by_genotype is a single factor containing all combinations of treatment and genotype
+m1 <- lmer(y ~ treatment * genotype +
+             (1 | id),
+           data = exp_data)
+m2 <- lmer(y ~ treatment * genotype +
+             (treatment * genotype | id),
+           data = exp_data)
+m3 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:treatment) +
+             (1 | id:genotype) + 
+             (1 | id:treatment:genotype),
+           data = exp_data)
+m4 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:treatment) +
+             (1 | id:genotype),
+           data = exp_data)
+m5 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:treatment),
+           data = exp_data)
+m6 <- lmer(y ~ treatment * genotype +
+             (1 | id) +
+             (1 | id:genotype),
+           data = exp_data)
+
+m7 <- aov_4(y ~ treatment * genotype +
+              (treatment * genotype | id),
+            data = exp_data)
+```
+
+Notes and Best practices -- in addition to the Notes and Best practices from above
+
+1. flatten the model if the factorial specification returns a boundary warning.
+
+### Plotting models fit to batched data
+#### Models without subsampling - Experiment 6g
+
+Data wrangling necessary for plot:
+
+```{r}
+# convert contrast table to a data.table
+exp6g_m1_planned_dt <- data.table(exp6g_m1_planned)
+
+# create a pretty p-value column
+exp6g_m1_planned_dt[, pretty_p := pvalString(p.value)]
+
+# add group1 and group2 columns to exp1g_m1_planned
+exp6g_m1_planned_dt[, group1 := c("Saline", "CNO", "Post_CNO")]
+exp6g_m1_planned_dt[, group2 := c("Lesion", "Saline", "CNO")]
+
+```
+
+Experiments are colored:
+
+```{r}
+gg1 <- ggplot(data = exp6g,
+              aes(x = treatment,
+                  y = touch,
+                  color = mouse_id)) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  geom_line(aes(group = mouse_id),
+            position = position_dodge(width = 0.2),
+            color = "gray80") +
+  geom_point(data = summary(exp6g_m1_emm),
+             aes(y = emmean),
+             color = "black",
+             size = 3) +
+  geom_errorbar(data = summary(exp6g_m1_emm),
+             aes(y = emmean,
+                 ymin = lower.CL,
+                 ymax = upper.CL),
+             color = "black",
+             width = .05) +
+
+  # pvalue brackets
+  stat_pvalue_manual(exp6g_m1_planned_dt,
+                     label = "pretty_p",
+                     y.position = c(99,97,95),
+                     size = 2.5,
+                     tip.length = 0.01) +
+
+  ylab("Percent ipsilateral touch") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+  
+```
+
+Treatments are colored:
+
+```{r}
+gg2 <- ggplot(data = exp6g,
+              aes(x = treatment,
+                  y = touch)) +
+  geom_point(aes(group = mouse_id),
+             position = position_dodge(width = 0.2),
+             color = "gray") +
+  geom_line(aes(group = mouse_id),
+            position = position_dodge(width = 0.2),
+            color = "gray80") +
+  geom_point(data = summary(exp6g_m1_emm),
+             aes(y = emmean,
+             color = treatment),
+             size = 3) +
+  geom_errorbar(data = summary(exp6g_m1_emm),
+             aes(y = emmean,
+                 ymin = lower.CL,
+                 ymax = upper.CL,
+             color = treatment),
+             width = .05) +
+  
+  # pvalue brackets
+  stat_pvalue_manual(exp6g_m1_planned_dt,
+                     label = "pretty_p",
+                     y.position = c(99,97,95),
+                     size = 2.5,
+                     tip.length = 0.01) +
+
+  ylab("Percent ipsilateral touch") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+
+#gg2
+```
+
+```{r, echo=FALSE, fig.width=full_width, fig.asp=0.5}
+plot_grid(gg1, gg2, ncol=2)
+```
+
+#### Models with subsampling - Experiment 1g
+
+Data wrangling necessary for plot:
+
+```{r}
+# add treatment column to emmeans table
+exp1g_m1_emm_dt <- summary(exp1g_m1_emm) %>%
+  data.table
+exp1g_m1_emm_dt[, treatment := paste(genotype, sex)]
+exp1g_m1_emm_dt[, treatment := factor(treatment,
+                                      levels = levels(exp1g$treatment))]
+
+# create table of means for each treatment * experiment_id combination
+exp1g[, group_mean := predict(exp1g_m1)]
+exp1g_m1_emm2 <- exp1g[, .(group_mean = mean(group_mean)),
+                       by = .(treatment, experiment_id)]
+
+# add group1 and group2 columns to exp1g_m1_planned
+exp1g_m1_planned_dt <- data.table(exp1g_m1_planned)
+exp1g_m1_planned_dt[, pretty_p := pvalString(p.value)]
+exp1g_m1_planned_dt[, group1 := c("Gpr174- M", "Gpr174- F", "")]
+exp1g_m1_planned_dt[, group2 := c("Gpr174+ M", "Gpr174+ F", "")]
+
+```
+
+```{r}
+# get coefficients of model
+b <- exp1g_m1_coef[, "Estimate"]
+
+# get interaction p
+p_ixn <- exp1g_m1_planned_dt[contrast == "Interaction", pretty_p]
+
+exp1g_plot_a <- ggplot(data = exp1g,
+              aes(x = treatment,
+                  y = gc,
+                  color = experiment_id)) +
+  # modeled experiment by treatment means
+  geom_point(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                color = experiment_id),
+            position = position_dodge(width = 0.4),
+            alpha = 1,
+            size = 2) +
+  geom_line(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                group = experiment_id,
+                color = experiment_id),
+            position = position_dodge(width = 0.4)) +
+  
+  # raw data
+  geom_point(position = position_dodge(width = 0.4),
+             alpha = 0.3
+  ) +
+  
+  # modeled treatment means
+  geom_point(data = exp1g_m1_emm_dt,
+             aes(y = emmean),
+             color = "black",
+             size = 3) +
+  # geom_errorbar(data = exp1g_m1_emm_dt,
+  #            aes(y = emmean,
+  #                ymin = lower.CL,
+  #                ymax = upper.CL),
+  #             color = "black",
+  #           width = .05) +
+  
+  # pvalue brackets
+  stat_pvalue_manual(exp1g_m1_planned_dt[1:2],
+                     label = "pretty_p",
+                     y.position = c(20,20),
+                     size = 2.5,
+                     tip.length = 0.01) +
+  
+  # additive line + interaction p bracket
+  geom_segment(x = 3.85,
+               y = b[1] + b[2] + b[3],
+               xend = 4.15,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 4.2,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("interaction\np = ", p_ixn),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black") +
+  
+  ylab("GC (%)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  coord_cartesian(xlim = c(1, 4.1)) +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+  
+exp1g_plot_a <- factor_wrap(exp1g_plot_a)
+
+#exp1g_plot_a
+```
+
+```{r}
+# get coefficients of model
+b <- exp1g_m1_coef[, "Estimate"]
+
+# get interaction p
+p_ixn <- exp1g_m1_planned_dt[contrast == "Interaction", pretty_p]
+
+dodge_width = 0.6
+exp1g_plot_b <- ggplot(data = exp1g,
+              aes(x = treatment,
+                  y = gc,
+                  group = experiment_id)) +
+  # modeled experiment by treatment means
+  geom_point(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                color = experiment_id),
+            position = position_dodge(width = dodge_width),
+            alpha = 1,
+            size = 2) +
+  geom_line(data = exp1g_m1_emm2,
+            aes(y = group_mean,
+                group = experiment_id,
+                color = experiment_id),
+            position = position_dodge(width = dodge_width)) +
+  
+  # raw data
+  geom_point(position = position_dodge(width = dodge_width),
+             color = "gray80"
+  ) +
+  
+  # modeled treatment means
+  geom_point(data = exp1g_m1_emm_dt,
+             aes(y = emmean),
+             color = "black",
+             size = 3) +
+  # geom_errorbar(data = exp1g_m1_emm_dt,
+  #            aes(y = emmean,
+  #                ymin = lower.CL,
+  #                ymax = upper.CL),
+  #             color = "black",
+  #           width = .05) +
+  
+  # pvalue brackets
+  stat_pvalue_manual(exp1g_m1_planned_dt[1:2],
+                     label = "pretty_p",
+                     y.position = c(20,20),
+                     size = 2.5,
+                     tip.length = 0.01) +
+  
+  # additive line + interaction p bracket
+  geom_segment(x = 4 - dodge_width/2,
+               y = b[1] + b[2] + b[3],
+               xend = 4 + dodge_width/2,
+               yend = b[1] + b[2] + b[3],
+               linetype = "dashed",
+               color = "gray") +
+  geom_bracket(
+    x = 4 + dodge_width/1.9,
+    y = b[1] + b[2] + b[3],
+    yend = b[1] + b[2] + b[3] + b[4],
+    label = paste0("interaction\np = ", p_ixn),
+    text.size = 3,
+    text.hjust = 0,
+    color = "black") +
+  
+  ylab("GC (%)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  coord_cartesian(xlim = c(1, 4.2)) +
+  theme(
+    axis.title.x = element_blank(), # no x-axis title
+    legend.position = "none"
+  ) + 
+  NULL
+  
+exp1g_plot_b <- factor_wrap(exp1g_plot_b)
+
+# exp1g_plot_b
+```
+
+
+```{r, echo=FALSE, fig.width=full_width, fig.asp=0.5}
+plot_grid(exp1g_plot_a, exp1g_plot_b, ncol=2)
+```
+
+### Repeated measures ANOVA (randomized complete block with no subsampling)
+
+```{r, eval = FALSE}
+# this is the rm-ANOVA
+m1 <- aov_4(glucose_uptake ~ treatment * activity +
+              (treatment * activity | donor),
+            data = exp5c)
+
+# lmm equivalent
+
+m2 <- lmer(glucose_uptake ~ treatment * activity +
+         (1 | donor) +
+         (1 | donor:treatment) +
+         (1 | donor:activity),
+       data = exp5c)
+
+# random intercept and slope model that is *not* equivalent
+# this isn't solvable because there is no subsampling
+
+m3 <- lmer(glucose_uptake ~ treatment * activity +
+              (treatment * activity | donor),
+            data = exp5c)
+
+```
+
+Notes
+
+1. `afex` computes the repeated measures anova model using both `aov` (classical univariate repeated measures ANOVA) and using `lm` with multiple response variables (the multivariate repeated measures ANOVA). As of this writing, the output from `aov` is the default.
+2. Given only one measure for each donor within a $\texttt{treatment} \times \texttt{activity}$ combination, the linear mixed model `m2` is equivalent to the univariate repeated measures model m1.
+3. The model formula in `m1` looks like that in the linear mixed model `m3` but the two models are not equivalent. 
+
+#### univariate vs. multivariate repeated measures ANOVA
+
+Use the multivariate model unless you want to replicate the result of someone who used a univariate model.
+
+```{r}
+# aov_4 computes both uni and multi but default output is uni
+exp5c_aov1 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c)
+# exclude uni, so output is multi
+exp5c_aov2 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c,
+                  include_aov = FALSE)
+```
+
+
+Notes
+
+1. The `include_aov = FALSE` argument forces output from `aov_4` to use the multivariate model.
+
+**contrasts from univariate model**
+
+```{r}
+# these 2 are the same
+emmeans(exp5c_aov1, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_aov1$aov, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+```
+
+Notes
+
+1. Passing `exp5c_aov1` to `emmeans` will return the contrasts from the univariate model by deault. Make this explicit by passing only the univarite fit `exp5c_aov1$aov`.
+
+**contrasts from multivariate model**
+
+```{r}
+# these 2 are the same
+emmeans(exp5c_aov1,
+        specs = c("treatment", "activity"),
+        model = "multivariate") %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_aov2,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+```
+
+Notes
+
+1. If our rmANOVA model is fit with the default specification (`exp5c_aov1`), we can get the multivariate output using the `model = "multivariate"` argument within `emmeans` (not the `contrast` function!). Or, if our fit excluded the univariate model (`exp5c_aov2`), then we don't need the `model` argument.
+
+#### The ANOVA table
+
+```{r}
+nice(exp5c_aov1, correction = "GG")
+nice(exp5c_aov1, correction = "none")
+```
+
+Notes
+
+1. The Greenhouse-Geiger ("GG") correction is the default. While the `correction = "GG"` argument is not needed, it makes the script more transparent.
+2. For *these data* the Greenhouse-Geiger correction doesn't make a difference in the table.
+
+## Hidden code
+### Import exp5c
+
+```{r lmm-exp5c-import-show, echo = TRUE}
+data_from <- "Transcriptomic profiling of skeletal muscle adaptations to exercise and inactivity"
+file_name <- "41467_2019_13869_MOESM6_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp5c_wide <- read_excel(file_path,
+                         sheet = "Fig5c",
+                         range = "A2:M3",
+                         col_names = FALSE) %>%
+  data.table() %>%
+  transpose(make.names = 1)
+
+activity_levels <- c("Basal", "EPS")
+treatment_levels <- names(exp5c_wide)
+exp5c_wide[, activity := rep(activity_levels, each = 6)]
+exp5c_wide[, activity := factor(activity, levels = activity_levels)]
+
+exp5c <- melt(exp5c_wide,
+              id.vars = "activity",
+              variable.name = "treatment",
+              value.name = "glucose_uptake")
+exp5c[, treatment := factor(treatment, levels = treatment_levels)]
+
+exp5c[, donor := rep(paste0("donor_", 1:6), 4)]
+```
+
+### Import exp1g
+
+```{r lmm-exp1g-import-show, echo=TRUE, message=FALSE}
+data_from <- "A GPR174–CCL21 module imparts sexual dimorphism to humoral immunity"
+file_name <- "41586_2019_1873_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp1g_wide <- read_excel(file_path,
+                         sheet = "Fig 1g",
+                         range = "B4:E25",
+                         col_types = c("numeric"),
+                         col_names = FALSE) %>%
+  data.table()
+
+genotype_levels <- c("Gpr174+", "Gpr174-")
+sex_levels <- c("M", "F")
+g.by.s_levels <- do.call(paste, expand.grid(genotype_levels, sex_levels))
+colnames(exp1g_wide) <- g.by.s_levels
+
+exp_levels <- paste0("exp_", 1:4)
+exp1g_wide[, experiment_id := rep(exp_levels, c(5,6,6,5))] #check!
+exp1g_wide[, experiment_id := factor(experiment_id)] #check!
+
+exp1g <- melt(exp1g_wide,
+              id.vars = "experiment_id",
+              measure.vars = g.by.s_levels,
+              variable.name = "treatment",
+              value.name = "gc") %>% # cell count
+  na.omit()
+
+exp1g[, c("genotype", "sex"):= tstrsplit(treatment,
+                                             " ",
+                                             fixed = TRUE)]
+exp1g[, genotype := factor(genotype,
+                           levels = genotype_levels)]
+exp1g[, sex := factor(sex,
+                           levels = sex_levels)]
+
+exp1g_means <- exp1g[, .(gc = mean(gc)),
+                     by = .(treatment, genotype, sex, experiment_id)]
+
+```

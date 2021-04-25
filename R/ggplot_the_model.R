@@ -1,4 +1,4 @@
-## ----setup, include=TRUE---------------------------------------------
+## ----setup, include=TRUE--------------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
 
 # wrangling
@@ -39,7 +39,7 @@ pal_okabe_ito_4 <- pal_okabe_ito[c(5,6,7,2)]
 
 
 
-## ----twoway-fmt_p_value_2, echo=FALSE, warning=FALSE, message=FALSE----
+## ----twoway-fmt_p_value_2, echo=FALSE, warning=FALSE, message=FALSE-------------
 fmt_p_value_2 <- function(p, digits = 0.0001){
   p_char <- ifelse(p < 0.06 | is.na(p),
                    scales::pvalue(p,
@@ -54,22 +54,42 @@ fmt_p_value_rmd <- function(x, digits = 0.0001){
 }
 
 
-## --------------------------------------------------------------------
+## -------------------------------------------------------------------------------
 fmt_table <- function(df, digits = 0.0001){
   
 }
 
 
-## ----odd-even--------------------------------------------------------
+## ----odd-even-------------------------------------------------------------------
 odd <- function(x) x%%2 != 0
 even <- function(x) x%%2 == 0
 
 
-## ----not_in----------------------------------------------------------
+## ----not_in---------------------------------------------------------------------
 '%not_in%' <- Negate('%in%')
 
 
-## ----remove-parentheses----------------------------------------------
+## -------------------------------------------------------------------------------
+factor_wrap <- function(gg, sep = " "){
+  x_labels <- layer_scales(gg)$x$get_limits()
+  label_x <- str_replace(x_labels, sep, "\n")
+  gg <- gg +
+    scale_x_discrete(labels = label_x)
+  return(gg)
+}
+
+
+
+## -------------------------------------------------------------------------------
+factor_wrap_1 <- function(gg, sep = " "){
+  x_labels <- layer_scales(gg)$x$get_limits()
+  label_x <- str_replace(x_labels, sep, "\n")
+  return(label_x)
+}
+
+
+
+## ----remove-parentheses---------------------------------------------------------
 remove_parentheses <- function(x){
   if(substr(x, 1, 1) == "("){
     x <- substr(x, 2, nchar(x))
@@ -81,7 +101,7 @@ remove_parentheses <- function(x){
 }
 
 
-## ----ggcheck_the_qq, warning = FALSE---------------------------------
+## ----ggcheck_the_qq, warning = FALSE--------------------------------------------
 ggcheck_the_qq = function(m1,
                    line = "robust",
                    n_boot = 200){
@@ -188,7 +208,7 @@ ggcheck_the_qq = function(m1,
 }
 
 
-## ----ggcheck_the_spreadlevel-----------------------------------------
+## ----ggcheck_the_spreadlevel----------------------------------------------------
 ggcheck_the_spreadlevel <- function(m1,
                    n_boot = 200){
   n <- nobs(m1)
@@ -243,7 +263,7 @@ ggcheck_the_spreadlevel <- function(m1,
 }
 
 
-## ----ggcheck_the_model-----------------------------------------------
+## ----ggcheck_the_model----------------------------------------------------------
 ggcheck_the_model <- function(m1){
   gg1 <- ggcheck_the_qq(m1)
   gg2 <- ggcheck_the_spreadlevel(m1)
@@ -251,7 +271,7 @@ ggcheck_the_model <- function(m1){
 }
 
 
-## ----emm_table-------------------------------------------------------
+## ----emm_table------------------------------------------------------------------
 emm_table <- function(fit_emm){
   table_out <- data.table(summary(fit_emm))
   if("response" %in% colnames(table_out)){
@@ -270,7 +290,7 @@ emm_table <- function(fit_emm){
 }
 
 
-## ----effects_table---------------------------------------------------
+## ----effects_table--------------------------------------------------------------
 effects_table <- function(fit_pairs,
                           digits = 2,
                           accuracy = 1e-04,
@@ -319,7 +339,7 @@ effects_table <- function(fit_pairs,
 
 
 
-## ----pvalue_table----------------------------------------------------
+## ----pvalue_table---------------------------------------------------------------
 pvalue_table <- function(fit_pairs){
   if(is.data.frame(fit_pairs) == TRUE){
     pairs_dt <- data.table(fit_pairs)
@@ -421,7 +441,7 @@ pvalue_table <- function(fit_pairs){
 
 
 
-## ----response-plot---------------------------------------------------
+## ----response-plot--------------------------------------------------------------
 response_plot <- function(
   fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm, # data frame with means, error
@@ -492,7 +512,7 @@ response_plot <- function(
   }
   if(dots == "jitter"){
     gg <- gg + geom_point(alpha = 0.5,
-                          position = "jitter")
+                          position = position_jitter(seed = 1))
   }
   if(dots == "dotplot"){
     gg <- gg + geom_dotplot(binaxis='y',
@@ -576,7 +596,7 @@ response_plot <- function(
 }
 
 
-## ----plot_pvalues----------------------------------------------------
+## ----plot_pvalues---------------------------------------------------------------
 plot_pvalues <- function(
       gg,
       fit_emm,
@@ -672,7 +692,7 @@ plot_pvalues <- function(
 }
 
 
-## ----ggplot_the_response---------------------------------------------
+## ----ggplot_the_response--------------------------------------------------------
 ggplot_the_response <- function(
  fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm,
@@ -725,7 +745,7 @@ ggplot_the_response <- function(
 }
 
 
-## ----old_ggplot_the_response-----------------------------------------
+## ----old_ggplot_the_response----------------------------------------------------
 old_ggplot_the_response <- function(
   fit, # model fit from lm, lmer, nlme, glmmTMB
   fit_emm,
@@ -949,7 +969,7 @@ old_ggplot_the_response <- function(
 
 
 
-## ----ggplot_the_effects----------------------------------------------
+## ----ggplot_the_effects---------------------------------------------------------
 ggplot_the_effects <- function(fit,
                        fit_pairs,
                        contrast_rows = "all",
@@ -1049,7 +1069,7 @@ ggplot_the_effects <- function(fit,
 }
 
 
-## ----ggplot_the_model------------------------------------------------
+## ----ggplot_the_model-----------------------------------------------------------
 ggplot_the_model <- function(fit,
                            fit_emm,
                            fit_pairs,
@@ -1104,7 +1124,7 @@ ggplot_the_model <- function(fit,
 }
 
 
-## ----plot_treatments-------------------------------------------------
+## ----plot_treatments------------------------------------------------------------
 plot_treatments <- function(gg,
                             x_levels,
                             text_size = 5){
@@ -1155,7 +1175,7 @@ plot_treatments <- function(gg,
 
 
 
-## ----ggplot_the_treatments-------------------------------------------
+## ----ggplot_the_treatments------------------------------------------------------
 ggplot_the_treatments <- function(
   gg,
   x_levels,
@@ -1184,7 +1204,7 @@ ggplot_the_treatments <- function(
 }
 
 
-## ----vertical-brackets-functions, echo=FALSE-------------------------
+## ----vertical-brackets-functions, echo=FALSE------------------------------------
 bracketsGrob <- function(...){
 l <- list(...)
 e <- new.env()
@@ -1344,7 +1364,7 @@ geom_vbracket_1 <- function(gg,
 
 
 
-## --------------------------------------------------------------------
+## -------------------------------------------------------------------------------
 testy <- function(fit_emm){
   exp1c_m1_emm_dt <- fit_emm %>%
     summary()
@@ -1368,7 +1388,7 @@ testy <- function(fit_emm){
 }
 
 
-## ----output-as-R-file------------------------------------------------
+## ----output-as-R-file-----------------------------------------------------------
 # highlight and run to put update into R folder
 # knitr::purl("ggplot_the_model.Rmd")
 

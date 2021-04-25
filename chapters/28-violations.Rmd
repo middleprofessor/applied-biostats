@@ -40,8 +40,7 @@ data_folder <- "data"
 ```
 
 ## Lack of independence {#oneway-paired-t}
-### A paired t-test is a special case of a linear model for correlated data with two groups
-#### Example 1 (fig1b)
+### Example 1 (exp1b) -- a paired t-test is a special case of a linear mixed model {#violations-paired-t}
 
 [Lynes, M.D., Leiria, L.O., Lundh, M., Bartelt, A., Shamsi, F., Huang, T.L., Takahashi, H., Hirshman, M.F., Schlein, C., Lee, A. and Baer, L.A., 2017. The cold-induced lipokine 12, 13-diHOME promotes fatty acid transport into brown adipose tissue. Nature medicine, 23(5), pp.631-637.](https://www.nature.com/articles/nm.4297){target="_blank"}
 
@@ -59,32 +58,33 @@ The data are from the experiment for Figure 1b of the [12,13-diHOME article](#on
 
 **Design** -- Blocked. Plasma concentrations of 12,13-diHOME were measured two times in each individual, after injection with saline and after a 1 hour cold exposure.
 
-The consequence of the two measures in each human is **correlated error**. In **blocked designs** like this, the correlated error arises because we expect measures within a block (the individual for the fig1b experiment) to be more similar to each other than to measures from other blocks. A blocked design is a powerful experimental method to reduce uncertainty in estimates of differences among means -- and, consequently, the power of a statistical test. The paired *t*-test exploits this design while the classic Student's *t*-test ignores it.
+The consequence of the two measures in each human is **correlated error**. In **blocked designs** like this, the correlated error arises because we expect measures within a block (the individual for the exp1b experiment) to be more similar to each other than to measures among blocks. A blocked design is a powerful experimental method to reduce uncertainty in estimates of differences among means -- and, consequently, the power of a statistical test. The paired *t*-test exploits this design while the classic Student's *t*-test ignores it.
 
-Mulitple response measures per individual violates the "independent" sampling assumption for inference. If there is a lack of independence between the two groups, a "which test?" strategy points to a paired *t*-test in place of Student's *t*-test.
+Multiple response measures per individual violate the independent sampling assumption for inference. If there is a lack of independence between the two groups, a "which test?" strategy points to a paired *t*-test in place of Student's *t*-test.
 
-Here, I show empirically that a paired t-test is a special case of a kind of **linear model for correlated data** called a **linear mixed model**. The advantage of understanding this is, the linear model is infinitely expandable while a paired t-test is limited to the comparison of two means. If you have more than two groups or a factorial design or a covariate, there is no elegant way to expand a paired t-test. Correlated error and linear mixed models are discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
+A paired t-test is a special case of a **linear mixed model**. Linear mixed models are discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm).
 
 A good way to think about the model generating the data is
 
 $$
 \begin{equation}
-\texttt{diHome} = (\beta_0 + \beta_{0_i}) + \beta_1 (\texttt{treatment_cold}) + \varepsilon
+\texttt{diHome} = (\beta_0 + \gamma_{0_j}) + \beta_1 (\texttt{treatment_cold}) + \varepsilon
 \end{equation}
 $$
 
-1. $\beta_0$ is the expected value of diHome in humans given a saline treatment.
-2. $\beta_{0_i}$ is the expected difference between the expected value of diHome in human $i$ given a saline treatment and the expected value of diHome in humans given a saline treatment. $\beta_{0_i}$ is a kind of **random effect**
-3. $\beta_0 + \beta_{0_i}$ is the expected value of diHome in human $i$ given a saline treatment. It is the **random intercept** for human $i$.
+1. $\beta_0$ is the expected value of $\texttt{diHome}$ in humans given a saline treatment.
+2. $gamma_{0_j}$ is the effect of being human *j* on the expected value of $\texttt{diHome}$. $\gamma_{0_j}$ is a kind of **random effect**.
+3. $\beta_0 + \gamma_{0_j}$ is the expected value of $\texttt{diHome}$ in human *j* given a saline treatment. It is the **random intercept** for human $j$.
+4. $\beta_0 + \gamma_{0_j} + \beta_1$ is the expected value of $\texttt{diHome}$ in human *j* given a cold treatment.
 
-Importantly, if the random effect ($\beta_{0_i}$) isn't modeled, then variation in this component is picked up by the model error $e$. Consequently, the error component **is correlated** because the subsets of $e$ from the same individual are expected to have more similar values to each other than to that from other individuals. Correlated error is discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm). Importantly, if the random effect isn't modeled, the increased variance of $e$ decreases precision of the estimate. Consequently, CIs are wider and significance tests have less power.
+Importantly, if the random effect ($\gamma_{0_j}$) isn't modeled, then variation in this component is picked up by the model error $e$. Consequently, the error component **is correlated** because the subsets of $e$ from the same individual are expected to have more similar values to each other than to that from other individuals. Correlated error is discussed more in the chapter [Models with random factors -- Blocking and pseudoreplication](#lmm). Importantly, if the random effect isn't modeled, the increased variance of $e$ decreases precision of the estimate. Consequently, CIs are wider and significance tests have less power.
 
-```{r fig1b-import, echo=FALSE}
+```{r exp1b-import, echo=FALSE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
-fig1b <- read_excel(file_path,
+exp1b <- read_excel(file_path,
                      sheet = "Fig 1 b thur c",
                      range = "A1:C20",
                      col_names = TRUE) %>%
@@ -92,28 +92,28 @@ fig1b <- read_excel(file_path,
   clean_names() %>%
   na.omit() # get rid of blank row
 
-setnames(fig1b,
-         old = names(fig1b),
+setnames(exp1b,
+         old = names(exp1b),
          new = c("sample", "diHOME", "bat_activity"))
 
-fig1b[, id := substr(sample, 1, 6)]
-fig1b[, treatment := ifelse(substr(sample, 8,8) ==
+exp1b[, id := substr(sample, 1, 6)]
+exp1b[, treatment := ifelse(substr(sample, 8,8) ==
                               "C", "cold", "saline")]
-fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
+exp1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
 
-# names(fig1b)
-#View(fig1b)
+# names(exp1b)
+#View(exp1b)
 ```
 
 #### Fit the model
 
-```{r fig1b-m1}
+```{r exp1b-m1}
 # fit the model
-fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
+exp1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = exp1b)
 ```
 
 1. The function `lmer()` from the lme4 package allows the addition of random factors to the model formula. Otherwise, the function works like the `lm` function.
-2. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table fig1b.
+2. The added random factor is $\texttt{id}$, which contains the id of the human. $\texttt{id}$ didn't appear from nowhere, it is a column in the data.table exp1b.
 3. Random factors are added embedded within parentheses. A random intercept is added using the formula `(1|factor)` where $\texttt{factor}$ is the names of the column of the data containing the random factor.
 4. $\texttt{id}$ is a **random factor**. $\texttt{treatment}$ is a **fixed factor**. Models with both fixed and random factors go by many names. In this text, I use "linear mixed model".
 
@@ -121,48 +121,44 @@ fig1b_m1 <- lmer(diHOME ~ treatment + (1|id), data = fig1b)
 
 Inference using the linear model with added random factor:
 
-```{r fig1b_m1_pairs}
+```{r exp1b_m1_pairs}
 # estimated marginal means table
-fig1b_m1_emm <- emmeans(fig1b_m1, specs = "treatment")
+exp1b_m1_emm <- emmeans(exp1b_m1, specs = "treatment")
 
 # contrasts table
-fig1b_m1_pairs <- contrast(fig1b_m1_emm,
+exp1b_m1_pairs <- contrast(exp1b_m1_emm,
                      method = "revpairwise") %>%
   summary(infer = TRUE)
 
-fig1b_m1_pairs %>%
+exp1b_m1_pairs %>%
   kable(digits = c(1,1,2,1,1,1,5,5)) %>%
   kable_styling()
 ```
 
 Inference using paired t-test:
 
-```{r fig1b_ttest}
-fig1b_ttest <- t.test(
-  x = fig1b[treatment == "cold", diHOME],
-  y = fig1b[treatment == "saline", diHOME],
+```{r exp1b_ttest}
+exp1b_ttest <- t.test(
+  x = exp1b[treatment == "cold", diHOME],
+  y = exp1b[treatment == "saline", diHOME],
   paired = TRUE
 )
 
-fig1b_ttest
+exp1b_ttest
 ```
 
 Notes
 
 1. The *t* and *p* values from the linear model and from the *t*-tests are the same because the paired *t*-test is a special case of the linear model.
 
-#### A blocked design (paired t-test) is more efficient
+### Example 2 (diHOME exp2a) -- A repeated measures ANOVA is a special case of a linear mixed model{#violations-rmanova}
 
-### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
-#### Example 2 (diHOME fig2a) -- more than two groups
-
-```{r violations-fig2a-import, echo=FALSE, message=FALSE}
+```{r violations-exp2a-import, echo=FALSE, message=FALSE}
 file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
-# assuming mice are independent and not same mouse used for all three treatment
 melt_col_names <- paste("Animal", 1:6)
-fig2a <- read_excel(file_path,
+exp2a <- read_excel(file_path,
                      sheet = "Fig 2a",
                      range = "A3:G6",
                      col_names = TRUE) %>%
@@ -170,27 +166,29 @@ fig2a <- read_excel(file_path,
   melt(measure.vars = melt_col_names,
        variable.name = "id",
        value.name = "diHOME") # cannot start a variable with number
-setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
+setnames(exp2a, old = colnames(exp2a)[1], new = "treatment")
 
 treatment_order <- c("Control", "1 hour cold", "30 min NE")
-fig2a[, treatment := factor(treatment, treatment_order)] # order levels
+exp2a[, treatment := factor(treatment, treatment_order)] # order levels
 
-#View(fig2a)
+#View(exp2a)
 ```
 
 The structure of the Figure 2A experiment from the chapter [Linear models with a single, categorical *X*](#oneway) is ambiguous. It is not clear from the archived data if the measures of 12,13 diHome were on separate mice within each of the three treatments ("Control", "1 hour cold", "30 min NE") or if the same mice were used in each set. If each mouse was measured three times, I assume the researchers would have stated this, which they didn't. But, to outline modeling correlated data when we have more than two groups, let's say each mouse in the Figure 2A experiment was subjected to all three treatments. We have three measures per mouse and the response measure violates the independence assumption.
 
 The linear model (in regression notation) is
 
+$$
 \begin{equation}
-diHome = (\beta_0 + \beta_{0_i}) + \beta_1 treatment\_cold\ + \beta_2 treatment\_NE\ + \varepsilon 
+\texttt{diHome} = (\beta_0 + \gamma_{0_j}) + \beta_1 \texttt{treatment}_\texttt{cold} + \beta_2 \texttt{treatment}_\texttt{NE} + \varepsilon 
 \end{equation}
+$$
 
 #### Fit the model
 
-```{r violoations-fig2a-m2}
+```{r violations-exp2a-m2}
 # fit the model
-fig2a_m2 <- lmer(diHOME ~ treatment + (1|id), data = fig2a)
+exp2a_m1 <- lmer(diHOME ~ treatment + (1|id), data = exp2a)
 ```
 
 Notes
@@ -201,49 +199,100 @@ Notes
 
 Inference using the linear model with added random factor:
 
-```{r fig2a-m2_pairs}
+```{r exp2a-m2_pairs}
 # estimated marginal means table
-fig2a_m2_emm <- emmeans(fig2a_m2, specs = "treatment")
+exp2a_m1_emm <- emmeans(exp2a_m1, specs = "treatment")
 
 # contrasts table
-fig2a_m2_planned <- contrast(fig2a_m2_emm,
+exp2a_m1_planned <- contrast(exp2a_m1_emm,
                      method = "trt.vs.ctrl",
                      adjust = "none") %>%
   summary(infer = TRUE)
 
-fig2a_m2_planned %>%
+exp2a_m1_planned %>%
   kable(digits = c(1,1,2,1,1,1,5,5)) %>%
   kable_styling()
 ```
+#### repeated measures ANOVA
 
-Inference using two paired t-tests:
+In some fields, this analysis would be called **repeated measures ANOVA** and in others it might be called a **two-way Model II (mixed effect) ANOVA** with one fixed and one random factor.
 
-```{r fig2a_ttest_cold}
-fig2a_ttest_cold <- t.test(
-  x = fig2a[treatment == "1 hour cold", diHOME],
-  y = fig2a[treatment == "Control", diHOME],
-  paired = TRUE
-)
-fig2a_ttest_cold
-```
+```{r violations-exp2a-m2-2, warning=TRUE, message=TRUE}
+exp2a_m2 <- aov_4(diHOME ~ treatment + (treatment|id),
+                           data = exp2a)
 
-
-```{r fig2a_ttest_ne}
-fig2a_ttest_ne <- t.test(
-  x = fig2a[treatment == "30 min NE", diHOME],
-  y = fig2a[treatment == "Control", diHOME],
-  paired = TRUE
-)
-fig2a_ttest_ne
 ```
 
 Notes
 
-1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" excluded mouse 6 because of a missing "1 hour cold" measure. The linear mixed model was fit to all data, including the "Control" and "30 min NE" measures. The consequence is higher power/more precision in the linear mixed model.
+1. The measure of $\texttt{diHOME}$ for animal_6 for the 1 hour cold treatment is missing. To use the `exp2a` data in repeated measures ANOVA, the "Control" and "30 min NE" values for animal_6 have to be excluded. This exclusion isn't necessary for the linear mixed model, which is one of the advantages of a linear mixed model over repeated measures ANOVA.
+
+The contrasts from the model are
+
+```{r violations-exp2a-m2-pairs}
+exp2a_m1_planned <- emmeans(exp2a_m2, specs = "treatment") %>% 
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+exp2a_m1_planned %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
+```
+
+2. Lets remove animal 6 and rerun the linear mixed model `exp2a_m1`
+
+```{r}
+exp2a_complete <- exp2a[id != "Animal 6"]
+
+exp2a_complete_m1 <- lmer(diHOME ~ treatment + (1|id), data = exp2a_complete)
+
+exp2a_m1_complete_planned <- emmeans(exp2a_complete_m1, specs = "treatment") %>% 
+  contrast(method = "trt.vs.ctrl",
+           adjust = "none") %>%
+  summary(infer = TRUE)
+
+exp2a_m1_complete_planned %>%
+  kable(digits = c(1,1,2,1,1,1,5,5)) %>%
+  kable_styling()
+
+```
+
+Notes -
+
+1. Inference is the same.
+
+#### Inferences from the linear mixed model and paired t-tests are not the same when there are more than two groups
+
+Inference using two paired t-tests:
+
+```{r exp2a_ttest_cold}
+exp2a_ttest_cold <- t.test(
+  x = exp2a[treatment == "1 hour cold", diHOME],
+  y = exp2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+exp2a_ttest_cold
+```
+
+
+```{r exp2a_ttest_ne}
+exp2a_ttest_ne <- t.test(
+  x = exp2a[treatment == "30 min NE", diHOME],
+  y = exp2a[treatment == "Control", diHOME],
+  paired = TRUE
+)
+exp2a_ttest_ne
+```
+
+Notes
+
+1. **important** -- the *t*-test for the comparison of "1 hour cold" and "Control" excluded mouse 6 because of a missing "1 hour cold" measure. The linear mixed model was fit to all data, including the "Control" and "30 min NE" measures. The consequence is more precision in the linear mixed model.
 2. The paired t-test *t* and *p* values are not equal to those from the linear mixed model. This is partly because of the missing data (note 1). Even if there were no missing data, these wouldn't be equal because the linear mixed model uses an estimate of $\sigma$ computed from the single model with all three groups to compute the standard errors. See the comparison of t-tests and the contrast table from a linear model in Section \@ref(ttests).
 3. The results of the separate, paired t-tests and the linear mixed model differ in a way that might affect our inference about the system. Which is correct? Neither -- they simply make different assumptions about the data generating model.
 * The linear model strategy has more power and precision but this advantage is small. The best reason to use linear models instead of separate *t*-tests is learning how to use linear models, and their extensions, gives you phenomenal cosmic power.
 * Do not compute both separate paired *t*-tests **and** the linear models and then convince yourself that that the assumption of the method with the *p*-value that matches your hypothesis is correct. See the p-hacking discussion above.
+
 
 ## Heterogeneity of variances {#oneway-welch}
 
@@ -263,23 +312,23 @@ Some statisticians argue that researchers should *always* use a Welch t-test ins
 Modeling variance heterogeneity is the focus of Chapter \@ref(gls) so the account here is brief. Heterogeneity can be modeled using a generalized least squares linear model with the `gls` function. The `weights` argument is used to model the variances using each group's sample variance. In this example, I use the data from the Figure 1b experiment, which can be compared to the analysis of the same data in Example 2 above.
 
 #### Fit the model
-```{r fig2a_m3}
+```{r exp2a_m3}
 # gls fails with missing data
-subdata <- fig2a[is.na(diHOME) == FALSE,] # omit rows with missing data
-fig2a_m3 <- gls(diHOME ~ treatment,
+subdata <- exp2a[is.na(diHOME) == FALSE,] # omit rows with missing data
+exp2a_m3 <- gls(diHOME ~ treatment,
                 data = subdata,
                 weights = varIdent(form = ~ 1 | treatment))
 ```
 
-The model `fig2a_m3` uses variance computed in each group separately as the estimate of $\sigma$ for that group. The coefficient table of the GLS model is
+The model `exp2a_m3` uses variance computed in each group separately as the estimate of $\sigma$ for that group. The coefficient table of the GLS model is
 
 #### Inference from the linear model
 
-```{r fig2a_m3_coef}
-fig2a_m3_coef <- cbind(coef(summary(fig2a_m3)),
-                       confint(fig2a_m3))
+```{r exp2a_m3_coef}
+exp2a_m3_coef <- cbind(coef(summary(exp2a_m3)),
+                       confint(exp2a_m3))
 
-fig2a_m3_coef %>%
+exp2a_m3_coef %>%
   kable(digits = c(4,4,4,6,4,4)) %>%
   kable_styling()
 ```
@@ -289,22 +338,22 @@ Notes
 
 The modeled means and contrasts are computed as above for the `lm` object
 
-```{r fig2a_m3_emm}
-fig2a_m3_emm <- emmeans(fig2a_m3, specs="treatment")
-fig2a_m3_emm
+```{r exp2a_m3_emm}
+exp2a_m3_emm <- emmeans(exp2a_m3, specs="treatment")
+exp2a_m3_emm
 ```
 
 Notes
 
 1. The SE of the means in this table are modeled SEs but are equal to the sample SE of the means, because this was specified in the GLS model.
 
-```{r fig2a_m3_pairs}
-fig2a_m3_pairs <-  contrast(fig2a_m3_emm,
+```{r exp2a_m3_pairs}
+exp2a_m3_pairs <-  contrast(exp2a_m3_emm,
                             method = "revpairwise",
                             adjust = "none") %>%
   summary(infer = TRUE)
 
-fig2a_m3_pairs %>%
+exp2a_m3_pairs %>%
   kable(digits = c(1,4,4,1,4,4,4,5)) %>%
   kable_styling()
 ```
@@ -315,16 +364,16 @@ Notes
 #### Inference using Welch t-test
 
 ```{r welch-t, echo=TRUE}
-test1 <- t.test(fig2a[treatment == "1 hour cold", diHOME],
-       fig2a[treatment == "Control", diHOME],
+test1 <- t.test(exp2a[treatment == "1 hour cold", diHOME],
+       exp2a[treatment == "Control", diHOME],
        var.equal = FALSE)
 
-test2 <- t.test(fig2a[treatment == "30 min NE", diHOME],
-       fig2a[treatment == "Control", diHOME],
+test2 <- t.test(exp2a[treatment == "30 min NE", diHOME],
+       exp2a[treatment == "Control", diHOME],
        var.equal = FALSE)
 
-test3 <- t.test(fig2a[treatment == "30 min NE", diHOME],
-       fig2a[treatment == "1 hour cold", diHOME],
+test3 <- t.test(exp2a[treatment == "30 min NE", diHOME],
+       exp2a[treatment == "1 hour cold", diHOME],
        var.equal = FALSE)
 ```
 
@@ -334,11 +383,11 @@ Notes
 
 #### Compare inference from the linear model and Welch t-tests
 
-Compare the contrast *p* values to the three Welch *t*-tests of all pairs of treatment levels in the fig2a experiment.
+Compare the contrast *p* values to the three Welch *t*-tests of all pairs of treatment levels in the exp2a experiment.
 
 ```{r welch-t-table, echo = FALSE}
 y_cols <- c("contrast", "t.ratio", "p.value")
-lm_t <- fig2a_m3_pairs[, y_cols]
+lm_t <- exp2a_m3_pairs[, y_cols]
 colnames(lm_t)[2:3] <- c("t (gls lm)", "p (gls lm)")
 t_t <- data.table(contrast =
                     c("1 hour cold - Control", 
@@ -622,14 +671,14 @@ Over the limited parameter space of the non-normal distribution (the shape of th
 In the simulations with a negative binomial distributed response, the quasipoisson GLM has consistently higher power than the classical linear model and excellent Type I error control. The performance of the permutation test is very similar to that of the quasipoisson GLM. In the simulations with a negative binomial distributed response, the GLS linear model has about the same power as the classical linear model. Perhaps surprisingly, the Mann-Whitney-Wilcoxon fails to outperform the classical linear model and even underperforms the classical linear in some parts of the parameter space.
 
 ## Hidden Code
-### Importing and wrangling the fig1b data
+### Importing and wrangling the exp1b data
 
-```{r fig1b-import-unhide, echo=TRUE}
+```{r exp1b-import-unhide, echo=TRUE}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 file_name <- "41591_2017_BFnm4297_MOESM1_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
-fig1b <- read_excel(file_path,
+exp1b <- read_excel(file_path,
                      sheet = "Fig 1 b thur c",
                      range = "A1:C20",
                      col_names = TRUE) %>%
@@ -637,28 +686,28 @@ fig1b <- read_excel(file_path,
   clean_names() %>%
   na.omit() # get rid of blank row
 
-setnames(fig1b,
-         old = names(fig1b),
+setnames(exp1b,
+         old = names(exp1b),
          new = c("sample", "diHOME", "bat_activity"))
 
-fig1b[, id := substr(sample, 1, 6)]
-fig1b[, treatment := ifelse(substr(sample, 8,8) ==
+exp1b[, id := substr(sample, 1, 6)]
+exp1b[, treatment := ifelse(substr(sample, 8,8) ==
                               "C", "cold", "saline")]
-fig1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
+exp1b[, treatment := factor(treatment, levels = c("saline", "cold"))]
 
-#View(fig1b)
+#View(exp1b)
 ```
 
-### Importing and wrangling the fig2a data
+### Importing and wrangling the exp2a data
 
-```{r violations-fig2a-import-unhide}
+```{r violations-exp2a-import-unhide}
 data_from <- "The cold-induced lipokine 12,13-diHOME promotes fatty acid transport into brown adipose tissue"
 file_name <- "41591_2017_BFnm4297_MOESM2_ESM.xlsx"
 file_path <- here(data_folder, data_from, file_name)
 
 # assuming mice are independent and not same mouse used for all three treatment
 melt_col_names <- paste("Animal", 1:6)
-fig2a <- read_excel(file_path,
+exp2a <- read_excel(file_path,
                      sheet = "Fig 2a",
                      range = "A3:G6",
                      col_names = TRUE) %>%
@@ -666,12 +715,12 @@ fig2a <- read_excel(file_path,
   melt(measure.vars = melt_col_names,
        variable.name = "id",
        value.name = "diHOME") # cannot start a variable with number
-setnames(fig2a, old = colnames(fig2a)[1], new = "treatment")
+setnames(exp2a, old = colnames(exp2a)[1], new = "treatment")
 
 treatment_order <- c("Control", "1 hour cold", "30 min NE")
-fig2a[, treatment := factor(treatment, treatment_order)] # order levels
+exp2a[, treatment := factor(treatment, treatment_order)] # order levels
 
-#View(fig2a)
+#View(exp2a)
 ```
 
 ### Importing and wrangling the fig6f data

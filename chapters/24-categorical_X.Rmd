@@ -55,7 +55,7 @@ Download the source data files and move to a new folder named "The cold-induced 
 
 Cold temperature and the neurotransmitter/hormone norepinephrine are known to stimulate increased thermogenesis in BAT cells. In this project,  the researchers probed the question "what is the pathway that mediates the effect of cold-exposure on BAT thermogenesis?". In the "discovery" component of this project, the researchers measured plasma levels of 88 lipids with known signaling properties in humans exposed to one hour of both normal (20 °C) and cold temperature (14 °C) temperature. Of the 88 lipids, 12,13-diHOME had the largest response to the cold treatment. The researchers followed this up with experiments on mice.
 
-### Example 1 (fig3d) -- two treatment levels ("groups")
+### Example 1 (fig3d) -- two treatment levels ("groups") {#oneway-example1}
 Let's start with the experiment in Figure 3d, which was designed to measure the effect of 12,13-diHOME on plasma triglyceride level. If 12,13-diHOME stimulates BAT activity, then levels in the 12,13-diHOME mice should be less than levels in the control mice.
 
 ####  Step 1 -- Understand the experiment design
@@ -279,7 +279,7 @@ fig3d_m1_coef %>%
 
 The row names of the coefficient table are the column names of the model matrix. These are the model terms. There are two terms (two rows) because there are two parameters in the regression model \@ref(eq:reg-model-example-1). The values in the column $\texttt{Estimate}$ in the coefficient table are the estimates of the regression parameters $\beta_0$ and $\beta_1$. These estimates are the coefficients of the fit model, $b_0$ and $b_1$.
 
-#### The coefficients of a linear model using dummy coding have a useful interpretation
+#### The coefficients of a linear model using dummy coding have a useful interpretation {#oneway-what-coefs-are}
 
 ```{r example1-coef-understanding, echo=FALSE}
 new_table <- data.table(
@@ -524,7 +524,7 @@ The *t* and *p* values for the *t*-test are the same as those for the linear mod
 
 There is rarely a reason to ever use the `t.test()` function. Throw the function away. Ignore web pages that teach you to use it. The *t*-test is easy to learn, which encourages its overuse. If your only tool is a t-test, every problem looks like a comparison between two-means.
 
-### Example 2 -- three treatment levels ("groups")
+### Example 2 -- three treatment levels ("groups") {#oneway-example2}
 #### Understand the experiment design
 The data come from the experiment reported in Figure 2a of the 12,13-diHOME article described above. This experiment was designed to probe the hypothesis that 12,13-diHOME is a mediator of known stimulators of increased BAT activity (exposure to cold temperature and sympathetic nervous system activation). Mice were assigned to control (30 °C), one-hour exposure to 4 °C, or 30 minute norepinephrine (NE) treatment level (NE is the neurotransmitter of the sympathetic neurons targeting peripheral tissues).
 

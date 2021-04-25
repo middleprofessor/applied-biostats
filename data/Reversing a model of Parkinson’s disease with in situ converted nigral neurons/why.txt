@@ -1,0 +1,4 @@
+Reversing a model of Parkinson’s disease with in situ converted nigral neurons
+
+Fig 6d, e paired t
+Fig 6g-j, 4 x 1 paired, or RCB (repeated measures), linear mixed model with random intercept. mouse is id. 4 measures per mouse.

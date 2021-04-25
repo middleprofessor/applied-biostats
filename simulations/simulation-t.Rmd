@@ -1,0 +1,185 @@
+# Simulating linear models
+## Setup
+
+```{r simulation-ttest-setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(mvtnorm)
+library(magrittr)
+
+library(ggplot2)
+library(ggpubr)
+library(knitr)
+library(kableExtra)
+library(printy)
+
+sim_data <- "sim_data"
+
+```
+
+## Simulating a mean and variance in a single group
+### Using the error draw specification as a generating model
+
+$$
+\begin{equation}
+y_i = \beta_0 + \varepsilon_i\\
+\varepsilon \sim \mathrm{Normal}(0, \sigma^2)
+\end{equation}
+$$
+
+
+
+```{r}
+#1. create simulation and model parameters and give these parameters values
+n = 10 # sample size
+beta_0 = 22 # mean
+sigma = 1.5 # std deviation
+
+#2. Add the generating code
+e <- rnorm(n, mean = 0, sd = sigma) # error draw
+fake_y <- beta_0 + e # generating function
+
+#3 compare the estimates to the parameters
+mean(fake_y)
+sd(fake_y)
+```
+
+### Using the conditional draw specification as a generating model
+
+$$
+\begin{equation}
+y_i \sim \mathrm{Normal}(\mu_i, \sigma^2)\\
+\mu_i = \beta_0\\
+\end{equation}
+$$
+
+```{r}
+#1. create simulation and model parameters and give these parameters values
+n = 10 # sample size
+beta_0 = 22 # mean
+sigma = 1.5 # std deviation
+
+#2. Add the generating code
+mu <- beta_0
+fake_y <- rnorm(n, mean = mu, sd = sigma) # conditional draw
+
+#3 compare the estimates to the parameters
+mean(fake_y)
+sd(fake_y)
+```
+Notes
+
+1. The advantage of the conditional draw is that this is how fake data are generated for non normal data. For example, if we want to generate fake count data we do this
+
+```{r}
+mu <- beta_0
+fake_count <- rpois(n, lambda = mu) # conditional draw
+```
+
+and not this
+
+```{r, eval=FALSE}
+fake_count_wrong <- beta_0 + rpois(n, lambda = ?)
+
+```
+
+2. That said, I almost always use the error draw when I simulate from the normal distribution because inertia.
+
+## Embed the fake data generating code within a function
+
+```{r error_draw}
+error_draw <- function(
+  n = 10, # sample size
+  beta_0 = 10, # mean
+  sigma = 1 # std deviation
+){
+  e <- rnorm(n, mean = 0, sd = sigma)
+  y <- beta_0 + e
+  return(y)
+}
+```
+
+
+```{r}
+conditional_draw <- function(
+  n = 10, # sample size
+  beta_0 = 10, # mean
+  sigma = 1 # std deviation
+){
+  mu <- beta_0
+  fake_y <- rnorm(n, mean = mu, sd = sigma) # conditional draw
+  return(y)
+}
+```
+
+Notes
+
+1. The functions have default values for the arguments n, beta_0, and sigma. 
+
+## Use the function
+
+```{r}
+set.seed(1) # comment out if you want a different sample
+
+# parameterize
+n <- 11
+beta_0 <- 22
+sigma <- 2.5
+
+# get the fake data
+fake_y <- error_draw(
+  n = n,
+  beta_0 = beta_0,
+  sigma = sigma
+)
+
+# compare the estimates to the parameters
+mean(fake_y)
+sd(fake_y)
+```
+
+## Use the function a bunch of times
+### Analyses within loop
+
+```{r}
+
+n_sim <- 1000
+
+# parameterize
+n <- 11
+beta_0 <- 22
+sigma <- 2.5
+
+# set memory for values we are keeping
+
+stats_list <- c("mean_i", "sd_i")
+stats_dt <- matrix(as.numeric(NA),
+                       nrow = n_sim,
+                       ncol = length(stats_list)) %>%
+  data.table
+setnames(stats_dt, old = names(stats_dt), new = stats_list)
+
+for(sim_i in 1:n_sim){
+  set.seed(sim_i) # comment out if you want a different sample
+  fake_y <- error_draw(
+    n = n,
+    beta_0 = beta_0,
+    sigma = sigma
+  )
+  stats_dt[sim_i, mean_i := mean(fake_y)]
+  stats_dt[sim_i, sd_i := sd(fake_y)]
+}
+
+# compare the estimates to the parameters
+stats_dt[, .(mean = mean(mean_i),
+             sd = sd(sd_i))]
+
+```
+
+## Simulate a simple linear model with a single factor with two levels ("t-test")
+
+```{r}
+
+```
+

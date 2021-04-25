@@ -1,0 +1,121 @@
+# A Table of Models  {-}
+## including mapping between linear models and classical tests {-}
+
+```{r, echo=FALSE}
+library(data.table)
+library(knitr)
+library(kableExtra)
+```
+
+```{r echo=FALSE}
+r1 <- c(
+  "single factor with 2 levels, different mice in each treatment",
+  "$\\beta_0 + \\beta_1 A_1$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold}$",
+  "$\\sim \\texttt{treatment}$",
+  "~ treatment",
+  "t-test",
+  "\\@ref(oneway-example1)"
+)
+r2 <- c(
+  "single factor with > 2 levels, different mice in each treatment",
+  "$\\beta_0 + \\beta_1 A_1  + \\beta_2 A_2$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\beta_2 \\texttt{treatment}_\\texttt{Norepinephrine}$",
+  "$\\sim \\texttt{treatment}$",
+  "~ treatment",
+  "one-way ANOVA",
+  "\\@ref(oneway-example2)"
+)
+r3 <- c(
+  "single factor with ≥ 2 levels and 1 continuous covariate, different mice in each treatment",
+  "$\\beta_0 + \\beta_1 A_1  + \\beta_2 X$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\beta_2 \\texttt{weight}$",
+  "$\\sim \\texttt{treatment} + \\texttt{weight}$",
+  "~ treatment + weight",
+  "ANCOVA",
+  "\\@ref(covariates)"
+)
+r4 <- c(
+  "two factors, different mice in each treatment combination",
+  "$\\beta_0 + \\beta_1 A_1  + \\beta_2 B_1 + \\beta_3 A_1 B_1$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold}  + \\beta_2 \\texttt{genotype}_\\texttt{KO}  + \\beta_3 \\texttt{treatment}_\\texttt{Cold}:\\texttt{genotype}_\\texttt{KO}$",
+  "$\\sim \\texttt{treatment} * \\texttt{genotype}$",
+  "~ treatment * genotype",
+  "two way ANOVA",
+  "\\@ref(factorial)"
+)
+r5 <- c(
+  "single factor with 2 levels, heterogeneity, different mice in each treatment",
+  "$\\beta_0 + \\beta_1 A_1$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold}$",
+  "$\\sim \\texttt{treatment}$",
+  "~ treatment,\nweights = varIdent(form = ~ 1 | treatment)",
+  "Welch t-test",
+  "\\@ref(oneway-welch)"
+)
+r6 <- c(
+  "single factor with ≥ 2 levels, heterogeneity, different mice in each treatment",
+  "$\\beta_0 + \\beta_1 A_1$",
+  "$\\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold}$",
+  "$\\sim \\texttt{treatment}$",
+  "~ treatment,\nweights = varIdent(form = ~ 1 | treatment)",
+  "multiple Welch t-tests",
+  "\\@ref(oneway-welch)"
+)
+r7 <- c(
+  "single factor with 2 levels, all treatments measured in each batch, n = 1 for each batch by treatment combination",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 A_1 + \\gamma_{0j}$",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\gamma_{0j}$",
+  "$\\sim \\texttt{treatment} + (1 | \\texttt{id})$",
+  "~ treatment + (1 | id)",
+  "paired t-test",
+  "\\@ref(violations-paired-t)"
+)
+r8 <- c(
+  "single factor with > 2 levels, all treatments measured in each batch, n = 1 for each batch by treatment combination",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 A_1  + \\beta_2 A_2$ + \\gamma_{0j}$",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\beta_2 \\texttt{treatment}_\\texttt{Norepinephrine} + \\gamma_{0j}$",
+  "$\\sim \\texttt{treatment} + (1 | \\texttt{id})$",
+  "~ treatment + (1 | id)",
+  "repeated measures ANOVA (univariate model)",
+  "\\@ref(lmm-example2)"
+)
+r8b <- c(
+  "single factor with > 2 levels, all treatments measured in each batch, n = 1 for each batch by treatment combination",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 A_1  + \\beta_2 A_2$ + \\gamma_{0j}$",
+  "$(n_j = 1): \ \\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\beta_2 \\texttt{treatment}_\\texttt{Norepinephrine} + \\gamma_{0j}$",
+  "$\\sim \\texttt{treatment} + (1 | \\texttt{id})$",
+  "~ treatment + (1 | id),\ncorrelation = CorSymm(form = ~ 1 | id),\nweights = varIdent(form = ~ 1 | treatment)",
+  "repeated measures ANOVA (multivariate model)",
+  "\\@ref(lmm-example2)"
+)
+r9 <- c(
+  "single factor with ≥ 2 levels, all treatments measured in each batch, n > 1 for each batch by treatment combination",
+  "$(n_j > 1): \ \\beta_0 + \\beta_1 A_1 + \\gamma_{0j}$",
+  "$(n_j > 1): \ \\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\gamma_{0j} + \\gamma_{1j} \\texttt{treatment}_\\texttt{Cold}$",
+  "$\\sim \\texttt{treatment} + (\\texttt{1} | \\texttt{id}) + (\\texttt{1} | \\texttt{experiment_id}:\\texttt{treatment})$",
+  "~ treatment + (1 | experiment_id) + (1 | experiment_id:treatment)",
+  "two-way mixed-effect ANOVA",
+  "\\@ref(lmm-demo)"
+)
+r10 <- c(
+  "single factor with ≥ 2 levels, all treatments measured in each batch, n > 1 for each batch by treatment combination",
+  "$(n_j > 1): \ \\beta_0 + \\beta_1 A_1 + \\gamma_{0j}$",
+  "$(n_j > 1): \ \\beta_0 + \\beta_1 \\texttt{treatment}_\\texttt{Cold} + \\gamma_{0j} + \\gamma_{1j} \\texttt{treatment}_\\texttt{Cold}$",
+  "$\\sim \\texttt{treatment} + (\\texttt{treatment} | \\texttt{experiment_id})$",
+  "~ treatment + (treatment | experiment_id)",
+  "none",
+  "\\@ref(lmm-demo)"
+)
+
+
+dt <- data.table(rbind(r1,r2,r3,r4,r5,r6,r7,r8,r8b,r9,r10))
+colnames(dt) <- c("Design","Linear Model", "Example", "textttFormula", "Formula", "NHST", "Chapter")
+
+inc <- c("Design","Formula", "NHST", "Chapter")
+dt[, .SD, .SDcols = inc] %>%
+  kable(escape = TRUE) %>%
+  kable_styling()
+
+```
+

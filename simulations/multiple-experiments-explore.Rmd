@@ -1,0 +1,2018 @@
+---
+title: "Simulation -- modeling experiments"
+author: "Jeffrey A. Walker"
+date: "2/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(mvtnorm)
+library(magrittr)
+library(doBy)
+library(dplyr)
+
+library(nlme)
+library(lmerTest)
+library(emmeans)
+library(afex)
+library(car)
+
+library(ggplot2)
+library(ggpubr)
+library(knitr)
+library(kableExtra)
+library(printy)
+
+sim_data <- "sim_data"
+
+safelme <- purrr::safely(lme, otherwise = NA)
+
+```
+
+Notes
+1. previous simulations didn't model true type I with zero effects but zero population effect. There were individual treatment effects.
+
+2. so a better model is how well it performs when variance among individuals >> treatment effect. But, how to think about this in type I setting? Coverage of CIs. Type I is kinda like too narrow intervals.
+
+
+```{r}
+lmer_check <- function(fit){
+  return(fit@optinfo$conv$lme4$messages)
+}
+```
+
+
+```{r contrast_stats}
+contrast_stats <- function(fit, ...){
+  fit_pairs <- contrast(emmeans(fit, ...),
+                        method = "revpairwise",
+                        adjust = "none") %>%
+    summary(infer = TRUE)
+  lower <- fit_pairs[1, "lower.CL"]
+  upper <- fit_pairs[1, "upper.CL"]
+  p_value <- fit_pairs[1, "p.value"]
+  return(list(lower = lower,
+              upper = upper,
+              p_value = p_value))
+}
+```
+
+
+```{r}
+simulator <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 10,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = c(1,1,1), # one for each id
+  gamma = c(0.5, 0.5, 0.5), # random intercept and slopes for non-ref
+  rho = c(0.6, 0.6, 0.6), # r between random intercept and slopes
+  equal_n = TRUE
+){
+  
+  # returns N by n_sim matrix of fake data. Each sim is in its own column. The first two columns are treatment and id 
+  
+  N <- n*n_treat*n_id
+  treatment_levels <- c("Cn", "Tr1", "Tr2", "Tr3")[1:n_treat]
+  id_levels <- paste0("id_", 1:n_id)
+  t.by.id_levels <- do.call(paste, expand.grid(treatment_levels, id_levels))
+
+  n_groups <- n_treat*n_id
+  n_vec <- rep(n, n_groups)
+  if(equal_n == FALSE){
+    inc <- floor(n_groups/4)
+    n1 <- floor(3/5*n)
+    j <- 1
+    n_vec[j:(j+inc-1)] <- n1
+    n2 <- floor(4/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n2
+    n4 <- ceiling(6/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n4
+    n5 <- ceiling(7/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n5
+    n_vec <- sample(n_vec)
+  }
+  
+  fake_data_all <- data.table(NULL)
+  fake_data_all[, t.by.id := rep(t.by.id_levels, n_vec)]
+  fake_data_all[, c("treatment", "id"):= tstrsplit(t.by.id,
+                                             " ",
+                                             fixed = TRUE)]
+  
+  # order factor levels
+  fake_data_all[, treatment := factor(treatment,
+                                  levels = treatment_levels)]
+  fake_data_all[, id := factor(id,
+                               levels = id_levels)]
+  
+  # fixed component
+  X <- model.matrix(~ treatment,
+                    data = fake_data_all)
+  y_fixed <- (X %*% beta)[,1]
+  
+  # random component
+  # random variance matrix
+  # gamma[1] is std of random intercept u_0
+  # gamma[2] is std of random slope for first non-reference
+  #     treatment level
+  # gamma[3] is std of random slope for second non-reference
+  #     treatment level
+  # and so on
+  L <- diag(gamma)
+  Psi_R <- diag(length(gamma))
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi_R <- t(Psi_R)
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi <- L%*%Psi_R%*%L
+
+  # nested design
+  Z1 <- model.matrix(~ 0 + id, data = fake_data_all)
+  Z2 <- model.matrix(~ 0 + id:treatment, data = fake_data_all)
+  Z <- cbind(Z1, Z2)
+
+  # random intercepts and slopes
+  Z1 <- model.matrix(~ 0 + id, data = fake_data_all)
+  Z2 <- model.matrix(~ 0 + treatment, data = fake_data_all)
+  Z <- cbind(Z1, Z2)
+  
+  
+
+  fd_mat <- matrix(as.numeric(NA), nrow = N, ncol = n_sim)
+  colnames(fd_mat) <- paste0("sim_", 1:n_sim)
+  for(sim_i in 1:n_sim){
+    seed_i <- seed_i + 1
+    set.seed(seed_i)
+
+    # random coefficients
+    # matrix of correlated coefficients with
+    # n_id (number of id) rows, and
+    # n_rand (number of random effects) columns
+    u_mat <- rmvnorm(n_id,
+                     sigma = Psi)
+#    u <- c(t(u_mat)) # flattened to a vector
+    u <- c(u_mat) # flattened to a vector
+    
+    y_rand <- (Z %*% u)[,1]
+    e <- rnorm(N, 0, sigma)
+    fd_mat[, sim_i] <- y_fixed + y_rand + e
+  }
+  fake_data_all <- cbind(fake_data_all,
+                         fd_mat)
+  return(fake_data_all)
+}
+```
+
+
+```{r}
+simulator_unequal <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 10,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = c(1,1,1), # one for each id
+  gamma = c(0.5, 0.5, 0.5), # random intercept and slopes for non-ref
+  rho = c(0.6, 0.6, 0.6), # r between random intercept and slopes
+  equal_n = TRUE
+){
+  
+  # returns N by n_sim matrix of fake data. Each sim is in its own column. The first two columns are treatment and id 
+  N <- n*n_treat*n_id
+  treatment_levels <- c("Cn", "Tr1", "Tr2", "Tr3")[1:n_treat]
+  id_levels <- paste0("id_", 1:n_id)
+  t.by.id_levels <- do.call(paste, expand.grid(treatment_levels, id_levels))
+
+  n_groups <- n_treat*n_id
+  if(equal_n == FALSE){
+    n_vec <- rep(n, n_groups)
+    inc <- floor(n_groups/4)
+    n1 <- floor(3/5*n)
+    j <- 1
+    n_vec[j:(j+inc-1)] <- n1
+    n2 <- floor(4/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n2
+    n4 <- ceiling(6/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n4
+    n5 <- ceiling(7/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n5
+  }else{
+    n_vec <- rep(n, n_treat*n_id)
+  }
+  
+  fake_data_all <- data.table(NULL)
+  
+  # random component
+  # random variance matrix
+  # gamma[1] is std of random intercept u_0
+  # gamma[2] is std of random slope for first non-reference
+  #     treatment level
+  # gamma[3] is std of random slope for second non-reference
+  #     treatment level
+  # and so on
+  L <- diag(gamma)
+  Psi_R <- diag(length(gamma))
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi_R <- t(Psi_R)
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi <- L%*%Psi_R%*%L
+
+
+  
+  fd_mat <- matrix(as.numeric(NA), nrow = N, ncol = n_sim)
+  colnames(fd_mat) <- paste0("sim_", 1:n_sim)
+  for(sim_i in 1:n_sim){
+    seed_i <- seed_i + 1
+    sim_seed <- seed_i
+    set.seed(sim_seed)
+    
+    n_vec_i <- sample(n_vec)
+    
+    sim_seed <- seed_i
+    set.seed(sim_seed)
+    fake_data_all[, t.by.id := rep(t.by.id_levels, n_vec_i)]
+    fake_data_all[, c("treatment", "id"):= tstrsplit(t.by.id,
+                                                     " ",
+                                                     fixed = TRUE)]
+    
+    # order factor levels
+    fake_data_all[, treatment := factor(treatment,
+                                        levels = treatment_levels)]
+    fake_data_all[, id := factor(id,
+                                 levels = id_levels)]
+    
+    # fixed component
+    X <- model.matrix(~ treatment,
+                      data = fake_data_all)
+    y_fixed <- (X %*% beta)[,1]
+    
+    # random coefficients
+    # matrix of correlated coefficients with
+    # n_id (number of id) rows, and
+    # n_rand (number of random effects) columns
+    
+    # nested design
+    # Z1 <- model.matrix(~ 0 + id, data = fake_data_all)
+    # Z2 <- model.matrix(~ 0 + id:treatment, data = fake_data_all)
+    # Z <- cbind(Z1, Z2)
+    
+    # random intercepts and slopes
+    Z <- model.matrix(~ 0 + id + id:treatment, data = fake_data_all)
+
+    # cols are gamma0, gamma1, ...
+    # rows are id
+    u_mat <- rmvnorm(n_id,
+                     sigma = Psi)
+    # flattened to a vector, order is
+    # g0 for id1..k, then
+    # g1 for id1..k, then...
+    u <- c(u_mat)
+    
+    y_rand <- (Z %*% u)[,1]
+    
+    # check!
+    # colnames(Z) <- 1:ncol(Z)
+    # head(cbind(fake_data_all[,1:3], Z))
+    # u_mat
+    # u
+
+    # double check!
+    # fake_y <- rnorm(nrow(fake_data_all))
+    # lForm <- lFormula(fake_y ~ treatment + (treatment | id),
+    #                   fake_data_all)    # lme4's function to process a model formula
+    # Z1 <- t(as.matrix(lForm$reTrms$Zt))
+    # u1 <- t(c(t(u_mat)))[1,]
+    # y_rand2 <- (Z1 %*% u1)[,1]
+    
+    e <- rnorm(N, 0, sigma)
+    fd_mat[, sim_i] <- y_fixed + y_rand + e
+  }
+  fake_data_all <- cbind(fake_data_all,
+                         fd_mat)
+  return(fake_data_all)
+}
+```
+
+
+```{r}
+simulator_factorial <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 10,
+  n_id = 5,
+  n_treat = c(2,2),
+  beta = c(10,1,1,1),
+  sigma = c(1,1,1,1), # one for each id
+  gamma = c(1,1,1,1), # random intercept and slopes for non-ref
+  rho = rep(0.6, 12), # r between random intercept and slopes
+  equal_n = TRUE
+){
+  
+  # returns N by n_sim matrix of fake data. Each sim is in its own column. The first two columns are treatment and id 
+  n_treat_combi <- prod(n_treat)
+  if(length(sigma) == 1){
+    sigma <- rep(sigma, n_treat_combi)
+  }
+  N <- n*n_treat_combi*n_id
+  genotype_levels <- c("WT", "KO")
+  treatment_levels <- c("Tr1", "Tr2")
+  id_levels <- paste0("id_", 1:n_id)
+  g.by.t_levels <- do.call(paste,
+                            expand.grid(genotype_levels,
+                                        treatment_levels))
+
+  tc.by.id_levels <- do.call(paste,
+                            expand.grid(genotype_levels,
+                                        treatment_levels,
+                                        id_levels))
+
+  n_groups <- n_treat_combi*n_id
+  if(equal_n == FALSE){
+    n_vec <- rep(n, n_groups)
+    inc <- floor(n_groups/4)
+    n1 <- floor(3/5*n)
+    j <- 1
+    n_vec[j:(j+inc-1)] <- n1
+    n2 <- floor(4/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n2
+    n4 <- ceiling(6/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n4
+    n5 <- ceiling(7/5*n)
+    j <- j + inc
+    n_vec[j:(j+inc-1)] <- n5
+  }else{
+    n_vec <- rep(n, n_treat_combi*n_id)
+  }
+  
+  fake_data_all <- data.table(NULL)
+  
+  # random component
+  # random variance matrix
+  # gamma[1] is std of random intercept u_0
+  # gamma[2] is std of random slope for first non-reference
+  #     treatment level
+  # gamma[3] is std of random slope for second non-reference
+  #     treatment level
+  # gamma[4] is std of random slope for interaction
+  L <- diag(gamma)
+  Psi_R <- diag(length(gamma))
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi_R <- t(Psi_R)
+  Psi_R[lower.tri(Psi_R, diag = FALSE)] <- rho
+  Psi <- L%*%Psi_R%*%L
+
+  fd_mat <- matrix(as.numeric(NA), nrow = N, ncol = n_sim)
+  colnames(fd_mat) <- paste0("sim_", 1:n_sim)
+
+  for(sim_i in 1:n_sim){
+    seed_i <- seed_i + 1
+    sim_seed <- seed_i
+    set.seed(sim_seed)
+    
+    n_vec_i <- sample(n_vec)
+    
+    sim_seed <- seed_i
+    set.seed(sim_seed)
+    fake_data_all[, tc.by.id := rep(tc.by.id_levels, n_vec_i)]
+    fake_data_all[, c("genotype","treatment", "id") :=
+                    tstrsplit(tc.by.id,
+                              " ",
+                              fixed = TRUE)]
+    g_by_t <- factor(paste(fake_data_all$genotype, fake_data_all$treatment),
+                                     levels = g.by.t_levels)
+    sigma_vec <- sigma[as.integer(g_by_t)]
+    # fake_data_all[, g_by_t := factor(paste(genotype, treatment),
+    #                                  levels = g.by.t_levels)]
+    
+    # order factor levels
+    fake_data_all[, treatment := factor(treatment,
+                                        levels = treatment_levels)]
+
+    fake_data_all[, genotype := factor(genotype,
+                                        levels = genotype_levels)]
+    fake_data_all[, treatment := factor(treatment,
+                                        levels = treatment_levels)]
+    fake_data_all[, id := factor(id,
+                                 levels = id_levels)]
+    
+    # fixed component
+    X <- model.matrix(~ genotype * treatment,
+                      data = fake_data_all)
+    y_fixed <- (X %*% beta)[,1]
+    
+    # random coefficients
+    # matrix of correlated coefficients with
+    # n_id (number of id) rows, and
+    # n_rand (number of random effects) columns
+    
+    # random intercepts and slopes
+    # 4 g0 + 4 g1 + 4 g2 + 4 g3
+    Z <- model.matrix(~ 0 + id + id:genotype + id:treatment +
+                         id:genotype:treatment,
+                      data = fake_data_all)
+    # colnames(Z) <- 1:ncol(Z)
+    # colnames(Z1) <- 1:ncol(Z1)
+    # cbind(fake_data_all, Z, Z1)
+
+    # attempt at type 3 like random effects fails
+    # Z1 <- copy(Z)    
+    # for(i in 1:n_id){
+    #   j <- seq(n_id+i,n_id*2+i, n_id)
+    #   Z1[Z1[,i] == 1, j] <- Z1[Z1[,i] == 1, j] - 0.5
+    # }
+    # block2 <- (n_id*1+1):(n_id*2)
+    # block3 <- (n_id*2+1):(n_id*3)
+    # block4 <- (n_id*3+1):(n_id*4)
+    # Z1[, block4] <- Z1[, block2] * Z1[, block3]
+    
+    # cols are gamma0, gamma1, ...
+    # rows are id
+    u_mat <- rmvnorm(n_id,
+                     sigma = Psi)
+    # flattened to a vector, order is
+    # g0 for id1..k, then
+    # g1 for id1..k, then...
+    u <- c(u_mat)
+    
+    y_rand <- (Z %*% u)[,1]
+    # y_rand1 <- (Z1 %*% u)[,1]
+
+    # check!
+    # colnames(Z) <- 1:ncol(Z)
+    # head(cbind(fake_data_all[,1:3], Z))
+    # u_mat
+    # u
+
+ #   double check!
+    # fake_y <- rnorm(nrow(fake_data_all))
+    # lForm <- lFormula(fake_y ~ genotype*treatment + (genotype*treatment | id),
+    #                   fake_data_all)    # lme4's function to process a model formula
+    # Z2 <- t(as.matrix(lForm$reTrms$Zt))
+    # u1 <- t(c(t(u_mat)))[1,]
+    # y_rand2 <- (Z2 %*% u1)[,1]
+    
+    e <- rnorm(N, sd = sigma_vec)
+    
+    # more checks
+    # check_data <- cbind(fake_data_all,y_rand, e)
+    # check_data[, .(sd_e = sd(e),
+    #                sd_y_rand = sd(y_rand)),
+    #            by = .(genotype, treatment)]
+    
+    fd_mat[, sim_i] <- y_fixed + y_rand + e
+  }
+  fake_data_all <- cbind(fake_data_all,
+                         fd_mat)
+  return(fake_data_all)
+}
+```
+
+```{r eval=FALSE}
+Z <- model.matrix(~ 0 + id + id:genotype + id:treatment +
+                        id:genotype:treatment,
+                      data = fake_data_all) 
+for(i in 1:n_id){
+  j <- seq(n_id+i,n_id*2+i, n_id)
+  Z[Z[,i] == 1, j] <- Z[Z[,i] == 1, j] - 0.5
+}
+block2 <- (n_id*1+1):(n_id*2)
+block3 <- (n_id*2+1):(n_id*3)
+block4 <- (n_id*3+1):(n_id*4)
+Z[, block4] <- Z[, block2] * Z[, block3]
+Z
+```
+
+
+```{r eval=FALSE}
+fake_data <- fake_data_all_orig[, 1:4]
+fake_data[, g_by_t := paste(genotype, treatment)]
+fake_matrix <- fake_data_all_orig[, -(1:4)] %>%
+  as.matrix()
+sim_i <- 1
+fake_data[, y := fake_matrix[, sim_i]]
+m0 <- lmer(y ~ genotype + treatment +
+             (genotype + treatment | id),
+           data = fake_data)
+VarCorr(m0)
+
+fake_data <- fake_data_all1[, 1:4]
+fake_data[, g_by_t := paste(genotype, treatment)]
+fake_matrix <- fake_data_all1[, -(1:4)] %>%
+  as.matrix()
+sim_i <- 1
+fake_data[, y := fake_matrix[, sim_i]]
+m0 <- lmer(y ~ genotype + treatment +
+             (genotype + treatment | id),
+           data = fake_data)
+VarCorr(m0)
+
+```
+
+```{r}
+simulate_this <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 10,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = 1,
+  gamma = c(0.5, 0.5, 0.5),
+  rho = c(0.6, 0.6, 0.6), # r between random intercept and slope
+  do_anova = FALSE
+){
+
+  # get fake data for all n_sim runs
+  all_data <- simulator(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = n_treat,
+    beta = beta,
+    sigma = sigma,
+    gamma = gamma,
+    rho = rho
+  )
+  
+  methods <- c("int+slope",
+               "mixed",
+               "nested",
+               "means",
+               "aov4",
+               "paired-t",
+               "int+slope-uncor",
+               "lm-means",
+               "int",
+               "fixed-pool",
+               "fixed-2way")
+  n_methods <- length(methods)
+  
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  error_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  lower_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  upper_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anova_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anovaGG_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  colnames(p_mat) <- methods
+  colnames(error_mat) <- methods
+  colnames(lower_mat) <- methods
+  colnames(upper_mat) <- methods
+  colnames(anova_mat) <- methods
+  colnames(anovaGG_mat) <- methods
+  
+  type3 <- list(experiment_id = contr.sum,
+                treatment = contr.sum)
+  
+  fake_data <- all_data[, .SD, .SDcols = c("treatment", "id")]
+  fake_matrix <- all_data[, -(1:2)] %>%
+    as.matrix()
+  for(sim_i in 1:n_sim){
+    fake_data[, y := fake_matrix[, sim_i]]
+    fake_means <- fake_data[, .(y = mean(y)),
+                            by = .(treatment, id)]
+
+    # these should be same
+    m1 <- lmer(y ~ treatment + (treatment|id),
+               data = fake_data)
+
+    m2 <- mixed(y ~ treatment + (treatment|id),
+                data = fake_data,
+                progress = FALSE)
+    
+    # this is "mixed anova" equiv
+    m3 <- lmer(y ~ treatment +
+                 (1|id) +
+                 (1|id:treatment),
+               data = fake_data)
+    
+    # these should be same
+    m4 <- lmer(y ~ treatment +
+                 (1|id),
+               data = fake_means)
+    m5 <- aov_4(y ~ treatment + (treatment|id),
+                data = fake_data,
+                include_aov = FALSE)
+    m6 <- t.test(y ~ treatment,
+                 paired = TRUE,
+                 data = fake_means[treatment %in% levels(fake_means$treatment)[1:2]])
+
+    # this should approximate m3-6
+    m7 <- lmer_alt(y ~ treatment + (treatment||id),
+                   data = fake_data)
+    
+    # this is suboptimal
+    m8 <- lm(y ~ treatment,
+             data = fake_means)
+    
+    # lmm random intercept
+    m9 <- lmer(y ~ treatment + (1|id),
+               data = fake_data)
+    
+    # fixed 
+    m10 <- lm(y ~ treatment,
+              data = fake_data)
+    m11 <- lm(y ~ treatment * id,
+              data = fake_data,
+              contrasts = type3)
+    
+    res1 <- contrast_stats(m1, specs = "treatment")
+    res2 <- contrast_stats(m2, specs = "treatment")
+    res3 <- contrast_stats(m3, specs = "treatment")
+    res4 <- contrast_stats(m4, specs = "treatment")
+    res5 <- contrast_stats(m5, specs = "treatment")
+    # res6 <- contrast_stats(m6, specs = "treatment") # paired t
+    res7 <- contrast_stats(m7, specs = "treatment")
+    res8 <- contrast_stats(m8, specs = "treatment")
+    res9 <- contrast_stats(m9, specs = "treatment")
+    res10 <- contrast_stats(m10, specs = "treatment")
+    res11 <- contrast_stats(m11, specs = c("treatment"))
+    
+    res6 <- list(
+      lower = -m6$conf.int[2], # t.test contrast reversed
+      upper = -m6$conf.int[1],
+      p_value = m6$p.value
+    )
+
+    if(do_anova==TRUE){
+      res1$anova <- anova(m1, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res1$anovaGG <- res1$anova
+      res2$anova <- anova(m2, correction = "none")[1, "Pr(>F)"]
+      res2$anovaGG <- anova(m2, correction = "GG")[1, "Pr(>F)"]
+      res3$anova <- anova(m3, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res3$anovaGG <- res3$anova
+      res4$anova <- anova(m4, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res4$anovaGG <- res4$anova
+      res5$anova <- anova(m5, correction = "none")[1, "Pr(>F)"]
+      res5$anovaGG <- anova(m5, correction = "GG")[1, "Pr(>F)"]
+      res6$anova <- as.numeric(NA)
+      res6$anovaGG <- res6$anova
+      res7$anova <- anova(m7, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res7$anovaGG <- res7$anova
+      res8$anova <- anova(m8)[1,"Pr(>F)"]
+      res8$anovaGG <- res8$anova
+      res9$anova <- anova(m9, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res9$anovaGG <- res9$anova
+      res10$anova <- anova(m10)[1,"Pr(>F)"]
+      res10$anovaGG <- res10$anova
+      res11$anova <- Anova(m11, type = "3")[2,"Pr(>F)"]
+      res11$anovaGG <- res11$anova
+    }
+
+    res_mat <- rbind(unlist(res1),
+                     unlist(res2),
+                     unlist(res3),
+                     unlist(res4),
+                     unlist(res5),
+                     unlist(res6),
+                     unlist(res7),
+                     unlist(res8),
+                     unlist(res9),
+                     unlist(res10),
+                     unlist(res11))
+    
+    p_mat[sim_i, ] <- res_mat[, "p_value"]
+    lower_mat[sim_i, ] <- res_mat[, "lower"]
+    upper_mat[sim_i, ] <- res_mat[, "upper"]
+    anova_mat[sim_i, ] <- res_mat[, "anova"]
+    anovaGG_mat[sim_i, ] <- res_mat[, "anovaGG"]
+
+    error_mat[sim_i, 1] <- ifelse(is.null(lmer_check(m1)), res1$p_value, NA)
+    error_mat[sim_i, 2] <- ifelse(is.null(lmer_check(m1)), res2$p_value, NA)
+    error_mat[sim_i, 3] <- ifelse(is.null(lmer_check(m3)), res3$p_value, NA)
+    error_mat[sim_i, 4] <- ifelse(is.null(lmer_check(m4)), res4$p_value, NA)
+    error_mat[sim_i, 5] <- res5$p_value
+    error_mat[sim_i, 6] <- res6$p_value
+    error_mat[sim_i, 7] <- ifelse(is.null(lmer_check(m7)), res7$p_value, NA)
+    error_mat[sim_i, 8] <- res8$p_value
+    error_mat[sim_i, 9] <- ifelse(is.null(lmer_check(m9)), res9$p_value, NA)
+    error_mat[sim_i, 10] <- res10$p_value
+    error_mat[sim_i, 11] <- res11$p_value
+  }
+  return(list(p_mat = p_mat,
+              error_mat = error_mat,
+              lower_mat = lower_mat,
+              upper_mat = upper_mat,
+              anova_mat = anova_mat,
+              anovaGG_mat = anovaGG_mat))
+}
+```
+
+
+```{r}
+simulate_this_aov <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 10,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = 1,
+  gamma = c(0.5, 0.5, 0.5),
+  rho = c(0.6, 0.6, 0.6), # r between random intercept and slope
+  do_anova = FALSE,
+  equal_n = TRUE
+){
+  
+  # Bare bones version of simulate_this. Removes redundant analyses
+  
+  # get fake data for all n_sim runs
+  all_data <- simulator_unequal(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = n_treat,
+    beta = beta,
+    sigma = sigma,
+    gamma = gamma,
+    rho = rho,
+    equal_n = equal_n
+  )
+  methods <- c("int+slope",
+               "nested",
+               "aov4",
+               "lm-means",
+               "intercept",
+               "fixed-pool",
+               "fixed-2way")
+  
+  n_methods <- length(methods)
+  
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  error_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  lower_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  upper_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anova_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anovaGG_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  colnames(p_mat) <- methods
+  colnames(error_mat) <- methods
+  colnames(lower_mat) <- methods
+  colnames(upper_mat) <- methods
+  colnames(anova_mat) <- methods
+  colnames(anovaGG_mat) <- methods
+  
+  type3 <- list(id = contr.sum,
+                treatment = contr.sum)
+  
+  fake_data <- all_data[, .SD, .SDcols = c("treatment", "id")]
+  fake_matrix <- all_data[, -(1:3)] %>%
+    as.matrix()
+  for(sim_i in 1:n_sim){
+    fake_data[, y := fake_matrix[, sim_i]]
+    fake_data[, .(sd = sd(y)), by = treatment]
+    fake_means <- fake_data[, .(y = mean(y)),
+                            by = .(treatment, id)]
+   
+    m1 <- lmer(y ~ treatment + (treatment|id),
+               data = fake_data)
+
+    m3 <- lmer(y ~ treatment +
+                 (1|id) +
+                 (1|id:treatment),
+               data = fake_data)
+    
+    m5 <- aov_4(y ~ treatment + (treatment|id),
+                data = fake_data,
+                include_aov = FALSE)
+
+    # this is suboptimal
+    m8 <- lm(y ~ treatment,
+             data = fake_means)
+    
+    # lmm random intercept
+    m9 <- lmer(y ~ treatment + (1|id),
+               data = fake_data)
+    
+    # fixed 
+    m10 <- lm(y ~ treatment,
+              data = fake_data)
+    m11 <- lm(y ~ treatment * id,
+              data = fake_data,
+              contrasts = type3)
+    
+    res1 <- contrast_stats(m1, specs = "treatment")
+    res3 <- contrast_stats(m3, specs = "treatment")
+    res5 <- contrast_stats(m5, specs = "treatment")
+    res8 <- contrast_stats(m8, specs = "treatment")
+    res9 <- contrast_stats(m9, specs = "treatment")
+    res10 <- contrast_stats(m10, specs = "treatment")
+    res11 <- contrast_stats(m11, specs = c("treatment"))
+    
+    if(do_anova==TRUE){
+      res1$anova <- anova(m1, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res1$anovaGG <- res1$anova
+      res3$anova <- anova(m3, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res3$anovaGG <- res3$anova
+      res5$anova <- anova(m5, correction = "none")[1, "Pr(>F)"]
+      res5$anovaGG <- anova(m5, correction = "GG")[1, "Pr(>F)"]
+      res8$anova <- anova(m8)[1,"Pr(>F)"]
+      res8$anovaGG <- res8$anova
+      res9$anova <- anova(m9, ddf="Kenward-Roger")[1,"Pr(>F)"]
+      res9$anovaGG <- res9$anova
+      res10$anova <- anova(m10)[1,"Pr(>F)"]
+      res10$anovaGG <- res10$anova
+      res11$anova <- Anova(m11, type = "3")[2,"Pr(>F)"]
+      res11$anovaGG <- res11$anova
+    }else{
+      res1$anova <- NA
+      res1$anovaGG <- NA
+      res3$anova <- NA
+      res3$anovaGG <- NA
+      res5$anova <- NA
+      res5$anovaGG <- NA
+      res8$anova <- NA
+      res8$anovaGG <- NA
+      res9$anova <- NA
+      res9$anovaGG <- NA
+      res10$anova <- NA
+      res10$anovaGG <- NA
+      res11$anova <- NA
+      res11$anovaGG <- NA
+    }
+
+    res_mat <- rbind(unlist(res1),
+                     unlist(res3),
+                     unlist(res5),
+                     unlist(res8),
+                     unlist(res9),
+                     unlist(res10),
+                     unlist(res11))
+    
+    p_mat[sim_i, ] <- res_mat[, "p_value"]
+    lower_mat[sim_i, ] <- res_mat[, "lower"]
+    upper_mat[sim_i, ] <- res_mat[, "upper"]
+    anova_mat[sim_i, ] <- res_mat[, "anova"]
+    anovaGG_mat[sim_i, ] <- res_mat[, "anovaGG"]
+
+    error_mat[sim_i, "int+slope"] <- ifelse(is.null(lmer_check(m1)), res1$p_value, NA)
+    error_mat[sim_i, "nested"] <- ifelse(is.null(lmer_check(m3)), res3$p_value, NA)
+    error_mat[sim_i, "aov4"] <- res5$p_value
+    error_mat[sim_i, "lm-means"] <- res8$p_value
+    error_mat[sim_i, "intercept"] <- ifelse(is.null(lmer_check(m9)), res9$p_value, NA)
+    error_mat[sim_i, "fixed-pool"] <- res10$p_value
+    error_mat[sim_i, "fixed-2way"] <- res11$p_value
+  }
+  return(list(p_mat = p_mat,
+              error_mat = error_mat,
+              lower_mat = lower_mat,
+              upper_mat = upper_mat,
+              anova_mat = anova_mat,
+              anovaGG_mat = anovaGG_mat))
+}
+```
+
+```{r}
+simulate_this_rmaov <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 1,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = 1,
+  gamma = c(0.5, 0.5, 0.5),
+  rho = c(0.6, 0.6, 0.6), # r between random intercept and slope
+  do_anova = FALSE,
+  equal_n = TRUE
+){
+  
+  # Bare bones version of simulate_this. Removes redundant analyses
+  
+  # get fake data for all n_sim runs
+
+  all_data <- simulator_unequal(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = n_treat,
+    beta = beta,
+    sigma = sigma,
+    gamma = gamma,
+    rho = rho,
+    equal_n = equal_n
+  )
+  
+  methods <- c("aov4-uni",
+               "aov4-multi",
+               "intercept")
+  
+  n_methods <- length(methods)
+  
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  error_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  lower_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  upper_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anova_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anovaGG_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  colnames(p_mat) <- methods
+  colnames(error_mat) <- methods
+  colnames(lower_mat) <- methods
+  colnames(upper_mat) <- methods
+  colnames(anova_mat) <- methods
+  colnames(anovaGG_mat) <- methods
+  
+  type3 <- list(id = contr.sum,
+                treatment = contr.sum)
+  
+  fake_data <- all_data[, .SD, .SDcols = c("treatment", "id")]
+  fake_matrix <- all_data[, -(1:3)] %>%
+    as.matrix()
+  for(sim_i in 1:n_sim){
+    fake_data[, y := fake_matrix[, sim_i]]
+    fake_means <- fake_data[, .(y = mean(y)),
+                            by = .(treatment, id)]
+   
+    m1 <- aov_4(y ~ treatment + (treatment|id),
+                data = fake_data,
+                include_aov = TRUE)
+    m2 <- aov_4(y ~ treatment + (treatment|id),
+                data = fake_data,
+                include_aov = FALSE)
+    # lmm random intercept
+    m3 <- lmer(y ~ treatment + (1|id),
+               data = fake_data)
+
+    res1 <- contrast_stats(m1, specs = "treatment")
+    res2 <- contrast_stats(m2, specs = "treatment")
+    res3 <- contrast_stats(m3, specs = "treatment")
+
+    res1$anova <- anova(m1, correction = "none")[1, "Pr(>F)"]
+    res2$anova <- anova(m1, correction = "GG")[1, "Pr(>F)"]
+    res3$anova <- anova(m3, ddf="Kenward-Roger")[1,"Pr(>F)"]
+
+    res_mat <- rbind(unlist(res1),
+                     unlist(res2),
+                     unlist(res3))
+    
+    p_mat[sim_i, ] <- res_mat[, "p_value"]
+    lower_mat[sim_i, ] <- res_mat[, "lower"]
+    upper_mat[sim_i, ] <- res_mat[, "upper"]
+    anova_mat[sim_i, ] <- res_mat[, "anova"]
+
+    error_mat[sim_i, "aov4-uni"] <- res1$p_value
+    error_mat[sim_i, "aov4-multi"] <- res2$p_value
+    error_mat[sim_i, "intercept"] <- ifelse(is.null(lmer_check(m3)), res3$p_value, NA)
+  }
+  return(list(p_mat = p_mat,
+              error_mat = error_mat,
+              lower_mat = lower_mat,
+              upper_mat = upper_mat,
+              anova_mat = anova_mat,
+              anovaGG_mat = anovaGG_mat))
+}
+```
+
+```{r}
+simulate_this_rmaov_factorial <- function(
+  seed_i = 1,
+  n_sim = 2000,
+  n = 1,
+  n_id = 5,
+  n_treat = 3,
+  beta = c(10,1,1,1),
+  sigma = c(1,1,1,1),
+  gamma = c(1,1,1,1),
+  rho = rep(0.6, 6), # r between random intercept and slope
+  do_anova = FALSE,
+  equal_n = TRUE
+){
+  
+  # Bare bones version of simulate_this. Removes redundant analyses
+  
+  # get fake data for all n_sim runs
+    all_data <- simulator_factorial(
+      seed_i = seed_i,
+      n_sim = n_sim,
+      n = n,
+      n_id = n_id,
+      n_treat = n_treat,
+      beta = beta,
+      sigma = sigma,
+      gamma = gamma,
+      rho = rho,
+      equal_n = equal_n
+    )    
+
+  methods <- c("aov4-fact-uni",
+               "aov4-fact-multi",
+               "aov4-flat-uni",
+               "aov4-flat-multi",
+               "intercept",
+               "intercept_ixn",
+               "corsymm",
+               "weights",
+               "sym_weight")
+  
+  n_methods <- length(methods)
+  
+  p_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  error_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  lower_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  upper_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anova_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  anovaGG_mat <- matrix(as.numeric(NA), nrow = n_sim, ncol = n_methods)
+  colnames(p_mat) <- methods
+  colnames(error_mat) <- methods
+  colnames(lower_mat) <- methods
+  colnames(upper_mat) <- methods
+  colnames(anova_mat) <- methods
+  colnames(anovaGG_mat) <- methods
+  res7 <- list(NULL)
+  res8 <- list(NULL)
+  res9 <- list(NULL)
+  
+  fake_data <- all_data[, 1:4]
+  fake_data[, g_by_t := paste(genotype, treatment)]
+  fake_matrix <- all_data[, -(1:4)] %>%
+    as.matrix()
+  for(sim_i in 1:n_sim){
+    fake_data[, y := fake_matrix[, sim_i]]
+    # m0 <- lmer(y ~ genotype * treatment +
+    #               (genotype * treatment | id),
+    #             data = fake_data)
+    m1 <- aov_4(y ~ genotype * treatment +
+                  (genotype * treatment | id),
+                data = fake_data,
+                include_aov = TRUE)
+    m3 <- aov_4(y ~ g_by_t +
+                  (g_by_t | id),
+                data = fake_data,
+                include_aov = TRUE)
+    # lmm random intercept
+    m5 <- lmer(y ~ genotype * treatment +
+                 (1|id),
+               data = fake_data)
+    m6 <- lmer(y ~ genotype * treatment +
+                 (1|id) +
+                 (1|id:genotype) +
+                 (1|id:treatment),
+               data = fake_data)
+   # lmm correlation
+    m7 <- safelme(y ~ genotype * treatment,
+              random = ~1 | id,
+              correlation = corSymm(form = ~ 1 | id),
+              data = fake_data)$result
+    m8 <- safelme(y ~ genotype * treatment,
+              random = ~1 | id,
+              weight = varIdent(form = ~ 1 | g_by_t),
+              data = fake_data)$result
+    m9 <- safelme(y ~ genotype * treatment,
+              random = ~1 | id,
+              correlation = corSymm(form = ~ 1 | id),
+              weight = varIdent(form = ~ 1 | g_by_t),
+              data = fake_data)$result
+    
+    res1 <- contrast_stats(m1, specs = c("genotype", "treatment"))
+    res2 <- contrast_stats(m1,
+                            specs = c("genotype", "treatment"),
+                            model = "multivariate")
+    res3 <- contrast_stats(m3, specs = c("g_by_t"))
+    res4 <- contrast_stats(m3,
+                            specs = c("g_by_t"),
+                            model = "multivariate")
+    res5 <- contrast_stats(m5, specs = c("genotype", "treatment"))
+    res6 <- contrast_stats(m6, specs = c("genotype", "treatment"))
+    if(!is.na(m7[1])){
+      fit_pairs <- emmeans(m7, specs = c("genotype", "treatment"), data = fake_data) %>%
+        contrast(method = "revpairwise",
+                 adjust = "none") %>%
+        summary(infer = TRUE)
+      res7$lower <- fit_pairs[1, "lower.CL"]
+      res7$upper <- fit_pairs[1, "upper.CL"]
+      res7$p_value <- fit_pairs[1, "p.value"]
+    }else{
+      res7$lower <- NA
+      res7$upper <- NA
+      res7$p_value <- NA
+    }
+    if(!is.na(m8[1])){
+      fit_pairs <- emmeans(m8, specs = c("genotype", "treatment"), data = fake_data) %>%
+        contrast(method = "revpairwise",
+                 adjust = "none") %>%
+        summary(infer = TRUE)
+      res8$lower <- fit_pairs[1, "lower.CL"]
+      res8$upper <- fit_pairs[1, "upper.CL"]
+      res8$p_value <- fit_pairs[1, "p.value"]
+    }else{
+      res8$lower <- NA
+      res8$upper <- NA
+      res8$p_value <- NA
+    }
+    if(!is.na(m9[1])){
+      fit_pairs <- emmeans(m9, specs = c("genotype", "treatment"), data = fake_data) %>%
+        contrast(method = "revpairwise",
+                 adjust = "none") %>%
+        summary(infer = TRUE)
+      res9$lower <- fit_pairs[1, "lower.CL"]
+      res9$upper <- fit_pairs[1, "upper.CL"]
+      res9$p_value <- fit_pairs[1, "p.value"]
+    }else{
+      res9$lower <- NA
+      res9$upper <- NA
+      res9$p_value <- NA
+    }
+    
+    res1$anova <- anova(m1, correction = "none")[1, "Pr(>F)"]
+    res2$anova <- anova(m1, correction = "GG")[1, "Pr(>F)"]
+    res3$anova <- anova(m3, correction = "none")[1, "Pr(>F)"]
+    res4$anova <- anova(m3, correction = "GG")[1, "Pr(>F)"]
+    res5$anova <- anova(m5, ddf = "Kenward-Roger")[1,"Pr(>F)"]
+    res6$anova <- anova(m6, ddf = "Kenward-Roger")[1,"Pr(>F)"]
+    res7$anova <- NA
+    res8$anova <- NA
+    res9$anova <- NA
+
+    res_mat <- rbind(unlist(res1),
+                     unlist(res2),
+                     unlist(res3),
+                     unlist(res4),
+                     unlist(res5),
+                     unlist(res6),
+                     unlist(res7),
+                     unlist(res8),
+                     unlist(res9))
+    
+    p_mat[sim_i, ] <- res_mat[, "p_value"]
+    lower_mat[sim_i, ] <- res_mat[, "lower"]
+    upper_mat[sim_i, ] <- res_mat[, "upper"]
+    anova_mat[sim_i, ] <- res_mat[, "anova"]
+
+    error_mat[sim_i, "aov4-fact-uni"] <- res1$p_value
+    error_mat[sim_i, "aov4-fact-multi"] <- res2$p_value
+    error_mat[sim_i, "aov4-flat-uni"] <- res3$p_value
+    error_mat[sim_i, "aov4-flat-multi"] <- res4$p_value
+    error_mat[sim_i, "intercept"] <- ifelse(is.null(lmer_check(m5)), res5$p_value, NA)
+    error_mat[sim_i, "intercept_ixn"] <- ifelse(is.null(lmer_check(m6)), res6$p_value, NA)
+    error_mat[sim_i, "corsymm"] <- res7$p_value
+    error_mat[sim_i, "weights"] <- res8$p_value
+    error_mat[sim_i, "sym_weight"] <- res9$p_value
+  }
+  return(list(p_mat = p_mat,
+              error_mat = error_mat,
+              lower_mat = lower_mat,
+              upper_mat = upper_mat,
+              anova_mat = anova_mat,
+              anovaGG_mat = anovaGG_mat))
+}
+```
+
+# Worlds
+
+```{r globals}
+# put fake_data into global so emmeans works
+fake_data <- data.table(NULL)
+
+methods <- c("int+slope",
+             "mixed",
+             "nested",
+             "means",
+             "aov4",
+             "paired-t",
+             "int+slope-uncor",
+             "lm-means",
+             "int",
+             "fixed-pool",
+             "fixed-2way")
+
+```
+
+# Two treatments
+
+```{r parameters, message=FALSE, warning = FALSE}
+seed_i <- 0
+n_sim <- 1000
+n <- 10
+n_id <- 5
+n_treat <- 2
+N <- n*n_treat*n_id
+beta_0 <- 10
+beta_1 <- .4
+beta <- c(beta_0, beta_1)
+sigma <- 1
+gamma_0_ratio = 1 # variation within an experiment
+gamma_1_ratio = 0.5
+gamma_0 <- sigma * gamma_0_ratio
+gamma_1 <- beta_1 * gamma_1_ratio
+gamma <- c(gamma_0, gamma_1)
+rho <- 0.5 # correlation between random intercept and slope
+```
+
+
+```{r run two treatments, message=FALSE, warning = FALSE, eval = FALSE}
+fake_data <- data.table(NULL)
+n_sim <- 5
+n <- 6
+n_id <- 3
+n_treat <- 2
+N <- n*n_treat*n_id
+beta_0 <- 10
+beta_1_list <- c(0, 0.8)
+sigma <- 1
+gamma_0_ratio_list = c(0.2, 1) # variation among experiment rel to error
+gamma_1_ratio_list = c(0.1, 0.5) # variation in slope relative to treatment effect
+rho_list <- c(0, 0.5) # correlation between random intercept and slope
+
+parameter_mat <- expand.grid(rho = rho_list,
+                             gamma_0_ratio = gamma_0_ratio_list,
+                             gamma_1_ratio = gamma_1_ratio_list,
+                             beta_1 = beta_1_list
+                             ) %>%
+  data.table
+parameter_mat[, gamma_0 := sigma * gamma_0_ratio]
+parameter_mat[, gamma_1 := beta_1 * gamma_1_ratio]
+keep_cols <- c("beta_1", "gamma_1", "gamma_0", "rho")
+parameter_mat <- parameter_mat[, .SD, .SDcols = keep_cols]
+parameter_mat <- dplyr::distinct(parameter_mat)
+
+big_table <- data.table(NULL)
+for(world in 1:nrow(parameter_mat)){
+  seed_i <- 1
+  beta_1 <- parameter_mat[world, beta_1]
+  gamma_0 <- parameter_mat[world, gamma_0]
+  gamma_1 <- parameter_mat[world, gamma_1]
+  rho <- parameter_mat[world, rho]
+
+  # sim1_orig <- simulator_orig(
+  #   seed_i = seed_i,
+  #   n_sim = n_sim,
+  #   n = n,
+  #   n_id = n_id,
+  #   beta_0 = beta_0,
+  #   beta_1 = beta_1,
+  #   sigma = sigma,
+  #   gamma_0 = gamma_0,
+  #   gamma_1 = gamma_1,
+  #   rho = rho
+  # )
+  sim1 <- simulator(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = 2,
+    beta = c(beta_0, beta_1),
+    sigma = sigma,
+    gamma = c(gamma_0, gamma_1),
+    rho = c(rho)
+  )
+
+  
+  lower <- sim1$lower_mat
+  upper <- sim1$upper_mat
+  prob <- sim1$p_mat[, 1:11] # remove last 4
+  error <- sim1$error_mat
+
+  stat_table <- rbind(data.table(stat = "lower", lower),
+                      data.table(stat = "upper", upper),
+                      data.table(stat = "prob", prob),
+                      data.table(stat = "error", error))
+  
+  big_table <- rbind(big_table,
+                     data.table(
+                       beta_1 = beta_1,
+                       gamma_1 = gamma_1,
+                       gamma_0 = gamma_0,
+                       rho = rho,
+                       stat_table
+                     ))
+}
+
+outpath <- here::here("sim_data", "multi_experiments.Rds")
+saveRDS(big_table, outpath)
+```
+
+
+# x labels
+
+```{r x-labels, message=FALSE, warning = FALSE}
+x_labeller <- function(param_table){
+  x_labels <- apply(param_table, 2, fmt_leading_zero) %>%
+    data.table()
+  x_labels <- apply(transpose(x_labels, keep.names = "stat"), 2, function(x)
+    paste(x, collapse = "\n"))
+  return(x_labels)
+}
+```
+
+# convergence error frequency
+
+```{r how error prone, eval=FALSE}
+error <- big_table[stat == "error"]
+error_long <- melt(error,
+                   id.vars = c("beta_1",
+                               "gamma_1",
+                               "gamma_0",
+                               "rho",
+                               "equal_n",
+                               "stat"),
+                   variable.name = "model",
+                   value.name = "pvalue")
+error_sum <- error_long[, .(freq = sum(!is.na(pvalue))),
+                        by = c("beta_1",
+                               "gamma_1",
+                               "gamma_0",
+                               "rho",
+                               "model")]
+n_worlds <- nrow(error_sum)/length(unique(error_sum$model))
+n_methods <- nrow(error_sum)/n_worlds
+n_sim <- nrow(error)/n_worlds
+error_sum[, freq := freq/n_sim]
+error_sum[, sim := rep(1:n_worlds, n_methods)]
+x_labels <- x_labeller(error_sum[1:n_worlds, 1:4])
+gg_freq <- ggplot(data = error_sum,
+                   aes(x = sim,
+                       y = freq,
+                       color = model)) +
+  geom_line() +
+  coord_cartesian(xlim = c(0.25,12)) +
+  scale_x_continuous(breaks = c(-0.3,1:12),
+                     labels = x_labels) +
+  ylab("Freqency") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+gg_freq
+
+```
+
+
+```{r prep it, message=FALSE, warning = FALSE}
+coverage_table <- data.table(NULL)
+less_than_table <- data.table(NULL)
+for(i in 1:nrow(parameter_mat)){
+  lower <- big_table[stat == "lower" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       rho == parameter_mat[i, rho], .SD, .SDcols = methods]
+  upper <- big_table[stat == "upper" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       rho == parameter_mat[i, rho], .SD, .SDcols = methods]
+  prob <- big_table[stat == "prob" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       rho == parameter_mat[i, rho], .SD, .SDcols = methods]
+  error <- big_table[stat == "error" &
+                      beta_1 == parameter_mat[i, beta_1] &
+                      gamma_0 == parameter_mat[i, gamma_0] &
+                      gamma_1 == parameter_mat[i, gamma_1] &
+                      rho == parameter_mat[i, rho], .SD, .SDcols = methods]
+
+  
+  beta_1_sim <- parameter_mat[i, beta_1]
+  coverage_mat <- ifelse(lower < beta_1_sim &
+                           upper > beta_1_sim, 1, 0)
+  
+  exclude_error <- TRUE
+  if(exclude_error == TRUE){
+    coverage_mat[is.na(error)] <- NA
+    coverage_mat <- na.omit(coverage_mat)
+  }
+  coverage <- apply(coverage_mat, 2, sum, na.rm=TRUE)/
+    apply(coverage_mat, 2, function(x) sum(!is.na(x)))
+  
+  less_than <- apply(prob, 2, function(x) sum(x < 0.05, na.rm = TRUE))/
+    apply(prob, 2, function(x) sum(!is.na(x)))
+
+  coverage_table <- rbind(coverage_table,
+                          data.table(
+                            beta_1 = parameter_mat[i, beta_1],
+                            gamma_0 = parameter_mat[i, gamma_0],
+                            gamma_1 = parameter_mat[i, gamma_1],
+                            rho = parameter_mat[i, rho],
+                            t(coverage)
+                          ))
+  less_than_table <- rbind(less_than_table,
+                          data.table(
+                            beta_1 = parameter_mat[i, beta_1],
+                            gamma_0 = parameter_mat[i, gamma_0],
+                            gamma_1 = parameter_mat[i, gamma_1],
+                            rho = parameter_mat[i, rho],
+                            t(less_than)
+                          ))
+}
+
+coverage_table[, sim := .I]
+coverage_long <- melt(coverage_table,
+                      measure.vars = methods,
+                      variable.name = "method",
+                      value.name = "coverage")
+
+less_than_table[, sim := .I]
+less_than_long <- melt(less_than_table,
+                      measure.vars = methods,
+                      variable.name = "method",
+                      value.name = "prob")
+```
+
+
+```{r plot coverage, message=FALSE, warning = FALSE}
+gg_cover <- ggplot(data = coverage_long,
+                   aes(x = sim,
+                       y = coverage,
+                       color = method)) +
+  geom_line() +
+  coord_cartesian(xlim = c(0.25,12)) +
+  scale_x_continuous(breaks = c(-0.3,1:12),
+                     labels = x_labels) +
+  ylab("Fraction covering beta_1") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+gg_cover
+```
+
+
+```{r plot type 1, message=FALSE, warning = FALSE}
+# p-value plot
+
+gg_type_1 <- ggplot(data = less_than_long[beta_1 == 0],
+                   aes(x = sim,
+                       y = prob,
+                       color = method)) +
+  geom_line() +
+  coord_cartesian(xlim = c(0.65,4)) +
+  scale_x_continuous(breaks = c(0.5,1:4),
+                     labels = x_labels[1:5]) +
+  scale_y_continuous(breaks = c(0.01, 0.02, 0.03, 0.04, 0.05, 0.06)) +
+  ylab("Type I frequency") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+gg_type_1
+```
+
+```{r plot power}
+less_than_long[, sim_plot := sim - 4]
+gg_power <- ggplot(data = less_than_long[beta_1 != 0],
+                   aes(x = sim_plot,
+                       y = prob,
+                       color = method)) +
+  geom_line() +
+  coord_cartesian(xlim = c(0.3,8)) +
+  scale_x_continuous(breaks = c(0,1:8),
+                     labels = x_labels[c(1,6:13)]) +
+  ylab("Power") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+
+gg_power
+```
+
+
+```{r table it, message=FALSE, warning = FALSE}
+# these should all be n_sim
+apply(pmat, 2, function(x) sum(!is.na(x)))
+# number of errror-free p-values
+apply(error_mat, 2, function(x) sum(!is.na(x)))
+
+# type 1 - all p
+apply(pmat, 2, function(x) sum(x < 0.05, na.rm = TRUE))/
+  apply(pmat, 2, function(x) sum(!is.na(x)))
+# type 1 - error-free p
+# apply(error_mat, 2, function(x) sum(x < 0.05, na.rm = TRUE))/
+#   apply(error_mat, 2, function(x) sum(!is.na(x)))
+# # which runs with errors
+# inc <- which(is.na(error_mat[,1]))
+
+```
+
+# three treatments
+
+```{r run three treatments, message=FALSE, warning = FALSE, eval = FALSE}
+fake_data <- data.table(NULL)
+n_sim <- 2000
+n <- 10^4
+n_id <- 6
+n_treat <- 3
+N <- n*n_treat*n_id
+beta_0 <- 10
+beta_1_list <- c(0)
+sigma <- 1
+gamma_0_list = c(0.2, 1, 2) # intercept 
+gamma_1_list = c(0.2, 1) # slope
+gamma_2_list = c(0.2, 1) # slope
+rho_list <- c("0", "+") # correlation between random intercept and slope
+# rho_list <- c("+") # correlation between random intercept and slope
+equal_n_list <- c(TRUE) # equal_n_list
+rho_vec <- c(0.6, 0.6, 0.6)
+
+parameter_mat <- expand.grid(beta_1 = beta_1_list,
+                             gamma_0 = gamma_0_list,
+                             gamma_1 = gamma_1_list,
+                             gamma_2 = gamma_2_list,
+                             rho = rho_list,
+                             equal_n = equal_n_list
+                             ) %>%
+  data.table
+
+big_table <- data.table(NULL)
+for(world in 1:nrow(parameter_mat)){
+  seed_i <- 1
+  beta_1 <- parameter_mat[world, beta_1]
+  beta_2 <- beta_1
+  gamma_0 <- parameter_mat[world, gamma_0]
+  gamma_1 <- parameter_mat[world, gamma_1]
+  gamma_2 <- parameter_mat[world, gamma_2]
+  if(parameter_mat[world, rho] == "0"){
+    rho <- c(0, 0, 0) # r2c1, r3c1,r3c2
+  }
+  if(parameter_mat[world, rho] == "+"){
+    rho <- rho_vec # r2c1, r3c1,r3c2
+  }
+  equal_n_sim <- parameter_mat[world, equal_n]
+  
+  # rm or not?
+  sim1 <- simulate_this_rmaov(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = n_treat,
+    beta = c(beta_0, beta_1, beta_2),
+    sigma = sigma,
+    gamma = c(gamma_0, gamma_1, gamma_2),
+    rho = rho,
+    do_anova = FALSE,
+    equal_n = equal_n_sim
+  )
+
+  
+  lower <- sim1$lower_mat
+  upper <- sim1$upper_mat
+  prob <- sim1$p_mat # remove last 4
+  error <- sim1$error_mat
+  anova_p <- sim1$anova_mat
+  anovaGG_p <- sim1$anovaGG_mat
+
+  stat_table <- rbind(data.table(stat = "lower", lower),
+                      data.table(stat = "upper", upper),
+                      data.table(stat = "prob", prob),
+                      data.table(stat = "error", error),
+                      data.table(stat = "anova", anova_p),
+                      data.table(stat = "anovaGG", anovaGG_p))
+  
+  big_table <- rbind(big_table,
+                     data.table(
+                       beta_1 = beta_1,
+                       gamma_0 = gamma_0,
+                       gamma_1 = gamma_1,
+                       gamma_2 = gamma_2,
+                       rho = parameter_mat[world, rho],
+                       equal_n = equal_n_sim,
+                       stat_table
+                     ))
+}
+
+# outpath <- here::here("sim_data", "multi_experiments_3tr.Rds")
+# saveRDS(big_table, outpath)
+
+```
+
+```{r run factorial RMANOVA, message=FALSE, warning = FALSE, eval = FALSE}
+
+fake_data <- data.table(NULL)
+n_sim <- 1000
+n <- 1
+n_id <- 10
+n_treat <- c(2,2)
+n_treat_combi <- prod(n_treat)
+N <- n*n_treat*n_id
+beta_0 <- 10
+beta_1_list <- c(0)
+sigma <- c(1,1,1,1)
+#sigma <- c(0.5, 2, 1, 2)
+gamma_0_list = c(0.2, 2) # intercept 
+gamma_1_list = c(0.2, 1) # slope genotype
+gamma_2_list = c(0.2, 1) # slope treatment
+gamma_3_list = c(0.2, 1) # interaction
+rho_list <- c("0", "+") # correlation between random intercept and slope
+# rho_list <- c("+") # correlation between random intercept and slope
+equal_n_list <- c(TRUE) # equal_n_list
+rho_vec <- rep(0.6, 4*3/2)
+
+parameter_mat <- expand.grid(beta_1 = beta_1_list,
+                             gamma_0 = gamma_0_list,
+                             gamma_1 = gamma_1_list,
+                             gamma_2 = gamma_2_list,
+                             gamma_3 = gamma_3_list,
+                             rho = rho_list,
+                             equal_n = equal_n_list
+                             ) %>%
+  data.table
+
+parameter_mat <- parameter_mat[c(1,32),]
+
+big_table <- data.table(NULL)
+for(world in 1:nrow(parameter_mat)){
+  seed_i <- 1
+  beta_1 <- parameter_mat[world, beta_1]
+  beta_2 <- beta_1
+  beta_3 <- beta_1
+  gamma_0 <- parameter_mat[world, gamma_0]
+  gamma_1 <- parameter_mat[world, gamma_1]
+  gamma_2 <- parameter_mat[world, gamma_2]
+  gamma_3 <- parameter_mat[world, gamma_3]
+  if(parameter_mat[world, rho] == "0"){
+    rho <- rep(0, 4*3/2) # r2c1, r3c1,r3c2
+  }
+  if(parameter_mat[world, rho] == "+"){
+    rho <- rho_vec # r2c1, r3c1,r3c2
+  }
+  equal_n_sim <- parameter_mat[world, equal_n]
+  
+  # rm or not?
+  sim1 <- simulate_this_rmaov_factorial(
+    seed_i = seed_i,
+    n_sim = n_sim,
+    n = n,
+    n_id = n_id,
+    n_treat = n_treat,
+    beta = c(beta_0, beta_1, beta_2, beta_3),
+    sigma = sigma,
+    gamma = c(gamma_0, gamma_1, gamma_2, gamma_3),
+    rho = rho,
+    do_anova = FALSE,
+    equal_n = equal_n_sim
+  )
+
+  
+  lower <- sim1$lower_mat
+  upper <- sim1$upper_mat
+  prob <- sim1$p_mat # remove last 4
+  error <- sim1$error_mat
+  anova_p <- sim1$anova_mat
+  anovaGG_p <- sim1$anovaGG_mat
+
+  stat_table <- rbind(data.table(stat = "lower", lower),
+                      data.table(stat = "upper", upper),
+                      data.table(stat = "prob", prob),
+                      data.table(stat = "error", error),
+                      data.table(stat = "anova", anova_p),
+                      data.table(stat = "anovaGG", anovaGG_p))
+  
+  big_table <- rbind(big_table,
+                     data.table(
+                       beta_1 = beta_1,
+                       gamma_0 = gamma_0,
+                       gamma_1 = gamma_1,
+                       gamma_2 = gamma_2,
+                       gamma_3 = gamma_3,
+                       rho = parameter_mat[world, rho],
+                       equal_n = equal_n_sim,
+                       stat_table
+                     ))
+}
+
+# outpath <- here::here("sim_data", "multi_experiments_3tr.Rds")
+# saveRDS(big_table, outpath)
+
+```
+
+
+```{r prep-3, message=FALSE, warning = FALSE}
+# outpath <- here::here("sim_data", "multi_experiments_3tr.Rds")
+# big_table <- readRDS(outpath)
+
+coverage_table <- data.table(NULL)
+prob_less_than_table <- data.table(NULL)
+error_less_than_table <- data.table(NULL)
+anova_less_than_table <- data.table(NULL)
+anovaGG_less_than_table <- data.table(NULL)
+methods <- colnames(big_table)[(which(colnames(big_table)=="stat")+1):length(colnames(big_table))]
+
+for(i in 1:nrow(parameter_mat)){
+  lower <- big_table[stat == "lower" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
+                       rho == parameter_mat[i, rho] &
+                       equal_n == parameter_mat[i, equal_n],
+                     .SD, .SDcols = methods]
+  upper <- big_table[stat == "upper" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
+                       rho == parameter_mat[i, rho] &
+                       equal_n == parameter_mat[i, equal_n],
+                     .SD, .SDcols = methods]
+  prob <- big_table[stat == "prob" &
+                      beta_1 == parameter_mat[i, beta_1] &
+                      gamma_0 == parameter_mat[i, gamma_0] &
+                      gamma_1 == parameter_mat[i, gamma_1] &
+                      gamma_2 == parameter_mat[i, gamma_2] &
+                      rho == parameter_mat[i, rho] &
+                       equal_n == parameter_mat[i, equal_n],
+                    .SD, .SDcols = methods]
+  error <- big_table[stat == "error" &
+                       beta_1 == parameter_mat[i, beta_1] &
+                       gamma_0 == parameter_mat[i, gamma_0] &
+                       gamma_1 == parameter_mat[i, gamma_1] &
+                       gamma_2 == parameter_mat[i, gamma_2] &
+                       rho == parameter_mat[i, rho] &
+                       equal_n == parameter_mat[i, equal_n],
+                     .SD, .SDcols = methods]
+  anova_p <- big_table[stat == "anova" &
+                         beta_1 == parameter_mat[i, beta_1] &
+                         gamma_0 == parameter_mat[i, gamma_0] &
+                         gamma_1 == parameter_mat[i, gamma_1] &
+                         gamma_2 == parameter_mat[i, gamma_2] &
+                         rho == parameter_mat[i, rho] &
+                         equal_n == parameter_mat[i, equal_n],
+                       .SD, .SDcols = methods]
+  anovaGG_p <- big_table[stat == "anovaGG" &
+                           beta_1 == parameter_mat[i, beta_1] &
+                           gamma_0 == parameter_mat[i, gamma_0] &
+                           gamma_1 == parameter_mat[i, gamma_1] &
+                           gamma_2 == parameter_mat[i, gamma_2] &
+                           rho == parameter_mat[i, rho] &
+                           equal_n == parameter_mat[i, equal_n],
+                       .SD, .SDcols = methods]
+  
+  
+  beta_1_sim <- parameter_mat[i, beta_1]
+  coverage_mat <- ifelse(lower < beta_1_sim &
+                           upper > beta_1_sim, 1, 0)
+  
+  exclude_error <- FALSE
+  if(exclude_error == TRUE){
+    coverage_mat[is.na(error)] <- NA
+    anova_p[is.na(error)] <- NA
+    anovaGG_p[is.na(error)] <- NA
+  }
+  coverage <- apply(coverage_mat, 2, sum, na.rm=TRUE)/
+    apply(coverage_mat, 2, function(x) sum(!is.na(x)))
+  
+  prob_less_than <- apply(prob, 2, function(x) mean(x < 0.05, na.rm = TRUE))
+  
+  error_less_than <- apply(error, 2, function(x) mean(x < 0.05, na.rm = TRUE))
+  
+  anova_less_than <- apply(anova_p, 2, function(x) mean(x < 0.05, na.rm = TRUE))
+  
+  anovaGG_less_than <- apply(anovaGG_p, 2, function(x) mean(x < 0.05, na.rm = TRUE))
+  
+  coverage_table <- rbind(
+    coverage_table,
+    data.table(
+      beta_1 = parameter_mat[i, beta_1],
+      gamma_0 = parameter_mat[i, gamma_0],
+      gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
+      rho = parameter_mat[i, rho],
+      equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
+                       "T", "F"),
+      t(coverage)
+    ))
+  
+  prob_less_than_table <- rbind(
+    prob_less_than_table,
+    data.table(
+      beta_1 = parameter_mat[i, beta_1],
+      gamma_0 = parameter_mat[i, gamma_0],
+      gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
+      rho = parameter_mat[i, rho],
+      equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
+                       "T", "F"),
+      t(prob_less_than)
+    ))
+  error_less_than_table <- rbind(
+    error_less_than_table,
+    data.table(
+      beta_1 = parameter_mat[i, beta_1],
+      gamma_0 = parameter_mat[i, gamma_0],
+      gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
+      rho = parameter_mat[i, rho],
+      equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
+                       "T", "F"),
+      t(error_less_than)
+    ))
+  anova_less_than_table <- rbind(
+    anova_less_than_table,
+    data.table(
+      beta_1 = parameter_mat[i, beta_1],
+      gamma_0 = parameter_mat[i, gamma_0],
+      gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
+      rho = parameter_mat[i, rho],
+      equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
+                       "T", "F"),
+      t(anova_less_than)
+    ))
+  anovaGG_less_than_table <- rbind(
+    anovaGG_less_than_table,
+    data.table(
+      beta_1 = parameter_mat[i, beta_1],
+      gamma_0 = parameter_mat[i, gamma_0],
+      gamma_1 = parameter_mat[i, gamma_1],
+      gamma_2 = parameter_mat[i, gamma_2],
+      rho = parameter_mat[i, rho],
+      equal_n = ifelse(parameter_mat[i, equal_n] == TRUE,
+                       "T", "F"),
+      t(anovaGG_less_than)
+    ))
+  
+}
+
+coverage_table[, sim := .I]
+coverage_long <- melt(coverage_table,
+                      measure.vars = methods,
+                      variable.name = "method",
+                      value.name = "coverage")
+
+prob_less_than_table %>%
+  kable() %>%
+  kable_styling()
+```
+
+```{r plot type 1, message=FALSE, warning = FALSE}
+# p-value plot
+
+# prob_less_than_table
+# error_less_than_table
+# anova_less_than_table
+which_table <- error_less_than_table 
+
+which_table <- which_table[, sim := .I]
+which_table_long <- melt(which_table,
+                      measure.vars = methods,
+                      variable.name = "method",
+                      value.name = "prob")
+
+x_labels <- x_labeller(which_table_long[, 2:6])
+
+gg_type_1 <- ggplot(data = which_table_long[beta_1 == 0],
+                   aes(x = sim,
+                       y = prob,
+                       color = method)) +
+  geom_line() +
+  geom_hline(yintercept = 0.05,
+             linetype = "dashed",
+             color = "gray") +
+  # coord_cartesian(xlim = c(0,12),
+  #                 ylim = c(0, .2)) +
+  coord_cartesian(ylim = c(0.01, .08)) +
+  scale_x_continuous(breaks = c(1:length(x_labels)-1),
+                     labels = x_labels) +
+  ylab("Type I frequency") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+#  facet_grid(. ~ equal_n) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  NULL
+gg_type_1
+```
+```{r coverage plot, message=FALSE, warning = FALSE}
+# p-value plot
+x_labels <- x_labeller(coverage_table[, 1:5])
+
+gg_coverage <- ggplot(data = coverage_long,
+                   aes(x = sim,
+                       y = coverage,
+                       color = method)) +
+  geom_line() +
+  geom_hline(yintercept = 0.05,
+             linetype = "dashed",
+             color = "gray") +
+  coord_cartesian(ylim = c(0.9, 1)) +
+  scale_x_continuous(breaks = c(1:length(x_labels)-1),
+                     labels = x_labels) +
+  ylab("coverage frequency") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+gg_coverage
+
+```
+
+```{r}
+n = 100
+fake_all <- simulator_unequal(
+  seed_i = 1,
+  n_sim = 1,
+  n = 100,
+  n_id = 1000,
+  n_treat = 2,
+  beta = c(10,1),
+  sigma = c(1, 1), # one for each id
+  gamma = c(1, 0.0), # random intercept and slopes for non-ref
+  rho = c(0), # r between random intercept and slopes
+  equal_n = TRUE
+)
+fake_all[, res := residuals(lm(sim_1 ~ treatment))]
+
+# expected cor
+gamma[1]^2/(gamma[1]^2 + sigma[1]^2)
+
+plotdata <- data.table(
+  g1 = fake_all[treatment == "Cn", res],
+  g2 = fake_all[treatment == "Tr1", res])
+cor(plotdata)
+
+qplot(x = g1, y = g2, data = plotdata)
+```
+
+two levels
+
+```{r}
+n <- 5
+n_id <- 3
+n_treat <- 2
+gamma <- c(1, 0)
+sigma <- c(1,1)
+beta <- c(10, 1)
+u_0 <- rnorm(n_id, sd = gamma[1])
+fake_data <- data.table(NULL)
+fake_data[, treatment := rep(rep(c("cn", "tr1"), each = n), n_id)]
+fake_data[, id := rep(paste("id", 1:n_id), each = n*2)]
+X <- model.matrix(~ treatment, data = fake_data)
+Z <- model.matrix(~ 0 + id, data = fake_data)
+
+fake_data[, y := (X %*% beta)[,1] +
+            (Z %*% u_0)[,1] +
+            rnorm(n*n_treat*n_id)]
+fake_data[, res := residuals(lm(y ~ treatment))]
+
+# expected cor
+gamma[1]^2/(gamma[1]^2 + sigma[1]^2)
+
+plot_data <- data.table(
+  g1 = fake_data[treatment == "cn", res],
+  g2 = fake_data[treatment == "tr1", res])
+cor(plot_data)
+
+qplot(x = g1, y = g2, data = plot_data)
+```
+
+
+```{r explore 3 treatments}
+n = 100
+fake_all <- simulator_unequal(
+  seed_i = 1,
+  n_sim = 1,
+  n = 100,
+  n_id = 1000,
+  n_treat = 3,
+  beta = c(10,1,1),
+  sigma = c(1, 1, 1), # one for each id
+
+  # cor = 0.5, 0.5, 0.5
+  # gamma = c(1,0,0), # random intercept and slopes for non-ref
+  # rho = c(0, 0, 0), # r between random intercept and slopes
+
+  # cor = 0.5, 0.5, 0.35
+  # gamma = c(1,1,1), # random intercept and slopes for non-ref
+  # rho = c(0, 0, 0), # r between random intercept and slopes
+
+  # cor = 0.25, 0.25, 0.3
+  # gamma = c(0.5,1,1), # random intercept and slopes for non-ref
+  # rho = c(0, 0, 0), # r between random intercept and slopes
+
+  # cor = 0.73, 0.73, 0.67
+  # gamma = c(2, 1, 1), # random intercept and slopes for non-ref
+  # rho = c(0, 0, 0), # r between random intercept and slopes
+  
+  # cor = 0.73, 0.73, 0.67
+  gamma = c(2, 1, 1), # random intercept and slopes for non-ref
+  rho = c(0.5, 0.5, 0.5), # r between random intercept and slopes
+  
+  
+  equal_n = TRUE
+)
+fake_all[, res := residuals(lm(sim_1 ~ treatment))]
+
+# expected cor
+gamma[1]^2/(gamma[1]^2 + sigma[1]^2)
+
+plotdata <- data.table(
+  Cn = fake_all[treatment == "Cn", res],
+  Tr1 = fake_all[treatment == "Tr1", res],
+  Tr2 = fake_all[treatment == "Tr2", res])
+cov(plotdata)
+cor(plotdata)
+
+qplot(x = Cn, y = Tr1, data = plotdata)
+```
+

@@ -1,0 +1,392 @@
+---
+title: "lmm-explore"
+author: "Jeffrey A. Walker"
+date: "3/22/2021"
+output: html_document
+---
+
+## exp1b from issues
+
+```{r}
+g <- ranef(exp1b_m1)$id
+b <- coef(summary(exp1b_m1))[, "Estimate"]
+e <- residuals(exp1b_m1)
+b[1] + b[2] + g[1,1] + e[1]
+exp1b[1,]
+```
+
+### violations-exp2a
+
+```{r}
+m0 <- lm(diHOME ~ treatment,
+         data = exp2a,
+         na.action = "na.exclude")
+exp2a[, m0_e := residuals(m0)]
+exp2a_wide <- dcast(exp2a,
+                    id ~ treatment,
+                    value.var = "m0_e")
+GGally::ggpairs(exp2a_wide[, c(2:4)], progress = FALSE)
+
+```
+
+## from the web
+
+```{r}
+set.seed(8)
+d <- data.frame(
+    Y = rnorm(36),
+    subject = factor(rep(1:12, 3)),
+    A = factor(rep(1:3, each=12)))
+
+d <- d[-(1:2),]
+
+summary(aov(Y ~ A + Error(subject/A), data=d))  # Standard repeated measures ANOVA
+
+m2 <- aov_4(Y ~ A + (A | subject),
+            data = d)
+nice(m2, correction = "none")
+
+m1 <- lmer(Y ~ A + (1|subject), data=d)    
+anova(m1, ddf = "Kenward-Roger")
+
+
+
+```
+
+```{r}
+set.seed(8)
+d <- data.frame(
+    Y = rnorm(48),
+    subject = factor(rep(1:12, 4)),
+    A = factor(rep(1:2, each=24)),
+    B = factor(rep(rep(1:2, each=12), 2)))
+
+summary(aov(Y ~ A*B + Error(subject/(A*B)), data=d))  # Standard repeated measures ANOVA
+
+m1 <- lmer(Y ~ A*B + (1|subject) + (1|A:subject) + (1|B:subject), data=d)    
+anova(m1, ddf = "Kenward-Roger")
+
+m2 <- aov_4(Y ~ A*B + (A*B | subject),
+            data = d)
+nice(m2)
+
+m2 <- aov_4(Y ~ A*B + (A*B | subject),
+            data = d)
+nice(m2)
+
+```
+
+### exp5c from lmm chapter
+
+```{r}
+exp5c_m3 <- lme(glucose_uptake ~ treatment * activity,
+                random = ~ 1 | donor,
+                correlation = corCompSymm(form = ~ 1 | donor),
+           data = exp5c)
+exp5c_m4 <- lme(glucose_uptake ~ treatment * activity,
+                random = ~ 1 | donor,
+                correlation = corSymm(form = ~ 1 | donor),
+           data = exp5c)
+coef(summary(exp5c_m1))
+coef(summary(exp5c_m3))
+coef(summary(exp5c_m4))
+
+```
+
+```{r}
+emmeans(exp5c_m1, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_m4, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_m4, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           adjust = "holm")
+
+```
+
+
+```{r}
+exp5c_m5 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c)
+exp5c_m6 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c,
+                  include_aov = FALSE)
+
+nice(exp5c_m5, correction = "none")
+nice(exp5c_m6, correction = "none")
+
+# these 2 are the same
+emmeans(exp5c_m5, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_m5$aov, specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+# these 2 are the same
+emmeans(exp5c_m5,
+        specs = c("treatment", "activity"),
+        model = "multivariate") %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+emmeans(exp5c_m6,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+
+```
+
+```{r}
+emmeans(exp5c_m5,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           adjust = "holm")
+emmeans(exp5c_m6,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           adjust = "holm")
+
+```
+
+```{r nested}
+exp5c_m7 <- lmer(glucose_uptake ~ treatment * activity +
+                   (1 | donor) + 
+                   (1 | donor:treatment) + 
+                   (1 | donor:activity),
+                 data = exp5c)
+
+summary(exp5c_m7)
+
+anova(exp5c_m7, ddf = "Kenward-Roger")
+
+emmeans(exp5c_m7,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           adjust = "holm")
+
+```
+
+```{r}
+exp5c_wide <- dcast(exp5c,
+                    donor ~ activity + treatment,
+                    value.var = "glucose_uptake")
+write.table(exp5c_wide, "exp5c_wide.txt", quote = FALSE, row.names = FALSE, sep = ",")
+```
+
+## how to construct a Z matrix 
+
+https://stats.stackexchange.com/questions/488188/what-are-the-steps-to-simulate-data-for-a-linear-model-with-random-slopes-and-ra
+
+```{r}
+set.seed(15)
+n.group <- 3  #number of groups
+
+# JAW: a is a continuous X variable, G is the id grouping variable
+dt <- expand.grid(G = LETTERS[1:n.group], a = 1:4)
+
+X <- model.matrix(~ a, dt)   # model matrix for fixed effects
+betas <- c(3.1, 1.8)   # fixed effects coefficient vector
+Z1 <- model.matrix(~ 0 + G, dt)   # model matrix for random intercepts
+Z2 <-  model.matrix(~ 0 + G, dt) * dt$a   # model matrix for random slopes
+
+s1 <- 2.1 #  SD of random intercepts
+s2 <- 1.8 #  SD of random slopes
+rho <- 0.5  # correlation between intercepts and slopes
+cormat <-  matrix(c(s1, rho, rho, s2), 2, 2)  # correlation matrix 
+covmat <- lme4::sdcor2cov(cormat)    # covariance matrix (needed for mvrnorm)
+umat <- MASS::mvrnorm(n.group, c(0, 0), covmat, empirical = TRUE)  # simulate the random effects
+u1 <- umat[, 1]
+u2 <- umat[, 2]
+e <- rnorm(nrow(dt), 0, 2)   # residual error
+dt$Y_manual <- X %*% betas + Z1 %*% u1 + Z2 %*% u2 + e
+
+lForm <- lFormula(Y_manual ~ a + (a|G), dt)    # lme4's function to process a model formula
+Z <- t(as.matrix(lForm$reTrms$Zt))   # extract the Z matrix
+u <- c(rbind(umat[, 1], umat[, 2]))  # lme4 needs the random effects in this order: interleaved)
+dt$Y <- X %*% betas + Z %*% u + e
+#dt
+
+m0 <- lmer(Y ~ a + (a|G), dt) 
+summary(m0)
+
+```
+
+
+### the paper
+
+```{r}
+set.seed(8675309)
+# set fixed effect parameters
+beta_0 <- 800 # intercept; i.e., the grand mean
+beta_1 <- 50 # slope; i.e, effect of category
+
+# set random effect parameters
+tau_0 <- 100 # by-subject random intercept sd
+tau_0 <- 200 # JAW by-subject random intercept sd
+omega_0 <- 0 # by-item random intercept sd
+
+# set more random effect and error parameters
+tau_1 <- 40 # by-subject random slope sd
+tau_1 <- 200 # JAW by-subject random slope sd
+rho <- .2 # correlation between intercept and slope
+rho <- .6 #JAW correlation between intercept and slope
+sigma <- 200 # residual (error) sd
+
+# set number of subjects and items
+n_subj <- 100 # number of subjects 
+n_ingroup <- 25 # number of ingroup stimuli
+n_outgroup <- 25 # number of outgroup stimuli
+
+# simulate a sample of items
+# total number of items = n_ingroup +
+n_outgroup
+items <- data.frame(
+  item_id = seq_len(n_ingroup + n_outgroup),
+  category = rep(c("ingroup", "outgroup"),
+                 c(n_ingroup, n_outgroup)),
+  O_0i = rnorm(n = n_ingroup + n_outgroup, mean = 0, sd = omega_0))
+
+# effect-code category
+items$X_i <- dplyr::recode(items$category, "ingroup" = -0.5, "outgroup" = +0.5)
+
+# simulate a sample of subjects
+# calculate random intercept / random slope covariance
+covar <- rho * tau_0 * tau_1
+# put values into variance-covariance matrix
+cov_mx <- matrix(c(tau_0^2, covar, covar, tau_1^2), nrow = 2, byrow = TRUE)
+# generate the by-subject random effects
+subject_rfx <- MASS::mvrnorm (n = n_subj,
+                              mu = c(T_0s = 0, T_1s = 0),
+                              Sigma = cov_mx)
+# combine with subject IDs
+subjects <- data.frame(subj_id = seq_len(n_subj), subject_rfx)
+
+# simulate a sample of subjects
+
+# sample from a multivariate random distribution
+subjects <- faux::rnorm_multi(n = n_subj,
+                              mu = 0, # means for random effects are always 0
+                              sd = c(tau_0, tau_1), # set SDs
+                              r = rho, # set correlation, see ?faux::rnorm_multi
+                              varnames = c("T_0s", "T_1s"))
+# add subject IDs
+subjects$subj_id <- seq_len(n_subj)
+
+# cross subject and item IDs; add an error term
+# nrow(.) is the number of rows in the table
+trials <- crossing(subjects, items) %>%
+  mutate(e_si = rnorm(nrow(.), mean = 0, sd = sigma)) %>%
+  select(subj_id, item_id, category, X_i, everything())
+
+# calculate the response variable
+dat_sim <- trials %>%
+  mutate(RT = beta_0 + T_0s + O_0i + (beta_1 + T_1s) * X_i + e_si) %>%
+  select(subj_id, item_id, category,
+         X_i, RT, T_0s, O_0i, T_1s)
+
+dat_dt <- data.table(dat_sim)
+dat_dt[, y_rand := T_0s + O_0i + (T_1s) * X_i]
+dat_dt[, .(sd = sd(RT),
+           rand = sd(y_rand)), by=category]
+```
+
+# lmm-rmanova equivalencies
+
+```{r}
+seed_i <- seed_i + 1
+set.seed(seed_i)
+n <- 20
+n_id <- 20
+
+fake_data <- data.table(
+  treatment = rep(rep(rep(c("CN", "TR"), each = n), 2), n_id),
+  genotype = rep(rep(c("aWT", "bKO"), each = n*2), n_id),
+  id = rep(paste0("id_", 1:n_id), each = n*4),
+  y = rnorm(n*n_id*4)
+)
+
+m1 <- lmer(y ~ treatment*genotype +
+             (1 | id) +
+             (1 | id:treatment) +
+             (1 | id:genotype) +
+             (1 | id:treatment:genotype),
+           data = fake_data)
+m2 <- lmer(y ~ treatment*genotype +
+             (1 | id) +
+             (1 | id:treatment) +
+             (1 | id:genotype),
+           data = fake_data)
+m3 <- aov_4(y ~ treatment*genotype + 
+              (treatment*genotype | id),
+            data = fake_data)
+anova(m2)
+anova(m3, correction = "none")
+anova(m3, correction = "GG")
+
+```
+
+# effect of normalization on correlated error
+
+```{r}
+n_id <- 100
+n_sim <- 1000
+prob1 <- numeric(n_sim)
+prob2 <- numeric(n_sim)
+for(sim_i in 1:n_sim){
+  fake_data <- data.table(
+    treatment = rep(rep(c("cn", "tr1", "tr2", "tr3"),
+                        each = 6), n_id),
+    exp_id = rep(paste0("exp", 1:n_id), each = 6*4),
+    y = rnorm(6*4*n_id)
+  )
+  
+  fake_means <- fake_data[treatment == "cn", .(y_mean = mean(y)),
+                          .(treatment, exp_id)]
+  fake_data <- merge(fake_data,
+                     fake_means[, .SD, .SDcols = c("y_mean", "exp_id")],
+                     by = c("exp_id"))
+  fake_data[, ynorm := y/y_mean]
+  
+  fake_norms <- fake_data[, .(ynorm = mean(ynorm)),
+                          .(treatment, exp_id)]
+  
+  fit <- lm(ynorm ~ treatment, data = fake_data)
+  prob1[sim_i] <- coef(summary(fit))[2, "Pr(>|t|)"]
+
+  fit <- lm(ynorm ~ treatment, data = fake_norms)
+  prob2[sim_i] <- coef(summary(fit))[2, "Pr(>|t|)"]
+}
+
+
+fake_norms_wide <- dcast(fake_norms,
+                        exp_id ~ treatment,
+                        value.var = "ynorm")
+ycols <- c("tr1", "tr2", "tr3")
+cor(fake_norms_wide[, .SD, .SDcols = ycols])
+
+mean(prob1 < 0.05)
+mean(prob2 < 0.05)
+
+```
+
