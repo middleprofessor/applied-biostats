@@ -1,0 +1,5 @@
+Pericyte FAK negatively regulates Gas6/Axl signalling to suppress tumour angiogenesis and tumour growth
+
+3A Excellent (pretty good n) 2 x 2 count data with right skew and close to zero mean. 
+
+3E blood vessels per mm^2. could use offset if all data is available.

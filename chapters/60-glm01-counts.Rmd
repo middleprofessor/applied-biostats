@@ -1,583 +1,984 @@
 # Linear models for count data -- Generalized Linear Models I {#counts}
 
 ```{r glm1-setup, echo=FALSE, message=FALSE}
-library(ggplot2)
-library(ggpubr)
-library(cowplot)
+library(here)
+library(janitor)
 library(readxl)
-library(emmeans)
 library(data.table)
 
+# analysis packages
+library(emmeans)
+library(lmerTest)
+library(glmmTMB)
 library(MASS) # negative binomial
-#library(vcd)
 library(DHARMa) # diagnostic plots
-#library(COUNT) # dispersion stats
 
-bookdown_compile <- TRUE
+# graphing and tabling packages
+library(ggplot2) # ggplot environment
+library(ggpubr) # publication ready plots
+library(cowplot) # combine plots
+library(knitr)
+library(kableExtra) #tables
+library(equatiomatic)
 
-if(bookdown_compile==TRUE){
-  data_path <- "data" # bookdown
-  source("R/clean_label.R") # bookdown
-}else{
-  data_path <- "../data" # notebook
-  source("../R/clean_label.R")
-}
+ggplot_the_model_path <- here::here("R/ggplot_the_model.R")
+source(ggplot_the_model_path)
 
+here <- here::here
+clean_names <- janitor::clean_names
+data_folder <- "data"
+minus <- "\u2013"
 
-
-```
-
-Biologists frequently count stuff, and design experiments to estimate the effects of different factors on these counts. For example, the effects of environmental mercury on clutch size in a bird, the effects of warming on parasite load in a fish, or the effect of exercise on RNA expression.
-
-Count data differ from data with normal error in many ways, including 1) counts are discrete, and can be zero or positive integers only, 2) counts tend to bunch up on the small side of the range, creating a distribution with a positive skew, 3) a sample of counts can have an abundance of zeros, and 4) the variance of counts increases with the mean (see Figure \@ref(fig:glm1-plot1) for some of these properties). Some count data can be approximated by a normal distribution and reasonably modeled with a linear model but more often, count data are modeled with **Poisson distribution** or **negative binomial distribution** using a **generalized linear model** (GLM). Poisson and negative binomial distributions are **discrete probability distributions** with two important properties: 1) the distribution contains only zero and positive integers and 2) the variance is a function of the mean. Back before modern computing and fast processors, count data were often analyzed by either **transforming** the response or by **non-parametric hypothesis tests**. One reason to prefer a statistical modeling approach with a GLM is that we can get interpretable parameter estimates. By contrast, both the analysis of transformed data and non-parametric hypothesis tests are really tools for computing "correct" $p$-values.
-
-```{r glm1-plot1, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Histogram of the count of a trematode parasite larvae in Control vs. Infected fish. Fish in the Infected treatment are infected with a tapeworm."}
-
-folder <- "Data from Experimental parasite community ecology- intraspecific variation in a large tapeworm affects community assembly"
-file <- "Lab_exp.csv"
-file_path <- paste(data_path, folder, file, sep="/")
-worm <- fread(file_path)
-worm[, Treatment:=factor(Treatment, c("Control", "Uninfected", "Infected LG", "Infected HG"))]
-
-gghistogram(data=worm[Treatment %in% c("Control", "Infected HG")], x = "Diplo_intensity",
-   color="Treatment", fill="Treatment",
-   add = "mean", rug = FALSE,
-   palette = c("#00AFBB", "#E7B800"))
+here <- here::here
+data_path <- "data"
 
 ```
 
-## The generalized linear model
+```{r glm-fig-sizes, echo=FALSE}
+dpi <- 72
+# width of bookdown page is 800 pix
+# width of standard bookdown fig is 560 pix or 70% of page
+std_width <- 504/dpi # 7 in
+full_width <- 800/dpi
+small_scale = 6/7
+small_width <- std_width*small_scale # 6 in
 
-As outlined in section [Assumptions for inference with statistical models] in Chapter 1, a common way that biological researchers think about a response variable is
+# standard aspect ratio is .7 so
+std_ar <- 5/7 # .71
+response_ar <- .8 # for use with response plots with p-values
+effect_ar <- 0.6 # for effects
+harrell_ar <- 1 # for harrell effect & response plots
 
+# dims (width, height)
+small_dim <- c(small_width, small_width*std_ar)
+std_dim <- c(std_width, std_width*std_ar)
+response_dim <- c(std_width, std_width*response_ar)
+effect_dim <- c(std_width, std_width*effect_ar)
+harrell_dim <- c(std_width, std_width*harrell_ar)
+
+# out.width percents
+out.width_std <- paste0(std_width/full_width*100, "%")
+out.width_small <- paste0(small_width/full_width*100, "%")
+
+```
+
+Biologists frequently count stuff, and design experiments to estimate the effects of different factors on these counts. Count data can cause numerous problems with linear models that assume a normal, conditional distribution, including 1) counts are discrete, and can be zero or positive integers only, 2) counts tend to bunch up on the small side of the range, creating a distribution with a positive skew, 3) a sample of counts can have an abundance of zeros, and 4) the variance of counts increases with the mean (see Figure \@ref(fig:glm1-plot1) for some of these properties). Some count data can be approximated by and reasonably modeled with a normal distribution. More often, count data should modeled with a [Poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution){target="_blank"} or [negative binomial distribution](https://en.wikipedia.org/wiki/Negative_binomial_distribution){target="_blank"} using a [generalized linear model](https://en.wikipedia.org/wiki/Generalized_linear_model (GLM)){target="_blank"}. Poisson and negative binomial distributions are **discrete probability distributions** with two important properties: 1) the distribution contains only zero and positive integers and 2) the variance is a function of the mean. Back before modern computing and fast processors, count data were often analyzed by either **transforming** the response or by **non-parametric hypothesis tests**. One reason to prefer a statistical modeling approach with a GLM is that we can get interpretable parameter estimates. By contrast, both the analysis of transformed data and non-parametric hypothesis tests are really tools for computing "correct" *p*-values.
+
+```{r glm-exp3a-import, echo=FALSE}
+data_from <- "Pericyte FAK negatively regulates Gas6-Axl signalling to suppress tumour angiogenesis and tumour growth"
+file_name <- "41467_2020_16618_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp3a_wide <- read_excel(file_path,
+                         sheet = "Figure 3",
+                         range = "B4:E26",
+                         col_names = FALSE) %>%
+  data.table()
+
+input_labels <- c("PBS FAK_wt", "PBS FAK_ko", "GAS6 FAK_wt", "GAS6 FAK_ko")
+colnames(exp3a_wide) <- input_labels
+
+exp3a <- melt(exp3a_wide,
+              measure.vars = input_labels,
+              variable.name = "t_by_g",
+              value.name = "sprouts") %>%
+  na.omit()
+
+# change order of factor levels
+t_by_g_levels <- c("PBS FAK_wt", "GAS6 FAK_wt", "PBS FAK_ko", "GAS6 FAK_ko")
+
+exp3a[, c("treatment", "genotype"):= tstrsplit(t_by_g,
+                                             " ",
+                                             fixed = TRUE)]
+
+exp3a[, t_by_g := factor(t_by_g, levels = t_by_g_levels)]
+treatment_levels <- c("PBS", "GAS6")
+exp3a[, treatment := factor(treatment, levels = treatment_levels)]
+genotype_levels <- c("FAK_wt", "FAK_ko")
+exp3a[, genotype := factor(genotype, levels = genotype_levels)]
+
+```
+
+```{r glm1-plot1, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Histogram of the number of angiogenic sprouts in response to two of the four treatment combinations for the experiment in Example 1."}
+
+gghistogram(data = exp3a[genotype == "FAK_wt"],
+            x = "sprouts",
+            color="t_by_g",
+            fill="t_by_g",
+            add = "mean",
+            rug = FALSE,
+            #palette = c("#00AFBB", "#E7B800")
+            palette = pal_okabe_ito_2
+)
+
+```
+
+## The Generalized Linear Model (GLM)
+
+As outlined in [Two specifications of a linear model](#lm-specifications), a common way that biological researchers are taught to think about a response variable is
+
+$$
+response = expected + error
+$$
+
+or, using the notation of this text,
+
+$$
 \begin{align}
-y_i &= \beta_0 + \beta_1 x_i + \varepsilon_i \\
-\varepsilon &\sim N(0, \sigma)
+y &= \beta_0 + \beta_1 \texttt{treatment} + \varepsilon \\
+\varepsilon &\sim \operatorname{Normal}(0, \sigma^2)
 (\#eq:spec1)
 \end{align}
+$$
 
-That is, we can think of a response as the sum of some systematic part and "random errror", which is a random draw from a normal distribution with mean zero and variance $\sigma^2$. This way of thinking about the generation of the response is useful for linear models, and model checking linear models, but is not useful for generalized linear models or model checking generalized liner models. For example, if we want to model the number of parasites that have infected a fish using a Poisson distribution, the following is the **wrong** way to think about the statistical model
+That is, we can think of a response as the sum of some systematic part ($\beta_0 + \beta_1 \texttt{treatment}$) and a stochastic ("random error") part ($\varepsilon$), where the stochastic part is a random draw from a normal distribution with mean zero and variance $\sigma^2$. This way of thinking about the generation of the response is useful for linear models, and model checking linear models, but is much less useful for thinking about generalized linear models or model checking generalized liner models. For example, if we want to model the number of angiogenic sprouts in response to some combination of GAS6 and treatment using a Poisson distribution, the following is the **wrong** way to think about the statistical model
 
+$$
 \begin{align}
-y_i &= \beta_0 + \beta_1 x_i + \varepsilon_i\\
-\varepsilon &\sim Poisson(\lambda)
+\texttt{sprouts} = &\ \beta_0 + \beta_1 
+\texttt{treatment}_{\texttt{GAS6}} + \beta_2 
+\texttt{genotype}_{\texttt{FAK_ko}} + \\
+&\ \beta_3 \texttt{treatment}_{\texttt{GAS6}}:\texttt{genotype}_{\texttt{FAK_ko}} + \varepsilon_i\\
+\varepsilon \sim &\ \operatorname{Poisson}(\lambda)
 (\#eq:spec1-poisson)
 \end{align}
-
-That is, we should not think of a count as the sum of a systematic part and a random draw from a Poisson distribution. Why? Because it is the counts (or the counts conditional on $X$) that are poisson distributed, not the residuals from the fit model.
+$$
+That is, we should not think of a count as the sum of a systematic part and a random draw from a Poisson distribution. Why? Because it is the counts, conditional on the $\treattt{treatment$ and $\treattt{genotype$, that are poisson distributed, not the residuals from the fit model.
 
 Thinking about the distribution of count data using model \@ref(eq:spec1-poisson) leads to absurd consequences. For example, if we set the mean of the Poisson "error" to zero (like with a normal distribution), then the error term for every observation would *have to* be zero (because the only way to get a mean of zero with non-negative integers is if every value is zero). Or, if the study is modeling the effect of a treatment on the counts (that is, the $X$ are dummy variables) then $\beta_0$ is the expected mean count of the control (or reference) group. But if we add non-zero Poisson error to this, then the mean of the control group would be larger than $\beta_0$. This doesn't make sense. And finally, equation \@ref(eq:spec1-poisson) generates a continuous response, instead of an integer, because $\beta_0$ and $\beta_1$ are continuous.
 
-A better way to think about the data generation for a linear model, because this naturally leads to the *correct* way to think about data generation for a generalized linear model, is
+A better way to think about the data generation for a linear model that naturally leads to the *correct* way to think about data generation for a generalized linear model, is
 
+$$
 \begin{align}
-y_i &\sim N(\mu_i, \sigma)\\
-\mathrm{E}(Y|X) &= \mu\\
-\mu_i &= \beta_0 + \beta_1 x_i
+y_i &\sim N(\mu_i, \sigma^2)\\
+\mathrm{E}(y_i| \texttt{treatment}) &= \mu_i\\
+\mu_i &= \beta_0 + \beta_1 \texttt{treatment}_i
 (\#eq:lm-spec2)
 \end{align}
+$$
 
 That is, a response is a random draw from a normal distribution with mean $mu$ (not zero!) and variance $\sigma^2$. Line 1 is the stochastic part of this specification. Line 3 is the systematic part.
 
 The specification of a generalized linear model has both stochastic and systematic parts but adds a third part, which is a **link function** connecting the stochastic and systematic parts.
 
 1. **The stochastic part**, which is a probability distribution from the exponential family (this is sometimes called the "random part")
+$$
 \begin{equation}
-y_i \sim \mathrm{Prob}(\mu_i)
+y_i \sim \operatorname{Prob}(\mu_i)
 \end{equation}
+$$
 2. **the systematic part**, which is a linear predictor (I like to think about this as the deterministic part)
+$$
 \begin{equation}
-\eta=\mathbf{X}\boldsymbol{\beta}
+\eta = \beta_0 + \beta_1 \texttt{treatment}_i
 \end{equation}
+$$
 3. a **link function** connecting the two parts
+$$
 \begin{equation}
 \eta_i = g(\mu_i)
 \end{equation}
+$$
 
-$\mu$ (the Greek symbol mu) is the conditional mean (or expectation $\mathrm{E}(Y|X)$) of the response on the **response scale** and $\eta$ (the Greek symbol eta) is the conditional mean of the response on the **link scale**. A GLM models the response with a distribution specified in the stochastic part. The probability distributions introduced in this chapter are the Poisson and Negative Binomial. The natural link function for the Poisson and Negative Binomial is the "log link", $\eta = log(\mu)$. More generally, while each distribution has a natural (or, "canonical") link function, one can use alternatives. Given this definition of a generalized linear model, a linear model is a GLM with a normal distribution and an Identity link ($\eta = \mu$).
+$\mu$ (the Greek symbol mu) is the conditional mean (or expectation $\mathrm{E}(Y|X)$) of the response on the **response scale** and $\eta$ (the Greek symbol eta) is the conditional mean of the response on the **link scale**. The response scale is the scale of the raw measurements and has units of the raw measurements. The link scale is the scale of the transformed mean. A GLM models the response with a distribution specified in the stochastic part. The probability distributions introduced in this chapter are the Poisson and Negative Binomial. The natural link function, and default link function in R, for the Poisson and Negative Binomial is the "log link", $\eta = log(\mu)$. More generally, while each distribution has a natural (or, "canonical") link function, one can use alternatives. Given this definition of a generalized linear model, a linear model is a GLM with a normal distribution and an **Identity** link ($\eta = \mu$).
 
-When modeling counts using the Poisson or negative binomial distributions with a log link, the link scale is linear, and so the effects are additive on the link scale, while the response scale is nonlinear (it is the exponent of the link scale), and so the effects are multiplicative on the response scale. If this doesn't make sense now, an example is worked out below. The inverse of the link function backtransforms the parameters from the link scale back to the response scale. So, for example, a prediction on the response sale is $\mathrm{exp}(\hat{\eta})$ and a coefficient on the response scale is $\mathrm{exp}(b_j)$.
+$$
+\begin{align}
+y_i &\sim \operatorname{Normal}(\mu_i, \sigma^2)\\
+\mathrm{E}(y_i| \texttt{treatment}) &= \mu_i\\
+\eta &= \beta_0 + \beta_1 \texttt{treatment}\\
+\mu_i &= \eta_i
+\end{align}
+$$
 
-## Count data example -- number of trematode worm larvae in eyes of threespine stickleback fish
+Think about the link function and GLM more generally like this: the GLM constructs a linear model that predicts the conditional means *on the link scale*. If the model uses a "log link" ($\eta_i = \mathrm{log}(\mu_i)$), then $\eta_i$ -- the conditional mean on the link scale -- is the *log of the modeled mean on the response scale*. The modeled mean on the response scale is the inverse link function.
 
-The example is an experiment measuring the effect of the parasitic tapeworm *Schistocephalus solidus* infection on the susceptibility of infection from a second parasite, the trematode *Diplostomum pseudospathaceum*, in the threespine stickleback fish *Gasterosteus aculeatus*^[Benesh, D. P., & Kalbe, M. (2016). Experimental parasite community ecology: intraspecific variation in a large tapeworm affects community assembly. Journal of Animal Ecology, 85(4), 1004-1013]. The treatment levels are "Control" (unexposed to the tapeworm), "Uninfected" " (exposed to the tapeworm but uninfected), "Infected LG" (exposed and infected with the low growth population of the tapeworm), and "Infected HG" (exposed and infected with the high growth population of tapeworm). The response is the number of trematode larvae counted in the eyes (right and left combined) of the fish. A histogram of the counts is shown in Figure \@ref(fig:glm1-plot1) for the control and Infected HG treatment levels.
+$$
+\begin{equation}
+\mu_i = g^{-1}(\eta_i)
+\end{equation}
+$$
 
+For a log link, a modeled mean is $\mathrm{exp}(\eta_i)$)$.
+
+Importantly, in a GLM, the individual data values *are not transformed*. A GLM with a log link is not the same as a linear model on log transformed data. 
+
+When modeling counts using the Poisson or negative binomial distributions with a log link, the link scale is linear, and so the effects are additive on the link scale, while the response scale is nonlinear (it is the exponent of the link scale), and so the *effects are multiplicative on the response scale*. If this doesn't make sense now, an example is worked out below. The inverse of the link function backtransforms the parameters from the link scale back to the response scale. So, for example, a prediction on the response sale is $\mathrm{exp}(\hat{\eta})$ and a coefficient on the response scale is $\mathrm{exp}(b_j)$.
+
+## Kinds of experimental biology data that are modeled by a GLM
+
+1. If a response is a count then use a Poisson, quasi-Poisson or negative binomial family with a log link. 
+2. If a response is binary response, for example, presence/absence or success/failure or survive/die, then use the binomial family with a logistic link (other link functions are also useful). This is classically known as **logistic regression**.
+3. If a response is a fraction that is a ratio of counts, for example the fraction of total cells that express some marker, then use the binomial family with a logistic link. Think of each count as a "success".
+4. If a response is a fraction of counts per "effort" (cells per area or volume or time), then use a Poisson, quasi-Poisson or negative binomial family with a log link on the raw count and include the measure of effort as an offset.
+5. If a response is continuous but the variance increases with mean then use the gamma family
+6. If a response is a fraction of a continuous measure per "effort" (tumor area per total area or volume or time), then use a gamma family on the raw measure and include the measure of effort as an offset.
+
+## Example 1 -- A generalized linear model explainer ("angiogenic sprouts" exp3a) {#glm-1}
+### Understand the data
+
+Article source [Lechertier, Tanguy, et al. "Pericyte FAK negatively regulates Gas6/Axl signalling to suppress tumour angiogenesis and tumour growth." Nature communications 11.1 (2020): 1-14.](https://www.nature.com/articles/s41467-020-16618-6){target="_blank"}
+
+[data source](https://www.nature.com/articles/s41467-020-16618-6#Sec34){target="_blank"}
+
+The researchers designed a set of experiments to investigate the effects of pericyte derived FAK (focal adhesion kinase, a [protein tyrosine kinase](https://en.wikipedia.org/wiki/Tyrosine_kinase){target="_blank"}) on the Gas6/Axl pathway regulating angiogenesis promoting tumor growth. Pericytes are cells immediately deep to the endothelium (the epithelial lining) of the smallest blood vessels, including capillaries, arterioles, and venules. Angiogenesis is the growth of new blood vessels. GAS6 (growth arrest specific 6) is a protein commonly expressed in tumors. 
+
+The example data is from the experiment for Figure 3a. The design is $2 \times 2$ -- two factors ($\texttt{treatment}$ and $\texttt{genotype}$) each with two levels.
+
+1. Factor 1: $\texttt{treatment}$
+* reference level: "PBS". Phosphate buffered saline added to tissue. This is the control treatment.
+* treatment level: "GAS6". Added to tissue in solution. The experiment is designed to test its effect on promoting angiogenesis in the development of tumors.
+2. Factor 2: $\texttt{genotype}$
+* reference level: "FAK_wt". The functional genotype.
+* treatment level: "FAK_ko". Tissue-specific FAK deletion in pericytes. The experiment is designed to test the effect of pericyte-derived FAK on slowing angiogenesis in the development of tumors. If true, then its deletion should result in increased tumor development.
+
+The four treatment by genotype combinations are
+
+1. Control ("PBS FAK_wt") -- negative control
+2. FAK_ko  ("PBS FAK_ko") -- PBS control. Unknown response given deletion of putative angiogenesis inhibitor but no added putative angiogenesis promotor
+3. GAS6 ("GAS6 FAK_wt") -- GAS6 control. GAS6 expected to promote angiogenesis but this the response is expected to be inhibited by some amount by FAK
+4. GAS6+FAK_ko ("GAS6 FAK_ko") -- focal treatment. Expected positive angiogenesis
+
+The planned contrasts are
+
+1. (PBS FAK_ko) - (PBS FAK_wt) -- the effect of FAK deletion given the control treatment
+2. (GAS6 FAK_ko) - (GAS6 FAK_wt) -- the effect of FAK deletion given the GAS6 treatment
+3. ((PBS FAK_ko) - (PBS FAK_wt)) - ((GAS6 FAK_ko) - (GAS6 FAK_wt)). The interaction effect giving the effect of the combined treatment relative to the individual effects.
+
+### Model fit and inference
+#### Fit the model
+
+```{r glm-exp3a_models}
+exp3a_m1 <- lm(sprouts ~ treatment * genotype, data = exp3a)
+exp3a_m2 <- glm(sprouts ~ treatment * genotype,
+                family = "poisson",
+                data = exp3a)
+exp3a_m3 <- glm.nb(sprouts ~ treatment * genotype,
+                data = exp3a)
+```
+
+#### Check the linear model
+
+```{r glm-exp3a_m1-check-lm, message=FALSE}
+ggcheck_the_model(exp3a_m1)
+```
+Notes
+
+1. left panel shows classic right skew conditional distribution with larger values much larger than expected with a normal distribution.
+2. right panel shows heterogeneity and specifically the variance increasing with the mean.
+
+#### Check the poisson model
+
+**Check shape and homogeneity**
+
+```{r glm-exp3a_m2-check-poisson}
+# from the DHARMa package
+  exp3a_m2_simulation <- simulateResiduals(fittedModel = exp3a_m2, n = 250)
+  plot(exp3a_m2_simulation, asFactor = FALSE)
+```
+
+Notes
+
+1. poisson glm fails to generated scaled residuals approximating uniform distribution.
+
+**Check dispersion**
+
+```{r glm-exp3a_m2-check-dispersion}
+exp3a_m2_simulation_refit <- simulateResiduals(fittedModel = exp3a_m2,
+                                       n = 250,
+                                       refit = TRUE)
+exp3a_m2_test_dispersion <- testDispersion(exp3a_m2_simulation_refit)
+
+```
+
+Notes
+
+1. large overdispersion
+
+**Check zero inflation**
+
+```{r glm-exp3a_m2-check-zero}
+exp3a_m2_test_zi <- testZeroInflation(exp3a_m2_simulation_refit)
+```
+
+Notes
+
+1. The data has too many zeros relative to the expected number from a poisson GLM.
+
+#### Check the negative binomial model
+
+**Check shape and homogeneity**
+
+```{r glm-exp3a_m3-check-nb}
+# from the DHARMa package
+  exp3a_m3_simulation <- simulateResiduals(fittedModel = exp3a_m3,
+                                        n = 250)
+  plot(exp3a_m3_simulation, asFactor = FALSE)
+
+```
+
+Notes
+
+1. uniform q-q for negative binomial GLM looks good.
+2. spread-location plot looks good.
+
+**Check dispersion**
+
+```{r glm-exp3a_m3_test_dispersion}
+exp3a_m3_simulation_refit <- simulateResiduals(fittedModel = exp3a_m3,
+                                               n = 250,
+                                               refit = TRUE)
+exp3a_m3_test_dispersion <- testDispersion(exp3a_m3_simulation_refit)
+
+```
+
+Notes
+
+1. good
+
+**Check zero inflation**
+
+```{r glm-exp3a_m3_test_zi}
+exp3a_m3_test_zi <- testZeroInflation(exp3a_m3_simulation_refit)
+```
+
+#### Inference from the model {#glm-exp3a-m3-inference}
+
+```{r glm-exp3a_m3-coef, message=FALSE}
+exp3a_m3_coef <- cbind(coef(summary(exp3a_m3)),
+                       confint(exp3a_m3))
+
+```
+
+```{r glm-exp3a_m3-coef-show, echo=FALSE}
+exp3a_m3_coef %>%
+  kable(digits = c(2,3,1,3,2,2)) %>%
+  kable_styling()
+
+```
+
+```{r glm-exp3a_m3_emm}
+exp3a_m3_emm <- emmeans(exp3a_m3,
+                        specs = c("treatment", "genotype"),
+                        type="response")
+```
+
+
+```{r glm-exp3a_m3_emm-show, echo=FALSE}
+exp3a_m3_emm %>%
+  kable(digits = c(1,1,2,1,1,2,2)) %>%
+  kable_styling()
+```
+
+```{r glm-exp3a_m3_planned}
+# exp3a_m3_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+pbs_fak_wt <- c(1,0,0,0)
+gas6_fak_wt <- c(0,1,0,0)
+pbs_fak_ko <- c(0,0,1,0)
+gas6_fak_ko <- c(0,0,0,1)
+
+#1. (PBS FAK_ko) - (PBS FAK_wt)
+#2. (GAS6 FAK_ko) - (GAS6 FAK_wt) 
+#3. ((PBS FAK_ko) - (PBS FAK_wt)) - (GAS6 FAK_ko) - (GAS6 FAK_wt). 
+exp3a_m3_planned <- contrast(
+  exp3a_m3_emm,
+  method = list(
+    "(PBS FAK_ko) - (PBS FAK_wt)" = c(pbs_fak_ko - pbs_fak_wt),
+    "(GAS6 FAK_ko) - (GAS6 FAK_wt)" = c(gas6_fak_ko - gas6_fak_wt),
+    "Interaction" = c(gas6_fak_ko - gas6_fak_wt) -
+      c(pbs_fak_ko - pbs_fak_wt)
+  ),
+  adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r glm-exp3a_m3_planned-show, echo=FALSE}
+exp3a_m3_planned %>%
+  kable(digits = c(1,2,3,3,2,2,2,5)) %>%
+  kable_styling()
+```
+
+Notes
+
+#### Plot the model {#lmm-exp5c-plotthemodel}
+
+```{r echo=FALSE}
+ggplot_the_model(exp3a_m3,
+                 exp3a_m3_emm,
+                 exp3a_m3_planned,
+                 y_label = "Sprouts",
+                 effect_label = "Effect Ratio",
+                 palette = pal_okabe_ito_blue)
+
+```
+
+#### Alternaplot the model
+
+```{r echo=FALSE, fig.dim=response_dim*small_scale, fig.cap = ""}
+
+ggplot_the_response(exp3a_m3,
+                 exp3a_m3_emm,
+                 exp3a_m3_planned[1:2,],
+                 contrast_rows = c(1:2),
+                 palette = pal_okabe_ito_blue)
+
+# exp6g_response_2 <- exp6g_response + stat_pvalue_manual(exp6g_m1_planned_dt,
+#                      label = "pretty_p",
+#                      y.position = c(99,97,95),
+#                      size = 2.5,
+#                      tip.length = 0.01)
+
+
+```
+
+## Understanding Example 1
 ### Modeling strategy
 
-<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-**NHST blues** -- Students are often encouraged by textbooks, colleagues, or the literature to start the analysis by first "testing" assumptions with hypothesis tests -- for example using a Shaprio-Wilks test of normality as a decision rule to decide if to use a parametric test such as a $t$-test or ANOVA if the null hypothesis of normality is not rejected, or a non-parametric test such as a Mann-Whitney U test if the null hypothesis of normality is rejected. I advise against this, because 1) this pre-test filtering automatically invalidates the $p$-value of the hypothesis test as it does not adjust for the filtering procedure, 2) real data are only approximately normal and as $n$ increses, a normality test will reject any real dataset, and 3) hypothesis tests are pretty robust to non-normality anyway.
-</div> 
+Instead of testing assumptions of a model using formal hypothesis tests *before* fitting the model, a better strategy is to 1) fit one or more models based on initial evaluation of the data, and then do 2) **model checking** using **diagnostic plots**, diagnostic statistics, and simulation (see Section [All statistical analyses should be followed by model checking](#check-check)).
 
-Instead of testing assumptions of a model using formal hypothesis tests *before* fitting the model, a better strategy is to 1) fit a model, and then do 2) **model checking** using **diagnostic plots**, diagnostic statistics, and simulation.
-
-With these data, a researcher would typically fit a GLM with a Poisson or negative binomial distribution and log link. Here, I start with a linear model to illustrate the interpretation of diagnostic plots with non-normal data. I use the "linear model" specification (equation \@ref(eq:spec1)) because the diganostic plots for model checking a linear model use the residuals of the fit model.
-
-\begin{align}
-Diplo\_intensity_i &= \beta_0 + \beta_1 Uninfected_i + \beta_2 Infected\_LG_i + \beta_3 Infected\_HG_i + \varepsilon_i \\
-\varepsilon &\sim N(0, \sigma)
-(\#eq:worm-lm)
-\end{align}
-
-### Checking the model I -- a Normal Q-Q plot
-
-Figure \@ref(fig:glm1-plot2)A shows a histogram of the residuals from the fit linear model. The plot shows that the residuals are clumped at the negative end of the range, which suggests that a model with a normally distributed conditional outcome (or normal error) is not well approximated.
-
-```{r glm1-plot2, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Diagnostic plots of stickleback parasite data. A) Distribution of the residuals of the fit linear model. B) Normal Q-Q plot of the residuals of the fit linear model."}
-fit.lm <- lm(Diplo_intensity ~ Treatment, data=worm, na="na.exclude")
-worm[, Diplo_intensity_residual:=residuals(fit.lm)]
-gg1 <- gghistogram(data=worm, x = "Diplo_intensity_residual",
-   add = "mean", rug = FALSE,
-   color = c("#00AFBB"), fill = c("#00AFBB"))
-gg2 <- ggqqplot(data=worm, x = "Diplo_intensity_residual", title="Normal Q-Q")
-plot_grid(gg1, gg2, labels="AUTO")
-```
-
-A better way to investigate this is with the **Normal Q-Q** plot in Figure \@ref(fig:glm1-plot2)B, which plots the sample quantiles for a variable against their theoretical quantiles. If the conditional outcome approximates a normal distribution, the points should roughly follow the line. Instead, for the worm data, the points are above the line at both ends. At the left (negative) end, this means that we aren't seeing the most negative values that would be expected (the observed values are more positive than the theoretical values). Remembering that this plot is of residuals, if we think about this as counts, this means that our smallest counts are not as small as we would expect given the mean and a normal distribution. This shouldn't be surprising -- the counts range down to zero and counts cannot be below zero. At the positive end, the sample values are again more positive than the theoretical values. Thinking about this as counts, this means that are largest counts are larger than expected given the mean and a normal distribution. This pattern is exactly what we'd expect of count data, or at least count data that borders zero.
-
- <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-**Intuition Pump** -- Let's construct a Normal Q-Q plot. A **quantile** (or percentile) of a vector of numbers is the value of the point at a specified percentage rank. The median is the 50% quantile. The 95% confidence intervals are at the 2.5% and 97.5% quantiles. In a Normal Q-Q plot, we want to plot the quantiles of the residuals against a set of theoretical quantiles.
-
-1. To get the observed quantiles, rank the residuals of the fit linear model from most negative to most positive -- these are your quantiles! For example, if you have $n=145$ residuals, then the 73rd point is the 50% quantile.
-2. A theoretical quantile from the normal distribution can be constructed using the `qnorm` function which returns the normal quantiles for a specified vector of percents. Alternatively, one could randomly sample $n$ points using `rnorm`. These of course will be sampled quantiles so will only approximate the expected theoretical quantiles, but I add this here because we use this method below.
-
-Now simply plot the observed against theoretical quantiles. Often, the **standardized** quantiles are plotted. A standardized variable has a mean of zero and a standard deviation of one and is computed by 1) centering the vector at zero by subtracting the mean from every value, and 2) dividing each value by the standard deviation of the vector. Recognize that because a standard deviation is a function of deviations from the mean, it doesn't matter which of these operations is done first. A standardized theoretical quantile is specified by `qnorm(p, mean = 0, sd = 1)`, which is the default.
-
-Below, I've plotted the standardized observed and theoretical quantiles against the vector of percents (from 0 to 100%). This plot also nicely shows how the residuals of the worm data deviate from that expected if these had a normal distribution. The plot nicely shows that the most negative observed quintiles are not as negative as expected given a normal distribution, which again makes sense because this would imply negative counts since the mean is close to zero. And it nicely shows that the most positive observed quantiles are more positive than expected given a normal distribution, again this makes sense in right skewed count data. Finally, the plot nicely shows that the median is less positive than that expected given a normal distribution, which is at the mean (a right skew tends to pull the mean to the right of the median).
-
-```{r glm1-qqplot-sim, echo=FALSE}
-Observed <- scale(sort(worm[, Diplo_intensity_residual]))
-n <- length(Observed)
-q <- n+1
-x <- seq(1/q, 1-1/q,by=1/q)
-Theoretical <- qnorm(x)
-qq_data <- data.table(X=rep(x,2),
-                      Data=rep(c("Observed", "Theoretical"), each=n), 
-                      Quantile=c(Observed, Theoretical))
-gg <- ggplot(data=qq_data, aes(x=X, y=Quantile, color=Data)) +
-  geom_point() +
-  NULL
-gg
-#qplot(x=Theoretical, y=Observed) + geom_abline(slope=1, intercept=0)
-```
-</div> 
-
-### Checking the model II -- scale-location plot for checking homoskedasticity
-
-```{r glm1-worm-scale-location, echo=FALSE}
-worm[, scale_y:= sqrt(abs(scale(Diplo_intensity_residual)))]
-worm[, fitted_y:=fitted(fit.lm)]
-ggscatter(data=worm, 
-          x="fitted_y",
-          y="scale_y",
-          title="Scale-Location",
-          xlab="Fitted value",
-          ylab="sqrt(standardized residual)",
-          add="reg.line",
-          conf.int = TRUE,
-          add.params = list(color = "blue",
-                            fill = "lightgray")
-          )
-```
-
-A linear model also assumes the error has constant variance (that is, the error variance is not a function of the value of $X$), or homoskedasticity. The fit model can be checked for homoskedasticity using a scale-location plot, which is a scatterplot of the positive square-root of the standardized residuals against the fitted values^[fitted values are the predicted values, $\hat{Y}$]. If the residuals approximate a normal distribution, then a regression line through the scatter should be close to horizontal. The regression line in the scale-location plot of the fit of the linear model to the worm data shows a distinct increase in the "scale" (the square root of the standardized residuals) with increased fitted value, which is expected of data that are lognormally, Poisson, or negative binomially distributed.
-
-### Two distributions for count data -- Poisson and Negative Binomial
-
-The pattern in the normal Q-Q plot in Figure \@ref(fig:glm1-plot2)B should discourage one from modeling the data with a normal distribution and instead model the data with an alternative distribution using a Generalized Linear Model. There is no unique mapping between how data are generated and a specific distribution, so this decision is not as easy as thinking about the data generation mechanism and then simply choosing the "correct" distribution. Section 4.5 in Bolker (xxx) is an excellent summary of how to think about the generating processes for different distributions in the context of ecological data. Since the response in the worm data are counts, we need to choose a distribution that generates integer values, such as the Poisson or the negative binomial.
-
-1. Poisson -- A Poisson distribution is the probability distribution of the number of occurrences of some thing (an egg, a parasite, or a specific mRNA transcript) generated by a process that generates the thing at a constant rate per unit effort (duration or space). This constant rate is $\lambda$, which is the expectation, so $\mathrm{E}(Y) = \mu = \lambda$. Because the rate per effort is constant, *the variance of a Poisson variable equals the mean*, $\sigma^2 = \mu = \lambda$. Figure \@ref(fig:glm1-poisson) shows three samples from a Poisson distribution with $\lambda$ set to 1, 5, and 10. The plots show that, as the mean count ($\lambda$) moves away from zero, a Poisson distribution 1) becomes less skewed and more closely approximates a normal distribution and 2) has an increasingly low probability of including zero (less than 1% zeros when the mean is 5).
-
-A Poisson distribution, then, is useful for count data in which the conditional variance is close to the conditional mean. Very often, biological count data are not well approximated by a Poisson distribution because the variance is either less than the mean, an example of **underdispersion**^[the variance is less than that expected by the probability model], or greater than the mean, an example of **overdispersion**^[the variance is greater than that expected by the probability model]. A useful distribution for count data with overdispersion is the negative binomial.
-
-
-```{r glm1-poisson-ci, echo=FALSE, eval=FALSE}
-# interesting results - essentially normal does better than poisson
-n <- 20
-exp_b0 <- 1000
-exp_b1 <- 1000
-x <- rep(c("a", "b"), each=n)
-niter <- 1000
-b1 <- matrix(NA, nrow=niter, ncol=2)
-b1.glm <- matrix(NA, nrow=niter, ncol=2)
-for(iter in 1:niter){
-  y <- c(rpois(n, lambda=exp_b0), rpois(n, lambda=(exp_b0+exp_b1)))
-  fit <- lm(y~x)
-  b1[iter,] <- confint(fit)[2,]
-  fit.glm <- glm(y~x, family="poisson")
-  b1.glm[iter,] <- exp(confint(fit.glm)[2,] + coef(fit.glm)[1])  - exp(coef(fit.glm)[1])
-  #b1.glm2[iter,] <- exp(confint(fit.glm))[2,]*exp(coef(fit.glm)[1]) - exp(coef(fit.glm)[1])
-}
-sum((exp_b1 > b1[,1] & exp_b1 < b1[, 2]))/niter*100
-sum((exp_b1 > b1.glm[,1] & exp_b1 < b1.glm[, 2]))/niter*100
-```
-
-
-```{r glm1-poisson, echo=FALSE}
-n_samp <- 10^4
-rp1 <- data.frame(y=rpois(n=n_samp, lambda=1))
-rp5 <- data.frame(y=rpois(n=n_samp, lambda=5))
-rp10 <- data.frame(y=rpois(n=n_samp, lambda=10))
-fake_data_wide <- data.table(lambda.eq.1=rp1[,1], lambda.eq.5=rp5[,1], lambda.eq.10=rp10[,1])
-fake_data_wide <- data.table("lambda = 1"=rp1[,1], "lambda = 5" =rp5[,1], "lambda = 10" =rp10[,1])
-fake_data <- data.table(lambda=rep(c("1", "5", "10"), each=n_samp), count=c(lambda.eq.1=rp1[,1], lambda.eq.5=rp5[,1], lambda.eq.10=rp10[,1]))
-
-zeros <- fake_data[, .(zeros=length(which(count==0))/n_samp*100), by=.(lambda)]
-# gg <- gghistogram(data=fake_data,
-#                   x = "count",
-#                   add = "mean",
-#                   binwidth=1,
-#                   color="lambda",
-#                   fill = "lambda",
-#                   palette = rep("#00AFBB",3),
-#                 )
-# facet(gg, facet.by = "lambda")
-
-gghistogram(data=fake_data_wide,
-            x = c("lambda = 1", "lambda = 5", "lambda = 10"),
-            add = "mean",
-            combine=TRUE,
-            binwidth=1,
-            color = c("#00AFBB"), fill = c("#00AFBB"),
-            xlab = "count",
-            ylab =FALSE
-                )
-
-```
-
-2. Negative Binomial -- The negative binomial distribution is a discrete probability distribution of the number of successes that occur before a specified number of failures $k$ given a probability $p$ of success. This isn't a very useful way of thinking about modeling count data in biology. What is useful is that the Negative Binomial distribution can be used simply as way of modeling an "overdispersed" Poisson process. The mean of a negative binomial variable is $\mu = k\frac{p}{1-p}$ and the variance is $\sigma^2 = \mu + \mu^2/k$. As a method for modeling an overdispersed Poisson variable, $k$ functions as a **dispersion parameter* controlling the amount of overdispersion and can be any real, positive value (not simply a positive integer), including values less than 1.
-
-```{r glm1-test2, echo=FALSE, eval=FALSE}
-n_samp <- 10^4
-rp1 <- data.frame(y=rnbinom(n=n_samp, mu=10, size=0.9))
-rp5 <- data.frame(y=rnbinom(n=n_samp, mu=10, size=10))
-rp10 <- data.frame(y=rnbinom(n=n_samp, mu=100, size=0.9))
-fake_data_wide <- data.table(lambda.eq.1=rp1[,1], lambda.eq.5=rp5[,1], lambda.eq.10=rp10[,1])
-fake_data_wide <- data.table("mu=10, k=0.9"=rp1[,1], "mu=10, k=10" =rp5[,1], "mu=100, k=0.9" =rp10[,1])
-
-gghistogram(data=fake_data_wide,
-            x = c("mu=10, k=0.9", "mu=10, k=10", "mu=100, k=0.9"),
-            add = "mean",
-            combine=TRUE,
-            binwidth=1,
-            color = c("#00AFBB"), fill = c("#00AFBB"),
-            xlab = "count",
-            ylab =FALSE,
-            scales="free"
-                )
-
-```
-
-### Fitting a GLM with a Poisson distribution to the worm data
-Let's fit a GLM with a Poisson distribution to the worm data. The model is
-
-\begin{align}
-Diplo\_intensity_i &\sim Poisson(\mu_i)\\
-\mathrm{E}({Diplo\_intensity|Treatment}) &= \mu\\
-\mu_i &= \mathrm{exp}(\eta_i)\\
-\eta_i &= \beta_0 + \beta_1 Uninfected_i + \beta_2 Infected\_LG_i + \beta_3 Infected\_HG_i
-\end{align}
-
-1. The first line of the model is the stochastic part stating the response is modeled as a random Poisson variable with mean and variance $\mu$ (the rate parameter $\lambda$ of the Poisson distribution).
-2. The second line states the $\mu$ is the conditional mean or conditional expectation
-3. The third line connects the conditional mean on the link scale ($\eta$) with the conditional mean on the response scale ($\mu$)
-4. The fourth line is the linear predictor, and includes three dummy variables.
-
-Remember that the conditional mean is the expected/predicted/fitted/modeled value when $X=x_i$.
+For the exp3a data, I fit a linear model, a Poisson GLM, and a negative binomial GLM. I use the diagnostic plots and statistics to help me decide which model to report.
 
 ### Model checking fits to count data
 
-we use the fit model to check
-1. the overall similarity of observed and theoretical distributions
+We use the fit models to check
+
+1. the compatibility between the quantiles of the observed residuals and the distribution of expected quantiles from the family in the model fit
 2. if the observed distribution is over or under dispersed
-3. if there more zeros than expected by the theoretical distribution. If so, the observed distribution is **zero-inflated**
+3. if there are more zeros than expected by the theoretical distribution. If so, the observed distribution is **zero-inflated**
 
-#### Model checking a GLM I -- the quantile residual Q-Q plot
-A quantile-quantile (Q-Q) plot is used to check overall similarity of the observed distribution with the distribution that would be expected under the model. An alternative to a Normal Q-Q plot for a GLM fit is a quantile residual Q-Q plot of observed vs. expected **quantile residuals**. The basic algorithm for this is
+#### Checking the linear model exp3a_m1 -- a Normal-QQ plot {#glm-exp3a-normal-qq}
 
-1. Use the model parameters to simulate $p$ fake values of the response for each row of the data. This will be a $n \times p$ matrix of fake data where each column is a new, random sample of a population with parameters equal to that estimated for the observed data. For the Poisson, the parameter for each observation will be $\hat{\mu}_i$, the modeled value of observation $i$. For the negative binomial, the parameters will be $\hat{\mu}_i$ and the dispersion parameter $k$, which is the same for all observations.
-2. For each observation (each row of the matrix of fake data), compute the fraction of simulated values smaller than the observed value of the response variable for that row. This fraction is the observed **quantile residual**, which ranges in value from 0 to 1. If the true data are distribitued as that specified by the model, then quantile residuals will have a uniform distribution.
-3. Sort the observed quantile residuals from smallest to largest and plot against theoretical quantile residuals from a uniform distribution. One could transform the quantile residuals to standard, normal residuals and then plot using a traditional Normal Q-Q plot but this step isn't necessary (if reported, a Normal Q-Q plot of transformed quantile residuals might confuse readers who failed to read the fine print).
+Figure \@ref(fig:glm1-plot2)A shows a histogram of the residuals from the fit linear model. The plot shows that the residuals seem to be clumped at the negative end of the range, which suggests that a model with a normally distributed conditional outcome (or normal error) is not well approximated.
 
- <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
-**Misconceivable** -- A common misconception is that if the distribution of the response approximates a Poisson distribution, then the residuals of a GLM fit with a Poisson distribution should be normally distributed, which could then be checked with a Normal Q-Q plot, and homoskedastic, which could be checked with a scale-location plot. Neither of these is true because a GLM does not transform the data and, in fact, the model definition does not specify anything about the distribution of an "error" term -- there is no $\varepsilon$ in the model defintion above! This is why thinking about the definition of a linear model by specifying an error term with a normal distribution can be confusing and lead to misconceptions when learning GLMs.
-</div> 
+```{r glm1-exp3a-qq, fig.width=std_width, fig.asp=0.5, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Diagnostic plots of angiogenic sprout data (exp3a). A) Distribution of the residuals of the fit linear model. B) Normal-QQ plot of the residuals of the fit linear model."}
+exp3a[, residuals := residuals(exp3a_m1)]
+gg1 <- gghistogram(data = exp3a,
+                   x = "residuals",
+                   add = "mean",
+                   rug = FALSE,
+                   color = pal_okabe_ito_blue[1],
+                   fill = pal_okabe_ito_blue[1])
+gg2 <- ggcheck_the_qq(exp3a_m1)
+plot_grid(gg1, gg2, labels="AUTO")
+```
 
-```{r glm1-worm-poisson-qr, echo=FALSE, message=FALSE}
-n_sim <- 250
-fit.pois <- glm(Diplo_intensity ~ Treatment, family="poisson", data=worm)
+A better way to investigate this is with the **Normal-QQ** plot in Figure \@ref(fig:glm1-plot2)B, which plots the sample quantiles for a variable against their theoretical quantiles. If the conditional outcome approximates a normal distribution,
 
-# DHARMa package diagnostic plots
-plot_it <- FALSE
-if(plot_it==TRUE){
-  simulationOutput <- simulateResiduals(fittedModel = fit.pois, n = n_sim)
-  plot(simulationOutput, asFactor = F)
-  simulationOutput.refit <- simulateResiduals(fittedModel = fit.pois, n = n_sim, refit=TRUE)
-  testDispersion(simulationOutput.refit)
-}
+1. the points should roughly follow the robust regression line,
+2. the points should be largely inside the 95% CI (gray) bounds for sampling a normal distribution with the variance estimated by the model, and
+3. the robust regression line should be largely inside the CI bounds.
 
-# do this by hand
-plot_it <- TRUE
-n_row <- nrow(worm)
+For the sprout data, the points are above the line at the positive end, hug the upper bound of the 95% CI at the negative end, are well above the 95% CI at the positive end, and the robust regression is distinctly shallower than a line bisecting the CI bounds. At the left (negative) end, the observed values are more positive than the theoretical values. Remembering that this plot is of residuals, if we think about this as counts, this means that our smallest counts are not as small as we would expect given the mean, the variance, and a normal distribution. This shouldn't be surprising -- the counts range down to zero and counts cannot be below zero. At the positive end, the sample values are again more positive than the theoretical values. Thinking about this as counts, this means that are largest counts are larger than expected given the mean, the variance, and a normal distribution. This pattern is what we'd expect of count data.
 
-if(plot_it==TRUE){
-  fake_data <- cbind(worm[, Diplo_intensity], simulate(fit.pois, nsim = n_sim, seed = 101))
-  
-  # do fake data by hand
-  fake_data_2 <- matrix(NA, nrow=n_row, ncol=n_sim)
-  for(j in 1:n_sim){
-    fake_data_2[,j] <- rpois(n_row, lambda=fitted(fit.pois))
-  }
-  fake_data_2 <- cbind(worm[, Diplo_intensity], fake_data_2)
-  # this works
+#### Checking the linear model exp3a_m1 -- Spread-level plot for checking homoskedasticity
 
-  # Build uniform QQ plot
-  quantile_residuals <- numeric(n_row)
-  for(i in 1:n_row){
-    quantile_residuals[i] <- (rank(fake_data[i,])[1] - 1)/n_sim
-  }
-  Observed <- sort(quantile_residuals)
-  q <- n_row+1
-  x <- seq(1/q, 1-1/q,by=1/q)
-  Theoretical <- qunif(x)
-  ggscatter(data=data.frame(Theoretical=Theoretical, Observed=Observed),
-         x="Theoretical", 
-         y="Observed",
-         title = "Quantile Residual Q-Q Plot"
-  ) +
-    geom_abline(slope=1, intercept=0) +
-    NULL
-  
-}
+```{r glm1-exp3a-qq-scale-location, fig.dim=small_dim, echo=FALSE}
+ggcheck_the_spreadlevel(exp3a_m1)
+```
 
-# convert to normal with box-mueller
-# u1 <- quantile_residuals
-# u2 <- runif(n_row)
-# z <- sqrt(-2*log(u1))*cos(2*pi*u2)
-# worm[, fitted_pois:=fitted(fit.pois)]
-# worm[, scale_pois:=sqrt(abs(z))]
-# ggscatter(data=worm, 
-#           x="fitted_pois",
-#           y="scale_pois",
-#           title="Scale-Location",
-#           xlab="Fitted value",
-#           ylab="sqrt(standardized residual)",
-#           add="reg.line",
-#           conf.int = TRUE,
-#           add.params = list(color = "blue",
-#                             fill = "lightgray")
-#           )
+A linear model also assumes that the error is **homoskedastic** -- the error variance is not a function of the value of the $X$ variables). Non-homoskedastic error is **heteroskedastic**. I will typically use "homogenous variance" and "heterogenous variance" since these terms are more familiar to biologists. The fit model can be checked for homogeneity using a spread-level (also known as a scale-location) plot, which comes in several forms. I like a spread-level plot that is a scatterplot of the positive square-root of the standardized residuals against the fitted values (remember that the fitted values are the values computed by the linear predictor of the model -- they are the "predicted values" of the observed data). If the residuals approximate a normal distribution, then a regression line through the scatter should be close to horizontal. The regression line in the spread-level plot of the fit of the linear model to the sprout data shows a distinct increase in the "scale" (the square root of the standardized residuals) with increased fitted value, which is expected of data sampled from a distribution in which the variance increases the mean.
+
+#### Two distributions for count data -- Poisson and Negative Binomial
+
+The pattern in the Normal-QQ plot in Figure \@ref(fig:glm1-plot2)B should discourage a researcher from modeling the data with a normal distribution and instead model the data with an alternative distribution using a Generalized Linear Model. There is no unique mapping between observed data and a data generating mechanism with a specific distribution, so this decision is not as easy as thinking about the data generation mechanism and then simply choosing the "correct" distribution. Section 4.5 in Bolker (xxx) is an excellent summary of how to think about the generating processes for different distributions in the context of ecological data. Since the response in the angiogenic sprouts data are counts, we need to choose a distribution that generates integer values, such as the Poisson or the negative binomial.
+
+1. Poisson -- A Poisson distribution is the probability distribution of the number of occurrences of some thing (a white blood cell, a tumor, or a specific mRNA transcript) generated by a process that generates the thing at a constant rate per unit effort (duration or space). This constant rate is the parameter $\lambda$, which is the expectation (the expected mean of the counts), so $\mathrm{E}(Y) = \mu = \lambda$. Because the rate per effort is constant, *the variance of a Poisson variable equals the mean*, $\sigma^2 = \mu = \lambda$. Figure \@ref(fig:glm1-poisson) shows three samples from a Poisson distribution with $\lambda$ set to 1, 5, and 10. The plots show that, as the mean count ($\lambda$) moves away from zero, a Poisson distribution 1) becomes less skewed and more closely approximates a normal distribution and 2) has an increasingly low probability of including zero (less than 1% zeros when the mean is 5).
+
+A Poisson distribution, then, is useful for count data in which the conditional variance is close to the conditional mean. Very often, biological count data are not well approximated by a Poisson distribution because the variance is either less than the mean, an example of **underdispersion**^[the variance is less than that expected by the probability model], or greater than the mean, an example of **overdispersion**^[the variance is greater than that expected by the probability model]. A useful distribution for count data with overdispersion is the negative binomial.
+
+```{r glm1-fake-poisson, fig.width=std_width, fig.asp=0.5, echo=FALSE}
+n_samp <- 10^4
+
+fake_data_wide <- data.table(
+  "lambda = 1" = rpois(n = n_samp, lambda = 1),
+  "lambda = 5" = rpois(n = n_samp, lambda = 5),
+  "lambda = 10" = rpois(n = n_samp, lambda = 10))
+
+gghistogram(data = fake_data_wide,
+            x = c("lambda = 1", "lambda = 5", "lambda = 10"),
+            add = "mean",
+            combine = TRUE,
+            binwidth = 1,
+            color = pal_okabe_ito_blue[1],
+            fill = pal_okabe_ito_blue[1],
+            xlab = "count",
+            ylab = FALSE
+                )
 
 ```
 
-The Q-Q plot using quantile residuals with a Poisson distribution indicates that the counts of *Diplostomum* larvae in the eyes of the threespine stickleback are not well approximated by a Poisson distribution -- there are too many observed values near the ends of the expected tails, indicating the expected values are not spread out enough. This pattern emerges because the observed counts are overdispersed compared to a Poisson distribution.
+2. Negative Binomial -- The negative binomial distribution is a discrete probability distribution of the number of successes that occur before a specified number of failures $k$ given a probability *p* of success. This isn't a very useful way of thinking about modeling count data in biology. What is useful is that the Negative Binomial distribution can be used simply as way of modeling an "overdispersed" Poisson process. Using the parameterization in the `MASS::glm.nb` function, the mean of a negative binomial variable is $\mu$ and the variance is $\sigma^2 = \mu + \frac{\mu^2}{\theta}$. As a method for modeling an overdispersed Poisson variable, $\theta$ functions as a **dispersion parameter* controlling the amount of overdispersion and can be any real, positive value (not simply a positive integer), including values less than 1. As $\theta$ approaches positive infinity, the "overdispersion" bit $\frac{\mu^2}{\theta}$ goes to zero and the variance goes to $\mu$, which is the same as the Poisson.
 
-#### Model checking a GLM II -- a dispersion plot
+```{r glm1-fake-nb, fig.width=std_width, fig.asp=0.5, echo=FALSE}
+n_samp <- 10^4
 
-If observed counts are Poisson distributed, then the **Pearson residuals** ($r_i$) and the residual degrees of freedom of the fit model ($df$) can be used to compute a dispersion statistic
+fake_data_wide <- data.table(
+  "mu = 10, k = 1" = rnbinom(n = n_samp, mu = 10, size = 1),
+  "mu = 10, k = 10" = rnbinom(n = n_samp, mu = 10, size = 10),
+  "mu = 100, k = 1" = rnbinom(n = n_samp, mu = 100, size = 1))
 
-\begin{equation}
-\frac{\sum{r_i}}{df}
-\end{equation}
-
-that has an expected value of 1. Instead of a formal hypothesis test of this statistic, I use a simulation approach and ask, "if the observed counts are Poisson distributed, what is the expected frequency distribution of this dispersion statistic?" and then use simulation to generate this expected distribution. The algorithm for this is
-
-1. For each observation $i$, generate a random Poisson count using $\hat{\mu}$ as the parameter.
-2. Fit the model and compute the dispersion statistic.
-3. Repeat 1 and 2 $N_{iter}$ times.
-
-```{r glm1-worm-poisson-dispersion, echo=FALSE}
-pr <- sum(residuals(fit.pois, type="pearson")^2)  # Pearson Chi^2
-df <- fit.pois$df.residual
-observed_dispersion_statistic <- pr/df # dispersion statistic
-
-set.seed(1)
-niter <- 1000
-pr.fake <- numeric(n_sim)
-fake_data <- simulate(fit.pois, nsim = niter)
-for(j in 1:niter){
-  fit.pois.fake <- glm(fake_data[,j] ~ Treatment, family="poisson", data=worm)
-  pr.fake[j] <- sum(residuals(fit.pois.fake, type="pearson")^2)  #PearsonChi2
-}
-
-mean_dispersion_statistic <- mean(pr.fake/df)
+gghistogram(data = fake_data_wide,
+            x = c("mu = 10, k = 1",
+                  "mu = 10, k = 10",
+                  "mu = 100, k = 1"),
+            add = "mean",
+            combine = TRUE,
+            binwidth = 1,
+            color = pal_okabe_ito_blue[1],
+            fill = pal_okabe_ito_blue[1],
+            xlab = "count",
+            ylab = FALSE,
+            scales = "free"
+)
 
 ```
 
-The plot below shows a histogram of the dispersion statistic computed for 1000 simulations of the worm data. The observed dispersion statistic is `r round(observed_dispersion_statistic, 1)`. The expected value is 1.0. The mean of the simulated values is `r round(mean_dispersion_statistic, 1)`. 
+#### Model checking a GLM I -- the quantile-residual uniform-QQ plot
 
-```{r glm1-worm-poisson-dispersion-plot, echo=FALSE, fig.cap="Observed vs. expected dispersion statistic. The observed statistic marked by the red line. The histogram of expected statistics are from 1000 simulations of the observed data."}
+Normal-QQ plots were introduced in Section \@ref{normal-qq} of the Model Checking chapter and applied to the linear model fit of the angiogenic sprout data in Section \@ref(glm-exp3a-normal-qq) above. We cannot use a Normal-QQ plot with a Poisson or negative binomial GLM fit because the residuals from this fit are not expected to be normally distributed. An alternative to a Normal-QQ plot for a GLM fit is a **quantile-residual uniform-QQ** plot of observed **quantile residuals**.
 
-# plot simulation resulsts
-qplot(pr.fake/df, binwidth=0.5/20) +
-  xlab("dispersion statistic") +
-  geom_vline(aes(xintercept=observed_dispersion_statistic), color="red") +
-  ggtitle(" Observed vs. expected dispersion statistic") +
-  NULL
+```{r glm-exp3a_m2-check-poisson-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Quantile-residual uniform-QQ plot of the Poisson GLM fit to the angiogenic sprouts (exp3a) data."}
+simulation_output <- simulateResiduals(fittedModel = exp3a_m2,
+                                       n = 250,
+                                       refit = FALSE)
+plotQQunif(simulation_output)
+
+# ggcheck_the_glm_qq(exp3a_m2, se = TRUE)
 ```
 
+Notes
 
-### Fitting a GLM with a Negative Binomial distribution to the worm data
+1. The x-axis ("Expected") contains the expected quantiles from a uniform distribution.
+2. The y-axis ("Observed") contains the observed quantile residuals from a GLM fit, which are the residuals from the fit model that are transformed in a way that the expected distribution is uniform under the fit model family. This means that we'd expect the quantile residuals to closely approximate the expected quantiles from a uniform distribution. If the approximation is close, the points will fall along the "y = x" line in the plot.
+3. The gray shaded area is a 95% confidence interval computed using a parametric bootstrap. At any value of the expected quantile, the interval will include an observed quantile 95% of the time. This gray area gives us a sense of the variability we'd get when we fit models to random samples from the specified model.
+4. In the quantile-residual QQ plot for Model `exp3a_m2`, the observed residuals are far outside the 95% boundary. The observed residuals are smaller than expected at the negative (left) end and larger than expected at the right (high) end. This means the residuals are more spread out than expected for a Poisson sample. The data are overdispersed *for this model*. Understand that overdispersion is not a property of data but of the residuals from a specific model fit to the data.
 
-The model is
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**Misconceivable** -- A common misconception is that if the distribution of the response approximates a Poisson distribution, then the residuals of a GLM fit with a Poisson distribution should be normally distributed, which could then be checked with a Normal-QQ plot, and homoskedastic, which could be checked with a scale-location plot. Neither of these is true because a GLM does not transform the data and, in fact, the model definition does not specify anything about the distribution of an "error" term -- there is no $\varepsilon$ in the model definition above! This is why thinking about the definition of a linear model by specifying an error term with a normal distribution can be confusing and lead to misconceptions when learning GLMs.
+</div>
 
+#### Model checking a GLM II -- Spread-level plot for checking homoskedasticity
+
+```{r echo=FALSE, eval=FALSE}
+
+m2_resid <- data.table(
+  group = exp3a$t_by_g,
+  response = residuals(exp3a_m2, type="response"),
+  pearson = residuals(exp3a_m2, type="pearson"),
+  pearson2 = residuals(exp3a_m2, type="response")/sqrt(fitted(exp3a_m2)),
+  deviance = residuals(exp3a_m2),
+  scaled_deviance = scale(residuals(exp3a_m2)),
+  scaled_pearson = scale(residuals(exp3a_m2, type="pearson")),
+  scaled_response = scale(residuals(exp3a_m2, type="response")),
+  dharma_fitted = simulation_output$fittedResiduals,
+  dharma_scaled = simulation_output$scaledResiduals
+  )
+
+ggboxplot(data = m2_resid,
+          x = "group",
+          y = "dharma_scaled")
+```
+
+```{r glm-exp3a_m2-spreadlevel-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Spread-level plot of the Poisson GLM fit to the angiogenic sprouts (exp3a) data.", echo=FALSE}
+plotResiduals(exp3a_m2, asFactor = FALSE, quantreg = TRUE)
+```
+
+Notes
+
+
+#### Model checking a GLM III -- Checking dispersion
+
+```{r glm-exp3a_m2-check-dispersion-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Dispersion plot of the negative binomial GLM fit to the angiogenic sprouts (exp3a) data.", echo=FALSE}
+simulation_output <- simulateResiduals(fittedModel = exp3a_m2,
+                                       n = 250,
+                                       refit = TRUE)
+dispersion_test <- testDispersion(simulation_output)
+ 
+```
+
+Notes
+
+1. This plot is a histogram of the sum of squared **Pearson residuals** of fake data sampled from the fit model. Pearson residuals are the raw residuals divided by the square root of the fitted value. Remember that in the Poisson distribution, the variance is equal to the expectation (mean), so a Pearson residual is the raw residual divided by the standard deviation of the residual. A way to think about this is, Pearson residuals "correct" for the heterogeneity in variance that arises among groups with different mean counts.
+2. The sum of squared **Pearson residuals** is a measure of the dispersion of the residuals.
+3. The red line is the observed sum of the squared Pearson residuals of the fit model.
+4. If the observed dispersion approximates that expected from sampling from the fit model, the red line will be within the histogram.
+5. The red line here is far larger than expected given the histogram, which indicates that the residuals are overdispersed given the fit model.
+6. Overdispersion will be common with Poisson GLM fits to biological data.
+
+#### Model Checking a count GLM -- Check zero inflation
+
+Counts can have the value zero. Data that have more zeros than expected given a fit count GLM model (Poisson, quasi-Poisson, negative binomial) is **zero-inflated**.
+
+```{r}
+zero_inflation_test <- testZeroInflation(simulation_output)
+```
+
+1. This plot is a histogram of the number of zeros in each of the fake data sets generated by the fit model. An observed number of zeros at the extremes of this distribution are unlikely given the fit model. The number of zeros in the observed data is greater than expected by the model.
+
+### Biological count data are rarely fit well by a Poisson GLM. Instead, fit a quasi-poisson or negative binomial GLM model.
+
+Here are the diagnostic plots of the negative binomial GLM fit to the exp3a data
+
+```{r glm-exp3a_m3-qq-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Quantile-residual uniform-QQ plot of the negative binomial GLM fit to the angiogenic sprouts (exp3a) data.", echo=FALSE}
+simulation_output <- simulateResiduals(fittedModel = exp3a_m3,
+                                       n = 250,
+                                       refit = FALSE)
+plotQQunif(simulation_output)
+
+```
+
+```{r glm-exp3a_m3-spreadlevel-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Spread-level plot of the negative binomial GLM fit to the angiogenic sprouts (exp3a) data.", echo=FALSE}
+plotResiduals(exp3a_m3, asFactor = FALSE, quantreg = TRUE)
+
+```
+
+```{r glm-exp3a_m3-check-dispersion-again, fig.dim=small_dim, echo=FALSE, fig.cap = "Dispersion plot of the negative binomial GLM fit to the angiogenic sprouts (exp3a) data.", echo=FALSE}
+simulation_output <- simulateResiduals(fittedModel = exp3a_m3,
+                                       n = 250,
+                                       refit = TRUE)
+simulation_test <- testDispersion(simulation_output)
+ 
+
+```
+
+### A GLM is a linear model on the link scale
+
+The negative-binomial GLM fit to the angiogenic sprout data (exp3a) is
+
+$$
 \begin{align}
-Diplo\_intensity &\sim NB(\mu, k)\\
-\mathrm{E}({Diplo\_intensity|Treatment}) &= \mu\\
-\mu &= \mathrm{exp}(\eta)\\
-\eta &= \beta_0 + \beta_1 Uninfected + \beta_2 Infected\_LG + \beta_3 Infected\_HG
+\texttt{sprouts}_i &\sim \operatorname{NB}(\mu_i, \theta)\\
+\mathrm{E}(\texttt{sprouts}\ | \ \texttt{treatment, genotype}) &= \mu\\
+\mu_i &= \mathrm{exp}(\eta_i)\\
+\eta_i &= \beta_0 \ + \\
+& \quad \; \beta_1 \texttt{treatment}_{\texttt{GAS6}} \ + \\
+& \quad \; \beta_2 \texttt{genotype}_{\texttt{FAK_ko}} \ + \\
+& \quad \; \beta_3 \texttt{treatment}_{\texttt{GAS6}}:\texttt{genotype}_{\texttt{FAK_ko}}
+(\#eq:nb-glm-exp3a)
 \end{align}
+$$
 
-This model specifies a negative binomial distribution but otherwise is just like that above specifying a Poisson distribution.
+1. The first line of Model \@ref(eq:nb-glm-exp3a) is the stochastic part stating the response is modeled as a random Negative Binomial variable with conditional mean $\mu_i$, and variance $\mu + \frac{\mu^2}{\theta}$. Fitting the model to the data estimates $\mu_i$ for all *i*. $\mu_i$ will be the same for all mice within each treatment by genotype combination because they share the same conditions (the values of the indicator variables for treatment, genotype, and their interaction).
+2. The second line states the $\mu$ is the mean conditional on the value of $\texttt{treatment}$ and $\texttt{genotype}$
+3. The third line connects the conditional mean on the link scale ($\eta$) with the conditional mean on the response scale ($\mu$). This is the backtransformation.
+4. The fourth line is the **linear predictor** -- it is a linear model on the link scale. The linear predictor includes three indicator variables.
+5. Remember that a linear model is a model in which the coefficients are additive, meaning that the coefficients do not have exponents or are not multiplied by each other.
 
-#### Model checking
+### Coeffecients of a Generalized Linear Model with a log-link function are on the link scale.
 
-```{r glm1-worm-nb, echo=FALSE}
-n_sim <- 250
-fit.nb <- glm.nb(Diplo_intensity ~ Treatment, data=worm)
+The coefficients of the fit negative binomial model are
 
-plot_it <- FALSE
-if(plot_it==TRUE){
-  simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = n_sim)
-  plot(simulationOutput, asFactor = F)
-  # testUniformity(simulationOutput = simulationOutput)
-  # testDispersion(simulationOutput)
-}
+```{r glm1-exp3a-m3-coef-again, echo=FALSE}
+exp3a_m3_coef %>%
+  kable(digits = c(5,3,1,3,2,2)) %>%
+  kable_styling()
 
-# do this by hand
-plot_it <- TRUE
-if(plot_it==TRUE){
-  fake_data_nb <- cbind(worm[, Diplo_intensity], simulate(fit.nb, nsim = n_sim, seed = 101))
+```
 
-  # do fake data by hand
-  set.seed(101)
-  fake_data <- matrix(NA, nrow=n_row, ncol=n_sim)
-  for(j in 1:n_sim){
-    fake_data[,j] <- rnegbin(n_row, mu=fitted.values(fit.nb), theta=fit.nb$theta)
-  }
-  fake_data <- cbind(worm[, Diplo_intensity], fake_data)
-  # this works
+Notes
 
-  n_row <- nrow(worm)
-  quantile_residuals <- numeric(n_row)
-  for(i in 1:n_row){
-    quantile_residuals[i] <- (rank(fake_data[i,])[1] - 1)/n_sim
-  }
-  Observed <- sort(quantile_residuals)
-  q <- n_row+1
-  x <- seq(1/q, 1-1/q,by=1/q)
-  Theoretical <- qunif(x)
-  ggscatter(data=data.frame(Theoretical=Theoretical, Observed=Observed),
-         x="Theoretical", 
-         y="Observed",
-         title = "Quantile Residual Q-Q Plot"
-  ) +
-    geom_abline(slope=1, intercept=0) +
-    NULL
+1. The coefficients are on the link scale, which is a linear (additive) scale.
+
+#### The intercept of a Generalized Linear Model with a log-link function is the mean of the reference on the link scale
+
+1. In the linear model `exp3a_m1`, the intercept is the modeled mean of the reference group. In a GLM with a log-link (including Models `exp3a_m2` and `exp3a_m3`), the intercept is the mean of the reference group *on the link scale*. The modeled mean of the reference on the response scale is computed by the backtransformaiton $\exp(b_1)$. The function "exp(x)" is the exponent, which is often written using the notation $e^{x}$.
+2. The transformation between link scale and response scale is part of the specification of a Generalized Linear Model. For the negative binomial GLM fit to the exp3a data, this specification is in line 3 of the specification (Model \@ref(eq:nb-glm-exp3a)).
+
+Compare the computation here with the modeled mean in the emmeans table (Section \@ref(glm-exp3a-m3-inference) or with a computation of the sample mean.
+
+```{r glm1-exp3a_m3-b1}
+b1 <- coef(exp3a_m3)[1]
+exp(b1)
+```
+```{r glm1-exp3a_m3-mean}
+mean(exp3a[t_by_g == "PBS FAK_wt", sprouts])
+```
+
+#### The coefficients of the indicator variables of a Generalized Linear Model with a log-link function are effect-ratios on the response scale
+
+1. In the linear model `exp3a_m1`, the coefficient of an indicator variable is a difference in means. In a GLM with a log-link, the coefficient of an indicator variable is the difference (group minus reference) of the modeled means *on the link scale*. Let's check this with some computations.
+
+The modeled means on the link scale are in the emmeans table
+
+```{r glm1-exp3a_m3-emm_link}
+exp3a_m3_emm_link <- emmeans(exp3a_m3,
+                             specs = c("treatment", "genotype")) %>%
+  summary() %>%
+  data.table()
+```
+
+Using this table, the difference between the link-scale mean of "GAS6 FAK_wt" and "PBS FAK_wt" (the reference) is
+
+```{r glm1-exp3a_m3-diff}
+exp3a_m3_emm_link[treatment == "GAS6" &
+                    genotype == "FAK_wt", emmean] -
+  exp3a_m3_emm_link[treatment == "PBS" & genotype == "FAK_wt", emmean]
   
-}
+```
+
+And the coefficient for the $\texttt{treatment_gas6}$ indicator variable is
+
+```{r glm1-exp3a_m3-b2}
+# coefficient for treatment_gas6
+b2 <- coef(exp3a_m3)[2]
+b2
+```
+
+2. In a GLM with a log-link, the exponent of the coefficient of an indicator variable is the ratio of the modeled means *on the response scale*. Let's check this with some computations.
+
+The modeled means on the response scale are in the emmeans table
+
+```{r glm1-exp3a_m3-emm_response}
+exp3a_m3_emm_response <- emmeans(exp3a_m3,
+                             specs = c("treatment", "genotype"),
+                             type = "response") %>%
+  summary() %>%
+  data.table()
+```
+
+Using this table, the ratio of the response-scale mean of "GAS6 FAK_wt" to the response-scale mean of "PBS FAK_wt" (the reference) is
+
+```{r glm1-exp3a_m3-ratios}
+exp3a_m3_emm_response[treatment == "GAS6" &
+                    genotype == "FAK_wt", response]/
+  exp3a_m3_emm_response[treatment == "PBS" & genotype == "FAK_wt", response]
+  
+```
+
+And the coefficient for the $\texttt{treatment_gas6}$ indicator variable backtransformed to the response scale is
+
+```{r glm1-exp3a_m3-exp_b2}
+exp_b2 <- exp(b2)
+exp_b2
+```
+3. Since this backtransformed coefficient is both an effect and a ratio, I call it an **effect ratio**. It's value is how many times bigger (or smaller if less than one) the non-reference response is relative to the reference response. The response of the GAS6 treatment is 3.66$\times$ that of the reference treatment. 
+
+### Modeled means in the emmeans table of a Generalized Linear Model can be on the link scale or response scale.
+
+#### The emmeans table containing the statistics on the link scale {#glm-exp3a-emmans-link}
+
+```{r exp3a_m3_emm_link, echo=FALSE}
+exp3a_m3_emm_link %>%
+  kable(digits = c(1,1,5,2,1,2,2),
+        caption = "Emmeans table on the link scale") %>%
+  kable_styling()
+```
+1. The values are the statistics on the link scale. The mean and CI, but not the SE, can be meaningfully backtransformed to the response scale using the exponent function to get the mean and CI on the response scale.
+2. The CIs are "asymptotic", meaning they are computed using infinite degrees of freedom. The consequences is that the CIs will be too narrow, especially for small *n*.
+3. Check the math! Given asymptotic CIs, the lower CI should be (mean - 1.96 $\times$ SE) and the upper should be (mean + 1.96 $\times$ SE).
+
+```{r}
+0.90446 - 1.96*0.23
+```
+
+4. A GLM is linear on the link scale. This means the model is additive on the link scale. Modeled means on the link scale are computed by *adding* the coefficients. 
+
+```{r glm1-exp3a_m3-means_link}
+b <- coef(exp3a_m3) # the model coefficients
+
+# the way I typically compute these
+pbs_fak_wt_link <- b[1] 
+gas6_fak_wt_link <- b[1] + b[2] 
+pbs_fak_ko_link <- b[1] + b[3]
+gas6_fak_ko_link <- b[1] + b[2] + b[3] + b[4]
+
+# but this is the algebra more consistent with the linear model math
+pbs_fak_wt_link <- b[1] + b[2]*0 + b[3]*0 + b[4]*0
+gas6_fak_wt_link <- b[1] + b[2]*1 + b[3]*0 + b[4]*0
+pbs_fak_ko_link <- b[1] + b[2]*0 + b[3]*1 + b[4]*0
+gas6_fak_ko_link <- b[1] + b[2]*1 + b[3]*1 + b[4]*1
+
+# combine into a table
+exp_3a_means <- data.table(
+  group = t_by_g_levels,
+  "mean (link scale)" = c(pbs_fak_wt_link,
+                          gas6_fak_wt_link,
+                          pbs_fak_ko_link,
+                          gas6_fak_ko_link)
+)
+```
+
+```{r echo=FALSE}
+exp_3a_means %>%
+  kable(digits = 5, caption = "Table of group treatment by genotype means on the link scale") %>%
+  kable_styling()
+```
+
+Compare the values here to those in the emmeans table on the link scale (Table \@ref(tab:exp3a_m3_emm_link)).
+
+#### The emmeans table containing the statistics on the response scale
+
+```{r exp3a_m3_emm_response, echo=FALSE}
+exp3a_m3_emm_response %>%
+  kable(digits = c(1,1,5,2,1,2,2),
+        caption = "Emmeans table on the response scale") %>%
+  kable_styling()
+```
+1. The values in the column "response" are the modeled means on the response scale. These values are the exponent of the values in the "emmean" column of the emmeans table on the link scale.
+2. The values in the columns "asymp.LCL" and "asymp.UCL" are the 95% confidence intervals on the response scale. These values are the exponent of the values in the same columns of the emmeans table on the link scale.
+3. Don't do additive math on the response scale! Remember, a GLM is linear on the link scale. The CIs on the response scale are not the mean plus or minus 1.96 $\times$ SE!
+
+```{r}
+2.47059 - 1.96*0.57
+# oops
+```
+4. Modeled means on the response scale are computed by backtransforming the modeled means on the link scale. Since the fit model used a log-link, the backtransformation is the exponent.
+
+```{r}
+pbs_fak_wt_response <- exp(pbs_fak_wt_link)
+gas6_fak_wt_response <- exp(gas6_fak_wt_link)
+pbs_fak_ko_response <- exp(pbs_fak_ko_link)
+gas6_fak_ko_response <- exp(gas6_fak_ko_link)
+
+# add a column to the exp_3a_means data.table
+exp_3a_means[, "mean (response scale)" := c(pbs_fak_wt_response,
+                                            gas6_fak_wt_response,
+                                            pbs_fak_ko_response,
+                                            gas6_fak_ko_response)]
+```
+
+```{r echo=FALSE}
+exp_3a_means %>%
+  kable(digits = 5,
+        caption = "Table of group treatment by genotype means on both the link and response scale.") %>%
+  kable_styling()
+```
+
+Compare the values here to those in the emmeans table on the response scale (Table \@ref(tab:exp3a_m3_emm_response)).
+
+### Some consequences of fitting a linear model to count data
+#### One -- linear models can make absurd predictions
+
+```{r glm-exp3a-m1-sdplot, echo=FALSE}
+sigma <- summary(exp3a_m1)$sigma
+lower_del <- qt(0.025, df = summary(exp3a_m1)$df[2])*sigma
+upper_del <- qt(0.975, df = summary(exp3a_m1)$df[2])*sigma
+exp3a_sum <- exp3a[, .(mean = mean(sprouts),
+                       lower = mean(sprouts) + lower_del,
+                       upper = mean(sprouts) + upper_del),
+                   by = t_by_g]
+gg1 <- ggplot(data = exp3a,
+             aes(x = t_by_g,
+                 y = sprouts)) +
+  geom_sina(alpha = 0.5) +
+  geom_point(data = exp3a_sum,
+             aes(x = t_by_g,
+                 y = mean),
+             size = 3) +
+  geom_errorbar(data = exp3a_sum,
+             aes(y = mean,
+                 ymin = lower,
+                 ymax = upper),
+             width = 0.1) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+
+gg1 <- factor_wrap(gg1)
+# gg1
+```
+
+```{r glm-exp3a-m1-predictions, echo=FALSE}
+sigma <- summary(exp3a_m1)$sigma
+n <- 100
+fake_exp3a <- data.table(
+  t_by_g = factor(rep(t_by_g_levels, each = n),
+                  levels = t_by_g_levels)
+)
+fake_exp3a[, c("treatment", "genotype"):= tstrsplit(t_by_g,
+                                             " ",
+                                             fixed = TRUE)]
+fake_exp3a[, sprouts := predict(exp3a_m1, newdata = fake_exp3a) +
+             rnorm(n*4, mean = 0, sd = sigma)]
+
+gg2 <- ggplot(data = fake_exp3a,
+             aes(x = t_by_g,
+                 y = sprouts)) +
+  geom_sina(alpha = 0.5) +
+
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
+
+gg2 <- factor_wrap(gg2)
+
+#gg2
 
 ```
 
-A quantile residual Q-Q plot of the GLM model fit with negative binomial distribution is illustrated above. This looks pretty good.
 
-#### Model means and coefficients
+```{r glm-exp3a-m3-sdplot, echo=FALSE}
 
-In a Generalized Linear Model of counts using either a Poisson or negative binomial distribution, modeled means, coefficients, and contrasts can be reported either on the link or response scale. Remember, the response scale is a count, while the link scale is a log(count).
+mu_vec <- rep(exp3a_m3_emm_response[, response], each = 100)
+theta_sim <- exp3a_m3$theta
+fake_exp3a[, sprouts_nb := rnegbin(n = n*4,
+                                mu = mu_vec,
+                                theta = theta_sim)]
 
-The modeled means on the link scale are
+gg3 <- ggplot(data = fake_exp3a,
+             aes(x = t_by_g,
+                 y = sprouts_nb)) +
+  geom_sina(alpha = 0.5) +
 
-```{r glm1-worm-means-link, echo=FALSE}
-# cell means link space
-emmeans(fit.nb, specs="Treatment")
-```
+  theme_pubr() +
+  theme(axis.title.x = element_blank()) +
+  NULL
 
-While the means on response scale are
-```{r glm1-worm-means-response, echo=FALSE}
-emmeans(fit.nb, specs="Treatment", type="response")
-```
+gg3 <- factor_wrap(gg3)
 
-1. A mean on the response scale is simply the exponent of the mean on the link scale. For example, the mean of the Control treatment level on the response scale is $\mathrm{exp}(1.821408) = 6.180555$.
-
-2. The CIs on the link scale are symmetric around the mean but those on the response scale are not. This is a feature, not a bug. Remember that counts are right skewed which means a CI will have a wider right than left interval. Check this!
-
-3. If a plot includes a 1 SE error bar on the response scale, this is technically correct but it encourages the practice of computing CIs using the 2*SE rule of thumb. This rule breaks down for count data with right skewed distributions.
-
-4. Plotting the response scale CIs is both technically correct and makes the 2*SE rule of thumb unnecessary.
-
-```{r glm1-worm-nb-ci, echo=FALSE, eval=FALSE}
-# link scale
-link <- data.table(summary(emmeans(fit.nb, specs="Treatment")))
-link[Treatment=="Control",asymp.UCL] - link[Treatment=="Control", emmean]
-link[Treatment=="Control",asymp.LCL] - link[Treatment=="Control", emmean]
-response <- data.table(summary(emmeans(fit.nb, specs="Treatment", type="response")))
-response[Treatment=="Control",asymp.UCL] - response[Treatment=="Control", response]
-response[Treatment=="Control",asymp.LCL] - response[Treatment=="Control", response]
+# gg3
 
 ```
 
-The model coefficients on the link scale are
-
-```{r glm1-worm-nb-coeffs-link, echo=FALSE, message=FALSE}
-#cbind(coefficients(summary(fit.nb)), confint(fit.nb))
-emm <- emmeans(fit.nb, specs="Treatment")
-summary(contrast(emm, method="trt.vs.ctrl", adjust="none"), infer=c(TRUE, TRUE))
+```{r, fig.width=full_width, fig.asp=0.4, fig.caption = "A) A linear model fit to the exp3a data implies these 95% prediction intervals. B) 100 fake sprout counts for each treatment by genotype combination sampled from the linear model. C) 100 fake sprout counts for each treatment by genotype combination sampled from the negative binomial GLM."}
+plot_grid(gg1, gg2, gg3, ncol=3, labels = "AUTO")
 ```
 
-Backtransforming the coefficients (but not the intercept) to the response scale (using $\mathrm{exp}{b_j}$) results in a **response ratio**. 
+Notes
 
-```{r glm1-worm-nb-coeffs-response, echo=FALSE}
-emm <- emmeans(fit.nb, specs="Treatment")
-summary(contrast(emm, method="trt.vs.ctrl", adjust="none", type="response"), infer=c(TRUE, TRUE))
-```
+1. A prediction interval is a confidence interval of a prediction -- using the fit model to predict future responses given the same conditions (here, assignment to one of the four different treatment combinations).
+2. Left panel: The prediction intervals from the linear model imply that negative sprouts could be sampled. This is absurd.
+3. Middle panel: The fit linear model is used to make 100 fake predictions in each group.
+4. Right panel: The fit negative binomial GLM is used to make 100 fake predictions in each group. Nothing absurd here.
 
-1. Note how the emmeans package reports the name of the term as the ratio of the coefficient term to the intercept term (the reference treatment level). Why are the coefficients tranformed to ratios on the response scale? Remember that a coefficient is a difference in conditional means and that $\mathrm{exp}(B-A) = \frac{\mathrm{exp}(B)}{\mathrm{exp}(A)}$. For a dummy variable as here (say "Infected HG"), the response ratio is
+#### Two -- linear models can perform surprisingly well if one is only interested in *p*-values
 
-\begin{equation}
-RR_{Infected\_HG} = \frac{\overline{Infected\_HG}}{\overline{Control}}
-\end{equation}
+*P*-values are a function of the sampling distribution of group means and differences in means, and, due to the magic of the [central limit theorem](https://en.wikipedia.org/wiki/Central_limit_theorem){target="_blank"}, linear models fit to count data perform surprisingly well in the sense of
 
-which give us the **relative effect** of Infected_HG compared to the Control. Relative effects could be reported as a response ratio in a table, or in the text it could be reported as a percent "Infected HG fish had 71.5% (95%CI: 38.9% - 111.8%) more *Diplostomum* larvae than Control fish." Where do these percents come from? The percent effect is $100(RR_j - 1)$ larger than the reference mean if the $RR_j > 1$ or $100(1 - RR_j)$ smaller than the reference mean if the $RR_j < 1$.
-
-2. Backtransforming the intercept does not generate a ratio since the intercept on the link scale is not a difference. For the worm analysis, the intercept on the link scale is the mean count of the control group on the link scale and the backtransformed intercept is the mean count of the control group on the response scale.
-
-3. Effects on the response scale are not additive but multiplicative! So, for example, the mean of the Infected HG treatment level on the response scale is $\overline{Control}*RR_{Infected\_HG}$ (remember that with a linear model the mean would be $b_{Control} + b_{Infected\_HG}$). Check and see if this works.
-
-```{r glm1-worm-percent, echo=FALSE, eval=FALSE}
-
-emm.response <- data.table(summary(emmeans(fit.nb, specs="Treatment", type="response")))
-coef.response <- exp(coef(fit.nb))
-
-# notice that exp(b0) = control mean
-# so Uninfected is 27.2% smaller than the control
-# this number is 100(1-b1)
-100*(1-coef.response[2])
-# does it work? This should equal the Uninfected mean
-emm.response[Treatment=="Control", response]*coef.response[2]
-```
+1. Type I error that approximates the nominal value
+2. Reasonable power compared to GLM models and many non-parametric tests.
 
 ## Working in R
+### Fitting GLMs to count data
 
-**Fitting a GLM to count data**. The poisson family is specified with the base R `glm()` function. For negative binomial, use `glm.nb` from the MASS package
+The poisson family is specified with the base R `glm()` function. For negative binomial, use `glm.nb` from the MASS package
 
 ```{r, eval=FALSE}
-# poisson - less likely to fit to real biological data well because of overdispersion
+# poisson - less likely to fit to real biological data well 
+# because of overdispersion
 fit <- glm(y ~ treatment, family = "poisson", data = dt)
 
 # two alternatives to overdispersed poisson fit
+
 # quasipoisson
 fit <- glm(y ~ treatment, family = "quasipoisson", data=dt)
-# negative binomial - more likely to fit to real biological data well
+
 # note that "family" is not an argument since this function is used only to fit a negative binomial distribution!
 fit <- glm.nb(y ~ treatment, data = dt)
 ```
 
-**Fitting a GLM to a continuous conditional response with right skew**. The Gamma family is specified with the base R `glm()` function. 
+### Fitting a GLM to a continuous conditional response with right skew.
+
+The Gamma family is specified with the base R `glm()` function. 
 
 ```{r, eval=FALSE}
 fit <- glm(y ~ treatment, family = Gamma(link = "log"), data = dt)
 ```
 
-**Fitting a GLM to a binary (success or failure, presence or absence, survived or died) response**
+### Fitting a GLM to a binary (success or failure, presence or absence, survived or died) response
 
 The binomial family is specified with base R `glm()` function.
 
@@ -590,7 +991,8 @@ dt[ , failure := n - success]
 fit <- glm(cbind(success, failure) ~ treatment, family = "binomial", data = dt)
 ```
 
-**Fitting Generalized Linear Mixed Models**
+### Fitting Generalized Linear Mixed Models
+
 Generalized linear mixed models are fit with `glmer` from the lmer package.
 
 ```{r, eval=FALSE}
@@ -606,6 +1008,7 @@ fit <- glmer.nb(y ~ treatment + (treatment|id), data = dt)
 ```
 
 Another good package for GLMMs is `glmmTMB` from the glmmTMB package
+
 ```{r, eval=FALSE}
 # negative binomial
 fit <- glmmTMB(y ~ treatment + (1|id), family="nbinom2", data = dt)
@@ -615,110 +1018,72 @@ fit <- glmmTMB(y ~ treatment + (1|id), family="nbinom1", data = dt)
 
 ```
 
+## Model checking GLMs
 
-### Fitting a GLM to count data
-Source publication: Benesh, D. P., & Kalbe, M. (2016). Experimental parasite community ecology: intraspecific variation in a large tapeworm affects community assembly. Journal of Animal Ecology, 85(4), 1004-1013.
-
-Source data URL: https://datadryad.org/resource/doi:10.5061/dryad.bq8j8
-
-Source file: "Lab_exp.csv"
-
-Poisson fit. A quantile residual Q-Q plot can be generated using the package DHARMa
-
-```{r glm1-working-in-r}
-fit.pois <- glm(Diplo_intensity ~ Treatment, family="poisson", data=worm)
-
-# from the DHARMa package
-  n_sim <- 250
-  simulationOutput <- simulateResiduals(fittedModel = fit.pois, n = n_sim)
-  plot(simulationOutput, asFactor = F)
-
-```
-
-A plot of the dispersion statistic can be generated using the object returned by the `SimulateOutput` function but with `refit = TRUE`, which refits a model each iteration. This refitting isn't necessary if only the quantiile residuals are needed. The Dharma package does not divide the sum of squared Pearson residuals by the residual degrees of freedom and so the expected value of the statistic is $df$.
+The `DHARMa` package has an excellent set of model checking tools. The DHARMa package uses simulation to generate fake data sampled from the fit model using the function `simulateResiduals`.
 
 ```{r}
-# from the DHARMa package
-  n_sim <- 250
-  simulationOutput <- simulateResiduals(fittedModel=fit.pois, n=n_sim, refit=TRUE)
-  testDispersion(simulationOutput)
+simulation_output <- simulateResiduals(fittedModel = exp3a_m3,
+                                       n = 250,
+                                       refit = FALSE)
 ```
 
 
-Negative binomial fit.
-
-```{r glm-working-in-r-2}
-fit.nb <- glm.nb(Diplo_intensity ~ Treatment, data=worm)
-# from the DHARMa package
-  simulationOutput <- simulateResiduals(fittedModel = fit.nb, n = n_sim)
-  plot(simulationOutput, asFactor = F)
-
-# link scale
-emm <- emmeans(fit.nb, specs="Treatment")
-emm
-summary(contrast(emm, method="trt.vs.ctrl", adjust="none"), infer=c(TRUE, TRUE))
-
-# response scale
-emm.response <- emmeans(fit.nb, specs="Treatment", type="response")
-summary(contrast(emm, method="trt.vs.ctrl", adjust="none", type="response"), infer=c(TRUE, TRUE))
+```{r}
+simulation_output <- simulateResiduals(fittedModel = exp3a_m2,
+                                       n = 250,
+                                       refit = FALSE)
 ```
 
-### Fitting a generalized linear mixed model (GLMM) to count data
+1. The DHARMa package uses simulation to 
 
-### Fitting a generalized linear model to continouus data
-
-
-## Problems
-
-Analyze the data that went into Fig 6B of Tena, A., Pekas, A., Cano, D., Wäckers, F. L., & Urbaneja, A. (2015). Sugar provisioning maximizes the biocontrol service of parasitoids. Journal of Applied Ecology, 52(3), 795-804.
-
-1. Compute contrasts and CIs among all pairs of all three treatment levels
-2. Make a better plot like 6b including 1) use the modeled mean instead of the simple group mean and 2) use the modeled CI of the mean instead of the SE computed within each group independently.
-
-source URL: https://datadryad.org/resource/doi:10.5061/dryad.bj001
-
-source file: "4_Parastism_Fig_6.csv"
-
-```{r, echo=FALSE, eval=FALSE}
-# nice results
-
-folder <- "Data from Sugar provisioning maximizes the biocontrol service of parasitoids"
-file <- "4_Parastism_Fig_6.csv"
-file_path <- paste(data_path, folder, file, sep="/")
-sugar <- fread(file_path)
-sugar[, Treatment:=factor(Treatment, c("Control", "Releases", "Releases_sugar"))]
-ggerrorplot(x="Treatment", y="Parasitized", desc_stat="mean_ci", data=sugar)
-
-fit.nb <- glm.nb(Parasitized ~ Treatment, data=sugar)
-emm <- summary(emmeans(fit.nb, specs="Treatment", type="response"))
-gg <- ggplot(data=emm, aes(x=Treatment, y=response)) +
-  geom_point(size=2) +
-  geom_errorbar(aes(ymin=asymp.LCL, ymax=asymp.UCL), width=.2)
-gg
-
-fit.lm <- lm(Parasitized ~ Treatment, data=sugar)
-emmeans(fit.lm, specs="Treatment")
-emm
-
-# fake data
-niter <- 5000
-mu <- predict(fit.nb, type="response")
-n <- length(mu)
-lm.conf <- matrix(nrow=niter, ncol=2)
-glm.conf <- matrix(nrow=niter, ncol=2)
-
-mu1 <- coef(fit.lm)[1]
-for(iter in 1:niter){
-  fake_count <- rnegbin(n, mu, theta=fit.nb$theta)
-  fake.lm <-  lm(fake_count ~ Treatment, data=sugar)
-  lm.conf[iter,] <- confint(fake.lm)[1,]
-  
-  fake.nb <- glm.nb(fake_count ~ Treatment, data=sugar)
-  glm.conf[iter,] <- exp(confint(fake.nb)[1,])
-}
-sum(mu1 > lm.conf[,1] & mu1 < lm.conf[,2])/niter*100  # coverage is 99.1%
-sum(mu1 > glm.conf[,1] & mu1 < glm.conf[,2])/niter*100 # coverage is 94.5%
-
+```{r}
+plot(simulation_output)
 ```
 
 
+```{r}
+plotQQunif(simulation_output)
+```
+
+4. Three test statistics are superimposed. Use these *p*-values cautiously -- they are guides and not thresholds of demarcation. The two we care about here are
+* The KS statistic indicates that the quantile residuals are not very compatible with a Poisson model -- think of this as having a very low probability of sampling these counts from a Poisson with the estimated $\lambda$.
+* The dispersion statistic indicates that the value of the dispersion of the quantile residuals is not very compatible with a Poisson model -- think of this as having a very low probability of sampling counts with this dispersion from a Poisson with the estimated $\lambda$.
+
+## Hidden code
+### Import Example 1 data (exp3a -- "angiogenic sprouts")
+
+```{r glm-exp3a-import-show, echo=TRUE}
+data_from <- "Pericyte FAK negatively regulates Gas6-Axl signalling to suppress tumour angiogenesis and tumour growth"
+file_name <- "41467_2020_16618_MOESM3_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp3a_wide <- read_excel(file_path,
+                         sheet = "Figure 3",
+                         range = "B4:E26",
+                         col_names = FALSE) %>%
+  data.table()
+
+input_labels <- c("PBS FAK_wt", "PBS FAK_ko", "GAS6 FAK_wt", "GAS6 FAK_ko")
+colnames(exp3a_wide) <- input_labels
+
+exp3a <- melt(exp3a_wide,
+              measure.vars = input_labels,
+              variable.name = "t_by_g",
+              value.name = "sprouts") %>%
+  na.omit()
+
+# change order of factor levels
+t_by_g_levels <- c("PBS FAK_wt", "GAS6 FAK_wt", "PBS FAK_ko", "GAS6 FAK_ko")
+
+exp3a[, c("treatment", "genotype"):= tstrsplit(t_by_g,
+                                             " ",
+                                             fixed = TRUE)]
+
+exp3a[, t_by_g := factor(t_by_g, levels = t_by_g_levels)]
+treatment_levels <- c("PBS", "GAS6")
+exp3a[, treatment := factor(treatment, levels = treatment_levels)]
+genotype_levels <- c("FAK_wt", "FAK_ko")
+exp3a[, genotype := factor(genotype, levels = genotype_levels)]
+
+```

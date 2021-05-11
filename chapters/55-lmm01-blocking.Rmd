@@ -51,6 +51,7 @@ effect_ar <- 0.6 # for effects
 harrell_ar <- 1 # for harrell effect & response plots
 
 # dims (width, height)
+small_dim <- c(small_width, small_width*std_ar)
 std_dim <- c(std_width, std_width*std_ar)
 response_dim <- c(std_width, std_width*response_ar)
 effect_dim <- c(std_width, std_width*effect_ar)
@@ -919,7 +920,7 @@ exp6g[, mouse_id := paste0("mouse_", mouse_id)]
 
 ### Understand the data
 
-In this study, the researchers investigate the effectiveness of knocking down the protein [PTBP1](https://en.wikipedia.org/wiki/PTBP1){target="_blank"} to induce astrocytes to convert to neurons in a motor processing region of the brain. Experimental lesions of this region of the brain is a model of [Parkinson's disease](https://en.wikipedia.org/wiki/Parkinson%27s_disease){target="_blank"}. In Experiment 6g, the researchers
+In this study, the researchers investigated the effectiveness of knocking down the protein [PTBP1](https://en.wikipedia.org/wiki/PTBP1){target="_blank"} to induce astrocytes to convert to neurons in a motor processing region of the brain. Experimental lesions of this region of the brain is a model of [Parkinson's disease](https://en.wikipedia.org/wiki/Parkinson%27s_disease){target="_blank"}. In Experiment 6g, the researchers
 
 1. Generated a lesion in the motor processing region using 6-hydroxydopamine (6-OHDA). The lesion disrupts the ability to control the **contralateral** (opposite side) forelimb.
 2. One month after the lesion, measured the percent of ipsilateral (same side) forepaw touches (the forelimb extending out and touching the surface) in a test of exploration in a new environment (the "cylinder test"). The expected percent in an intact mouse is 50%. In a lesioned mouse, the percent should be much greater than 50% since there is less control of the contralateral limb. The measure at this point is in the treatment "Lesion". This is the positive control.

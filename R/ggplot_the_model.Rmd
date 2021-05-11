@@ -210,6 +210,83 @@ ggcheck_the_qq = function(m1,
 }
 ```
 
+```{r}
+
+ggcheck_the_glm_qq = function(m1,
+                   n_sim = 250,
+                   se = FALSE,
+                   normal = FALSE){
+  
+  simulationOutput <- simulateResiduals(fittedModel = m1, n = n_sim)
+  observed = simulationOutput$scaledResiduals %>%
+    sort()
+  
+  m1_data <- insight::get_data(m1)
+  n_points <- nrow(m1_data)
+  
+  q <- n_points + 1
+  x <- seq(1/q, 1 - 1/q, by = 1/q)
+  theoretical <- qunif(x)
+  
+  if(normal == TRUE){
+    observed <- qnorm(observed)
+    theoretical <- qnorm(theoretical)
+  }
+  
+  gg <- ggscatter(data = data.frame(
+    Theoretical = theoretical,
+    Observed = observed),
+    x="Theoretical", 
+    y="Observed",
+    title = "Quantile-Residual Uniform-QQ Plot"
+  ) +
+    
+    geom_abline(slope = 1, intercept = 0) +
+    
+    NULL
+
+  if(se == TRUE){
+    qr <- matrix(as.numeric(NA), nrow = n_points, ncol = n_sim)
+    fake_counts <- simulationOutput$simulatedResponse
+    m1_form <- find_formula(m1)$conditional
+    m1_y <- find_response(m1)
+    m1_model_name <- model_name(m1)
+    y_col <- which(names(m1_data) == m1_y)
+    for(j in 1:n_sim){
+      m1_data[, 1] <- fake_counts[, j]
+      if(m1_model_name == "glm"){
+        m1_fake <- glm(m1_form, family = "poisson", data = m1_data)
+      }
+      if(m1_model_name == "negbin"){
+        m1_fake <- glm.nb(m1_form, data = m1_data)
+      }
+      simulated_output_fake <- simulateResiduals(m1_fake, n_sim)
+      qr[,j] <- sort(simulated_output_fake$scaledResiduals)
+    }
+    qq_ci_model <- data.table(
+      Theoretical = theoretical,
+      median = apply(qr, 1, median),
+      lower = apply(qr, 1, quantile, 0.025),
+      upper = apply(qr, 1, quantile, 0.975)
+    )
+    gg <- gg +
+      # ribbon
+      geom_ribbon(data = qq_ci_model,
+                  aes(ymin = lower,
+                      ymax = upper,
+                      y = median,
+                      fill = "band"),
+                  fill = "gray",
+                  alpha = 0.6)
+  }
+  
+  gg
+  return(gg)
+}
+
+```
+
+
 ```{r ggcheck_the_spreadlevel}
 ggcheck_the_spreadlevel <- function(m1,
                    n_boot = 200){

@@ -40,7 +40,7 @@ quantilize_1 <- function(x){
 }
 ```
 
-## All statistical analyses should be followed by model checking 
+## All statistical analyses should be followed by model checking {#check-check}
 
 We us a linear model to infer effects or predict future outcomes. Our inference is uncertain. Given the model assumptions, we can quantify this uncertainty with standard errors, and from these standard errors we can compute confidence intervals and *p*-values. It is good practice to use a series of **diagnostic plots**, diagnostic statistics, and simulation to check how well the data approximate the fit model and model assumptions. **Model checking** is used to both check our subjective confidence in the modeled estimates and uncertainty and to provide empirical evidence for subjective decision making in the analysis workflow.
 
@@ -162,6 +162,45 @@ A Normal Q-Q plot is not a test if the data are Normal. Instead, a Normal Q-Q pl
 
 <div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
 **Stats 201** A Q-Q plot more generally is a scatter plot of two vectors of quantiles either of which can come from a sample or a theoretical distribution. In the GLM chapter, the text will introduce Q-Q plots of residual quantiles transformed to have an expected uniform distribution. These are plotted against theoretical uniform quantiles from 0 to 1.
+</div> 
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**Intuition Pump** -- Let's construct a Normal Q-Q plot. A **quantile** (or percentile) of a vector of numbers is the value of the point at a specified percentage rank. The median is the 50% quantile. The 95% confidence intervals are at the 2.5% and 97.5% quantiles. In a Normal Q-Q plot, we want to plot the quantiles of the residuals against a set of theoretical quantiles.
+
+1. To get the observed quantiles, rank the residuals of the fit linear model from most negative to most positive -- these are your quantiles! For example, if you have $n=145$ residuals, then the 73rd point is the 50% quantile.
+2. A theoretical quantile from the normal distribution can be constructed using the `qnorm` function which returns the normal quantiles for a specified vector of percents. Alternatively, one could randomly sample $n$ points using `rnorm`. These of course will be sampled quantiles so will only approximate the expected theoretical quantiles, but I add this here because we use this method below.
+
+Now simply plot the observed against theoretical quantiles. Often, the **standardized** quantiles are plotted. A standardized variable has a mean of zero and a standard deviation of one and is computed by 1) centering the vector at zero by subtracting the mean from every value, and 2) dividing each value by the standard deviation of the vector. Recognize that because a standard deviation is a function of deviations from the mean, it doesn't matter which of these operations is done first. A standardized theoretical quantile is specified by `qnorm(p, mean = 0, sd = 1)`, which is the default.
+
+Code for this would look something like this
+
+```{r glm1-qqplot-sim, echo=FALSE}
+# try this with real data. Here I just make it up
+fake_data <- data.table(
+  treatment = rep(c("cn", "tr"), each = 10),
+  response = rnorm(20,
+                   mean = rep(c(10, 11), each = 10),
+                   sd = 1)
+)
+m1 <- lm(response ~ treatment, data = fake_data)
+fake_data[, y_residual := residuals(m1)]
+
+quantile_observed <- fake_data[, y_residual] %>%
+  scale() %>%
+  sort()
+
+N <- length(quantile_observed)
+q <- N + 1
+x <- seq(1/q, 1 - 1/q, by = 1/q)
+quantile_theoretical <- qnorm(x)
+
+# this is not the robust regression line
+qplot(x = quantile_theoretical, y = quantile_observed) +
+  geom_abline(slope = 1, intercept = 0) +
+  xlab("theoretical normal quantile") +
+  ylab("observed normal quanitle") +
+  theme_pubr()
+```
 </div> 
 
 #### Normal QQ-plot of the fake data generated above
@@ -694,9 +733,11 @@ ggplot(data = qq_data,
   NULL
 ```
 
-### Model checking homoskedasticity
+### Model checking homoskedasticity {#model-checking-spread-level}
 
 ## Using R
+
+## Hidden Code
 
 Source: [Wellenstein, M.D., Coffelt, S.B., Duits, D.E., van Miltenburg, M.H., Slagter, M., de Rink, I., Henneman, L., Kas, S.M., Prekovic, S., Hau, C.S. and Vrijland, K., 2019. Loss of p53 triggers WNT-dependent systemic inflammation to drive breast cancer metastasis. Nature, 572(7770), pp.538-542.](https://www.nature.com/articles/s41586-019-1450-6){target="_blank"}
 
