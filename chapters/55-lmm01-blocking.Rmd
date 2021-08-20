@@ -3310,14 +3310,21 @@ Notes
 
 #### univariate vs. multivariate repeated measures ANOVA
 
-Use the multivariate model unless you want to replicate the result of someone who used a univariate model.
+Use the multivariate model unless you want to replicate the result of someone who used a univariate model. By default, `aov_4` computes only the multivariate model (prior to version xxx, the default was to compute both models).
 
 ```{r}
-# aov_4 computes both uni and multi but default output is uni
-exp5c_aov1 <- aov_4(glucose_uptake ~ treatment * activity +
+# default mode -- should be multivariate
+exp5c_aov <- aov_4(glucose_uptake ~ treatment * activity +
                     (treatment * activity | donor),
                   data = exp5c)
-# exclude uni, so output is multi
+
+# force aov_4 to compute univariate model
+exp5c_aov1 <- aov_4(glucose_uptake ~ treatment * activity +
+                    (treatment * activity | donor),
+                  data = exp5c,
+                  include_aov = TRUE)
+
+# explicitly exclude the univariate model
 exp5c_aov2 <- aov_4(glucose_uptake ~ treatment * activity +
                     (treatment * activity | donor),
                   data = exp5c,
@@ -3327,18 +3334,49 @@ exp5c_aov2 <- aov_4(glucose_uptake ~ treatment * activity +
 
 Notes
 
-1. The `include_aov = FALSE` argument forces output from `aov_4` to use the multivariate model.
+1. The `include_aov = TRUE` argument forces output from `aov_4` to include the univariate model.
 
-**contrasts from univariate model**
+**contrasts from multivariate model**
 
 ```{r}
-# these 2 are the same
-emmeans(exp5c_aov1, specs = c("treatment", "activity")) %>%
+# These three should give equivalent results
+
+# exp5c_aov was fit with the default -- multivariate model only
+emmeans(exp5c_aov,
+        specs = c("treatment", "activity")) %>%
   contrast(method = "revpairwise",
            simple = "each",
            combine = TRUE,
            adjust = "none")
 
+# exp5c_aov included the univariate model but the default is still the multivariate model
+emmeans(exp5c_aov1,
+        specs = c("treatment", "activity")) %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+# passing `model = "multivariate"` makes the model choice transparent
+emmeans(exp5c_aov1,
+        specs = c("treatment", "activity"),
+        model = "multivariate") %>%
+  contrast(method = "revpairwise",
+           simple = "each",
+           combine = TRUE,
+           adjust = "none")
+
+
+```
+
+Notes
+
+1. If our rmANOVA model is fit with the default specification (`exp5c_aov1`), we can get the multivariate output using the `model = "multivariate"` argument within `emmeans` (not the `contrast` function!). Or, if our fit excluded the univariate model (`exp5c_aov2`), then we don't need the `model` argument.
+
+**contrasts from univariate model**
+
+```{r}
+# get the univariate model results using $aov
 emmeans(exp5c_aov1$aov, specs = c("treatment", "activity")) %>%
   contrast(method = "revpairwise",
            simple = "each",
@@ -3348,32 +3386,7 @@ emmeans(exp5c_aov1$aov, specs = c("treatment", "activity")) %>%
 
 Notes
 
-1. Passing `exp5c_aov1` to `emmeans` will return the contrasts from the univariate model by deault. Make this explicit by passing only the univarite fit `exp5c_aov1$aov`.
-
-**contrasts from multivariate model**
-
-```{r}
-# these 2 are the same
-emmeans(exp5c_aov1,
-        specs = c("treatment", "activity"),
-        model = "multivariate") %>%
-  contrast(method = "revpairwise",
-           simple = "each",
-           combine = TRUE,
-           adjust = "none")
-
-emmeans(exp5c_aov2,
-        specs = c("treatment", "activity")) %>%
-  contrast(method = "revpairwise",
-           simple = "each",
-           combine = TRUE,
-           adjust = "none")
-
-```
-
-Notes
-
-1. If our rmANOVA model is fit with the default specification (`exp5c_aov1`), we can get the multivariate output using the `model = "multivariate"` argument within `emmeans` (not the `contrast` function!). Or, if our fit excluded the univariate model (`exp5c_aov2`), then we don't need the `model` argument.
+1. Passing `exp5c_aov1` to `emmeans` will return the contrasts from the multivariate. change this to the univariate model by passing `exp5c_aov1$aov`.
 
 #### The ANOVA table
 
