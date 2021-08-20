@@ -1,4 +1,4 @@
-# Data -- Reading, Wrangling, and Writing
+# Data -- Reading, Wrangling, and Writing {#data}
 
 ```{r data-setup, echo=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(fig.width=6, fig.height=4) 
@@ -27,6 +27,64 @@ output_folder <- "output" # path to data that are saved
 image_folder <- "images"
 ```
 
+## Long data format -- the way data should be
+
+```{r data-import-diet, echo=FALSE, message=FALSE}
+# https://github.com/banks-lab/Cal-Repository
+data_from <- "A big-data approach to understanding metabolic rate and response to obesity in laboratory mice"
+file_name <- "mmpc_all_phases.csv"
+file_path <- here(data_folder, data_from, file_name)
+
+exp1 <- fread(file_path) %>%
+  clean_names()
+
+# reduce to phase 3 (last weight measure)
+exp1 <- exp1[acclimation == "TRUE" &
+               phase == 3, ]
+exp1[, diet := factor(diet, levels = c("LF","HF"))]
+```
+
+```{r data-diet-table, echo=FALSE}
+# names(exp1)
+ycols <- c("subject_id", "institution", "diet", "vo2", "lean_mass", "fat_mass")
+exp1[1:6, .SD, .SDcols = ycols] %>%
+  kable(caption = "First six rows of the diet data set.") %>%
+  kable_styling()
+```
+
+Some best practices for archiving data tables, including archived data at journal websites, are illustrated by the format of the data in Table \@ref(tab:data-diet-table). These practices include
+
+1. The data table contains all measures on each individual. In most of the archived Excel files that I download from journal websites, the researchers have separated each variable into separate tables and exclude all information from these tables other than the treatment group. For example, researchers would typically archive the vo2 values in Table \@ref(tab:data-diet-table) in a separate table within an Excel sheet and with the values split by diet group (high fat "HF" and low fat "LF")(Figure \@ref(fig:data-vo2-table-wide)). Don't do this.
+
+```{r data-vo2-table-wide, echo=FALSE, fig.cap="The vo2 values separated from the rest of the data and split into separate diet groups."}
+image_path <- here("images", "data-vo2_wide.png")
+include_graphics(image_path)
+```
+
+* We don't want to separate each variable into separate tables because we often want to use information from other measures of the same individual in our analysis. For example, for the comparison of $\texttt{vo2}$ among treatment levels, we would want to add the measure of $\texttt{lean_mass}$ to the model as a covariate (what is often called an ANCOVA model). To do this, we'd need to know which values of $\texttt{vo2}$ and values of $\texttt{lean_mass}$ belong to the same individual.
+* Even if you think you have analyzed the data using a best practice, don't separate each variable into separate tables. Researchers sometimes fail to recognize best practices. Any re-analysis of published data using best practices often require information from other measures of the same individual. For example, many researchers would compare the ratio of $\texttt{vo2}$ to $\texttt{total_mass}$ among treatment levels. This isn't a best practice and if I want to check the researchers conclusions, I'd need a table like Table \@ref(tab:data-diet-table) to re-analyze the data.
+* Even if you have used what is considered a best practice, don't separate each variable into separate tables. Sometimes a researcher wants to use data from published data sets to parameterize a mechanistic model. Or, use data from published data sets to explore patterns of relationships among variables, for example how fat mass scales with lean mass (or total mass). For these, we need a table like Table \@ref(tab:data-diet-table) to re-analyze the data.
+2. The researchers organized the table with individuals in rows. A data table with all measures for each individual could organize the data with each row or each column belonging to one individual. The best practice for most analysis in R (and most other statistical software) is to organize individuals to rows (there are exceptions in some R packages that analyze genomics datasets).
+3. The researchers organized the data in **long format** -- that is, each column contains *all* measures of a single variable. In general, do not organize the data in **wide format**, by splitting the values of a variable into multiple columns, with each column representing the values for a different group. An example of wide format is in Figure \@ref(fig:data-vo2-table-wide), which is the $\texttt{vo2}$ subset of data split by the groups in the columne $\texttt{diet}$. By contrast, the $\texttt{vo2}$ data are in long format in the original table (Table \@ref(tab:data-diet-table)). It might be useful to think of long format for a variable as a single column with the values for each group **stacked** on top of each other. 
+
+In general, R and almost all other statistical software (one exception is Graphpad Prism) require the data to be in long format.
+
+* A reason for this is because the long format is consistent with the math underneath the statistical modeling of data. For example, the least squares solution of the linear model is
+
+$$
+\mathbf{b} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}
+$$
+
+where $\mathbf{X}$ is the **model matrix**, a table of numeric values with each row containing the values of the $X$ variables for an individual (categorical variables such as $\texttt{diet}$ are recoded into one or more numeric **indicator variables** indicating group membership). The model matrix is in long format.
+* A second reason is organizational simplicity. Statistical models often include multiple variables measured on the same individual -- the example above with $\texttt{lean_mass}$ added as a covariate is an example. With data in wide format, there is no non-awkward way to match values of $\texttt{lean_mass}$ with values of $\texttt{vo2}$ from the same individual. Or, in models with [crossed factor variables](#factorial), for example, an experiment with four groups repesenting all four combinations of the variables $\texttt{genotype}$ (with levels "WT" and "KO") and $\texttt{treatment}$ (with levels "Control" and "HFD"), there is no non-awkward way (at least in a table with a single header row) to indicate that the design is two crossed factors. In wide format, the design appears to be a single factor with four groups.
+
+Don't confuse a data table with multiple columns of *different* variables with a data table in wide format. Long and wide are relevant to how a single variable is organized -- if split into multiple columns the table is wide, if stacked into a single column, the table is long. 
+
+One exception to long format is a **longitudinal** or a **repeated measures** data set (Chapter \@ref(pre-post)), in which the response variable is measured multiple times on each individual. An example might be a *pre-post* design where a variable is measured both before and after a treatment is applied or an experiment where the response is measured each week for multiple weeks. In **univariate** models for the analyses of these data, the multiple measures for an individual are stacked into long format. As a consequence, there are now multiple rows of data for each individual (one for each measure of the variable). In **multivariate** models for the analyses of these data, the multiple measures for an individual are treated as if they are different variables and are spread out into wide format.
+
+4. The table includes the raw values. Many researchers normalize or standarize the values of a variable by constructing a ratio of the raw value divided by some standardizing value. Almost always, the best practice is to leave the response variable alone (do not make a ratio) and include the standardizing value as a covariate (or offset) in the model. But, if I want to check th conclusions of a particular result in which the researchers used a ratio as the response variable, then I would need the raw measures and the standardizing values.
+
+## Importing -- best practices
 Importing data into R can be a struggle for new R users and, unfortunately, most online "how to import" sources give easy but superficial methods that don't follow best practices for increasing reproducibility or do not allow flexible organization of files within a project.
 
 (TL;DR -- use `here()` from the here package)
@@ -319,6 +377,7 @@ Do not try to type it out. You have been warned.
 Data archived in Excel spreadsheets, at least in wet-bench experimental biology projects, are generally not in a format this is readily analyzed in R, or any statistical software other than perhaps Graphpad Prism. Use these examples as templates for how to import and wrangle Excel-archived data in your project.
 
 ### Reshaping data -- Wide to long
+#### Prelude to wide and long formats
 #### Wide to long -- Adipsin data
 
 Source: [Adipsin preserves beta cells in diabetic mice and associates with protection from type 2 diabetes in humans](https://www.nature.com/articles/s41591-019-0610-4){target="_blank"}

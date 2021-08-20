@@ -1,1 +1,1 @@
-# Part VII -- Expanding the Linear Model {-}
+# Part VI -- Expanding the Linear Model {-}

@@ -1,10 +1,11 @@
-# Linear models for count data -- Generalized Linear Models I {#counts}
+# Linear models for counts, binary responses, skewed responses, and ratios  -- Generalized Linear Models {#counts}
 
 ```{r glm1-setup, echo=FALSE, message=FALSE}
 library(here)
 library(janitor)
 library(readxl)
 library(data.table)
+library(tidyr)
 
 # analysis packages
 library(emmeans)
@@ -62,6 +63,8 @@ out.width_small <- paste0(small_width/full_width*100, "%")
 
 ```
 
+## Introducing Generalized Linear Models using count data examples {#glm-counts}
+
 Biologists frequently count stuff, and design experiments to estimate the effects of different factors on these counts. Count data can cause numerous problems with linear models that assume a normal, conditional distribution, including 1) counts are discrete, and can be zero or positive integers only, 2) counts tend to bunch up on the small side of the range, creating a distribution with a positive skew, 3) a sample of counts can have an abundance of zeros, and 4) the variance of counts increases with the mean (see Figure \@ref(fig:glm1-plot1) for some of these properties). Some count data can be approximated by and reasonably modeled with a normal distribution. More often, count data should modeled with a [Poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution){target="_blank"} or [negative binomial distribution](https://en.wikipedia.org/wiki/Negative_binomial_distribution){target="_blank"} using a [generalized linear model](https://en.wikipedia.org/wiki/Generalized_linear_model (GLM)){target="_blank"}. Poisson and negative binomial distributions are **discrete probability distributions** with two important properties: 1) the distribution contains only zero and positive integers and 2) the variance is a function of the mean. Back before modern computing and fast processors, count data were often analyzed by either **transforming** the response or by **non-parametric hypothesis tests**. One reason to prefer a statistical modeling approach with a GLM is that we can get interpretable parameter estimates. By contrast, both the analysis of transformed data and non-parametric hypothesis tests are really tools for computing "correct" *p*-values.
 
 ```{r glm-exp3a-import, echo=FALSE}
@@ -113,7 +116,7 @@ gghistogram(data = exp3a[genotype == "FAK_wt"],
 
 ```
 
-## The Generalized Linear Model (GLM)
+### The Generalized Linear Model (GLM)
 
 As outlined in [Two specifications of a linear model](#lm-specifications), a common way that biological researchers are taught to think about a response variable is
 
@@ -206,7 +209,7 @@ Importantly, in a GLM, the individual data values *are not transformed*. A GLM w
 
 When modeling counts using the Poisson or negative binomial distributions with a log link, the link scale is linear, and so the effects are additive on the link scale, while the response scale is nonlinear (it is the exponent of the link scale), and so the *effects are multiplicative on the response scale*. If this doesn't make sense now, an example is worked out below. The inverse of the link function backtransforms the parameters from the link scale back to the response scale. So, for example, a prediction on the response sale is $\mathrm{exp}(\hat{\eta})$ and a coefficient on the response scale is $\mathrm{exp}(b_j)$.
 
-## Kinds of experimental biology data that are modeled by a GLM
+### Kinds of data that are modeled by a GLM
 
 1. If a response is a count then use a Poisson, quasi-Poisson or negative binomial family with a log link. 
 2. If a response is binary response, for example, presence/absence or success/failure or survive/die, then use the binomial family with a logistic link (other link functions are also useful). This is classically known as **logistic regression**.
@@ -215,7 +218,7 @@ When modeling counts using the Poisson or negative binomial distributions with a
 5. If a response is continuous but the variance increases with mean then use the gamma family
 6. If a response is a fraction of a continuous measure per "effort" (tumor area per total area or volume or time), then use a gamma family on the raw measure and include the measure of effort as an offset.
 
-## Example 1 -- A generalized linear model explainer ("angiogenic sprouts" exp3a) {#glm-1}
+## Example 1 -- GLM models for count responses ("angiogenic sprouts" exp3a) {#glm-1}
 ### Understand the data
 
 Article source [Lechertier, Tanguy, et al. "Pericyte FAK negatively regulates Gas6/Axl signalling to suppress tumour angiogenesis and tumour growth." Nature communications 11.1 (2020): 1-14.](https://www.nature.com/articles/s41467-020-16618-6){target="_blank"}
@@ -247,7 +250,7 @@ The planned contrasts are
 3. ((PBS FAK_ko) - (PBS FAK_wt)) - ((GAS6 FAK_ko) - (GAS6 FAK_wt)). The interaction effect giving the effect of the combined treatment relative to the individual effects.
 
 ### Model fit and inference
-#### Fit the model
+#### Fit the models
 
 ```{r glm-exp3a_models}
 exp3a_m1 <- lm(sprouts ~ treatment * genotype, data = exp3a)
@@ -473,7 +476,7 @@ A better way to investigate this is with the **Normal-QQ** plot in Figure \@ref(
 
 For the sprout data, the points are above the line at the positive end, hug the upper bound of the 95% CI at the negative end, are well above the 95% CI at the positive end, and the robust regression is distinctly shallower than a line bisecting the CI bounds. At the left (negative) end, the observed values are more positive than the theoretical values. Remembering that this plot is of residuals, if we think about this as counts, this means that our smallest counts are not as small as we would expect given the mean, the variance, and a normal distribution. This shouldn't be surprising -- the counts range down to zero and counts cannot be below zero. At the positive end, the sample values are again more positive than the theoretical values. Thinking about this as counts, this means that are largest counts are larger than expected given the mean, the variance, and a normal distribution. This pattern is what we'd expect of count data.
 
-#### Checking the linear model exp3a_m1 -- Spread-level plot for checking homoskedasticity
+#### Checking the linear model exp3a_m1 -- Spread-level plot for checking homoskedasticity {#glm-exp3a_m1-spreadlevel}
 
 ```{r glm1-exp3a-qq-scale-location, fig.dim=small_dim, echo=FALSE}
 ggcheck_the_spreadlevel(exp3a_m1)
@@ -588,6 +591,8 @@ plotResiduals(exp3a_m2, asFactor = FALSE, quantreg = TRUE)
 
 Notes
 
+1. The three curves are **quantile regressions** fit to the 25% (the first quartile), 50% (the second quartile or median), and 75% (the third quartile) quantiles conditional on the fitted value (the x-axis). The $p\%$ quantile regression line goes through the $p\%$ quantile of the $Y$ values at each value of $X$. Think of it like this: at any location along the x-axis, there is a spread of points on the y-axis that contains a first quartile, a median, and a third quartile. The 25%, 50%, and 75% quantile regression lines go through these points.
+2. Why fit the three quartiles? The classic spread-level plot typically fits a regression, which is the expected (mean) residual, conditional on the fitted value (for example, the plot in section \@ref(glm-exp3a_m1-spreadlevel)). Researchers typically look at this and think, "the whole spread of points is becoming more variable as the fitted value increases" but the regression is only modeling the mean. By fitting the first, second, and third quartile regressions, this spread-level plot evaluates deviations from expected spread not just at the mean but in the lower and upper halves of the spread. 
 
 #### Model checking a GLM III -- Checking dispersion
 
@@ -756,9 +761,9 @@ exp_b2
 ```
 3. Since this backtransformed coefficient is both an effect and a ratio, I call it an **effect ratio**. It's value is how many times bigger (or smaller if less than one) the non-reference response is relative to the reference response. The response of the GAS6 treatment is 3.66$\times$ that of the reference treatment. 
 
-### Modeled means in the emmeans table of a Generalized Linear Model can be on the link scale or response scale.
+### Modeled means in the emmeans table of a Generalized Linear Model can be on the link scale or response scale -- Report the response scale
 
-#### The emmeans table containing the statistics on the link scale {#glm-exp3a-emmans-link}
+#### The emmeans table on the link scale contains the log means {#glm-exp3a-emmans-link}
 
 ```{r exp3a_m3_emm_link, echo=FALSE}
 exp3a_m3_emm_link %>%
@@ -809,7 +814,7 @@ exp_3a_means %>%
 
 Compare the values here to those in the emmeans table on the link scale (Table \@ref(tab:exp3a_m3_emm_link)).
 
-#### The emmeans table containing the statistics on the response scale
+#### The emmeans table on the response scale contains more readily interpretable means
 
 ```{r exp3a_m3_emm_response, echo=FALSE}
 exp3a_m3_emm_response %>%
@@ -951,10 +956,625 @@ Notes
 1. Type I error that approximates the nominal value
 2. Reasonable power compared to GLM models and many non-parametric tests.
 
+## Example 2 -- Use a GLM with an offset instead of a ratio of some measurement per area ("dna damage" data exp3b)
+
+A problem that often arises in count data (and other kinds of measures) are counts that are taken in samples with different areas or volumes of tissue. As a consequence, size and treatment response are confounded -- samples with higher counts may have higher counts because of a different response to treatment, a larger amount of tissue, or some combination. The common practice in experimental biology is to adjust for tissue size variation by area-normalizing the count using the ratio $\frac{count}{area}$ and then testing for a difference in the normalized count using either a linear model NHST (*t*-test/ANOVA) or a non-parametric NHST (Mann-Whitney-Wilcoxan). These practices raise at least two statistical issues.
+
+1. The ratio will have some kind of [ratio distribution](https://en.wikipedia.org/wiki/Ratio_distribution){target="_blank"} that violates the normal distribution assumption of the linear model.
+2. A Mann-Whitney-Wilcoxan does not estimate meaningful effects, is less powerful than GLM models, and is not flexible for complex designs including factorial or covariate models.
+
+A better practice is to model the count using a GLM that adds the denominator of the ratio (the area or volume) as an **offset** in the model. A count GLM with offset also models the ratio (see section \@ref(glm-rate) below), but in a way that is likely to be much more compatible with the data.
+
+NHST of the ratios will perform okay in the sense of Type I error that is close to nominal but will have relatively low power compared to a generalized linear model with offset. If the researcher is interested in best practices including the reporting of uncertainty of estimated effects, a GLM with offset will have more useful confidence intervals -- for example CIs from linear model assuming Normal error can often include absurd values such as ratios less than zero. 
+Source article (Fernández, Álvaro F., et al. "Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice." Nature 558.7708 (2018): 136-140.)[https://www.nature.com/articles/s41586-018-0162-7]{target="_blank"}
+
+### exp3b ("dna damage") data
+
+These data were first introduced in the Issues chapter, Section \@ref(issues-offset). There only the age 20 month data were analyzed. Here the full dataset is analyzed.
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5992097/){target="_blank"}
+
+[Source data for Fig. 3](https://www.nature.com/articles/s41586-018-0162-7#Sec15){target="_blank"}
+
+The example here is from Fig 3b.
+
+```{r glm-exp3b-import, echo=FALSE}
+data_from <- "Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice"
+file_name <- "41586_2018_162_MOESM5_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp3b_2 <- read_excel(file_path,
+                         sheet = "Fig. 3b",
+                         range = "B4:E16",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  fill(genotype) %>%
+  data.table()
+exp3b_20 <- read_excel(file_path,
+                         sheet = "Fig. 3b",
+                         range = "H4:K50",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  fill(genotype) %>%
+  data.table()
+exp3b <- rbind(data.table(age = "Young",
+                          exp3b_2),
+               data.table(age = "Old",
+                          exp3b_20))
+exp3b[, count_per_area := positive_nuclei/area_mm2]
+genotype_levels <- c("WT", "KI")
+exp3b[, genotype := factor(genotype,
+      levels = genotype_levels)]
+age_levels <- c("Young", "Old")
+exp3b[, age := factor(age,
+      levels = age_levels)]
+exp3b[, g_by_age := paste(genotype, age)]
+# unique(exp3b$g_by_age)
+g_by_age_levels <- c("WT Young", "KI Young", "WT Old", "KI Old")
+exp3b[, g_by_age := factor(g_by_age,
+                           levels = g_by_age_levels)]
+```
+
+### Understand the data
+
+Response variable -- number of [TUNEL+](https://en.wikipedia.org/wiki/TUNEL_assay){target="_blank"} cells measured in kidney tissue, where a positive marker indicates nuclear DNA damage.
+
+Background. The experiments in Figure 3 were designed to measure the effect of a knock-in mutation in the gene for the [beclin 1 protein](https://en.wikipedia.org/wiki/BECN1){target="_blank"} on autophagy and tissue health in the kidney and heart. The researchers were interested in autophagy because there is evidence in many non-mammalian model organisms that increased autophagy reduces age-related damage to tissues and increases health and lifespan. [BCL2](https://en.wikipedia.org/wiki/Bcl-2){target="_blank"} is an autophagy inhibitor. Initial experiments showed that the knock-in mutation in beclin 1 inhibits BCL2. Inhibiting BCL2 with the knock-in mutation should increase autophagy and, as a consequence, reduce age-related tissue damage.
+
+Design - $2 \times 2$ factorial with offset
+
+1. Factor 1: $\texttt{age}$ with levels "Young" (two months) and "Old" (twenty months).
+2. Factor 2: $\texttt{genotype}$ with levels "WT" (wildtype) and "KI" (knock-in).
+3. Offset: $\texttt{area_mm2}$. The area of the kidney tissue containing the counted cells.
+
+The planned contrasts are
+
+1. (Young  KI) - (Young  WT) -- the effect of the beclin 1 knock-in mutation in the 2 month old mice. We expect this effect to be negative (more damage in the WT) but small, assuming there is little BCL2-related DNA damage by 2 months.
+2. (Old  KI) - (Old  WT) -- the effect of the beclin 1 knock-in mutation in the 20 month old mice. We expect this effect to be negative (more damage in the WT) but large assuming there is substantial BCL2-related DNA damage by 20 months.
+3. Interaction. The magnitude of the interaction will largely be a function of the difference in BCL2-related DNA damage between 2 and 20 months and not really a function with how the knockin functions at these two ages. 
+
+### Model fit and inference
+#### Fit the models
+
+```{r glm-exp3b-models}
+# lm with ratio response
+exp3b_m1 <- lm(count_per_area ~ age * genotype,
+               data = exp3b)
+
+# poisson offset
+exp3b_m2 <- glm(positive_nuclei ~ age * genotype +
+                  offset(log(area_mm2)),
+                family = "poisson",
+                data = exp3b)
+# nb offset
+exp3b_m3 <- glm.nb(positive_nuclei ~ age * genotype +
+                     offset(log(area_mm2)),
+                   data = exp3b)
+
+# non-parametric
+exp3b_m4_2mo <- wilcox.test(count_per_area ~ genotype,
+                            data = exp3b[age == "Young"])
+exp3b_m4_20mo <- wilcox.test(count_per_area ~ genotype,
+                             data = exp3b[age == "Old"])
+
+```
+
+#### Check the models
+
+```{r glm-exp3b_m1-check}
+ggcheck_the_model(exp3b_m1)
+```
+
+```{r glm-exp3b_m2_simulation}
+exp3b_m2_simulation <- simulateResiduals(fittedModel = exp3b_m2, n = 250)
+plot(exp3b_m2_simulation, asFactor = FALSE)
+```
+
+```{r glm-exp3b_m3_simulation}
+exp3b_m3_simulation <- simulateResiduals(fittedModel = exp3b_m3,
+                                         n = 250)
+plot(exp3b_m3_simulation, asFactor = FALSE)
+
+```
+
+#### Inference from the model {#glm-exp3b-m3-inference}
+
+```{r glm-exp3b_m3-coef, message=FALSE}
+exp3b_m3_coef <- cbind(coef(summary(exp3b_m3)),
+                       confint(exp3b_m3))
+
+```
+
+```{r glm-exp3b_m3-coef-show, echo=FALSE}
+exp3b_m3_coef %>%
+  kable(digits = c(2,3,1,3,2,2)) %>%
+  kable_styling()
+
+```
+
+```{r glm-exp3b_m3_emm}
+mean_area <- mean(exp3b[age == "Old" & genotype == "WT",
+                        positive_nuclei])
+exp3b_m3_emm <- emmeans(exp3b_m3,
+                        specs = c("age", "genotype"),
+                        type="response",
+                        offset = log(mean_area))
+
+```
+
+
+```{r glm-exp3b_m3_emm-show, echo=FALSE}
+exp3b_m3_emm %>%
+  kable(digits = c(1,1,2,1,1,2,2)) %>%
+  kable_styling()
+```
+
+```{r glm-exp3b_m3_planned}
+exp3b_m3_pairs <- contrast(exp3b_m3_emm,
+                             method = "revpairwise") %>%
+  summary(infer = TRUE)
+
+# exp3b_m3_emm # print in console to get row numbers
+# set the mean as the row number from the emmeans table
+young_wt <- c(1,0,0,0)
+old_wt <- c(0,1,0,0)
+young_ki <- c(0,0,1,0)
+old_ki <- c(0,0,0,1)
+
+#1. (Young KI) - (Young WT)
+#2. (Old   KI) - (Old   WT)
+#3. Interaction
+exp3b_m3_planned <- contrast(
+  exp3b_m3_emm,
+  method = list(
+    "(Young KI) - (Young WT)" = c(young_ki - young_wt),
+    "(Old   KI) - (Old   WT)" = c(old_ki - old_wt),
+    "Interaction" = c((old_ki - old_wt) - (young_ki - young_wt))
+    # "Interaction" = c(old_ki - old_wt) -
+    #   c(young_ki - young_wt)
+  ),
+  adjust = "none"
+) %>%
+  summary(infer = TRUE)
+```
+
+```{r glm-exp3b_m3_planned-show, echo=FALSE}
+exp3b_m3_planned %>%
+  kable(digits = c(1,2,3,3,2,2,2,5)) %>%
+  kable_styling()
+```
+
+Notes
+
+#### Plot the model
+
+```{r glm-eg2-exp3b-m3-gg1, echo=FALSE}
+gg1 <- ggplot_the_effects(exp3b_m3,
+                 exp3b_m3_planned,
+                 effect_label = "Effect Ratio")
+# gg1
+
+xdat_old <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Old", area_mm2]),
+                 max(exp3b[age == "Old", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Old")
+) %>%
+  data.table()
+
+xdat_old[, y := predict(exp3b_m3, xdat_old, type = "response")]
+
+xdat_young <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Young", area_mm2]),
+                 max(exp3b[age == "Young", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Young")
+) %>%
+  data.table()
+
+xdat_young[, y := predict(exp3b_m3, xdat_young, type = "response")]
+
+xdat_all <- rbind(xdat_old, xdat_young)
+xdat_all[, g_by_age := paste(genotype, age)]
+
+gg2 <- ggplot(data = exp3b,
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = genotype,
+                  shape = age)) +
+  geom_point() +
+  geom_path(data = xdat_all,
+            aes(x = area_mm2,
+                y = y,
+                color = genotype)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  scale_shape_manual(values=c(17, 16)) +
+
+  theme_pubr() +
+  theme(legend.position = "left") +
+  NULL
+
+#gg2
+
+plot_grid(gg1, gg2,
+          nrow = 2,
+          rel_heights = c(0.6,1),
+          align = c("v"),
+          axis = "lr")
+```
+
+## Understanding Example 2
+### An offset is an added covariate with a coefficient fixed at 1
+
+The systematic part (the linear predictor) of the negative binomial model fit to the exp3b data is
+
+$$
+\begin{align}
+\texttt{positive_nuclei} = \ &\beta_0 + \beta_1 \texttt{age}_\texttt{Old} + \beta_2 \texttt{genotype}_\texttt{KI} \ + \\ &\beta_3 \texttt{age}_\texttt{Old}\texttt{:genotype}_\texttt{KI} \ + \\ 
+&1.0 \times \textrm{log}(\texttt{area_mm2})
+\end{align}
+$$
+
+Notes
+
+1. The offset variable is $\textrm{log}(\texttt{area_mm2})$. An offset is a covariate with a fixed coefficient of 1.0 -- this coefficient is not estimated.
+2. Figure \@ref(fig:glm-eg2-exp3b-m3-plot-offset) illustrates the offset on the response and the log scale.
+
+```{r glm-eg2-exp3b-m3-gg1-2, echo=FALSE}
+xdat <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Old", area_mm2]),
+                 max(exp3b[age == "Old", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Old")
+) %>%
+  data.table()
+
+xdat[, y := predict(exp3b_m3, xdat, type = "response")]
+
+gg1 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat,
+            aes(x = area_mm2,
+                y = y,
+                color = genotype)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  NULL
+
+xdat_young <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Young", area_mm2]),
+                 max(exp3b[age == "Young", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Young")
+) %>%
+  data.table()
+
+xdat_young[, y := predict(exp3b_m3, xdat_young, type = "response")]
+
+xdat_all <- rbind(xdat, xdat_young)
+xdat_all[, g_by_age := paste(genotype, age)]
+
+gg1_all <- ggplot(data = exp3b,
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = g_by_age)) +
+  geom_point() +
+  geom_path(data = xdat_all,
+            aes(x = area_mm2,
+                y = y,
+                color = g_by_age)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  NULL
+
+#gg1
+```
+
+```{r glm-eg2-exp3b-m3-gg2-2, echo=FALSE}
+
+gg2 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = log(area_mm2),
+                  y = log(positive_nuclei),
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat,
+            aes(x = log(area_mm2),
+                y = log(y),
+                color = genotype)) +
+  xlab(expression(paste("log(Area in ", mm^2, ")"))) +
+  ylab("log(TUNEL+ nuclei)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  NULL
+
+#gg2
+
+```
+
+```{r glm-eg2-exp3b-m3-plot-offset, echo=FALSE, fig.cap = "What an offset looks like. A. The offset on the response scale. B. The offset on the log scale. In A and B, only the lines for the 20 month old mice are shown."}
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+```
+
+3. On the log scale (Figure \@ref(fig:glm-eg2-exp3b-m3-plot-offset)B), the offset curves are parallel because each is forced to have a slope of one on the link scale. On the response scale, these curves have different slopes -- this slope is $\mathrm{exp}(b_0)$, that is, the exponent of the intercept on the log scale).
+4. The plot on the log scale (Figure \@ref(fig:glm-eg2-exp3b-m3-plot-offset)B) is easy to misinterpret as a regression with a slope of 1 fit to the log transformed values. It isn't, because individual values are not transformed in a GLM. I'm specifically referring to this space as the log and not link scale to try to avoid this misinterpretation.
+
+### A count GLM with an offset models the area-normalized means {#glm-rate}
+
+In the *t*-test or ANOVA of the difference in the area-normalized count of TUNEL+ nuclei, the systematic component of the equivalent linear model is (using only the 20 month old mice for simplicity)
+
+$$
+\frac{\mu}{\texttt{area_mm2}} = \beta_0 + \beta_1 \texttt{genotype}_\texttt{KI}
+$$
+
+where $\mu$ is the mean response ($\texttt{positive_nuclei}$) conditional on the level of genotype. Statisticians typically refer to the ratio $\frac{\mu}{\texttt{area_mm2}}$ as a rate -- here, it is the expected rate of observing a TUNEL+ nucleus as more area is searched.
+
+Let's compare this to the GLM model recommended here. Recall that the conditional expecation on the link scale is $\eta$ and, using the inverse link function, $\mathrm{log}(\mu) = \eta$, the systematic part of the count GLM model with offset is
+
+$$
+\begin{align}
+\eta &= \beta_0 + \beta_1 \texttt{genotype}_\texttt{KI} + \mathrm{log}(\texttt{area_mm2}) \\
+\mathrm{log}(\mu) &= \beta_0 + \beta_1 \texttt{genotype}_\texttt{KI} + \mathrm{log}(\texttt{area_mm2}) \\
+\mathrm{log}(\mu) - \mathrm{log}(\texttt{area_mm2}) &= \beta_0 + \beta_1 \texttt{genotype}_\texttt{KI} \\
+\mathrm{log}(\frac{\mu}{\texttt{area_mm2}}) &= \beta_0 + \beta_1 \texttt{genotype}_\texttt{KI} \\
+\frac{\mu}{\texttt{area_mm2}} &= \mathrm{exp}(\beta_0 + \beta_1 \texttt{genotype}_\texttt{KI}) \\
+\end{align}
+$$
+
+That is, the GLM with offset also models the conditional mean of the area-normalized count, but in a way where the data are much more compatible with the assumptions of the statistical model (in the sense that model checks show that the data look like a sample from the statistical model).
+
+If you want the area-normalized means and their uncertainty under the assumptions of the count GLM offset model, here is some code.
+
+```{r glm-exp3b-rate}
+mean_area <- mean(exp3b[, area_mm2])
+
+# link scale
+
+# compute rate or normalized count using emmeans
+# setting the offset will compute mean at the specified
+# value of the offset
+# be sure the stats are on the link scale
+m3_emm <- emmeans(exp3b_m3,
+                  specs = c("age", "genotype"),
+                  offset = log(mean_area)) %>%
+  summary() %>%
+  data.table()
+
+# emmeans is returning the first line in equations above.
+# We want the last line. So subtract the log of the offset value.
+m3_emm[, log_rate := emmean - log(mean_area)]
+
+# and compute the 95% asymptotic CIs
+m3_emm[, log_rate_lcl := log_rate - 1.96*SE]
+m3_emm[, log_rate_ucl := log_rate + 1.96*SE]
+# m3_emm
+
+# response scale
+m3_emm_response <- emmeans(exp3b_m3,
+                  specs = c("age", "genotype"),
+                  offset = log(mean_area),
+                  type = "response") %>%
+  summary() %>%
+  data.table()
+
+# replace the mean and CIs with the backtransformed values from the
+# link scale table
+m3_emm_rates <- m3_emm_response
+m3_emm_rates[, response := exp(m3_emm$log_rate)]
+m3_emm_rates[, asymp.LCL := exp(m3_emm$log_rate_lcl)]
+m3_emm_rates[, asymp.UCL := exp(m3_emm$log_rate_ucl)]
+```
+
+```{r glm-exp3b-rate-show, echo=FALSE}
+m3_emm_rates %>%
+  kable(digits = c(1,1,2,2,2,2),
+        caption = "Modeled mean area-normalized counts of TUNEL+ cells, estimated using negative binomial GLM.") %>%
+  kable_styling()
+
+```
+
+Notes
+
+1. Again, no ratios were computed. The mean area-normalized counts were computed using the coefficients of the GLM. Here, we used the emmeans package to do this. See section xxx below for code that does this withouth the emmeans package.
+
+```{r glm-exp3b-rate-plot-show, fig.width=std_width, fig.asp=0.4, echo=FALSE, fig.cap="Area-normalized counts modeled using negative binomial GLM with offset, with the raw count as the response (A) and linear model with the area-normalized count as the response."}
+m3_emm_rates[, g_by_age := paste(genotype, age)]
+m3_emm_rates[, g_by_age := factor(g_by_age,
+                                  levels = g_by_age_levels)]
+set.seed(1)
+gg1 <- ggplot(data = exp3b,
+              aes(x = g_by_age,
+              y = count_per_area,
+              color = genotype)) +
+  geom_sina() +
+  geom_point(data = m3_emm_rates,
+                aes(y = response),
+                size = 3) +
+  geom_errorbar(data = m3_emm_rates,
+                aes(y = response,
+                    ymin = asymp.LCL,
+                    ymax = asymp.UCL),
+                width = 0.1) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  ylab(expression(paste("Nomalized count (per", mm^2, ")"))) +
+  ggtitle("GLM of count") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none") +
+  NULL
+#gg1
+
+m1_emm <- emmeans(exp3b_m1, specs = c("age", "genotype")) %>%
+  summary() %>%
+  data.table()
+
+m1_emm[, g_by_age := paste(genotype, age)]
+m1_emm[, g_by_age := factor(g_by_age,
+                                  levels = g_by_age_levels)]
+set.seed(1)
+gg2 <- ggplot(data = exp3b,
+              aes(x = g_by_age,
+              y = count_per_area,
+              color = genotype)) +
+  geom_sina() +
+  geom_point(data = m1_emm,
+                aes(y = emmean),
+                size = 3) +
+  geom_errorbar(data = m1_emm,
+                aes(y = emmean,
+                    ymin = lower.CL,
+                    ymax = upper.CL),
+                width = 0.1) +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  ylab(expression(paste("Nomalized count (per", mm^2, ")"))) +
+  ggtitle("LM of normalized count") +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        legend.position = "none") +
+  NULL
+#gg2
+
+plot_grid(gg1, gg2, ncol=2, labels = "AUTO")
+```
+
+Notes
+
+1. In Panel B, the CIs of the two Young treatment groups have lower bounds that extend below zero. This is absurd -- negative area-normalized-count means cannot exist. But this inference is implied by an ANOVA of these data.
+2. Panel A has the potential to lead to misconceptions because the GLM model with offset is not fit to the area-normalized data but to the raw counts. Regardless, the GLM model with offset is modeling the means of these ratios.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+
+**More than I need to know**. The modeled means of a count GLM on the link scale are $\mathbf{X} \mathbf{b}$, where $\mathbf{X}$ is the model matrix and $\mathbf{b}$ is the vector of model coefficients. In a model with an offset, the values of the offset variable are not in the model matrix and the coefficient (1.0) is not in the vector of coefficients. Following the math above, this expectation is the modeled mean normalized-count (on the link scale) and not the modeled mean count conditional on some offset value (on the link scale). Again, following the math above, to compute the expected count conditional on some value of the offset, use $\mathbf{X} \mathbf{b} + \mathrm{log}(offset)$. But we want the rate not the mean, and we want the rate on the response scale, so simply use $\mathrm{exp}(\mathbf{X} \mathbf{b})$.
+
+```{r glm-rate-algebra}
+# compute rate or normalized count using matrix algebra using
+# final line of equations above
+b <- coef(exp3b_m3)
+X <- model.matrix(exp3b_m3)
+exp3b[, rate := exp((X %*% b)[,1])]
+
+# compare rate to area-normalized count
+rates <- exp3b[, .(rate_manual = mean(rate),
+                        norm_count = mean(count_per_area)),
+                    by = .(age, genotype)]
+m3_emm <- merge(m3_emm_rates, rates, by = c("age", "genotype"))
+
+```
+
+```{r glm-rate-algebra-table, echo=FALSE}
+m3_emm %>%
+  kable(digits = c(1,1,4,2,1,2,2,4,4,4),
+        caption = "Mean area-normalized-counts computed using the emmeans package ($\\texttt{response}$), the matrix algebra code in this section ($\\texttt{rate_manual}$), and as the simple average of the normalized counts ($\\texttt{norm_count}$)") %>%
+  kable_styling()
+```
+</div>
+
+### Compare an offset to an added covariate with an estimated coefficient
+
+```{r glm-exp3b_m5}
+exp3b_m5 <- glm.nb(positive_nuclei ~ age * genotype +
+                     log(area_mm2),
+                   data = exp3b)
+```
+
+```{r glm-exp3b-m5-coef, echo=FALSE}
+exp3b_m5_coef <- cbind(coef(summary(exp3b_m5)),
+                       confint(exp3b_m5))
+
+pairs_dt <- rbind(exp3b_m5_coef, exp3b_m3_coef)
+
+pairs_dt %>%
+  kable(digits = c(2,2,2,4,2,2), caption = "Coefficients from model exp3b_m5 (covariate) and model exp3b_m3 (offset).") %>%
+  kable_styling() %>%
+  pack_rows("exp3b_m5 (covariate)", 1, 5) %>%
+  pack_rows("exp3b_m3 (offset)", 6, 9)
+
+```
+
+Notes
+
+1. The coefficient table for Model exp3b_m5 has a row for the added covariate $\texttt{area_mm2}$. This row is absent for Model exp3b_m3 since the coefficient is fixed at 1.0.
+2. The estimate of the coefficient of $\texttt{area_mm2}$ in Model exp3b_m5 is 2.48. A value of 1.0 -- the value assumed by the offset model or an analysis of the ratio -- is not very compatible with the data.
+3. A coefficient greater than 1.0 means that the rate of DNA damage (the number of TUNEL positive cells per area) increases with the size of the area measured. Does this make any biological sense? The area measured should not have a biological component unless it is a function of the size of the organ. If the area measured is a function of the size of the organ, then we would want to use the ANCOVA model and not the offset model.
+4. This increase in the rate of TUNEL positive cells is seen in the response-scale plot of the fit model in Figure \@ref(fig:glm-exp3b-m5-plot)A, where the slope of the regression line increases as $\texttt{area_mm2}$ increases.
+
+```{r glm-exp3b-m5-gg1, echo=FALSE}
+xdat <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Old", area_mm2]),
+                 max(exp3b[age == "Old", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Old")
+) %>%
+  data.table()
+
+xdat[, y := predict(exp3b_m5, xdat, type = "response")]
+
+gg1 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat,
+            aes(x = area_mm2,
+                y = y,
+                color = genotype)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  NULL
+#gg1
+```
+
+```{r glm-exp3b-m5-gg2, echo=FALSE}
+
+gg2 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = log(area_mm2),
+                  y = log(positive_nuclei),
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat,
+            aes(x = log(area_mm2),
+                y = log(y),
+                color = genotype)) +
+  xlab(expression(paste("log(Area in ", mm^2, ")"))) +
+  ylab("log(TUNEL+ nuclei)") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+  theme_pubr() +
+  NULL
+
+#gg2
+
+```
+
+```{r glm-exp3b-m5-plot, echo=FALSE}
+plot_grid(gg1, gg2, ncol = 2, labels = "AUTO")
+```
+
+5. Note that on the log scale (Figure \@ref(fig:glm-exp3b-m5-plot)B), the two regression lines are parallel, as they must be in an ANCOVA linear model.
+
+### Issues with plotting
+
+## Example 3 -- GLM models for binary responses
+
+
 ## Working in R
 ### Fitting GLMs to count data
 
-The poisson family is specified with the base R `glm()` function. For negative binomial, use `glm.nb` from the MASS package
+The Poisson family is specified with the base R `glm()` function. For negative binomial, use `glm.nb` from the MASS package
 
 ```{r, eval=FALSE}
 # poisson - less likely to fit to real biological data well 

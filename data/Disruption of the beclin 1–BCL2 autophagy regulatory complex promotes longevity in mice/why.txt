@@ -1,0 +1,3 @@
+Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice
+
+3b, e - cells per area, offset glm count model

@@ -1006,7 +1006,7 @@ exp6g_m1_planned %>%
   kable_styling()
 ```
 
-#### Plot the model {#lmm-exp5c-plotthemodel}
+#### Plot the model {#lmm-exp6g-plotthemodel}
 
 ```{r echo=FALSE}
 # add group1 and group2 columns to exp6g_m1_planned

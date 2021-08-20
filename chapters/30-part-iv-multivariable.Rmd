@@ -1,1 +1,1 @@
-# Part VI: More than one $X$ -- Multivariable Models {-}
+# Part V: More than one $X$ -- Multivariable Models {-}

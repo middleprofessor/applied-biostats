@@ -1,0 +1,12 @@
+---
+title: "index - excised text"
+author: "Jeffrey A. Walker"
+date: "5/25/2021"
+output: html_document
+---
+
+In regression, including all linear models in this text, a model like this is **fit to the data** to estimate the parameters (the $\beta$ coefficients and the variance of $\varepsilon$). In a *t*-test/ANOVA, a model like this could be fit to the data but instead, means of different groups
+
+at least historically, these 
+
+The linear models in this text encourage the practice of looking at, thinking about, and reporting estimates of effects and their uncertainty because the linear models in this text are regression models and the focal output of a regression model is a table of the model coefficients. These coefficients are the effects. And, the coefficient table has other useful columns including a standard error of the coefficient, confidence intervals of the coefficient, and a *p*-value for the coefficient. ANOVA models are linear models but the focal output is the ANOVA table which contains measures of variance for different ways of grouping or batching the data. These variances are a kind of effect but the magnitude is not interpretable in any biologically meaningful way. The consequence of this is to ignore all columns of the ANOVA table except the *p*-value column.

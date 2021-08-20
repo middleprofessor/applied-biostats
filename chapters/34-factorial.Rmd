@@ -249,7 +249,7 @@ exp2j[, stimulation := factor(stimulation,
 **Research question** There are two ways to think about the question -- both produce the same answer.
 
 1. How much does TLR9 knockout inhibit the expected increase of glucose uptake following electrical stimulation? The expected increase comes from the contrast of the positive and negative controls. Call this the knockout-induced stimulation effect. 
-2. How much does TLR9 knockout inhibit glucose uptake during muscle stimulation compared to effect of TLR9 knockuot during muscle rest? Call this the **stimulation-induced TLR9-/- effect**. 
+2. How much does TLR9 knockout inhibit glucose uptake during muscle stimulation compared to effect of TLR9 knockout during muscle rest? Call this the **stimulation-induced TLR9-/- effect**. 
 
 **Response variable** $\texttt{glucose_uptake}$ (nmol per mg protein per 15 min) -- the rate of glucose transported into the cell.
 

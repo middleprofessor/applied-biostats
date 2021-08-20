@@ -1,0 +1,67 @@
+--- 
+title: "Applied Statistical Models for Experimental Biology"
+author: "Copyright 2018 Jeffrey A. Walker"
+date: "Draft: `r Sys.Date()`"
+site: bookdown::bookdown_site
+output: bookdown::gitbook
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+github-repo: 
+description: "A first course in statistical modeling for experimental biology researchers"
+---
+
+```{r bookdown, include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+
+library(DiagrammeR)
+library(here)
+
+```
+
+# Preface {-}
+
+*More cynically, one could also well ask "Why has medicine not adopted frequentist inference, even though everyone presents P-values and hypothesis tests?" My answer is: Because frequentist inference, like Bayesian inference, is not taught. Instead everyone gets taught a misleading pseudo-frequentism: a set of rituals and misinterpretations caricaturing frequentist inference, leading to all kinds of misunderstandings.* -- Sander Greenland
+
+We use statistics to learn from data with uncertainty. Traditional introductory textbooks in biostatistics implicitly or explicitly train students and researchers to "discover by p-value" using hypothesis tests (Chapter \@ref(p-values)). Over the course of many chapters, the student learns to use a look-up table or flowchart to choose the correct "test" for the data at hand, compute a test statistic for their data, compute a *p*-value based on the test statistic, and compare the *p*-value to 0.05. Textbooks typically give very little guidance about what can be concluded if $p < 0.05$ or if $p > 0.05$, but many researchers conclude, incorrectly, they have "discovered" an effect if $p < 0.05$ but found "no effect" if $p > 0.05$.
+
+This book is an introduction to the statistical analysis of data from biological experiments with a focus on the estimation of treatment effects and measures of the uncertainty of theses estimates. Instead of a flowchart of "which statistical test", this book emphasizes a **regression modeling** approach using **linear models** and extensions of linear models.
+
+"What what? I learned from the post-doc in my lab that regression was for data with a continuous independent variable and that *t*-tests and ANOVA were for data with categorical independent variables." No! This misconception has roots in the history of regression vs. ANOVA and is reinforced by how introductory biostatistics textbooks, and their instructors, *choose* to teach statistics.
+
+Linear regression, *t*-tests and ANOVA are special cases of a **linear model**. The different linear models are all variations of the equation for a line $Y = mX + b$ using slightly different notation 
+
+\begin{equation}
+Y = \beta_0 + \beta_1 X
+\end{equation}
+
+The chapter [An introduction to linear models](#intro-linear-models) explains the meaning of this notation. Here, just recognize that this same equation can be used for both regression *and* *t*-tests/ANOVA. In regression, $X$ is a continuous variable. In a *t*-test or ANOVA, $X$ is a numeric **indicator variable** indicating group membership ("wildtype" or "knockout"). *t*-tests and ANOVA do not actually use a regression model like this, but instead, directly compute the means of the groups.
+
+Table \@ref(tab:models-table) is a compact summary of the models introduced in this text, which covers a large fraction of the kinds of models researchers would need with experimental data.
+
+## Why bother with linear models -- aren't *t*-tests and ANOVA good enough?
+
+The linear models advocated here will often give the same *p*-value as a *t*-test or ANOVA, which raises the question, why bother with linear models? Some answers include
+
+1. **Biologically meaningful focus**. Linear models encourage looking at, thinking about, and reporting estimates of the size of a treatment effect and the uncertainty of the estimate. The estimated treatment effect is the difference in the response between two treatments. If the mean plasma glucose concentration over the period of a glucose tolerance test is 15.9 mmol/l in the knockout group and 18.9 mmol/l in the wildtype group, the estimated effect is -3.0 mmol/l. The magnitude of this effect is our measure of the difference in glucose tolerance between the two treatments. What is the physiological consequence of this difference? Is this a big difference that would excite NIH or a trivial difference that encourages us to pursue some other line of research? I don't know the answers to these questions-- I'm not a metabolic physiologist. Researchers in metabolic physiology should know the answers, but if they do, they don't indicate this in the literature. Effect sizes are rarely reported in the experimental bench-biology literature.
+
+What is reported are *p*-values. Extremely small *p*-values give some researchers the confidence that an effect is large or important. This confidence is unwarranted. *P*-values are not a measure of effect size. If the conduction of the experiment and analysis of the results closely approximate the model underlying the computation of the *p*-value, then a *p*-value dampens the frequency that we are fooled by randomness and gives a researcher some confidence in the direction (positive or negative) of an effect.
+
+*P*-values are neither necessary nor sufficient for good data analysis. But, a *p*-value is a useful tool in the data analysis toolkit. Importantly, the estimation of effects and uncertainty and the computation of a *p*-value are not alternatives. Throughout this text, linear models are used to compute a *p*-value *in addition to* the estimates of effects and their uncertainty.
+
+<div style="background-color:#cccccc; text-align:left; vertical-align: middle; padding:20px 47px;">
+**NHST Blues** -- The emphasis on *p*-values as *the* measure to report is a consequence of the "which statistical test?" strategy of data analysis. This practice, known as Null-Hypothesis Significance Testing (NHST), has been criticized by statisticians for many, many decades. Nevertheless, introductory biostatistics textbooks written by both biologists and statisticians continue to organize textbooks around a collection of hypothesis tests, with a great deal of emphasis on "which statistical test?" and much less emphasis on estimation and uncertainty. The NHST/which-statistical-test strategy of learning or doing statistics is easy in that it requires little understanding of the statistical model underneath the tests and its assumptions, limitations, and behavior. The NHST strategy in combination with point-and-click software enables [mindless statistics](https://www.sciencedirect.com/science/article/abs/pii/S1053535704000927){target="_blank"} and encourages the belief that statistics is a tool like a word processor is a tool, afterall, a rigorous analysis of one's data requires little more than getting p-values and creating bar plots. Indeed, many PhD programs in the biosciences require no statistics coursework and the only training available to students is from the other graduate students and postdocs in the lab. As a consequence, the biological sciences literature is filled with error bars that imply data with negative values and p-values that have little relationship to the probability of the data under the null. More importantly for science, the reported statistics are often not doing for the study what the researchers and journal editors think they are doing.
+</div> 
+
+2. **Flexibility**. Linear models and extensions of linear models are all variations of $Y = \beta_0 + \beta_1 X$. Generalizations of this basic model (see Table \@ref(tab:models-table)) include linear models with added covariates or multiple factors, generalized least squares models for heterogeneity of variance or correlated error, linear mixed models for correlated error or hierarchical grouping, generalized linear models for samples from non-normal distributions, generalized additive models for responses that vary non-linearly over time, causal graphical models for inferring causal effects with observational data, multivariate models for multiple responses, and some machine learning models. This book is not a comprehensive source for any of these methods but an introduction to the common foundations of all. 
+3. **Gateway drug**. Many of the statistical models used in genomics and neurosciences are variations of the linear models introduced here. There will be a steep learning curve for these methods if your statistical training consists of *t*-tests, ANOVA, and Mann-Whitney non-parametric tests.
+
+## What is unusual about this book?
+
+1. Analysis of real data
+2. issues with real data
+

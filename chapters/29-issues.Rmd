@@ -37,6 +37,34 @@ data_folder <- "data"
 minus <- "\u2013"
 ```
 
+```{r issues-fig-sizes, echo=FALSE}
+dpi <- 72
+# width of bookdown page is 800 pix
+# width of standard bookdown fig is 560 pix or 70% of page
+std_width <- 504/dpi # 7 in
+full_width <- 800/dpi
+small_scale = 6/7
+small_width <- std_width*small_scale # 6 in
+
+# standard aspect ratio is .7 so
+std_ar <- 5/7 # .71
+response_ar <- .8 # for use with response plots with p-values
+effect_ar <- 0.6 # for effects
+harrell_ar <- 1 # for harrell effect & response plots
+
+# dims (width, height)
+small_dim <- c(small_width, small_width*std_ar)
+std_dim <- c(std_width, std_width*std_ar)
+response_dim <- c(std_width, std_width*response_ar)
+effect_dim <- c(std_width, std_width*effect_ar)
+harrell_dim <- c(std_width, std_width*harrell_ar)
+
+# out.width percents
+out.width_std <- paste0(std_width/full_width*100, "%")
+out.width_small <- paste0(small_width/full_width*100, "%")
+
+```
+
 ## Replicated experiments -- include $\texttt{Experiment}$ as a random factor (better than one-way ANOVA of means)
 
 Replicated experiments are the norm in bench biology. Researchers most commonly 1) analyze the mean response from each replicate, 2) pool all the data, ignoring that they come from multiple, independent experiments, or 3) analyze a "representive" experiment.
@@ -1589,7 +1617,8 @@ m4_t %>%
   kable_styling()
 ```
 
-## Comparing ratios
+## Normalization -- the analysis of ratios
+### Kinds of ratios in experimental biology
 
 1. The ratio is a density (count per length/area/volume) or a rate (count/time).
 * Example: number of marked cells per area of tissue.
@@ -1605,7 +1634,186 @@ Best practice: GLM for count data with an **offset** in the model, where an offs
 * Best practice: ANCOVA linear model.
 * **Alert!** -- It has been known for more than 100 years, and repeatedly broadcasted, that inference from ratios of allometric data range from merely wrong (the inferred effect size is in the right direction, but wrong) to absurd (the direction of the inferred effect is opposite that of the true effect). 
 
-### The ratio is a density
+### Example 1 -- The ratio is a density (number of something per area) {#issues-offset}
+
+Researchers frequently count objects and compare the counts among treatments. A problem that often arises is that the counts are made in samples with different areas or volumes of tissue. As a consequence, the variation in treatment response is confounded with tissue size -- samples with higher counts may have higher counts because of a different response to treatment, a larger amount of tissue, or some combination. The common practice in experimental biology is to adjust for tissue size variation by constructing the ratio $\frac{count}{area}$ and then testing for a difference in the ratio using either a linear model NHST (*t*-test/ANOVA) or a non-parametric NHST (Mann-Whitney-Wilcoxan). The issue is, the initial counts will have some kind of count distribution (Poisson or negative binomial) that can sometimes look like a sample from a normal distribution (see [Introducing Generalized Linear Models using a count data example](#glm-counts)). The ratio will have some kind of [ratio distribution](https://en.wikipedia.org/wiki/Ratio_distribution){target="_blank"} that is hard to model correctly.
+
+A better practice is to model the count using a **Generalized Linear Model** (GLM) and an **offset** that adjusts for differences in the area of the sample. NHST of the ratios will perform okay in the sense of Type I error that is close to nominal but will have relatively low power compared to a generalized linear model with offset. If the researcher is interested in best practices including the reporting of uncertainty of estimated effects, a GLM will have more useful confidence intervals -- for example CIs from linear model assuming Normal error can often include absurd values such as ratios less than zero. 
+
+Source article (Fernández, Álvaro F., et al. "Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice." Nature 558.7708 (2018): 136-140.)[https://www.nature.com/articles/s41586-018-0162-7]{target="_blank"}
+
+[Public source](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5992097/){target="_blank"}
+
+[Source data for Fig. 3](https://www.nature.com/articles/s41586-018-0162-7#Sec15){target="_blank"}
+
+The example here is from Fig 3b.
+
+Response variable -- number of [TUNEL+](https://en.wikipedia.org/wiki/TUNEL_assay){target="_blank"} cells measured in kidney tissue, where a positive marker indicates nuclear DNA damage.
+
+Background. The experiments in Figure 3 were designed to measure the effect of a knock-in mutation in the gene for the [beclin 1 protein](https://en.wikipedia.org/wiki/BECN1){target="_blank"} on autophagy and tissue health in the kidney and heart. The researchers were interested in autophagy because there is evidence in many non-mammalian model organisms that increased autophagy reduces age-related damage to tissues and increases health and lifespan. [BCL2](https://en.wikipedia.org/wiki/Bcl-2){target="_blank"} is an autophagy inhibitor. Initial experiments showed that the knock-in mutation in beclin 1 inhibits BCL2. Inhibiting BCL2 with the knock-in mutation should increase autophagy and, as a consequence, reduce age-related tissue damage.
+
+The researchers measured Tunel+ cells in both 2 month old and 20 month old mice in order to look at age related effects. This design is **factorial** with two factors ($\texttt{age}$ and $\texttt{genotype}$. Because we haven't covered factorial designs in this text, I limit the analysis to the 20 month old mice. 
+
+Design - single factor $\texttt{genotype}$ with levels "WT" (wildtype) and "KI" (knock-in).
+
+The code for importing the exp3b data is in Section \@ref(issues-import-exp3b) below.
+
+```{r issues-exp3b-import, echo=FALSE}
+data_from <- "Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice"
+file_name <- "41586_2018_162_MOESM5_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp3b <- read_excel(file_path,
+                         sheet = "Fig. 3b",
+                         range = "H4:K50",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  tidyr::fill(genotype) %>%
+  data.table()
+exp3b[, count_per_area := positive_nuclei/area_mm2]
+genotype_levels <- c("WT", "KI")
+exp3b[, genotype := factor(genotype,
+      levels = genotype_levels)]
+exp3b[, age := "Old"]
+
+```
+
+#### Fit the models
+
+```{r issues-exp3b-models}
+exp3b_m1 <- lm(count_per_area ~ genotype, data = exp3b)
+
+exp3b_m2 <- glm.nb(positive_nuclei ~ genotype +
+                     offset(log(area_mm2)),
+                   data = exp3b)
+
+exp3b_m3 <- wilcox.test(count_per_area ~ genotype, data = exp3b)
+```
+
+#### Check the models
+
+```{r issues-exp3b_m1-check}
+ggcheck_the_model(exp3b_m1)
+```
+
+```{r issues-exp3b_m2_simulation}
+exp3b_m2_simulation <- simulateResiduals(fittedModel = exp3b_m2, n = 250)
+plot(exp3b_m2_simulation, asFactor = FALSE)
+```
+
+#### Inference from the model {#issues-exp3a-m3-inference}
+
+```{r issues-exp3b_m3-coef, message=FALSE}
+exp3b_m2_coef <- cbind(coef(summary(exp3b_m2)),
+                       confint(exp3b_m2))
+
+```
+
+```{r issues-exp3b_m3-coef-show, echo=FALSE}
+exp3b_m2_coef %>%
+  kable(digits = c(2,3,1,3,2,2)) %>%
+  kable_styling()
+
+```
+
+```{r issues-exp3b_m3_emm}
+exp3b_m2_emm <- emmeans(exp3b_m2,
+                        specs = c("genotype"),
+                        type="response")
+```
+
+
+```{r issues-exp3b_m3_emm-show, echo=FALSE}
+exp3b_m2_emm %>%
+  kable(digits = c(1,1,2,1,1,2,2)) %>%
+  kable_styling()
+```
+
+```{r issues-exp3b_m3_pairs}
+exp3b_m2_pairs <- contrast(exp3b_m2_emm,
+                             method = "revpairwise") %>%
+  summary(infer = TRUE)
+```
+
+```{r issues-exp3b_m3_pairs-show, echo=FALSE}
+exp3b_m2_pairs %>%
+  kable(digits = c(1,2,3,3,2,2,2,5)) %>%
+  kable_styling()
+```
+
+Notes
+
+#### Plot the model
+
+```{r issues-exp3b-plot_the_model, echo=FALSE}
+gg1 <- ggplot_the_effects(exp3b_m2,
+                 exp3b_m2_pairs,
+                 effect_label = "Effect Ratio")
+# gg1
+
+xdat_old <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Old", area_mm2]),
+                 max(exp3b[age == "Old", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Old")
+) %>%
+  data.table()
+
+xdat_old[, y := predict(exp3b_m2, xdat_old, type = "response")]
+
+gg2 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat_old,
+            aes(x = area_mm2,
+                y = y,
+                color = genotype)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+
+  theme_pubr() +
+  theme(legend.position = "left") +
+  NULL
+
+#gg2
+
+plot_grid(gg1, gg2,
+          nrow = 2,
+          rel_heights = c(0.4,1),
+          align = c("v"),
+          axis = "lr")
+
+```
+
+The code for this plot is in Section \@ref(issues-exp3b-plot) below.
+
+### Example 2 -- The ratio is normalizing for size differences {#issues-size}
+
+```{r issues-size}
+data_from <- "A big-data approach to understanding metabolic rate and response to obesity in laboratory mice"
+file_name <- "mmpc_all_phases.csv"
+file_path <- here(data_folder, data_from, file_name)
+
+geometric_mean <- function(x){
+  gm <- exp(mean(log(x)))
+  return(gm)
+}
+exp1 <- fread(file_path)
+exp1 <- exp1[acclimation == "TRUE", ]
+
+exp1[, resid_mass := total_mass - fat_mass - lean_mass]
+exp1[, nonfat_mass := total_mass - fat_mass]
+
+size_cols <- c("fat_mass", "lean_mass", "resid_mass")
+exp1[, size := apply(exp1[, .SD, .SDcols = size_cols], 1, geometric_mean)]
+size_cols <- c("fat_mass", "lean_mass", "resid_mass", "total_mass", "size")
+cor(exp1[, .SD, .SDcols = size_cols])
+```
+
 
 ## Don't do this stuff
 
@@ -2040,3 +2248,70 @@ fig3f_long <- melt(fig3f_wide,
 
 ```
 
+### Import exp3b {#issues-import-exp3b}
+
+```{r issues-exp3a-import-show, echo=TRUE}
+data_from <- "Disruption of the beclin 1–BCL2 autophagy regulatory complex promotes longevity in mice"
+file_name <- "41586_2018_162_MOESM5_ESM.xlsx"
+file_path <- here(data_folder, data_from, file_name)
+
+exp3b <- read_excel(file_path,
+                         sheet = "Fig. 3b",
+                         range = "H4:K50",
+                         col_names = TRUE) %>%
+  clean_names() %>%
+  tidyr::fill(genotype) %>%
+  data.table()
+exp3b[, count_per_area := positive_nuclei/area_mm2]
+genotype_levels <- c("WT", "KI")
+exp3b[, genotype := factor(genotype,
+      levels = genotype_levels)]
+exp3b[, age := "Old"]
+
+```
+
+### Plot the model of exp3b (glm offset data) {#issues-exp3b-plot}
+
+```{r issues-exp3b-plot_the_model-show, echo=TRUE}
+gg1 <- ggplot_the_effects(exp3b_m2,
+                 exp3b_m2_pairs,
+                 effect_label = "Effect Ratio")
+# gg1
+
+xdat_old <- expand.grid(
+  area_mm2 = seq(min(exp3b[age == "Old", area_mm2]),
+                 max(exp3b[age == "Old", area_mm2]),
+                 length.out = 50),
+  genotype = genotype_levels,
+  age = c("Old")
+) %>%
+  data.table()
+
+xdat_old[, y := predict(exp3b_m2, xdat_old, type = "response")]
+
+gg2 <- ggplot(data = exp3b[age == "Old"],
+              aes(x = area_mm2,
+                  y = positive_nuclei,
+                  color = genotype)) +
+  geom_point() +
+  geom_path(data = xdat_old,
+            aes(x = area_mm2,
+                y = y,
+                color = genotype)) +
+  xlab(expression(paste("Area (", mm^2, ")"))) +
+  ylab("TUNEL+ nuclei") +
+  scale_color_manual(values = pal_okabe_ito_blue) +
+
+  theme_pubr() +
+  theme(legend.position = "left") +
+  NULL
+
+#gg2
+
+plot_grid(gg1, gg2,
+          nrow = 2,
+          rel_heights = c(0.4,1),
+          align = c("v"),
+          axis = "lr")
+
+```

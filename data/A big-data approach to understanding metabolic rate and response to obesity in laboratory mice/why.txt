@@ -1,0 +1,14 @@
+A big-data approach to understanding metabolic rate and response to obesity in laboratory mice
+
+project: composition
+why: awesome big data
+methods: ratio, ancova, scaling
+
+1. Fig2_CalR_Davis_Session.csv --Composition for some mice
+2. Fig2_CalR_data.csv -- VO2
+3. mmpc_lfd_full.csv -- VO2 data dark and light. Composition.
+4. mmpc_all_phases.csv -- VO2 data pre and acclimated. Composition.
+5. mmpc_lfd_masses.csv -- two measures of body mass on each mouse. Good for estimating error in measurement of body mass. Composition in mmpc_lfd_full.csv
+6. mmpc_weekly_weights.csv -- weekly weights of mice on LFD and HFD but no Composition in mmpc_lfd_full.csv
+7.TempMassesBefore.csv -- composition.
+8.TempMice.csv -- VO2, composition in TempMassesBefore.csv

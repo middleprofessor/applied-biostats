@@ -50,7 +50,7 @@ We us a linear model to infer effects or predict future outcomes. Our inference 
 
 ## Linear model assumptions
 
-To faciliate explanation of assumptions of the linear model and extensions of the linear model, I will use both the error-draw and conditional-draw specifications of a linear model with a single $X$ variable.
+To facilitate explanation of assumptions of the linear model and extensions of the linear model, I will use both the error-draw and conditional-draw specifications of a linear model with a single $X$ variable.
 
 error draw:
 \begin{align}

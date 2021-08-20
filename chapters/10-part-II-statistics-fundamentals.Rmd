@@ -1,1 +1,1 @@
-# Part IV: Some Fundamentals of Statistical Modeling {-}
+# Part III: Some Fundamentals of Statistical Modeling {-}

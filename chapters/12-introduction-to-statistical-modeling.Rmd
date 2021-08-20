@@ -1,4 +1,4 @@
-# An introduction to linear models
+# An introduction to linear models {#intro-linear-models}
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
 

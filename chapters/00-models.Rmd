@@ -111,10 +111,15 @@ r10 <- c(
 
 dt <- data.table(rbind(r1,r2,r3,r4,r5,r6,r7,r8,r8b,r9,r10))
 colnames(dt) <- c("Design","Linear Model", "Example", "textttFormula", "Formula", "NHST", "Chapter")
+```
 
+
+```{r models-table, echo=FALSE}
 inc <- c("Design","Formula", "NHST", "Chapter")
+
 dt[, .SD, .SDcols = inc] %>%
-  kable(escape = TRUE) %>%
+  kable(escape = TRUE,
+        caption = "Linear models and extensions of linear models covered in this text.") %>%
   kable_styling()
 
 ```

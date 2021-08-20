@@ -1,0 +1,943 @@
+﻿mouse.id,date,diet,mass,run,phase,institution
+D1,2/5/15,HF,17.64,UC Davis 1,0,UC Davis
+D1,2/9/15,HF,19.61,UC Davis 1,0,UC Davis
+D1,2/13/15,HF,19.3,UC Davis 1,0,UC Davis
+D1,2/20/15,HF,21.48,UC Davis 1,0,UC Davis
+D1,2/23/15,HF,21.87,UC Davis 1,1,UC Davis
+D1,2/27/15,HF,22.59,UC Davis 1,1,UC Davis
+D1,3/6/15,HF,25.24,UC Davis 1,1,UC Davis
+D1,3/13/15,HF,26.42,UC Davis 1,1,UC Davis
+D1,3/20/15,HF,28.07,UC Davis 1,1,UC Davis
+D1,3/23/15,HF,29.88,UC Davis 1,1,UC Davis
+D1,3/27/15,HF,29.75,UC Davis 1,1,UC Davis
+D1,4/3/15,HF,31.42,UC Davis 1,1,UC Davis
+D1,4/10/15,HF,33.86,UC Davis 1,1,UC Davis
+D1,4/17/15,HF,36.08,UC Davis 1,1,UC Davis
+D1,4/24/15,HF,38.06,UC Davis 1,1,UC Davis
+D1,5/1/15,HF,40.94,UC Davis 1,1,UC Davis
+D1,5/8/15,HF,42.47,UC Davis 1,1,UC Davis
+D1,5/11/15,HF,45.57,UC Davis 1,1,UC Davis
+D1,5/15/15,HF,42.48,UC Davis 1,1,UC Davis
+D10,2/5/15,LF,15.35,UC Davis 2,0,UC Davis
+D10,2/9/15,LF,17.39,UC Davis 2,0,UC Davis
+D10,2/13/15,LF,18.39,UC Davis 2,0,UC Davis
+D10,2/16/15,LF,19.01,UC Davis 2,1,UC Davis
+D10,2/20/15,LF,19.44,UC Davis 2,1,UC Davis
+D10,2/27/15,LF,20.35,UC Davis 2,1,UC Davis
+D10,3/6/15,LF,21.24,UC Davis 2,1,UC Davis
+D10,3/13/15,LF,22.28,UC Davis 2,1,UC Davis
+D10,3/16/15,LF,22.39,UC Davis 2,1,UC Davis
+D10,3/20/15,LF,23.46,UC Davis 2,1,UC Davis
+D10,3/27/15,LF,23.64,UC Davis 2,1,UC Davis
+D10,4/3/15,LF,23.89,UC Davis 2,1,UC Davis
+D10,4/10/15,LF,24.16,UC Davis 2,1,UC Davis
+D10,4/17/15,LF,24.62,UC Davis 2,1,UC Davis
+D10,4/24/15,LF,25.29,UC Davis 2,1,UC Davis
+D10,5/1/15,LF,24.41,UC Davis 2,1,UC Davis
+D10,5/4/15,LF,24.92,UC Davis 2,1,UC Davis
+D10,5/8/15,LF,26.26,UC Davis 2,1,UC Davis
+D11,2/5/15,LF,18.91,UC Davis 2,0,UC Davis
+D11,2/9/15,LF,19.72,UC Davis 2,0,UC Davis
+D11,2/13/15,LF,20.46,UC Davis 2,0,UC Davis
+D11,2/16/15,LF,21.18,UC Davis 2,1,UC Davis
+D11,2/20/15,LF,22.2,UC Davis 2,1,UC Davis
+D11,2/27/15,LF,21.95,UC Davis 2,1,UC Davis
+D11,3/6/15,LF,23.08,UC Davis 2,1,UC Davis
+D11,3/13/15,LF,23.39,UC Davis 2,1,UC Davis
+D11,3/16/15,LF,24.32,UC Davis 2,1,UC Davis
+D11,3/20/15,LF,25.1,UC Davis 2,1,UC Davis
+D11,3/27/15,LF,24.22,UC Davis 2,1,UC Davis
+D11,4/3/15,LF,25.05,UC Davis 2,1,UC Davis
+D11,4/10/15,LF,25.69,UC Davis 2,1,UC Davis
+D11,4/17/15,LF,26.93,UC Davis 2,1,UC Davis
+D11,4/24/15,LF,28.17,UC Davis 2,1,UC Davis
+D11,5/1/15,LF,28.57,UC Davis 2,1,UC Davis
+D11,5/4/15,LF,30.28,UC Davis 2,1,UC Davis
+D11,5/8/15,LF,31.22,UC Davis 2,1,UC Davis
+D12,2/5/15,LF,18.41,UC Davis 2,0,UC Davis
+D12,2/9/15,LF,19.53,UC Davis 2,0,UC Davis
+D12,2/13/15,LF,19.61,UC Davis 2,0,UC Davis
+D12,2/16/15,LF,20.3,UC Davis 2,1,UC Davis
+D12,2/20/15,LF,20.96,UC Davis 2,1,UC Davis
+D12,2/27/15,LF,21.41,UC Davis 2,1,UC Davis
+D12,3/6/15,LF,22.83,UC Davis 2,1,UC Davis
+D12,3/13/15,LF,23.32,UC Davis 2,1,UC Davis
+D12,3/16/15,LF,23.12,UC Davis 2,1,UC Davis
+D12,3/20/15,LF,25.02,UC Davis 2,1,UC Davis
+D12,3/27/15,LF,24.15,UC Davis 2,1,UC Davis
+D12,4/3/15,LF,24.43,UC Davis 2,1,UC Davis
+D12,4/10/15,LF,25.03,UC Davis 2,1,UC Davis
+D12,4/17/15,LF,25.87,UC Davis 2,1,UC Davis
+D12,4/24/15,LF,26.96,UC Davis 2,1,UC Davis
+D12,5/1/15,LF,27.67,UC Davis 2,1,UC Davis
+D12,5/4/15,LF,28.71,UC Davis 2,1,UC Davis
+D12,5/8/15,LF,29.33,UC Davis 2,1,UC Davis
+D13,2/5/15,LF,17.21,UC Davis 2,0,UC Davis
+D13,2/9/15,LF,18.55,UC Davis 2,0,UC Davis
+D13,2/13/15,LF,19.39,UC Davis 2,0,UC Davis
+D13,2/16/15,LF,19.77,UC Davis 2,1,UC Davis
+D13,2/20/15,LF,21.01,UC Davis 2,1,UC Davis
+D13,2/27/15,LF,20.86,UC Davis 2,1,UC Davis
+D13,3/6/15,LF,21.37,UC Davis 2,1,UC Davis
+D13,3/13/15,LF,22.24,UC Davis 2,1,UC Davis
+D13,3/16/15,LF,22.04,UC Davis 2,1,UC Davis
+D13,3/20/15,LF,23.73,UC Davis 2,1,UC Davis
+D13,3/27/15,LF,23.48,UC Davis 2,1,UC Davis
+D13,4/3/15,LF,24.37,UC Davis 2,1,UC Davis
+D13,4/10/15,LF,24.61,UC Davis 2,1,UC Davis
+D13,4/17/15,LF,25.58,UC Davis 2,1,UC Davis
+D13,4/24/15,LF,26.11,UC Davis 2,1,UC Davis
+D13,5/1/15,LF,27.51,UC Davis 2,1,UC Davis
+D13,5/4/15,LF,27.35,UC Davis 2,1,UC Davis
+D13,5/8/15,LF,28.18,UC Davis 2,1,UC Davis
+D14,2/5/15,HF,18.98,UC Davis 2,0,UC Davis
+D14,2/9/15,HF,19.87,UC Davis 2,0,UC Davis
+D14,2/13/15,HF,20.93,UC Davis 2,0,UC Davis
+D14,2/16/15,HF,21.09,UC Davis 2,1,UC Davis
+D14,2/20/15,HF,21.17,UC Davis 2,1,UC Davis
+D14,2/27/15,HF,24.32,UC Davis 2,1,UC Davis
+D14,3/6/15,HF,26.51,UC Davis 2,1,UC Davis
+D14,3/13/15,HF,28.11,UC Davis 2,1,UC Davis
+D14,3/16/15,HF,28.93,UC Davis 2,1,UC Davis
+D14,3/20/15,HF,28.51,UC Davis 2,1,UC Davis
+D14,3/27/15,HF,30.78,UC Davis 2,1,UC Davis
+D14,4/3/15,HF,33.88,UC Davis 2,1,UC Davis
+D14,4/10/15,HF,37.04,UC Davis 2,1,UC Davis
+D14,4/17/15,HF,39.84,UC Davis 2,1,UC Davis
+D14,4/24/15,HF,40.54,UC Davis 2,1,UC Davis
+D14,5/1/15,HF,43.93,UC Davis 2,1,UC Davis
+D14,5/4/15,HF,45.14,UC Davis 2,1,UC Davis
+D14,5/8/15,HF,43.22,UC Davis 2,1,UC Davis
+D15,2/5/15,HF,17.33,UC Davis 2,0,UC Davis
+D15,2/9/15,HF,17.88,UC Davis 2,0,UC Davis
+D15,2/13/15,HF,19.15,UC Davis 2,0,UC Davis
+D15,2/16/15,HF,20.08,UC Davis 2,1,UC Davis
+D15,2/20/15,HF,20.09,UC Davis 2,1,UC Davis
+D15,2/27/15,HF,21.22,UC Davis 2,1,UC Davis
+D15,3/6/15,HF,22.72,UC Davis 2,1,UC Davis
+D15,3/13/15,HF,23.4,UC Davis 2,1,UC Davis
+D15,3/16/15,HF,23.41,UC Davis 2,1,UC Davis
+D15,3/20/15,HF,23.98,UC Davis 2,1,UC Davis
+D15,3/27/15,HF,24.45,UC Davis 2,1,UC Davis
+D15,4/3/15,HF,26.82,UC Davis 2,1,UC Davis
+D15,4/10/15,HF,29.34,UC Davis 2,1,UC Davis
+D15,4/17/15,HF,31.2,UC Davis 2,1,UC Davis
+D15,4/24/15,HF,34.52,UC Davis 2,1,UC Davis
+D15,5/1/15,HF,36.06,UC Davis 2,1,UC Davis
+D15,5/4/15,HF,37.52,UC Davis 2,1,UC Davis
+D15,5/8/15,HF,35.62,UC Davis 2,1,UC Davis
+D16,2/5/15,HF,17.6,UC Davis 2,0,UC Davis
+D16,2/9/15,HF,19.37,UC Davis 2,0,UC Davis
+D16,2/13/15,HF,20.27,UC Davis 2,0,UC Davis
+D16,2/16/15,HF,20.85,UC Davis 2,1,UC Davis
+D16,2/20/15,HF,21.25,UC Davis 2,1,UC Davis
+D16,2/27/15,HF,23.05,UC Davis 2,1,UC Davis
+D16,3/6/15,HF,24.67,UC Davis 2,1,UC Davis
+D16,3/13/15,HF,26.44,UC Davis 2,1,UC Davis
+D16,3/16/15,HF,26.49,UC Davis 2,1,UC Davis
+D16,3/20/15,HF,26.48,UC Davis 2,1,UC Davis
+D16,3/27/15,HF,27.78,UC Davis 2,1,UC Davis
+D16,4/3/15,HF,29.41,UC Davis 2,1,UC Davis
+D16,4/10/15,HF,30.89,UC Davis 2,1,UC Davis
+D16,4/17/15,HF,32.61,UC Davis 2,1,UC Davis
+D16,4/24/15,HF,34.56,UC Davis 2,1,UC Davis
+D16,5/1/15,HF,37.01,UC Davis 2,1,UC Davis
+D16,5/4/15,HF,37.8,UC Davis 2,1,UC Davis
+D16,5/8/15,HF,35.86,UC Davis 2,1,UC Davis
+D17,2/5/15,HF,17.12,UC Davis 2,0,UC Davis
+D17,2/9/15,HF,18.03,UC Davis 2,0,UC Davis
+D17,2/13/15,HF,19.3,UC Davis 2,0,UC Davis
+D17,2/16/15,HF,19.33,UC Davis 2,1,UC Davis
+D17,2/20/15,HF,20.43,UC Davis 2,1,UC Davis
+D17,2/27/15,HF,22.6,UC Davis 2,1,UC Davis
+D17,3/6/15,HF,24.27,UC Davis 2,1,UC Davis
+D17,3/13/15,HF,24.37,UC Davis 2,1,UC Davis
+D17,3/16/15,HF,25.33,UC Davis 2,1,UC Davis
+D17,3/20/15,HF,24.91,UC Davis 2,1,UC Davis
+D17,3/27/15,HF,27.3,UC Davis 2,1,UC Davis
+D17,4/3/15,HF,29.82,UC Davis 2,1,UC Davis
+D17,4/10/15,HF,31.76,UC Davis 2,1,UC Davis
+D17,4/17/15,HF,33.16,UC Davis 2,1,UC Davis
+D17,4/24/15,HF,35.69,UC Davis 2,1,UC Davis
+D17,5/1/15,HF,37.58,UC Davis 2,1,UC Davis
+D17,5/4/15,HF,38.8,UC Davis 2,1,UC Davis
+D17,5/8/15,HF,36.72,UC Davis 2,1,UC Davis
+D2,2/5/15,HF,17.78,UC Davis 1,0,UC Davis
+D2,2/9/15,HF,19.89,UC Davis 1,0,UC Davis
+D2,2/13/15,HF,18.98,UC Davis 1,0,UC Davis
+D2,2/20/15,HF,20.14,UC Davis 1,0,UC Davis
+D2,2/23/15,HF,20.67,UC Davis 1,1,UC Davis
+D2,2/27/15,HF,23.44,UC Davis 1,1,UC Davis
+D2,3/6/15,HF,23.13,UC Davis 1,1,UC Davis
+D2,3/13/15,HF,24.54,UC Davis 1,1,UC Davis
+D2,3/20/15,HF,25.89,UC Davis 1,1,UC Davis
+D2,3/23/15,HF,27.21,UC Davis 1,1,UC Davis
+D2,3/27/15,HF,28.07,UC Davis 1,1,UC Davis
+D2,4/3/15,HF,29.39,UC Davis 1,1,UC Davis
+D2,4/10/15,HF,31.35,UC Davis 1,1,UC Davis
+D2,4/17/15,HF,33.72,UC Davis 1,1,UC Davis
+D2,4/24/15,HF,35.64,UC Davis 1,1,UC Davis
+D2,5/1/15,HF,37.97,UC Davis 1,1,UC Davis
+D2,5/8/15,HF,40.75,UC Davis 1,1,UC Davis
+D2,5/11/15,HF,41.63,UC Davis 1,1,UC Davis
+D2,5/15/15,HF,39.68,UC Davis 1,1,UC Davis
+D3,2/5/15,LF,18.3,UC Davis 1,0,UC Davis
+D3,2/9/15,LF,20,UC Davis 1,0,UC Davis
+D3,2/13/15,LF,19.99,UC Davis 1,0,UC Davis
+D3,2/20/15,LF,22.16,UC Davis 1,0,UC Davis
+D3,2/23/15,LF,22.95,UC Davis 1,1,UC Davis
+D3,2/27/15,LF,23.81,UC Davis 1,1,UC Davis
+D3,3/6/15,LF,23.89,UC Davis 1,1,UC Davis
+D3,3/13/15,LF,24.02,UC Davis 1,1,UC Davis
+D3,3/20/15,LF,24.77,UC Davis 1,1,UC Davis
+D3,3/23/15,LF,25.71,UC Davis 1,1,UC Davis
+D3,3/27/15,LF,26.39,UC Davis 1,1,UC Davis
+D3,4/3/15,LF,26.19,UC Davis 1,1,UC Davis
+D3,4/10/15,LF,25.54,UC Davis 1,1,UC Davis
+D3,4/17/15,LF,26.55,UC Davis 1,1,UC Davis
+D3,4/24/15,LF,26.54,UC Davis 1,1,UC Davis
+D3,5/1/15,LF,28.13,UC Davis 1,1,UC Davis
+D3,5/8/15,LF,28.25,UC Davis 1,1,UC Davis
+D3,5/11/15,LF,28.7,UC Davis 1,1,UC Davis
+D3,5/15/15,LF,30.03,UC Davis 1,1,UC Davis
+D4,2/5/15,HF,17.54,UC Davis 1,0,UC Davis
+D4,2/9/15,HF,19.29,UC Davis 1,0,UC Davis
+D4,2/13/15,HF,19.19,UC Davis 1,0,UC Davis
+D4,2/20/15,HF,20.42,UC Davis 1,0,UC Davis
+D4,2/23/15,HF,20.81,UC Davis 1,1,UC Davis
+D4,2/27/15,HF,21.69,UC Davis 1,1,UC Davis
+D4,3/6/15,HF,22.43,UC Davis 1,1,UC Davis
+D4,3/13/15,HF,24.01,UC Davis 1,1,UC Davis
+D4,3/20/15,HF,24.68,UC Davis 1,1,UC Davis
+D4,3/23/15,HF,26.42,UC Davis 1,1,UC Davis
+D4,3/27/15,HF,28.31,UC Davis 1,1,UC Davis
+D4,4/3/15,HF,28.59,UC Davis 1,1,UC Davis
+D4,4/10/15,HF,29.89,UC Davis 1,1,UC Davis
+D4,4/17/15,HF,32.29,UC Davis 1,1,UC Davis
+D4,4/24/15,HF,34.76,UC Davis 1,1,UC Davis
+D4,5/1/15,HF,36.12,UC Davis 1,1,UC Davis
+D4,5/8/15,HF,38.71,UC Davis 1,1,UC Davis
+D4,5/11/15,HF,39.72,UC Davis 1,1,UC Davis
+D4,5/15/15,HF,39.23,UC Davis 1,1,UC Davis
+D5,2/5/15,LF,19.02,UC Davis 1,0,UC Davis
+D5,2/9/15,LF,19.68,UC Davis 1,0,UC Davis
+D5,2/13/15,LF,19.99,UC Davis 1,0,UC Davis
+D5,2/20/15,LF,21.5,UC Davis 1,0,UC Davis
+D5,2/23/15,LF,21.76,UC Davis 1,1,UC Davis
+D5,2/27/15,LF,22.36,UC Davis 1,1,UC Davis
+D5,3/6/15,LF,23.23,UC Davis 1,1,UC Davis
+D5,3/13/15,LF,23.33,UC Davis 1,1,UC Davis
+D5,3/20/15,LF,24.62,UC Davis 1,1,UC Davis
+D5,3/23/15,LF,25.29,UC Davis 1,1,UC Davis
+D5,3/27/15,LF,26.63,UC Davis 1,1,UC Davis
+D5,4/3/15,LF,25.68,UC Davis 1,1,UC Davis
+D5,4/10/15,LF,27.22,UC Davis 1,1,UC Davis
+D5,4/17/15,LF,28.72,UC Davis 1,1,UC Davis
+D5,4/24/15,LF,29.62,UC Davis 1,1,UC Davis
+D5,5/1/15,LF,31.13,UC Davis 1,1,UC Davis
+D5,5/8/15,LF,32.51,UC Davis 1,1,UC Davis
+D5,5/11/15,LF,33.34,UC Davis 1,1,UC Davis
+D5,5/15/15,LF,34.13,UC Davis 1,1,UC Davis
+D6,2/5/15,LF,18.89,UC Davis 1,0,UC Davis
+D6,2/9/15,LF,19.44,UC Davis 1,0,UC Davis
+D6,2/13/15,LF,18.81,UC Davis 1,0,UC Davis
+D6,2/20/15,LF,20.71,UC Davis 1,0,UC Davis
+D6,2/23/15,LF,20.99,UC Davis 1,1,UC Davis
+D6,2/27/15,LF,22.36,UC Davis 1,1,UC Davis
+D6,3/6/15,LF,21.65,UC Davis 1,1,UC Davis
+D6,3/13/15,LF,22.62,UC Davis 1,1,UC Davis
+D6,3/20/15,LF,23.23,UC Davis 1,1,UC Davis
+D6,3/23/15,LF,23.69,UC Davis 1,1,UC Davis
+D6,3/27/15,LF,25.13,UC Davis 1,1,UC Davis
+D6,4/3/15,LF,23.93,UC Davis 1,1,UC Davis
+D6,4/10/15,LF,24.02,UC Davis 1,1,UC Davis
+D6,4/17/15,LF,25.15,UC Davis 1,1,UC Davis
+D6,4/24/15,LF,25.11,UC Davis 1,1,UC Davis
+D6,5/1/15,LF,25.9,UC Davis 1,1,UC Davis
+D6,5/8/15,LF,27.31,UC Davis 1,1,UC Davis
+D6,5/11/15,LF,27.41,UC Davis 1,1,UC Davis
+D6,5/15/15,LF,28.88,UC Davis 1,1,UC Davis
+D7,2/5/15,LF,14.68,UC Davis 1,0,UC Davis
+D7,2/9/15,LF,16.88,UC Davis 1,0,UC Davis
+D7,2/13/15,LF,18.04,UC Davis 1,0,UC Davis
+D7,2/20/15,LF,19.94,UC Davis 1,0,UC Davis
+D7,2/23/15,LF,20.62,UC Davis 1,1,UC Davis
+D7,2/27/15,LF,21.15,UC Davis 1,1,UC Davis
+D7,3/6/15,LF,22.13,UC Davis 1,1,UC Davis
+D7,3/13/15,LF,23.01,UC Davis 1,1,UC Davis
+D7,3/20/15,LF,23.38,UC Davis 1,1,UC Davis
+D7,3/23/15,LF,23.41,UC Davis 1,1,UC Davis
+D7,3/27/15,LF,24.35,UC Davis 1,1,UC Davis
+D7,4/3/15,LF,24.28,UC Davis 1,1,UC Davis
+D7,4/10/15,LF,25.15,UC Davis 1,1,UC Davis
+D7,4/17/15,LF,24.95,UC Davis 1,1,UC Davis
+D7,4/24/15,LF,25.64,UC Davis 1,1,UC Davis
+D7,5/1/15,LF,25.69,UC Davis 1,1,UC Davis
+D7,5/8/15,LF,26.11,UC Davis 1,1,UC Davis
+D7,5/11/15,LF,26.24,UC Davis 1,1,UC Davis
+D7,5/15/15,LF,26.87,UC Davis 1,1,UC Davis
+D8,2/5/15,HF,17.41,UC Davis 1,0,UC Davis
+D8,2/9/15,HF,19.21,UC Davis 1,0,UC Davis
+D8,2/13/15,HF,18.98,UC Davis 1,0,UC Davis
+D8,2/20/15,HF,21.41,UC Davis 1,0,UC Davis
+D8,2/23/15,HF,21.6,UC Davis 1,1,UC Davis
+D8,2/27/15,HF,23.2,UC Davis 1,1,UC Davis
+D8,3/6/15,HF,24.03,UC Davis 1,1,UC Davis
+D8,3/13/15,HF,26.11,UC Davis 1,1,UC Davis
+D8,3/20/15,HF,27.62,UC Davis 1,1,UC Davis
+D8,3/23/15,HF,29.2,UC Davis 1,1,UC Davis
+D8,3/27/15,HF,29.88,UC Davis 1,1,UC Davis
+D8,4/3/15,HF,31.17,UC Davis 1,1,UC Davis
+D8,4/10/15,HF,34.18,UC Davis 1,1,UC Davis
+D8,4/17/15,HF,36.34,UC Davis 1,1,UC Davis
+D8,4/24/15,HF,38.24,UC Davis 1,1,UC Davis
+D8,5/1/15,HF,41.66,UC Davis 1,1,UC Davis
+D8,5/8/15,HF,44,UC Davis 1,1,UC Davis
+D8,5/11/15,HF,45.23,UC Davis 1,1,UC Davis
+D8,5/15/15,HF,44.09,UC Davis 1,1,UC Davis
+M1,2/2/15,LF,17.4,UMass,0,UMass
+M1,2/9/15,LF,17.5,UMass,1,UMass
+M1,2/13/15,LF,17.4,UMass,1,UMass
+M1,2/20/15,LF,18.4,UMass,1,UMass
+M1,2/27/15,LF,19.5,UMass,1,UMass
+M1,3/6/15,LF,20.5,UMass,1,UMass
+M1,3/9/15,LF,21.3,UMass,1,UMass
+M1,3/13/15,LF,21.3,UMass,1,UMass
+M1,3/20/15,LF,21.5,UMass,1,UMass
+M1,3/27/15,LF,22.1,UMass,1,UMass
+M1,4/3/15,LF,22.3,UMass,1,UMass
+M1,4/10/15,LF,22.6,UMass,1,UMass
+M1,4/17/15,LF,23.3,UMass,1,UMass
+M1,4/24/15,LF,23.9,UMass,1,UMass
+M1,4/27/15,LF,24.5,UMass,1,UMass
+M1,5/1/15,LF,25,UMass,1,UMass
+M10,2/2/15,HF,19,UMass,0,UMass
+M10,2/9/15,HF,19.2,UMass,1,UMass
+M10,2/13/15,HF,18.8,UMass,1,UMass
+M10,2/20/15,HF,20.9,UMass,1,UMass
+M10,2/27/15,HF,22.4,UMass,1,UMass
+M10,3/6/15,HF,23.9,UMass,1,UMass
+M10,3/9/15,HF,24.6,UMass,1,UMass
+M10,3/13/15,HF,23.6,UMass,1,UMass
+M10,3/20/15,HF,27.1,UMass,1,UMass
+M10,3/27/15,HF,29.2,UMass,1,UMass
+M10,4/3/15,HF,31.1,UMass,1,UMass
+M10,4/10/15,HF,33,UMass,1,UMass
+M10,4/17/15,HF,32.6,UMass,1,UMass
+M10,4/24/15,HF,33.8,UMass,1,UMass
+M10,4/27/15,HF,34.6,UMass,1,UMass
+M10,5/1/15,HF,32.7,UMass,1,UMass
+M11,2/2/15,HF,19.8,UMass,0,UMass
+M11,2/9/15,HF,20.5,UMass,1,UMass
+M11,2/13/15,HF,20.7,UMass,1,UMass
+M11,2/20/15,HF,23.3,UMass,1,UMass
+M11,2/27/15,HF,25.3,UMass,1,UMass
+M11,3/6/15,HF,26.6,UMass,1,UMass
+M11,3/9/15,HF,28,UMass,1,UMass
+M11,3/13/15,HF,26,UMass,1,UMass
+M11,3/20/15,HF,30,UMass,1,UMass
+M11,3/27/15,HF,33,UMass,1,UMass
+M11,4/3/15,HF,33.9,UMass,1,UMass
+M11,4/10/15,HF,37.2,UMass,1,UMass
+M11,4/17/15,HF,38.4,UMass,1,UMass
+M11,4/24/15,HF,41.1,UMass,1,UMass
+M11,4/27/15,HF,41.8,UMass,1,UMass
+M11,5/1/15,HF,41.4,UMass,1,UMass
+M12,2/2/15,HF,19,UMass,0,UMass
+M12,2/9/15,HF,19.1,UMass,1,UMass
+M12,2/13/15,HF,19.8,UMass,1,UMass
+M12,2/20/15,HF,21.4,UMass,1,UMass
+M12,2/27/15,HF,22.9,UMass,1,UMass
+M12,3/6/15,HF,24.3,UMass,1,UMass
+M12,3/9/15,HF,25.6,UMass,1,UMass
+M12,3/13/15,HF,25.2,UMass,1,UMass
+M12,3/20/15,HF,27.5,UMass,1,UMass
+M12,3/27/15,HF,29,UMass,1,UMass
+M12,4/3/15,HF,29.8,UMass,1,UMass
+M12,4/10/15,HF,29.4,UMass,1,UMass
+M12,4/17/15,HF,28.3,UMass,1,UMass
+M12,4/24/15,HF,27.9,UMass,1,UMass
+M12,4/27/15,HF,28.2,UMass,1,UMass
+M12,5/1/15,HF,28.5,UMass,1,UMass
+M13,2/2/15,HF,16.4,UMass,0,UMass
+M13,2/9/15,HF,16.5,UMass,1,UMass
+M13,2/13/15,HF,16.9,UMass,1,UMass
+M13,2/20/15,HF,18.9,UMass,1,UMass
+M13,2/27/15,HF,19.9,UMass,1,UMass
+M13,3/6/15,HF,20.9,UMass,1,UMass
+M13,3/9/15,HF,21.8,UMass,1,UMass
+M13,3/13/15,HF,21.6,UMass,1,UMass
+M13,3/20/15,HF,23.2,UMass,1,UMass
+M13,3/27/15,HF,24.8,UMass,1,UMass
+M13,4/3/15,HF,25.9,UMass,1,UMass
+M13,4/10/15,HF,26.8,UMass,1,UMass
+M13,4/17/15,HF,27.8,UMass,1,UMass
+M13,4/24/15,HF,28.8,UMass,1,UMass
+M13,4/27/15,HF,29.4,UMass,1,UMass
+M13,5/1/15,HF,29,UMass,1,UMass
+M2,2/2/15,LF,18.9,UMass,0,UMass
+M2,2/9/15,LF,20,UMass,1,UMass
+M2,2/13/15,LF,20.4,UMass,1,UMass
+M2,2/20/15,LF,22.1,UMass,1,UMass
+M2,2/27/15,LF,22.9,UMass,1,UMass
+M2,3/6/15,LF,24.5,UMass,1,UMass
+M2,3/9/15,LF,24.9,UMass,1,UMass
+M2,3/13/15,LF,25.4,UMass,1,UMass
+M2,3/20/15,LF,25.2,UMass,1,UMass
+M2,3/27/15,LF,25.9,UMass,1,UMass
+M2,4/3/15,LF,26.2,UMass,1,UMass
+M2,4/10/15,LF,27.5,UMass,1,UMass
+M2,4/17/15,LF,27.3,UMass,1,UMass
+M2,4/24/15,LF,27.9,UMass,1,UMass
+M2,4/27/15,LF,29.3,UMass,1,UMass
+M2,5/1/15,LF,28.8,UMass,1,UMass
+M3,2/2/15,LF,18.3,UMass,0,UMass
+M3,2/9/15,LF,19.2,UMass,1,UMass
+M3,2/13/15,LF,19.3,UMass,1,UMass
+M3,2/20/15,LF,21.4,UMass,1,UMass
+M3,2/27/15,LF,21.4,UMass,1,UMass
+M3,3/6/15,LF,22.4,UMass,1,UMass
+M3,3/9/15,LF,22.7,UMass,1,UMass
+M3,3/13/15,LF,22.8,UMass,1,UMass
+M3,3/20/15,LF,23.6,UMass,1,UMass
+M3,3/27/15,LF,24.6,UMass,1,UMass
+M3,4/3/15,LF,24.2,UMass,1,UMass
+M3,4/10/15,LF,24.8,UMass,1,UMass
+M3,4/17/15,LF,25.7,UMass,1,UMass
+M3,4/24/15,LF,26,UMass,1,UMass
+M3,4/27/15,LF,27.1,UMass,1,UMass
+M3,5/1/15,LF,26,UMass,1,UMass
+M4,2/2/15,LF,18.8,UMass,0,UMass
+M4,2/9/15,LF,19,UMass,1,UMass
+M4,2/13/15,LF,18.8,UMass,1,UMass
+M4,2/20/15,LF,20.2,UMass,1,UMass
+M4,2/27/15,LF,21.3,UMass,1,UMass
+M4,3/6/15,LF,22,UMass,1,UMass
+M4,3/9/15,LF,23.1,UMass,1,UMass
+M4,3/13/15,LF,23.7,UMass,1,UMass
+M4,3/20/15,LF,23.6,UMass,1,UMass
+M4,3/27/15,LF,24.1,UMass,1,UMass
+M4,4/3/15,LF,24.5,UMass,1,UMass
+M4,4/10/15,LF,25.6,UMass,1,UMass
+M4,4/17/15,LF,26.3,UMass,1,UMass
+M4,4/24/15,LF,27.2,UMass,1,UMass
+M4,4/27/15,LF,27.3,UMass,1,UMass
+M4,5/1/15,LF,27.3,UMass,1,UMass
+M5,2/2/15,LF,19.2,UMass,0,UMass
+M5,2/9/15,LF,20.1,UMass,1,UMass
+M5,2/13/15,LF,20.2,UMass,1,UMass
+M5,2/20/15,LF,21.2,UMass,1,UMass
+M5,2/27/15,LF,22.5,UMass,1,UMass
+M5,3/6/15,LF,23.3,UMass,1,UMass
+M5,3/9/15,LF,24.3,UMass,1,UMass
+M5,3/13/15,LF,23.8,UMass,1,UMass
+M5,3/20/15,LF,25,UMass,1,UMass
+M5,3/27/15,LF,25,UMass,1,UMass
+M5,4/3/15,LF,25.6,UMass,1,UMass
+M5,4/10/15,LF,26.2,UMass,1,UMass
+M5,4/17/15,LF,26.8,UMass,1,UMass
+M5,4/24/15,LF,26.6,UMass,1,UMass
+M5,4/27/15,LF,27.1,UMass,1,UMass
+M5,5/1/15,LF,27,UMass,1,UMass
+M6,2/2/15,LF,19.2,UMass,0,UMass
+M6,2/9/15,LF,19.8,UMass,1,UMass
+M6,2/13/15,LF,20.3,UMass,1,UMass
+M6,2/20/15,LF,21.4,UMass,1,UMass
+M6,2/27/15,LF,22.7,UMass,1,UMass
+M6,3/6/15,LF,23.5,UMass,1,UMass
+M6,3/9/15,LF,24.1,UMass,1,UMass
+M6,3/13/15,LF,24.5,UMass,1,UMass
+M6,3/20/15,LF,24.5,UMass,1,UMass
+M6,3/27/15,LF,25.1,UMass,1,UMass
+M6,4/3/15,LF,25,UMass,1,UMass
+M6,4/10/15,LF,24.8,UMass,1,UMass
+M6,4/17/15,LF,25.4,UMass,1,UMass
+M6,4/24/15,LF,26,UMass,1,UMass
+M6,4/27/15,LF,26.7,UMass,1,UMass
+M6,5/1/15,LF,27,UMass,1,UMass
+M7,2/2/15,HF,19,UMass,0,UMass
+M7,2/9/15,HF,20,UMass,1,UMass
+M7,2/13/15,HF,19.8,UMass,1,UMass
+M7,2/20/15,HF,22.8,UMass,1,UMass
+M7,2/27/15,HF,23.8,UMass,1,UMass
+M7,3/6/15,HF,25.8,UMass,1,UMass
+M7,3/9/15,HF,26.4,UMass,1,UMass
+M7,3/13/15,HF,26.6,UMass,1,UMass
+M7,3/20/15,HF,28.1,UMass,1,UMass
+M7,3/27/15,HF,30,UMass,1,UMass
+M7,4/3/15,HF,31,UMass,1,UMass
+M7,4/10/15,HF,33,UMass,1,UMass
+M7,4/17/15,HF,33.8,UMass,1,UMass
+M7,4/24/15,HF,34.9,UMass,1,UMass
+M7,4/27/15,HF,35.8,UMass,1,UMass
+M7,5/1/15,HF,34.8,UMass,1,UMass
+M8,2/2/15,HF,15.3,UMass,0,UMass
+M8,2/9/15,HF,17.5,UMass,1,UMass
+M8,2/13/15,HF,19.3,UMass,1,UMass
+M8,2/20/15,HF,21.2,UMass,1,UMass
+M8,2/27/15,HF,22.3,UMass,1,UMass
+M8,3/6/15,HF,22.8,UMass,1,UMass
+M8,3/9/15,HF,23.4,UMass,1,UMass
+M8,3/13/15,HF,23.2,UMass,1,UMass
+M8,3/20/15,HF,24.4,UMass,1,UMass
+M8,3/27/15,HF,26,UMass,1,UMass
+M8,4/3/15,HF,26.9,UMass,1,UMass
+M8,4/10/15,HF,28,UMass,1,UMass
+M8,4/17/15,HF,29.4,UMass,1,UMass
+M8,4/24/15,HF,31.1,UMass,1,UMass
+M8,4/27/15,HF,31.6,UMass,1,UMass
+M8,5/1/15,HF,30.2,UMass,1,UMass
+V1,2/18/15,LF,19.2,Vanderbilt,1,Vanderbilt
+V1,2/23/15,LF,21.15,Vanderbilt,1,Vanderbilt
+V1,3/2/15,LF,22.22,Vanderbilt,1,Vanderbilt
+V1,3/9/15,LF,22.88,Vanderbilt,1,Vanderbilt
+V1,3/16/15,LF,23.75,Vanderbilt,1,Vanderbilt
+V1,3/20/15,LF,23.92,Vanderbilt,1,Vanderbilt
+V1,3/23/15,LF,24.03,Vanderbilt,1,Vanderbilt
+V1,3/30/15,LF,24.1,Vanderbilt,1,Vanderbilt
+V1,4/7/15,LF,25.36,Vanderbilt,1,Vanderbilt
+V1,4/13/15,LF,26.4,Vanderbilt,1,Vanderbilt
+V1,4/20/15,LF,26.7,Vanderbilt,1,Vanderbilt
+V1,4/27/15,LF,27.7,Vanderbilt,1,Vanderbilt
+V1,5/4/15,LF,27.3,Vanderbilt,1,Vanderbilt
+V1,5/8/15,LF,28.23,Vanderbilt,1,Vanderbilt
+V10,2/18/15,HF,18.5,Vanderbilt,1,Vanderbilt
+V10,2/23/15,HF,19.82,Vanderbilt,1,Vanderbilt
+V10,3/2/15,HF,21.51,Vanderbilt,1,Vanderbilt
+V10,3/9/15,HF,22.55,Vanderbilt,1,Vanderbilt
+V10,3/16/15,HF,24.17,Vanderbilt,1,Vanderbilt
+V10,3/20/15,HF,23.21,Vanderbilt,1,Vanderbilt
+V10,3/23/15,HF,24.6,Vanderbilt,1,Vanderbilt
+V10,3/30/15,HF,26.2,Vanderbilt,1,Vanderbilt
+V10,4/7/15,HF,29.14,Vanderbilt,1,Vanderbilt
+V10,4/13/15,HF,30.6,Vanderbilt,1,Vanderbilt
+V10,4/20/15,HF,31.9,Vanderbilt,1,Vanderbilt
+V10,4/27/15,HF,33.5,Vanderbilt,1,Vanderbilt
+V10,5/4/15,HF,26.7,Vanderbilt,1,Vanderbilt
+V10,5/8/15,HF,34.6,Vanderbilt,1,Vanderbilt
+V11,2/18/15,HF,18.97,Vanderbilt,1,Vanderbilt
+V11,2/23/15,HF,20.39,Vanderbilt,1,Vanderbilt
+V11,3/2/15,HF,22,Vanderbilt,1,Vanderbilt
+V11,3/9/15,HF,23.17,Vanderbilt,1,Vanderbilt
+V11,3/16/15,HF,25.24,Vanderbilt,1,Vanderbilt
+V11,3/20/15,HF,24.27,Vanderbilt,1,Vanderbilt
+V11,3/23/15,HF,26.3,Vanderbilt,1,Vanderbilt
+V11,3/30/15,HF,27.8,Vanderbilt,1,Vanderbilt
+V11,4/7/15,HF,28.93,Vanderbilt,1,Vanderbilt
+V11,4/13/15,HF,31.5,Vanderbilt,1,Vanderbilt
+V11,4/20/15,HF,33.9,Vanderbilt,1,Vanderbilt
+V11,4/27/15,HF,35.4,Vanderbilt,1,Vanderbilt
+V11,5/4/15,HF,28.2,Vanderbilt,1,Vanderbilt
+V11,5/8/15,HF,35.7,Vanderbilt,1,Vanderbilt
+V12,2/18/15,HF,18.3,Vanderbilt,1,Vanderbilt
+V12,2/23/15,HF,19.98,Vanderbilt,1,Vanderbilt
+V12,3/2/15,HF,21.34,Vanderbilt,1,Vanderbilt
+V12,3/9/15,HF,22.41,Vanderbilt,1,Vanderbilt
+V12,3/16/15,HF,23.17,Vanderbilt,1,Vanderbilt
+V12,3/20/15,HF,23.92,Vanderbilt,1,Vanderbilt
+V12,3/23/15,HF,24.6,Vanderbilt,1,Vanderbilt
+V12,3/30/15,HF,26.3,Vanderbilt,1,Vanderbilt
+V12,4/7/15,HF,29.02,Vanderbilt,1,Vanderbilt
+V12,4/13/15,HF,30.4,Vanderbilt,1,Vanderbilt
+V12,4/20/15,HF,32.7,Vanderbilt,1,Vanderbilt
+V12,4/27/15,HF,35,Vanderbilt,1,Vanderbilt
+V12,5/4/15,HF,27.1,Vanderbilt,1,Vanderbilt
+V12,5/8/15,HF,34.7,Vanderbilt,1,Vanderbilt
+V13,2/18/15,HF,17.9,Vanderbilt,1,Vanderbilt
+V13,2/23/15,HF,19.82,Vanderbilt,1,Vanderbilt
+V13,3/2/15,HF,21.53,Vanderbilt,1,Vanderbilt
+V13,3/9/15,HF,21.94,Vanderbilt,1,Vanderbilt
+V13,3/16/15,HF,22.86,Vanderbilt,1,Vanderbilt
+V13,3/20/15,HF,22.79,Vanderbilt,1,Vanderbilt
+V13,3/23/15,HF,23.6,Vanderbilt,1,Vanderbilt
+V13,3/30/15,HF,24.1,Vanderbilt,1,Vanderbilt
+V13,4/7/15,HF,25.86,Vanderbilt,1,Vanderbilt
+V13,4/13/15,HF,27.2,Vanderbilt,1,Vanderbilt
+V13,4/20/15,HF,28.9,Vanderbilt,1,Vanderbilt
+V13,4/27/15,HF,30.5,Vanderbilt,1,Vanderbilt
+V13,5/4/15,HF,29,Vanderbilt,1,Vanderbilt
+V13,5/8/15,HF,29.3,Vanderbilt,1,Vanderbilt
+V14,2/18/15,HF,18.5,Vanderbilt,1,Vanderbilt
+V14,2/23/15,HF,19.53,Vanderbilt,1,Vanderbilt
+V14,3/2/15,HF,20.62,Vanderbilt,1,Vanderbilt
+V14,3/9/15,HF,21.52,Vanderbilt,1,Vanderbilt
+V14,3/16/15,HF,22.17,Vanderbilt,1,Vanderbilt
+V14,3/20/15,HF,22.62,Vanderbilt,1,Vanderbilt
+V14,3/23/15,HF,23.5,Vanderbilt,1,Vanderbilt
+V14,3/30/15,HF,24.1,Vanderbilt,1,Vanderbilt
+V14,4/7/15,HF,26.27,Vanderbilt,1,Vanderbilt
+V14,4/13/15,HF,28,Vanderbilt,1,Vanderbilt
+V14,4/20/15,HF,29.1,Vanderbilt,1,Vanderbilt
+V14,4/27/15,HF,29.7,Vanderbilt,1,Vanderbilt
+V14,5/4/15,HF,29.7,Vanderbilt,1,Vanderbilt
+V14,5/8/15,HF,30.5,Vanderbilt,1,Vanderbilt
+V15,2/18/15,HF,18.1,Vanderbilt,1,Vanderbilt
+V15,2/23/15,HF,19.51,Vanderbilt,1,Vanderbilt
+V15,3/2/15,HF,21.07,Vanderbilt,1,Vanderbilt
+V15,3/9/15,HF,22.15,Vanderbilt,1,Vanderbilt
+V15,3/16/15,HF,22.95,Vanderbilt,1,Vanderbilt
+V15,3/20/15,HF,23.13,Vanderbilt,1,Vanderbilt
+V15,3/23/15,HF,24.2,Vanderbilt,1,Vanderbilt
+V15,3/30/15,HF,24.8,Vanderbilt,1,Vanderbilt
+V15,4/7/15,HF,25.27,Vanderbilt,1,Vanderbilt
+V15,4/13/15,HF,26.5,Vanderbilt,1,Vanderbilt
+V15,4/20/15,HF,27.6,Vanderbilt,1,Vanderbilt
+V15,4/27/15,HF,27.8,Vanderbilt,1,Vanderbilt
+V15,5/4/15,HF,30.6,Vanderbilt,1,Vanderbilt
+V15,5/8/15,HF,28.4,Vanderbilt,1,Vanderbilt
+V16,2/18/15,HF,16.2,Vanderbilt,1,Vanderbilt
+V16,2/23/15,HF,17.2,Vanderbilt,1,Vanderbilt
+V16,3/2/15,HF,18.69,Vanderbilt,1,Vanderbilt
+V16,3/9/15,HF,19.94,Vanderbilt,1,Vanderbilt
+V16,3/16/15,HF,20.46,Vanderbilt,1,Vanderbilt
+V16,3/20/15,HF,20.56,Vanderbilt,1,Vanderbilt
+V16,3/23/15,HF,21.4,Vanderbilt,1,Vanderbilt
+V16,3/30/15,HF,22.8,Vanderbilt,1,Vanderbilt
+V16,4/7/15,HF,23.2,Vanderbilt,1,Vanderbilt
+V16,4/13/15,HF,24.1,Vanderbilt,1,Vanderbilt
+V16,4/20/15,HF,25.2,Vanderbilt,1,Vanderbilt
+V16,4/27/15,HF,26.4,Vanderbilt,1,Vanderbilt
+V16,5/4/15,HF,27.2,Vanderbilt,1,Vanderbilt
+V16,5/8/15,HF,25.3,Vanderbilt,1,Vanderbilt
+V17,2/18/15,HF,17.99,Vanderbilt,1,Vanderbilt
+V17,2/23/15,HF,18.68,Vanderbilt,1,Vanderbilt
+V17,3/2/15,HF,20.35,Vanderbilt,1,Vanderbilt
+V17,3/9/15,HF,21.02,Vanderbilt,1,Vanderbilt
+V17,3/16/15,HF,21.97,Vanderbilt,1,Vanderbilt
+V17,3/20/15,HF,22.25,Vanderbilt,1,Vanderbilt
+V17,3/23/15,HF,22.2,Vanderbilt,1,Vanderbilt
+V17,3/30/15,HF,23.1,Vanderbilt,1,Vanderbilt
+V17,4/7/15,HF,23.42,Vanderbilt,1,Vanderbilt
+V17,4/13/15,HF,23.8,Vanderbilt,1,Vanderbilt
+V17,4/20/15,HF,25.1,Vanderbilt,1,Vanderbilt
+V17,4/27/15,HF,25.9,Vanderbilt,1,Vanderbilt
+V17,5/4/15,HF,30.5,Vanderbilt,1,Vanderbilt
+V17,5/8/15,HF,26.4,Vanderbilt,1,Vanderbilt
+V2,2/18/15,LF,19.8,Vanderbilt,1,Vanderbilt
+V2,2/23/15,LF,20.77,Vanderbilt,1,Vanderbilt
+V2,3/2/15,LF,31.32,Vanderbilt,1,Vanderbilt
+V2,3/9/15,LF,21.5,Vanderbilt,1,Vanderbilt
+V2,3/16/15,LF,22.57,Vanderbilt,1,Vanderbilt
+V2,3/20/15,LF,23.1,Vanderbilt,1,Vanderbilt
+V2,3/23/15,LF,23.3,Vanderbilt,1,Vanderbilt
+V2,3/30/15,LF,23.2,Vanderbilt,1,Vanderbilt
+V2,4/7/15,LF,23.89,Vanderbilt,1,Vanderbilt
+V2,4/13/15,LF,24.5,Vanderbilt,1,Vanderbilt
+V2,4/20/15,LF,24.4,Vanderbilt,1,Vanderbilt
+V2,4/27/15,LF,25.3,Vanderbilt,1,Vanderbilt
+V2,5/4/15,LF,27.7,Vanderbilt,1,Vanderbilt
+V2,5/8/15,LF,26.34,Vanderbilt,1,Vanderbilt
+V3,2/18/15,LF,19.64,Vanderbilt,1,Vanderbilt
+V3,2/23/15,LF,20.86,Vanderbilt,1,Vanderbilt
+V3,3/2/15,LF,21.77,Vanderbilt,1,Vanderbilt
+V3,3/9/15,LF,22.05,Vanderbilt,1,Vanderbilt
+V3,3/16/15,LF,22.94,Vanderbilt,1,Vanderbilt
+V3,3/20/15,LF,23.63,Vanderbilt,1,Vanderbilt
+V3,3/23/15,LF,23.8,Vanderbilt,1,Vanderbilt
+V3,3/30/15,LF,23.9,Vanderbilt,1,Vanderbilt
+V3,4/7/15,LF,25.16,Vanderbilt,1,Vanderbilt
+V3,4/13/15,LF,25.2,Vanderbilt,1,Vanderbilt
+V3,4/20/15,LF,25.9,Vanderbilt,1,Vanderbilt
+V3,4/27/15,LF,26.7,Vanderbilt,1,Vanderbilt
+V3,5/4/15,LF,24.9,Vanderbilt,1,Vanderbilt
+V3,5/8/15,LF,28.4,Vanderbilt,1,Vanderbilt
+V4,2/18/15,LF,17.21,Vanderbilt,1,Vanderbilt
+V4,2/23/15,LF,18.98,Vanderbilt,1,Vanderbilt
+V4,3/2/15,LF,19.85,Vanderbilt,1,Vanderbilt
+V4,3/9/15,LF,20.06,Vanderbilt,1,Vanderbilt
+V4,3/16/15,LF,20.19,Vanderbilt,1,Vanderbilt
+V4,3/20/15,LF,20.57,Vanderbilt,1,Vanderbilt
+V4,3/23/15,LF,21.4,Vanderbilt,1,Vanderbilt
+V4,3/30/15,LF,20.8,Vanderbilt,1,Vanderbilt
+V4,4/7/15,LF,21.66,Vanderbilt,1,Vanderbilt
+V4,4/13/15,LF,22.1,Vanderbilt,1,Vanderbilt
+V4,4/20/15,LF,23.7,Vanderbilt,1,Vanderbilt
+V4,4/27/15,LF,23.5,Vanderbilt,1,Vanderbilt
+V4,5/4/15,LF,27.6,Vanderbilt,1,Vanderbilt
+V4,5/8/15,LF,23,Vanderbilt,1,Vanderbilt
+V5,2/18/15,LF,18.9,Vanderbilt,1,Vanderbilt
+V5,2/23/15,LF,19.84,Vanderbilt,1,Vanderbilt
+V5,3/2/15,LF,20.76,Vanderbilt,1,Vanderbilt
+V5,3/9/15,LF,21.42,Vanderbilt,1,Vanderbilt
+V5,3/16/15,LF,21.58,Vanderbilt,1,Vanderbilt
+V5,3/20/15,LF,22.06,Vanderbilt,1,Vanderbilt
+V5,3/23/15,LF,22.5,Vanderbilt,1,Vanderbilt
+V5,3/30/15,LF,23.2,Vanderbilt,1,Vanderbilt
+V5,4/7/15,LF,23.35,Vanderbilt,1,Vanderbilt
+V5,4/13/15,LF,23.6,Vanderbilt,1,Vanderbilt
+V5,4/20/15,LF,23.5,Vanderbilt,1,Vanderbilt
+V5,4/27/15,LF,24.3,Vanderbilt,1,Vanderbilt
+V5,5/4/15,LF,25.4,Vanderbilt,1,Vanderbilt
+V5,5/8/15,LF,24.1,Vanderbilt,1,Vanderbilt
+V6,2/18/15,LF,16.1,Vanderbilt,1,Vanderbilt
+V6,2/23/15,LF,18.35,Vanderbilt,1,Vanderbilt
+V6,3/2/15,LF,19.74,Vanderbilt,1,Vanderbilt
+V6,3/9/15,LF,20.27,Vanderbilt,1,Vanderbilt
+V6,3/16/15,LF,21.78,Vanderbilt,1,Vanderbilt
+V6,3/20/15,LF,21.83,Vanderbilt,1,Vanderbilt
+V6,3/23/15,LF,22.3,Vanderbilt,1,Vanderbilt
+V6,3/30/15,LF,22,Vanderbilt,1,Vanderbilt
+V6,4/7/15,LF,22.84,Vanderbilt,1,Vanderbilt
+V6,4/13/15,LF,24.8,Vanderbilt,1,Vanderbilt
+V6,4/20/15,LF,24,Vanderbilt,1,Vanderbilt
+V6,4/27/15,LF,24.8,Vanderbilt,1,Vanderbilt
+V6,5/4/15,LF,28.2,Vanderbilt,1,Vanderbilt
+V6,5/8/15,LF,24.3,Vanderbilt,1,Vanderbilt
+V7,2/18/15,LF,19.2,Vanderbilt,1,Vanderbilt
+V7,2/23/15,LF,20.83,Vanderbilt,1,Vanderbilt
+V7,3/2/15,LF,20.75,Vanderbilt,1,Vanderbilt
+V7,3/9/15,LF,21.98,Vanderbilt,1,Vanderbilt
+V7,3/16/15,LF,22.38,Vanderbilt,1,Vanderbilt
+V7,3/20/15,LF,22.61,Vanderbilt,1,Vanderbilt
+V7,3/23/15,LF,22.9,Vanderbilt,1,Vanderbilt
+V7,3/30/15,LF,23.6,Vanderbilt,1,Vanderbilt
+V7,4/7/15,LF,24.13,Vanderbilt,1,Vanderbilt
+V7,4/13/15,LF,23.5,Vanderbilt,1,Vanderbilt
+V7,4/20/15,LF,25.4,Vanderbilt,1,Vanderbilt
+V7,4/27/15,LF,26.2,Vanderbilt,1,Vanderbilt
+V7,5/4/15,LF,28,Vanderbilt,1,Vanderbilt
+V7,5/8/15,LF,27.3,Vanderbilt,1,Vanderbilt
+V8,2/18/15,LF,18.4,Vanderbilt,1,Vanderbilt
+V8,2/23/15,LF,19.14,Vanderbilt,1,Vanderbilt
+V8,3/2/15,LF,20.18,Vanderbilt,1,Vanderbilt
+V8,3/9/15,LF,20.92,Vanderbilt,1,Vanderbilt
+V8,3/16/15,LF,21.24,Vanderbilt,1,Vanderbilt
+V8,3/20/15,LF,22.24,Vanderbilt,1,Vanderbilt
+V8,3/23/15,LF,22.6,Vanderbilt,1,Vanderbilt
+V8,3/30/15,LF,22.5,Vanderbilt,1,Vanderbilt
+V8,4/7/15,LF,22.78,Vanderbilt,1,Vanderbilt
+V8,4/13/15,LF,28.5,Vanderbilt,1,Vanderbilt
+V8,4/20/15,LF,23.8,Vanderbilt,1,Vanderbilt
+V8,4/27/15,LF,24.3,Vanderbilt,1,Vanderbilt
+V8,5/4/15,LF,28.7,Vanderbilt,1,Vanderbilt
+V8,5/8/15,LF,25.1,Vanderbilt,1,Vanderbilt
+V9,2/18/15,HF,18.4,Vanderbilt,1,Vanderbilt
+V9,2/23/15,HF,20.56,Vanderbilt,1,Vanderbilt
+V9,3/2/15,HF,31.65,Vanderbilt,1,Vanderbilt
+V9,3/9/15,HF,22.29,Vanderbilt,1,Vanderbilt
+V9,3/16/15,HF,22.98,Vanderbilt,1,Vanderbilt
+V9,3/20/15,HF,22.43,Vanderbilt,1,Vanderbilt
+V9,3/23/15,HF,24.1,Vanderbilt,1,Vanderbilt
+V9,3/30/15,HF,25.9,Vanderbilt,1,Vanderbilt
+V9,4/7/15,HF,27.37,Vanderbilt,1,Vanderbilt
+V9,4/13/15,HF,30.6,Vanderbilt,1,Vanderbilt
+V9,4/20/15,HF,30.3,Vanderbilt,1,Vanderbilt
+V9,4/27/15,HF,31.5,Vanderbilt,1,Vanderbilt
+V9,5/4/15,HF,30.9,Vanderbilt,1,Vanderbilt
+V9,5/8/15,HF,30.5,Vanderbilt,1,Vanderbilt
+Y1,2/9/15,HF,18.4,Yale,1,Yale
+Y1,2/13/15,HF,21.7,Yale,1,Yale
+Y1,2/20/15,HF,22.8,Yale,1,Yale
+Y1,2/27/15,HF,24.9,Yale,1,Yale
+Y1,3/6/15,HF,26.3,Yale,1,Yale
+Y1,3/16/15,HF,29.8,Yale,1,Yale
+Y1,3/20/15,HF,31.8,Yale,1,Yale
+Y1,3/27/15,HF,34.4,Yale,1,Yale
+Y1,4/3/15,HF,37.7,Yale,1,Yale
+Y1,4/10/15,HF,40.7,Yale,1,Yale
+Y1,4/17/15,HF,43.6,Yale,1,Yale
+Y1,4/24/15,HF,45.8,Yale,1,Yale
+Y1,4/28/15,HF,46,Yale,1,Yale
+Y10,2/9/15,LF,19.3,Yale,1,Yale
+Y10,2/13/15,LF,22.3,Yale,1,Yale
+Y10,2/20/15,LF,21.3,Yale,1,Yale
+Y10,2/27/15,LF,21.7,Yale,1,Yale
+Y10,3/6/15,LF,22.1,Yale,1,Yale
+Y10,3/16/15,LF,27.3,Yale,1,Yale
+Y10,3/20/15,LF,25,Yale,1,Yale
+Y10,3/27/15,LF,24.7,Yale,1,Yale
+Y10,4/3/15,LF,25.6,Yale,1,Yale
+Y10,4/10/15,LF,26.3,Yale,1,Yale
+Y10,4/17/15,LF,26.9,Yale,1,Yale
+Y10,4/24/15,LF,27.7,Yale,1,Yale
+Y10,4/28/15,LF,25.7,Yale,1,Yale
+Y10,5/2/15,LF,28.9,Yale,1,Yale
+Y11,2/9/15,HF,18.2,Yale,1,Yale
+Y11,2/13/15,HF,20.8,Yale,1,Yale
+Y11,2/20/15,HF,21.3,Yale,1,Yale
+Y11,2/27/15,HF,23,Yale,1,Yale
+Y11,3/6/15,HF,24.2,Yale,1,Yale
+Y11,3/16/15,HF,26.5,Yale,1,Yale
+Y11,3/20/15,HF,27.6,Yale,1,Yale
+Y11,3/27/15,HF,28.1,Yale,1,Yale
+Y11,4/3/15,HF,30.6,Yale,1,Yale
+Y11,4/10/15,HF,33.5,Yale,1,Yale
+Y11,4/17/15,HF,35.2,Yale,1,Yale
+Y11,4/24/15,HF,36.6,Yale,1,Yale
+Y11,4/28/15,HF,36.8,Yale,1,Yale
+Y11,5/2/15,HF,37.5,Yale,1,Yale
+Y12,2/9/15,LF,17.7,Yale,1,Yale
+Y12,2/13/15,LF,20.5,Yale,1,Yale
+Y12,2/20/15,LF,20.7,Yale,1,Yale
+Y12,2/27/15,LF,20.5,Yale,1,Yale
+Y12,3/6/15,LF,20.5,Yale,1,Yale
+Y12,3/16/15,LF,24,Yale,1,Yale
+Y12,3/20/15,LF,21.9,Yale,1,Yale
+Y12,3/27/15,LF,22.6,Yale,1,Yale
+Y12,4/3/15,LF,23,Yale,1,Yale
+Y12,4/10/15,LF,23.6,Yale,1,Yale
+Y12,4/17/15,LF,23.5,Yale,1,Yale
+Y12,4/24/15,LF,24.4,Yale,1,Yale
+Y12,4/28/15,LF,24.7,Yale,1,Yale
+Y12,5/2/15,LF,28.5,Yale,1,Yale
+Y13,2/9/15,HF,17.3,Yale,1,Yale
+Y13,2/13/15,HF,19.4,Yale,1,Yale
+Y13,2/20/15,HF,20.9,Yale,1,Yale
+Y13,2/27/15,HF,21.4,Yale,1,Yale
+Y13,3/6/15,HF,22.5,Yale,1,Yale
+Y13,3/16/15,HF,25,Yale,1,Yale
+Y13,3/20/15,HF,25.2,Yale,1,Yale
+Y13,3/27/15,HF,27.2,Yale,1,Yale
+Y13,4/3/15,HF,29.9,Yale,1,Yale
+Y13,4/10/15,HF,32.4,Yale,1,Yale
+Y13,4/17/15,HF,34.7,Yale,1,Yale
+Y13,4/24/15,HF,37.6,Yale,1,Yale
+Y13,4/28/15,HF,38.9,Yale,1,Yale
+Y13,5/2/15,HF,39.2,Yale,1,Yale
+Y14,2/9/15,LF,19,Yale,1,Yale
+Y14,2/13/15,LF,22.1,Yale,1,Yale
+Y14,2/20/15,LF,21.8,Yale,1,Yale
+Y14,2/27/15,LF,21.4,Yale,1,Yale
+Y14,3/6/15,LF,22,Yale,1,Yale
+Y14,3/16/15,LF,26.2,Yale,1,Yale
+Y14,3/20/15,LF,24.1,Yale,1,Yale
+Y14,3/27/15,LF,24.2,Yale,1,Yale
+Y14,4/3/15,LF,25.2,Yale,1,Yale
+Y14,4/10/15,LF,25,Yale,1,Yale
+Y14,4/17/15,LF,25.3,Yale,1,Yale
+Y14,4/24/15,LF,25.5,Yale,1,Yale
+Y14,4/28/15,LF,25.7,Yale,1,Yale
+Y14,5/2/15,LF,27.4,Yale,1,Yale
+Y15,2/9/15,HF,19.1,Yale,1,Yale
+Y15,2/13/15,HF,20.9,Yale,1,Yale
+Y15,2/20/15,HF,21.9,Yale,1,Yale
+Y15,2/27/15,HF,23.1,Yale,1,Yale
+Y15,3/6/15,HF,24.1,Yale,1,Yale
+Y15,3/16/15,HF,26.3,Yale,1,Yale
+Y15,3/20/15,HF,27.5,Yale,1,Yale
+Y15,3/27/15,HF,28.6,Yale,1,Yale
+Y15,4/3/15,HF,30.6,Yale,1,Yale
+Y15,4/10/15,HF,33.6,Yale,1,Yale
+Y15,4/17/15,HF,37,Yale,1,Yale
+Y15,4/24/15,HF,39.5,Yale,1,Yale
+Y15,4/28/15,HF,40.5,Yale,1,Yale
+Y15,5/2/15,HF,39.1,Yale,1,Yale
+Y16,2/9/15,LF,17.9,Yale,1,Yale
+Y16,2/13/15,LF,21.1,Yale,1,Yale
+Y16,2/20/15,LF,20.4,Yale,1,Yale
+Y16,2/27/15,LF,21.3,Yale,1,Yale
+Y16,3/6/15,LF,21.9,Yale,1,Yale
+Y16,3/16/15,LF,25.6,Yale,1,Yale
+Y16,3/20/15,LF,23.2,Yale,1,Yale
+Y16,3/27/15,LF,24.2,Yale,1,Yale
+Y16,4/3/15,LF,24.2,Yale,1,Yale
+Y16,4/10/15,LF,25.5,Yale,1,Yale
+Y16,4/17/15,LF,26.7,Yale,1,Yale
+Y16,4/24/15,LF,27.5,Yale,1,Yale
+Y16,4/28/15,LF,27.4,Yale,1,Yale
+Y16,5/2/15,LF,25.9,Yale,1,Yale
+Y2,2/9/15,LF,18.2,Yale,1,Yale
+Y2,2/13/15,LF,21.1,Yale,1,Yale
+Y2,2/20/15,LF,20.2,Yale,1,Yale
+Y2,2/27/15,LF,20.5,Yale,1,Yale
+Y2,3/6/15,LF,20.7,Yale,1,Yale
+Y2,3/16/15,LF,25.9,Yale,1,Yale
+Y2,3/20/15,LF,23.9,Yale,1,Yale
+Y2,3/27/15,LF,23.7,Yale,1,Yale
+Y2,4/3/15,LF,23.7,Yale,1,Yale
+Y2,4/10/15,LF,24.1,Yale,1,Yale
+Y2,4/17/15,LF,24.4,Yale,1,Yale
+Y2,4/24/15,LF,24.4,Yale,1,Yale
+Y2,4/28/15,LF,28.3,Yale,1,Yale
+Y3,2/9/15,HF,17.2,Yale,1,Yale
+Y3,2/13/15,HF,20.5,Yale,1,Yale
+Y3,2/20/15,HF,20.5,Yale,1,Yale
+Y3,2/27/15,HF,21.7,Yale,1,Yale
+Y3,3/6/15,HF,22.8,Yale,1,Yale
+Y3,3/16/15,HF,25.7,Yale,1,Yale
+Y3,3/20/15,HF,26.1,Yale,1,Yale
+Y3,3/27/15,HF,28,Yale,1,Yale
+Y3,4/3/15,HF,30.6,Yale,1,Yale
+Y3,4/10/15,HF,32.1,Yale,1,Yale
+Y3,4/17/15,HF,34.8,Yale,1,Yale
+Y3,4/24/15,HF,37.1,Yale,1,Yale
+Y3,4/28/15,HF,37.1,Yale,1,Yale
+Y4,2/9/15,LF,17.3,Yale,1,Yale
+Y4,2/13/15,LF,20.3,Yale,1,Yale
+Y4,2/20/15,LF,20.1,Yale,1,Yale
+Y4,2/27/15,LF,20,Yale,1,Yale
+Y4,3/6/15,LF,21,Yale,1,Yale
+Y4,3/16/15,LF,24.7,Yale,1,Yale
+Y4,3/20/15,LF,22.8,Yale,1,Yale
+Y4,3/27/15,LF,22.9,Yale,1,Yale
+Y4,4/3/15,LF,24.4,Yale,1,Yale
+Y4,4/10/15,LF,24.8,Yale,1,Yale
+Y4,4/17/15,LF,25.3,Yale,1,Yale
+Y4,4/24/15,LF,25.9,Yale,1,Yale
+Y4,4/28/15,LF,29.5,Yale,1,Yale
+Y5,2/9/15,HF,17.7,Yale,1,Yale
+Y5,2/13/15,HF,20.4,Yale,1,Yale
+Y5,2/20/15,HF,21.5,Yale,1,Yale
+Y5,2/27/15,HF,23.6,Yale,1,Yale
+Y5,3/6/15,HF,24.3,Yale,1,Yale
+Y5,3/16/15,HF,26.6,Yale,1,Yale
+Y5,3/20/15,HF,27.2,Yale,1,Yale
+Y5,3/27/15,HF,29,Yale,1,Yale
+Y5,4/3/15,HF,30.8,Yale,1,Yale
+Y5,4/10/15,HF,32.5,Yale,1,Yale
+Y5,4/17/15,HF,34.7,Yale,1,Yale
+Y5,4/24/15,HF,38.4,Yale,1,Yale
+Y5,4/28/15,HF,37.9,Yale,1,Yale
+Y6,2/9/15,LF,17.8,Yale,1,Yale
+Y6,2/13/15,LF,20.6,Yale,1,Yale
+Y6,2/20/15,LF,20,Yale,1,Yale
+Y6,2/27/15,LF,20.6,Yale,1,Yale
+Y6,3/6/15,LF,21.1,Yale,1,Yale
+Y6,3/16/15,LF,21.9,Yale,1,Yale
+Y6,3/20/15,LF,22.8,Yale,1,Yale
+Y6,3/27/15,LF,22.4,Yale,1,Yale
+Y6,4/3/15,LF,23.6,Yale,1,Yale
+Y6,4/10/15,LF,23.6,Yale,1,Yale
+Y6,4/17/15,LF,24.4,Yale,1,Yale
+Y6,4/24/15,LF,24.4,Yale,1,Yale
+Y6,4/28/15,LF,26.6,Yale,1,Yale
+Y7,2/9/15,HF,19.5,Yale,1,Yale
+Y7,2/13/15,HF,19.7,Yale,1,Yale
+Y7,2/20/15,HF,22.5,Yale,1,Yale
+Y7,2/27/15,HF,23.1,Yale,1,Yale
+Y7,3/6/15,HF,24.9,Yale,1,Yale
+Y7,3/16/15,HF,27,Yale,1,Yale
+Y7,3/20/15,HF,28.8,Yale,1,Yale
+Y7,3/27/15,HF,30,Yale,1,Yale
+Y7,4/3/15,HF,31.8,Yale,1,Yale
+Y7,4/10/15,HF,34.8,Yale,1,Yale
+Y7,4/17/15,HF,37.9,Yale,1,Yale
+Y7,4/24/15,HF,41.6,Yale,1,Yale
+Y7,4/28/15,HF,40.2,Yale,1,Yale
+Y8,2/9/15,LF,18.3,Yale,1,Yale
+Y8,2/13/15,LF,20.9,Yale,1,Yale
+Y8,2/20/15,LF,19.6,Yale,1,Yale
+Y8,2/27/15,LF,20.3,Yale,1,Yale
+Y8,3/6/15,LF,20.8,Yale,1,Yale
+Y8,3/16/15,LF,22.5,Yale,1,Yale
+Y8,3/20/15,LF,22.8,Yale,1,Yale
+Y8,3/27/15,LF,23.4,Yale,1,Yale
+Y8,4/3/15,LF,23.6,Yale,1,Yale
+Y8,4/10/15,LF,24.2,Yale,1,Yale
+Y8,4/17/15,LF,23.9,Yale,1,Yale
+Y8,4/24/15,LF,24.5,Yale,1,Yale
+Y8,4/28/15,LF,26.6,Yale,1,Yale
+Y9,2/9/15,HF,19,Yale,1,Yale
+Y9,2/13/15,HF,22.7,Yale,1,Yale
+Y9,2/20/15,HF,20.4,Yale,1,Yale
+Y9,2/27/15,HF,23.3,Yale,1,Yale
+Y9,3/6/15,HF,25.9,Yale,1,Yale
+Y9,3/16/15,HF,29.3,Yale,1,Yale
+Y9,3/20/15,HF,30.2,Yale,1,Yale
+Y9,3/27/15,HF,31.4,Yale,1,Yale
+Y9,4/3/15,HF,33.1,Yale,1,Yale
+Y9,4/10/15,HF,35,Yale,1,Yale
+Y9,4/17/15,HF,37.5,Yale,1,Yale
+Y9,4/24/15,HF,40.3,Yale,1,Yale
+Y9,4/28/15,HF,42.5,Yale,1,Yale
+Y9,5/2/15,HF,42.2,Yale,1,Yale
